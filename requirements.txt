@@ -1,0 +1,28 @@
+# CEO OS — Decision Room · prototype
+# Python 3.9 · aucun Node, npm, bundler ni Docker.
+# Versions résolues et vérifiées sur CPython 3.9.6 (macOS arm64).
+#
+# Principe : toute dépendance ajoutée est une surface d'attaque supplémentaire
+# (brief §13, « Documents hostiles »). Rien n'entre ici sans usage dans la tranche courante.
+
+# --- Application ---
+fastapi==0.128.8
+uvicorn[standard]==0.39.0
+jinja2==3.1.6
+python-multipart==0.0.20       # lecture des formulaires HTML (POST)
+itsdangerous==2.2.0            # signature du cookie de session
+
+# --- Persistance ---
+SQLAlchemy==2.0.52             # SQLite pour le prototype, PostgreSQL en cible
+
+# --- Tests ---
+pytest==8.4.2
+httpx==0.28.1                  # requis par starlette.testclient
+
+# --- Transitives épinglées par pip (pour information, non déclarées ici) ---
+# starlette==0.49.3  pydantic==2.13.4  anyio==4.12.1
+#
+# --- Volontairement absent de la tranche 1 ---
+# pypdf / extraction PPTX-XLSX  -> import de documents (tranche 3)
+# msal / azure-identity         -> Entra ID et Microsoft Graph (tranche 5)
+# alembic                       -> migrations versionnées, à introduire avec PostgreSQL
