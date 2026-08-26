@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Today — CEO Performance{% endblock %}
+
+{% block content %}
+
+{# The brief's wireframe uses emoji section markers. §28 asks for very limited visual
+   noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
+
+<section class="cockpit-header">
+  <p class="cockpit-eyebrow">{{ dataset.period_label }} · as of {{ dataset.as_of }}</p>
+  <p class="cockpit-total">{{ header.actual | eur }}</p>
+  <ul class="cockpit-variances">
+    <li>
+      <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
+        {{ header.vs_budget.gap | eur }}
+      </span>
+      <span class="variance-label">vs budget · {{ header.vs_budget.pct | pct }}</span>
+    </li>
+    <li>
+      <span class="variance-value {{ 'is-down' if header.vs_last_year.gap < 0 else 'is-up' }}">
+        {{ header.vs_last_year.gap | eur }}
+      </span>
+      <span class="variance-label">vs last year · {{ header.vs_last_year.pct | pct }}</span>
+    </li>
+    <li>
+      <span class="variance-value is-neutral">{{ header.forecast | eur }}</span>
+      <span class="variance-label">full-period forecast</span>
+    </li>
+  </ul>
+</section>
+
+{# ------------------------------------------------------------------ where to push #}
+
+<section class="panel">
+  <h2>Where to push</h2>
+  <p class="lede">
+    The five business areas where attention is worth the most money today. Ranked by
+    euros at stake, not by percentage — a -3% miss on a large market outweighs -30% on a
+    small one.
+  </p>
+
+  {% if not fires %}
+    <p class="empty">No market is materially below plan. Nothing here needs you today.</p>
+  {% else %}
+  <ol class="fire-list">
+    {% for fire, commitment in fires %}
+      <li class="fire">
+        <div class="fire-head">
+          <h3>{{ fire.unit.label }}</h3>
+          <span class="fire-gap">{{ fire.gap | eur }}<span class="fire-gap-sub">vs plan</span></span>
+        </div>
+
+        <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
+
+        <ul class="evidence">
+          {% for item in fire.contributions %}
+            <li>
+              <span class="evidence-label">{{ item.label }}</span>
+              <span class="evidence-delta {{ 'is-down' if item.impact < 0 else 'is-up' }}">
+                {{ item.delta_pct | pct }}
+              </span>
+              <span class="evidence-impact">{{ item.impact | eur }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+        <p class="estimate-note">
+          Driver impacts are estimates from a chained decomposition of the gap, not
+          measured causes. They sum to {{ fire.gap | eur }} exactly.
+        </p>
+
+        {% if fire.forecast_flag %}
+          <p class="flag">{{ fire.forecast_flag }}</p>
+        {% endif %}
+
+        {% if fire.explanation_check %}
+          <div class="challenge-box">
+            <p class="challenge-quote">“{{ fire.explanation_check.explanation }}”</p>
+            <p class="challenge-verdict">{{ fire.explanation_check.verdict | capitalize }}</p>
+            <p class="challenge-evidence">{{ fire.explanation_check.evidence }}</p>
+          </div>
+        {% endif %}
+
+        <p class="fire-meta">
+          <span class="confidence confidence-{{ fire.confidence }}">Confidence {{ fire.confidence | upper }}</span>
+          <span class="owner">{{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
+        </p>
+
+        <p class="ask">{{ fire.question }}</p>
+
+        {% if commitment %}
+          <p class="linked-commitment">
+            Open commitment — {{ commitment.action }}
+            {% if commitment.expected_impact %}({{ commitment.expected_impact }}){% endif %}
+            {% if commitment.due_date %}· due {{ commitment.due_date }}{% endif %}
+          </p>
+        {% else %}
+          <p class="linked-commitment is-missing">No commitment recorded against this gap.</p>
+        {% endif %}
+
+        {# Brief §31: the ranking must be inspectable, or it will not be trusted. #}
+        <details class="why">
+          <summary>Why am I seeing this?</summary>
+          <ul class="why-list">
+            {% for reason in fire.priority.reasons %}<li>{{ reason }}</li>{% endfor %}
+          </ul>
+          <p class="why-formula">
+            priority = € gap × persistence × acceleration × strategic weight × confidence
+          </p>
+          <ul class="why-factors">
+            {% for label, value in fire.priority.factors %}
+              <li>{{ label }}: {{ '%.2f' % value if label != '€ gap' else value | eur }}</li>
+            {% endfor %}
+          </ul>
+        </details>
+      </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ opportunities #}
+
+<section class="panel">
+  <h2>Opportunities</h2>
+  <p class="lede">
+    Revenue the business has already proved it can achieve — recovering a driver to a level
+    it held last year. Every figure below is an estimate, and shows its assumption.
+  </p>
+  {% if not opportunities %}
+    <p class="empty">No recoverable gap of material size right now.</p>
+  {% else %}
+  <ul class="opportunity-list">
+    {% for item in opportunities %}
+      <li class="opportunity">
+        <div class="opportunity-head">
+          <h3>{{ item.unit.label }}</h3>
+          <span class="opportunity-amount">+{{ item.amount | eur }}</span>
+        </div>
+        <p class="assumption">{{ item.assumption }}</p>
+        <p class="calculation">{{ item.calculation }}</p>
+        <p class="fire-meta">
+          <span class="confidence confidence-{{ item.confidence }}">Confidence {{ item.confidence | upper }}</span>
+          <span class="owner">{{ item.unit.owner.name }} · {{ item.unit.owner.role }}</span>
+        </p>
+        <p class="ask">{{ item.question }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ people #}
+
+<section class="panel">
+  <h2>People to push</h2>
+  <p class="lede">
+    Owners whose area needs you this week. This ranks business areas, never people — the
+    reason shown is always a number.
+  </p>
+  <ul class="people-list">
+    {% for push in people %}
+      <li class="person">
+        <p class="person-name">{{ push.owner.name }}<span class="person-role">{{ push.owner.role }} · {{ push.owner.market }}</span></p>
+        <p class="person-why">{{ push.reason }}</p>
+        <p class="ask">{{ push.question }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+{# ------------------------------------------------------------------ wins #}
+
+<section class="panel">
+  <h2>Wins</h2>
+  <p class="lede">
+    Unusually strong performance, surfaced to be copied rather than congratulated.
+  </p>
+  {% if not wins %}
+    <p class="empty">Nothing is beating plan by enough to call it a win.</p>
+  {% else %}
+  <ul class="win-list">
+    {% for win in wins %}
+      <li class="win">
+        <div class="opportunity-head">
+          <h3>{{ win.unit.label }}</h3>
+          <span class="opportunity-amount">+{{ win.gap | eur }}</span>
+        </div>
+        <p class="win-numbers">
+          {{ win.gap_pct | pct }} vs budget · {{ win.vs_last_year_pct | pct }} vs last year
+        </p>
+        {% if win.driver %}<p class="win-driver">Possible driver — {{ win.driver }}</p>{% endif %}
+        <p class="ask">{{ win.question }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ commitments #}
+
+<section class="panel">
+  <h2>Commitments</h2>
+  <p class="commitment-counts">
+    <span class="count"><strong>{{ commitments.open_count }}</strong> open</span>
+    <span class="count count-alert"><strong>{{ commitments.overdue | length }}</strong> overdue</span>
+    <span class="count count-warn"><strong>{{ commitments.at_risk | length }}</strong> at risk</span>
+  </p>
+
+  {% set delivered_nothing = commitments.done_without_result %}
+  {% set no_impact = commitments.without_expected_impact %}
+  {% set delayed = commitments.repeatedly_delayed %}
+
+  <ul class="commitment-signals">
+    {% for item in commitments.overdue %}
+      <li><span class="tag tag-alert">Overdue</span> {{ item.action }} — {{ item.owner_name }}, {{ item.market }}</li>
+    {% endfor %}
+    {% for item in delayed %}
+      <li><span class="tag tag-warn">Postponed {{ item.postponements }}×</span> {{ item.action }} — {{ item.owner_name }}</li>
+    {% endfor %}
+    {% for item in delivered_nothing %}
+      <li><span class="tag tag-warn">Done, no result</span> {{ item.action }} — expected {{ item.expected_impact }}, observed {{ item.actual_impact | lower }}</li>
+    {% endfor %}
+    {% for item in no_impact %}
+      <li><span class="tag">No quantified impact</span> {{ item.action }} — {{ item.owner_name }}</li>
+    {% endfor %}
+    {% for item in commitments.delivered_results %}
+      <li><span class="tag tag-good">Worked</span> {{ item.action }} — expected {{ item.expected_impact }}, observed {{ item.actual_impact }}</li>
+    {% endfor %}
+  </ul>
+</section>
+
+{# ------------------------------------------------------------------ ask #}
+
+<section class="panel panel-quiet">
+  <h2>Ask Performance CoS</h2>
+  <p class="empty">
+    Not built yet. It arrives once the deterministic analytics are complete, so that it
+    answers from calculated facts rather than from a raw dataset (brief §35, Phase 5).
+    Announced rather than mocked up: a text box that appears to work and does not would
+    cost more trust than an empty section.
+  </p>
+</section>
+
+<p class="mock-note">{{ source.caveat }}</p>
+
+{% endblock %}

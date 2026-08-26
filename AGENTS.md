@@ -110,8 +110,18 @@ valeur par défaut côté serveur, aucun `PRAGMA` hors de `app/db.py`.
 
 ## Langue
 
-Interface, libellés, messages d'erreur, commentaires et tests en français. Les identifiants
-de code (noms de variables, de champs, de fonctions) en anglais.
+Deux langues cohabitent pendant le pivot, et la règle est le produit, pas le fichier :
+
+- **Cockpit** (`app/perf/`, `app/routes/today.py`, `app/templates/today.html`,
+  `tests/test_perf_*.py`, `tests/test_web_today.py`) : **anglais** — interface, commentaires
+  et tests. C'est la langue du brief, et celle des marchés qu'il s'agit de challenger.
+- **Decision Room** (tout le reste) : **français**, comme aujourd'hui. Ne pas traduire au
+  passage : une traduction partielle coûte plus qu'elle ne rapporte.
+- Le châssis partagé — barre de navigation, bandeau de périmètre, pied de page — suit le
+  produit principal et est donc en anglais. Chaque gabarit déclare sa langue réelle par le
+  bloc `lang`.
+
+Dans les deux cas, les identifiants de code sont en anglais.
 
 Les messages lus par le CEO sont soignés : « 1 fait(s) présenté(s) » n'est pas acceptable,
 et zéro reste au singulier — « 0 option », pas « 0 options ».

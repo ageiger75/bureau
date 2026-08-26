@@ -15,6 +15,7 @@ from starlette.responses import RedirectResponse
 from . import __version__
 from .config import ROOT, settings
 from .db import database_label
+from .perf import analytics as perf_format
 from .domain.enums import (
     CASE_STATUS_LABELS,
     CASE_STATUS_MEANINGS,
@@ -81,6 +82,13 @@ def bullets(value: Optional[str]) -> Markup:
 
 templates.env.filters["paragraphs"] = paragraphs
 templates.env.filters["bullets"] = bullets
+
+# Cockpit number formatting. Templates must never re-implement it: two screens rounding
+# the same euro differently is exactly how a CEO stops trusting both.
+templates.env.filters["eur"] = perf_format.format_eur
+templates.env.filters["pct"] = perf_format.format_pct
+templates.env.filters["share"] = perf_format.format_share
+templates.env.filters["num"] = perf_format.format_num
 
 templates.env.globals.update(
     {

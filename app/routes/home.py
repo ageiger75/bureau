@@ -1,4 +1,7 @@
-"""Accueil : la liste des dossiers de décision.
+"""Decision Room : la liste des dossiers de décision.
+
+N'est plus la page d'accueil : le cockpit de performance l'a prise (brief V1 §7).
+Cet écran reste atteignable, et rien de ce qu'il porte n'a été supprimé.
 
 Le brief §8 décrit une page filtrée par ce qui demande attention, pas un tableau de bord.
 Les dossiers sont donc triés par urgence puis par fragilité, et non par date de création.
@@ -21,7 +24,7 @@ from ..web import render
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("/decisions")
 def home(request: Request, session: Session = Depends(get_session)):
     try:
         user = resolve_current_user(session)

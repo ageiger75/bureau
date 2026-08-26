@@ -57,7 +57,7 @@ def test_dossier_clos_est_retrouvable_depuis_l_archive(client):
 
 def test_archive_est_atteignable_depuis_l_accueil(client):
     """Sans ce lien, l'archive existerait sans que personne puisse y arriver."""
-    assert 'href="/cases"' in client.get("/").text
+    assert 'href="/cases"' in client.get("/decisions").text
 
 
 def test_dossier_ouvert_ne_figure_pas_dans_l_archive(client):

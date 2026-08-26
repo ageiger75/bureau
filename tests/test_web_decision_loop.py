@@ -402,7 +402,7 @@ def test_engagement_en_retard_remonte_sur_l_accueil(client):
         },
     )
 
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/decisions"))
     assert "Engagements en retard" in page
     assert "Action déjà en retard." in page
     assert "Critique" in page
@@ -422,7 +422,7 @@ def test_engagement_termine_ne_remonte_pas_comme_en_retard(client):
         },
     )
 
-    assert "Action ancienne mais terminée." not in page_text(client.get("/"))
+    assert "Action ancienne mais terminée." not in page_text(client.get("/decisions"))
 
 
 def test_rearbitrage_demande_est_signale(client):
@@ -491,7 +491,7 @@ def test_revue_echue_remonte_sur_l_accueil(client):
     case_id = build_ready_case(client, title="Dossier à revoir")
     _to_review(client, case_id)
 
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/decisions"))
     assert "Revues" in page
     assert "Échue" in page
 
@@ -619,7 +619,7 @@ def test_dossier_clos_disparait_de_l_accueil_mais_reste_accessible(client):
         },
     )
 
-    assert "Dossier à clore" not in page_text(client.get("/"))
+    assert "Dossier à clore" not in page_text(client.get("/decisions"))
     page = page_text(client.get("/cases/%s" % case_id))
     assert "Dossier à clore" in page
     assert "Leçon." in page

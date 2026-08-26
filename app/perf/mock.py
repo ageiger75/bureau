@@ -1,0 +1,410 @@
+"""Mock performance data (brief §24, §25).
+
+Entirely invented. No real L'OCCITANE figure, market, person or product appears here.
+
+The dataset is built to exercise the cockpit rather than to flatter it: a large market
+whose action plan targets the wrong driver, a market with strong traffic and weak
+conversion, a forecast revised down three months running, one genuine outperformance, and
+commitments in every state including one that was delivered and produced nothing.
+
+Sales are never written down directly — they are the product of the drivers. A scenario
+therefore cannot claim a sales figure its own drivers do not support.
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional
+
+from ..domain.commitments import CommitmentInput
+from ..domain.enums import CommitmentStatus
+from ..util import days_until, today
+from .model import ECOMMERCE, RETAIL, BusinessUnit, Dataset, Drivers, Owner
+
+
+def _ecom(sales: float, conversion: float, aov: float) -> Drivers:
+    """Digital drivers for a target sales figure.
+
+    Sessions are derived, not typed in: sales = sessions × conversion × AOV must hold
+    exactly, and a dataset where the two disagree would discredit every diagnosis built
+    on top of it.
+    """
+    sessions = sales / (conversion * aov)
+    return Drivers(("Sessions", "Conversion", "AOV"), (sessions, conversion, aov))
+
+
+def _retail(sales: float, conversion: float, upt: float, asp: float) -> Drivers:
+    """Retail drivers for a target sales figure. Traffic is derived, for the same reason."""
+    traffic = sales / (conversion * upt * asp)
+    return Drivers(("Traffic", "Conversion", "UPT", "ASP"), (traffic, conversion, upt, asp))
+
+
+def _in_days(offset: int) -> str:
+    from datetime import timedelta
+
+    return (today() + timedelta(days=offset)).isoformat()
+
+
+# --------------------------------------------------------------------------- owners
+
+NAOKI = Owner("Naoki", "Managing Director", "Japan")
+JULIEN = Owner("Julien", "Regional Director", "Europe")
+YANN = Owner("Yann", "Managing Director", "US")
+SOFIA = Owner("Sofia", "E-commerce Director", "Germany")
+MARCO = Owner("Marco", "Managing Director", "Italy")
+
+
+def units() -> List[BusinessUnit]:
+    """Seven business units, sized so the group total is a real number.
+
+    Each is written as a target sales figure plus the rates that produced it; volume is
+    derived. The scenarios of brief §25 are all here, and one — Italy — is deliberately
+    too small to matter, so the materiality floor can be seen doing its job.
+    """
+    return [
+        # -- Japan: the flagship problem. Traffic holds, conversion collapses, and the
+        #    recovery plan targets acquisition — the one thing the data exonerates.
+        BusinessUnit(
+            key="japan-ecom",
+            label="Japan E-commerce",
+            market="Japan",
+            region="Asia",
+            channel=ECOMMERCE,
+            owner=NAOKI,
+            actual=_ecom(5_400_000, 0.01745, 62.60),
+            budget=_ecom(6_600_000, 0.02100, 62.00),
+            last_year=_ecom(6_590_000, 0.02080, 61.20),
+            forecast_sales=5_350_000,
+            strategic_weight=1.2,
+            months_below_budget=3,
+            gap_history=(-410_000, -780_000, -1_200_000),
+            forecast_history=(6_600_000, 6_100_000, 5_350_000),
+            market_index_pct=-0.04,
+            management_explanation="Sales are down because the market is difficult.",
+            action_focus="Sessions",
+        ),
+        # -- France retail: traffic up strongly, sales barely up on last year, conversion
+        #    below it. A fire and an opportunity at once — they are the same fact.
+        BusinessUnit(
+            key="france-retail",
+            label="France Retail",
+            market="France",
+            region="Europe",
+            channel=RETAIL,
+            owner=JULIEN,
+            actual=_retail(17_600_000, 0.11751, 2.10, 47.50),
+            budget=_retail(18_400_000, 0.12900, 2.12, 48.00),
+            last_year=_retail(17_450_000, 0.12750, 2.09, 47.10),
+            forecast_sales=18_100_000,
+            strategic_weight=1.1,
+            months_below_budget=2,
+            gap_history=(-520_000, -800_000),
+            market_index_pct=0.010,
+            action_focus="Traffic",
+        ),
+        # -- China: the traffic problem (brief §24). Conversion is steady; the sessions
+        #    simply are not there. A different diagnosis needs a different conversation.
+        BusinessUnit(
+            key="china-ecom",
+            label="China E-commerce",
+            market="China",
+            region="Asia",
+            channel=ECOMMERCE,
+            owner=NAOKI,
+            actual=_ecom(2_300_000, 0.02180, 55.50),
+            budget=_ecom(3_200_000, 0.02200, 55.00),
+            last_year=_ecom(3_050_000, 0.02190, 54.20),
+            forecast_sales=2_450_000,
+            months_below_budget=2,
+            gap_history=(-640_000, -900_000),
+            action_focus="Conversion",
+        ),
+        # -- UK: a moderate miss, but the forecast has been cut three months running.
+        #    The credibility of the number is the issue, not only the number.
+        BusinessUnit(
+            key="uk-retail",
+            label="UK Retail",
+            market="United Kingdom",
+            region="Europe",
+            channel=RETAIL,
+            owner=JULIEN,
+            actual=_retail(6_800_000, 0.12100, 1.98, 44.00),
+            budget=_retail(7_300_000, 0.12500, 2.02, 44.50),
+            last_year=_retail(7_000_000, 0.12400, 2.00, 44.20),
+            forecast_sales=7_100_000,
+            months_below_budget=4,
+            gap_history=(-300_000, -420_000, -500_000),
+            forecast_history=(8_400_000, 7_900_000, 7_450_000, 7_100_000),
+        ),
+        # -- Germany: conversion below last year with traffic flat. A recoverable gap,
+        #    too small to be a fire and large enough to be an opportunity.
+        BusinessUnit(
+            key="germany-ecom",
+            label="Germany E-commerce",
+            market="Germany",
+            region="Europe",
+            channel=ECOMMERCE,
+            owner=SOFIA,
+            actual=_ecom(1_770_000, 0.02150, 58.00),
+            budget=_ecom(1_900_000, 0.02300, 58.50),
+            last_year=_ecom(1_940_000, 0.02420, 57.40),
+            forecast_sales=1_850_000,
+            months_below_budget=1,
+            gap_history=(-90_000, -130_000),
+        ),
+        # -- US retail: the outperformance. Something works and nobody has asked why.
+        BusinessUnit(
+            key="us-retail",
+            label="US Retail",
+            market="United States",
+            region="Americas",
+            channel=RETAIL,
+            owner=YANN,
+            actual=_retail(5_000_000, 0.14200, 2.46, 52.00),
+            budget=_retail(4_390_000, 0.13500, 2.30, 51.00),
+            last_year=_retail(4_240_000, 0.13300, 2.28, 50.20),
+            forecast_sales=5_100_000,
+            months_below_budget=0,
+            gap_history=(310_000, 540_000),
+            win_driver="Almond bundles paired with in-store demonstration",
+        ),
+        # -- Italy: a small miss, below the materiality floor. Present in the data, absent
+        #    from the screen — a -1.2% variance on a small market is not CEO work.
+        BusinessUnit(
+            key="italy-retail",
+            label="Italy Retail",
+            market="Italy",
+            region="Europe",
+            channel=RETAIL,
+            owner=MARCO,
+            actual=_retail(4_550_000, 0.12400, 1.95, 45.00),
+            budget=_retail(4_600_000, 0.12450, 1.96, 45.10),
+            last_year=_retail(4_500_000, 0.12300, 1.94, 44.60),
+            forecast_sales=4_600_000,
+            months_below_budget=1,
+            gap_history=(-30_000, -50_000),
+        ),
+        # -- Rest of World: aggregated and close to plan. It exists so the header reflects
+        #    the whole business rather than the markets that happen to be interesting.
+        BusinessUnit(
+            key="row",
+            label="Rest of World",
+            market="Rest of World",
+            region="Rest of World",
+            channel=RETAIL,
+            owner=Owner("Regional teams", "Various", "Rest of World"),
+            actual=_retail(101_300_000, 0.12650, 2.05, 45.60),
+            budget=_retail(101_700_000, 0.12680, 2.05, 45.50),
+            last_year=_retail(100_900_000, 0.12600, 2.04, 45.00),
+            forecast_sales=102_000_000,
+            months_below_budget=0,
+            gap_history=(120_000, -400_000),
+            is_aggregate=True,
+        ),
+    ]
+
+
+def dataset() -> Dataset:
+    return Dataset(period_label="Sales MTD", as_of=today().isoformat(), units=units())
+
+
+# --------------------------------------------------------------------- commitments
+
+
+class MockCommitment:
+    """A commitment as the cockpit needs it (brief §17).
+
+    Four fields beyond what Decision Room stores — market, issue, expected and actual
+    impact — because the loop the cockpit closes is `problem → action → result`, and the
+    result is worthless without the expectation it is measured against.
+    """
+
+    __slots__ = (
+        "owner_name",
+        "market",
+        "issue",
+        "action",
+        "expected_impact",
+        "actual_impact",
+        "due_date",
+        "status",
+        "is_critical",
+        "evidence",
+        "postponements",
+        "notes",
+    )
+
+    def __init__(
+        self,
+        owner_name: str,
+        market: str,
+        issue: str,
+        action: str,
+        expected_impact: str,
+        due_date: Optional[str],
+        status: str,
+        actual_impact: str = "",
+        is_critical: bool = False,
+        evidence: str = "",
+        postponements: int = 0,
+        notes: str = "",
+    ) -> None:
+        self.owner_name = owner_name
+        self.market = market
+        self.issue = issue
+        self.action = action
+        self.expected_impact = expected_impact
+        self.actual_impact = actual_impact
+        self.due_date = due_date
+        self.status = status
+        self.is_critical = is_critical
+        self.evidence = evidence
+        self.postponements = postponements
+        self.notes = notes
+
+    def as_input(self) -> CommitmentInput:
+        """Bridge to the commitment rules already written for Decision Room."""
+        return CommitmentInput(
+            action=self.action,
+            owner_name=self.owner_name,
+            due_date=self.due_date,
+            status=self.status,
+            is_critical=self.is_critical,
+            evidence=self.evidence,
+        )
+
+    @property
+    def days_left(self) -> Optional[int]:
+        return days_until(self.due_date)
+
+
+def commitments() -> List[MockCommitment]:
+    OPEN = CommitmentStatus.OPEN.value
+    IN_PROGRESS = CommitmentStatus.IN_PROGRESS.value
+    DONE = CommitmentStatus.DONE.value
+    BLOCKED = CommitmentStatus.BLOCKED.value
+
+    return [
+        MockCommitment(
+            owner_name="Naoki",
+            market="Japan",
+            issue="Mobile conversion down 17% against plan",
+            action="Ship the mobile checkout recovery plan",
+            expected_impact="+€400k/month",
+            due_date=_in_days(-6),
+            status=OPEN,
+            is_critical=True,
+            postponements=2,
+            notes="Moved twice. Still the largest single driver of the Japan gap.",
+        ),
+        MockCommitment(
+            owner_name="Naoki",
+            market="Japan",
+            issue="Paid acquisition below plan",
+            action="Increase paid search investment by 15%",
+            expected_impact="",
+            due_date=_in_days(4),
+            status=IN_PROGRESS,
+            notes="No quantified impact. Targets traffic, which the data does not blame.",
+        ),
+        MockCommitment(
+            owner_name="Julien",
+            market="France",
+            issue="Store conversion below last year despite traffic growth",
+            action="Run the conversion clinic in the 20 largest stores",
+            expected_impact="+€420k/month",
+            due_date=_in_days(-2),
+            status=BLOCKED,
+            is_critical=True,
+            postponements=1,
+            evidence="Blocked on field training capacity.",
+        ),
+        MockCommitment(
+            owner_name="Sofia",
+            market="Germany",
+            issue="Mobile site search returning poor results",
+            action="Improve mobile search relevance",
+            expected_impact="+€180k/month",
+            actual_impact="No measurable uplift after three weeks",
+            due_date=_in_days(-21),
+            status=DONE,
+            evidence="Shipped on time. Conversion unchanged since release.",
+            notes="Delivered, and it did not work. The issue is still open.",
+        ),
+        MockCommitment(
+            owner_name="Yann",
+            market="United States",
+            issue="Bundle mechanic underused outside pilot stores",
+            action="Roll out the Almond bundle to all US doors",
+            expected_impact="+€250k/month",
+            actual_impact="≈ +€310k/month",
+            due_date=_in_days(-30),
+            status=DONE,
+            evidence="Rollout completed. Incremental performance above expectation.",
+        ),
+        MockCommitment(
+            owner_name="Julien",
+            market="United Kingdom",
+            issue="Forecast revised down three months running",
+            action="Rebuild the UK forecast bottom-up with store-level input",
+            expected_impact="Forecast accuracy within ±3%",
+            due_date=_in_days(9),
+            status=OPEN,
+            is_critical=True,
+        ),
+        MockCommitment(
+            owner_name="Sofia",
+            market="Germany",
+            issue="CRM reactivation not running",
+            action="Relaunch the lapsed-customer CRM programme",
+            expected_impact="+€250k/month",
+            due_date=_in_days(16),
+            status=OPEN,
+        ),
+        MockCommitment(
+            owner_name="Naoki",
+            market="Japan",
+            issue="Mobile PDP to add-to-cart step deteriorating",
+            action="Rebuild the mobile product page add-to-cart flow",
+            expected_impact="+€300k/month",
+            due_date=_in_days(27),
+            status=OPEN,
+            is_critical=True,
+        ),
+        MockCommitment(
+            owner_name="Julien",
+            market="France",
+            issue="Store staffing below plan at weekends",
+            action="Close the weekend staffing gap in the 30 busiest stores",
+            expected_impact="+€150k/month",
+            due_date=_in_days(3),
+            status=IN_PROGRESS,
+        ),
+        MockCommitment(
+            owner_name="Yann",
+            market="United States",
+            issue="Bundle mechanic not yet tested in Europe",
+            action="Document the Almond bundle playbook for European markets",
+            expected_impact="Enables replication decision",
+            due_date=_in_days(12),
+            status=OPEN,
+        ),
+        MockCommitment(
+            owner_name="Sofia",
+            market="Germany",
+            issue="Checkout abandonment above benchmark on mobile",
+            action="Add express payment options at checkout",
+            expected_impact="+€120k/month",
+            due_date=_in_days(-4),
+            status=OPEN,
+            postponements=1,
+        ),
+        MockCommitment(
+            owner_name="Marco",
+            market="Italy",
+            issue="Assortment gaps in the top 30 stores",
+            action="Close the assortment gaps identified in the January audit",
+            expected_impact="+€90k/month",
+            due_date=_in_days(21),
+            status=IN_PROGRESS,
+        ),
+    ]

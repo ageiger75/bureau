@@ -16,25 +16,25 @@ from tests.conftest import create_case, page_text
 
 
 def test_accueil_repond_et_annonce_le_perimetre(client):
-    response = client.get("/")
+    response = client.get("/decisions")
 
     assert response.status_code == 200
     assert "Décisions" in page_text(response)
     # Le bandeau de périmètre doit être visible : un prototype ne doit pas passer pour
     # un outil authentifié dans lequel on dépose des données réelles.
     assert "Prototype" in page_text(response)
-    assert "Aucune authentification" in page_text(response)
+    assert "No authentication" in page_text(response)
 
 
 def test_accueil_sans_dossier_propose_d_en_creer_un(client):
-    response = client.get("/")
+    response = client.get("/decisions")
 
     assert "Aucun dossier ouvert" in page_text(response)
 
 
 def test_base_sans_utilisateur_affiche_un_ecran_d_amorcage(empty_client):
     """Plutôt qu'une page qui semble fonctionner avec zéro dossier."""
-    response = empty_client.get("/")
+    response = empty_client.get("/decisions")
 
     assert response.status_code == 200
     assert "Base vide" in page_text(response)
@@ -72,7 +72,7 @@ def test_creation_puis_lecture(client):
 def test_creation_apparait_sur_l_accueil(client):
     create_case(client, title="Dossier visible sur l'accueil")
 
-    response = client.get("/")
+    response = client.get("/decisions")
 
     assert "Dossier visible sur l'accueil" in page_text(response)
 
@@ -507,14 +507,14 @@ def test_requete_non_locale_est_refusee(ceo):
     pas devenir accessible parce qu'une commande a été lancée avec --host 0.0.0.0."""
     del ceo
     with TestClient(app, client=("203.0.113.7", 51234)) as remote:
-        response = remote.get("/")
+        response = remote.get("/decisions")
 
     assert response.status_code == 403
     assert "machine locale" in page_text(response)
 
 
 def test_entetes_de_securite_sont_poses(client):
-    response = client.get("/")
+    response = client.get("/decisions")
 
     csp = response.headers["content-security-policy"]
     assert "default-src 'self'" in csp
@@ -542,7 +542,7 @@ def test_html_est_echappe(client):
 def test_donnees_de_demonstration_exposent_leurs_defauts(seeded_client):
     """Le jeu de démonstration est volontairement imparfait : il sert à vérifier que
     l'outil signale, pas à afficher une belle page."""
-    page = page_text(seeded_client.get("/"))
+    page = page_text(seeded_client.get("/decisions"))
 
     assert "DR-2026-001" in page
     assert "DR-2026-002" in page

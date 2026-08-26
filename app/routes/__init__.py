@@ -11,9 +11,11 @@ from . import (
     options,
     recommendation,
     reviews,
+    today,
 )
 
 ROUTERS = (
+    today.router,
     home.router,
     cases.router,
     claims.router,

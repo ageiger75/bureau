@@ -1,5 +1,7 @@
 <!doctype html>
-<html lang="fr">
+{# The chrome is English with the pivot; Decision Room's own screens remain French and
+   override this block. Announcing the wrong language to a screen reader is not cosmetic. #}
+<html lang="{% block lang %}en{% endblock %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,12 +17,12 @@
   <div class="wrap topbar-inner">
     <a class="brand" href="/">
       <span class="brand-name">CEO OS</span>
-      <span class="brand-module">Decision Room</span>
+      <span class="brand-module">Performance Cockpit</span>
     </a>
     <nav class="topnav">
-      <a href="/">Accueil</a>
+      <a href="/">Today</a>
+      <a href="/decisions">Decision Room</a>
       <a href="/cases">Archive</a>
-      <a class="btn btn-primary btn-small" href="/cases/new">Nouveau dossier</a>
     </nav>
   </div>
 </header>
@@ -29,9 +31,12 @@
    ressemble à un outil authentifié invite à y déposer des données réelles. #}
 <div class="scope-banner">
   <div class="wrap">
-    <strong>Prototype · {{ tranche_label }}</strong>
-    Aucune authentification, aucune donnée réelle attendue. Données locales ({{ database_label }}).
-    Aucun envoi, aucune écriture externe — niveau d'autonomie {{ autonomy_level }}.
+    {# The chrome follows the primary product, which is now the cockpit and is in
+       English. Decision Room's own screens keep their French — a transition state,
+       stated rather than hidden. #}
+    <strong>Prototype</strong>
+    No authentication, no real data expected. Local storage only ({{ database_label }}).
+    Nothing is sent, nothing is written outside — autonomy level {{ autonomy_level }}.
   </div>
 </div>
 
@@ -50,11 +55,11 @@
 <footer class="footer">
   <div class="wrap">
     <p>
-      CEO OS {{ app_version }} · environnement {{ env_name }} · {{ database_label }}
-      · accessible depuis 127.0.0.1 uniquement
+      CEO OS {{ app_version }} · {{ env_name }} environment · {{ database_label }}
+      · reachable from 127.0.0.1 only
     </p>
     <p class="footer-note">
-      L'outil prépare, alerte et structure. Le CEO décide.
+      The tool prepares, flags and structures. The CEO decides.
     </p>
   </div>
 </footer>

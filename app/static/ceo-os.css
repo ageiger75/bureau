@@ -567,3 +567,169 @@ input:focus, textarea:focus, select:focus {
 @media (max-width: 760px) {
   .challenge, .commitment, .commitment-lines li { flex-direction: column; gap: 8px; }
 }
+
+/* =====================================================================
+   CEO Performance Cockpit
+   Brief §28: whitespace, strong typography, numbers before charts, very
+   limited visual noise. Colour carries one meaning only — direction of a
+   number — and is never decorative.
+   ===================================================================== */
+
+.cockpit-header {
+  padding: 40px 0 32px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 28px;
+}
+
+.cockpit-eyebrow {
+  font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--ink-soft); margin: 0 0 10px;
+}
+
+/* The one number the whole screen exists to frame. */
+.cockpit-total {
+  font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.02em;
+  margin: 0 0 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cockpit-variances { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 36px; }
+.cockpit-variances li { display: flex; flex-direction: column; gap: 2px; }
+
+.variance-value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.variance-label { font-size: 12px; color: var(--ink-soft); letter-spacing: 0.04em; }
+
+.is-down { color: var(--alert); }
+.is-up { color: var(--ok); }
+.is-neutral { color: var(--ink); }
+
+/* ----------------------------------------------------------- fires */
+
+.fire-list { list-style: none; margin: 0; padding: 0; counter-reset: fire; }
+
+.fire {
+  counter-increment: fire;
+  border-top: 1px solid var(--rule);
+  padding: 22px 0 24px 44px;
+  position: relative;
+}
+.fire:first-child { border-top: 0; padding-top: 6px; }
+
+.fire::before {
+  content: counter(fire);
+  position: absolute; left: 0; top: 22px;
+  font-size: 20px; font-weight: 600; color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.fire:first-child::before { top: 6px; }
+
+.fire-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.fire-head h3 { margin: 0; font-size: 17px; letter-spacing: 0.01em; }
+
+.fire-gap {
+  font-size: 26px; font-weight: 600; color: var(--alert);
+  font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 8px;
+}
+.fire-gap-sub { font-size: 11px; font-weight: 400; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; }
+
+.fire-diagnosis { font-size: 16px; margin: 10px 0 14px; max-width: 60ch; }
+
+/* Drivers as a compact table: label, movement, euros. Numbers, not a chart. */
+.evidence { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; max-width: 30rem; }
+.evidence li {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 16px;
+  padding: 4px 0; border-bottom: 1px solid var(--rule-soft);
+  font-variant-numeric: tabular-nums; font-size: 14px;
+}
+.evidence-label { color: var(--ink-soft); }
+.evidence-delta { text-align: right; }
+.evidence-impact { text-align: right; min-width: 5.5rem; }
+
+.estimate-note { font-size: 12px; color: var(--ink-faint); margin: 6px 0 12px; max-width: 60ch; }
+
+.flag {
+  font-size: 14px; color: var(--warn); margin: 10px 0;
+  border-left: 2px solid var(--warn); padding-left: 12px;
+}
+
+/* Management's explanation, and what the data says about it. */
+.challenge-box {
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  padding: 12px 14px; margin: 14px 0; background: var(--paper); max-width: 60ch;
+}
+.challenge-quote { margin: 0 0 6px; font-style: italic; color: var(--ink-soft); }
+.challenge-verdict { margin: 0 0 4px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+.challenge-evidence { margin: 0; font-size: 14px; }
+
+.fire-meta { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 12px 0 10px; font-size: 13px; }
+.owner { color: var(--ink-soft); }
+
+.confidence { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); }
+.confidence-high { border-color: var(--ok); color: var(--ok); }
+.confidence-medium { border-color: var(--warn); color: var(--warn); }
+.confidence-low { border-color: var(--rule); color: var(--ink-soft); }
+
+/* The question is the product. It gets the weight. */
+.ask {
+  font-size: 16px; font-weight: 500; margin: 12px 0 10px;
+  border-left: 3px solid var(--accent); padding-left: 14px; max-width: 62ch;
+}
+
+.linked-commitment { font-size: 13px; color: var(--ink-soft); margin: 8px 0 0; }
+.linked-commitment.is-missing { color: var(--warn); }
+
+.why { margin-top: 12px; }
+.why > summary { cursor: pointer; font-size: 13px; color: var(--accent); }
+.why-list, .why-factors { margin: 8px 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+.why-formula { font-size: 12px; color: var(--ink-faint); margin: 6px 0; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+/* ------------------------------------------- opportunities, wins, people */
+
+.opportunity-list, .win-list, .people-list { list-style: none; margin: 0; padding: 0; }
+
+.opportunity, .win, .person { border-top: 1px solid var(--rule); padding: 18px 0; }
+.opportunity:first-child, .win:first-child, .person:first-child { border-top: 0; padding-top: 4px; }
+
+.opportunity-head { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.opportunity-head h3 { margin: 0; font-size: 16px; }
+.opportunity-amount { font-size: 22px; font-weight: 600; color: var(--ok); font-variant-numeric: tabular-nums; }
+
+.assumption, .calculation, .win-numbers, .win-driver, .person-why {
+  font-size: 14px; margin: 6px 0; max-width: 62ch;
+}
+.calculation { font-size: 13px; color: var(--ink-faint); font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+.person-name { font-size: 16px; font-weight: 600; margin: 0 0 4px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.person-role { font-size: 13px; font-weight: 400; color: var(--ink-soft); }
+
+/* ----------------------------------------------------------- commitments */
+
+.commitment-counts { display: flex; gap: 28px; margin: 0 0 16px; flex-wrap: wrap; font-size: 14px; }
+.commitment-counts strong { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.count { display: flex; align-items: baseline; color: var(--ink-soft); }
+.count-alert strong { color: var(--alert); }
+.count-warn strong { color: var(--warn); }
+
+.commitment-signals { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.commitment-signals li { font-size: 14px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+
+.tag {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px; border: 1px solid var(--rule);
+  color: var(--ink-soft); white-space: nowrap;
+}
+.tag-alert { border-color: var(--alert); color: var(--alert); }
+.tag-warn { border-color: var(--warn); color: var(--warn); }
+.tag-good { border-color: var(--ok); color: var(--ok); }
+
+.mock-note {
+  font-size: 12px; color: var(--ink-faint);
+  border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 8px; max-width: 70ch;
+}
+
+@media (max-width: 760px) {
+  .cockpit-total { font-size: 40px; }
+  .cockpit-variances { gap: 20px; }
+  .fire { padding-left: 30px; }
+  .evidence li { grid-template-columns: 1fr auto auto; gap: 10px; font-size: 13px; }
+}

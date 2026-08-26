@@ -1,7 +1,24 @@
-# CEO OS — Decision Room
+# CEO OS
+
+Application privée, locale, sur données fictives. Sponsor : Adrien Geiger.
+
+Elle porte aujourd'hui **deux produits**, dont un seul est actif :
+
+| | | |
+| --- | --- | --- |
+| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, et si les engagements passés produisent des résultats. Écrit en anglais. Voir `PIVOT.md`. |
+| **Decision Room** | `/decisions` | Prototype précédent, complet et testé, conservé intact. Écrit en français. Documenté ci-dessous. |
+
+Le pivot de l'un vers l'autre — ce qui est réutilisé, ce qui est mis de côté, et pourquoi
+rien n'a été supprimé — est décrit dans **`PIVOT.md`**.
+
+---
+
+# Decision Room
 
 Prototype des **tranches verticales 1 et 2** du MVP décrit dans
-`Brief_Construction_CEO_OS_Decision_Room.docx`.
+`Brief_Construction_CEO_OS_Decision_Room.docx`. Il n'est plus la page d'accueil ; il reste
+atteignable sur `/decisions` et ses tests restent verts.
 
 L'unité de travail est la décision : une question explicite, des affirmations qualifiées,
 des options comparables, une position assumée, une décision enregistrée avec ses raisons,
@@ -225,7 +242,7 @@ app/
   templates/      Jinja2, sections du dossier dans partials/
   static/         ceo-os.css, ceo-os.js
 seed/demo.py      4 dossiers fictifs
-tests/            202 tests
+tests/            246 tests
 var/              base SQLite et journaux (git-ignoré)
 ```
 
