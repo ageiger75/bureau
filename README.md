@@ -22,6 +22,34 @@ Les documents source du brief restent, eux, dans `~/Documents/CEO OS/`.
 
 ## Démarrer
 
+### Usage courant : double-cliquer
+
+Le développement se fait sur GitHub ; ce poste ne fait que lire et exécuter. Une fois
+l'installation faite (ci-dessous), l'usage courant tient en un geste : **double-cliquer sur
+`start.command`** depuis le Finder, ou le glisser une fois dans le Dock.
+
+Il récupère la dernière version depuis GitHub, démarre le serveur et ouvre le navigateur.
+La mise à jour est en **avance rapide seulement** : le script ne fusionne rien et n'écrase
+aucune modification locale. Si GitHub est injoignable ou si le dossier a divergé, il le dit
+et démarre avec la version déjà présente.
+
+Pour arrêter : `Ctrl-C` dans la fenêtre Terminal ouverte.
+
+### Installation, une seule fois
+
+```bash
+cd ~/dev
+git clone https://github.com/ageiger75/bureau.git ceo-os
+cd ceo-os
+./start.command
+```
+
+Le clone est ce qui rend `start.command` capable de se mettre à jour, et c'est aussi ce qui
+préserve les permissions des fichiers — un téléchargement en ZIP les perd, et `run.sh`
+répond alors `permission denied`.
+
+### En ligne de commande
+
 ```bash
 cd ~/dev/ceo-os
 ./run.sh
