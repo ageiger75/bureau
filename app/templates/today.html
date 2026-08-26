@@ -218,6 +218,28 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------- data we cannot read yet #}
+
+{% if suspects %}
+<section class="panel">
+  <h2>Figures we cannot read yet</h2>
+  <p class="lede">
+    These look like breaks in the data rather than events in the business, so they are
+    kept out of the ranking above. A data incident at the top of that list would teach you
+    to stop reading it.
+  </p>
+  <ul class="suspect-list">
+    {% for item in suspects %}
+      <li class="suspect">
+        <p class="suspect-head">{{ item.unit.label }}</p>
+        <p class="suspect-message">{{ item.message }}</p>
+        <p class="suspect-fix">{{ item.fix }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {# ------------------------------------------------------------------ customers #}
 
 <section class="panel">

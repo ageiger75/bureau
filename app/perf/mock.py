@@ -223,6 +223,39 @@ def units() -> List[BusinessUnit]:
             months_below_budget=1,
             gap_history=(-30_000, -50_000),
         ),
+        # -- Finland: nothing recorded this month against a real last year, with sessions
+        #    still arriving. Observed in the live data. A collapse would show in the
+        #    traffic too; a broken feed shows exactly like this.
+        BusinessUnit(
+            key="finland-ecom",
+            label="Finland E-commerce",
+            market="Finland",
+            region="Europe",
+            channel=ECOMMERCE,
+            owner=SOFIA,
+            actual=Drivers.sales_only(0.0),
+            budget=Drivers.sales_only(9_000.0),
+            last_year=Drivers.sales_only(8_361.0),
+            forecast_sales=9_000.0,
+            sessions=4_712.0,
+            orders=0.0,
+        ),
+        # -- Hong Kong: heavy traffic, real revenue, and no orders recorded against it.
+        #    The business is there; the transactional tracking is not.
+        BusinessUnit(
+            key="hongkong-ecom",
+            label="Hong Kong E-commerce",
+            market="Hong Kong",
+            region="Asia",
+            channel=ECOMMERCE,
+            owner=NAOKI,
+            actual=Drivers.sales_only(51_000.0),
+            budget=Drivers.sales_only(1_200_000.0),
+            last_year=Drivers.sales_only(900_000.0),
+            forecast_sales=200_000.0,
+            sessions=686_994.0,
+            orders=0.0,
+        ),
         # -- Rest of World: aggregated and close to plan. It exists so the header reflects
         #    the whole business rather than the markets that happen to be interesting.
         BusinessUnit(

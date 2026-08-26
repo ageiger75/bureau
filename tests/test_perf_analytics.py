@@ -422,3 +422,86 @@ def test_the_screen_says_which_kind_of_blindness_it_is():
 
     assert "footfall is not counted" in fire.diagnosis
     assert "cannot see why" in fire.question
+
+
+# --------------------------------------------------------- broken feeds vs real gaps
+
+
+def test_a_market_at_zero_against_a_real_history_is_treated_as_a_broken_feed():
+    """Observed in the real data: a market reporting nothing this month against a
+    non-zero last year, with sessions still arriving. A collapse would be visible in the
+    traffic too."""
+    silent = unit(
+        key="finland",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(9_000.0),
+        last_year=Drivers.sales_only(8_361.0),
+        sessions=4_712.0,
+        orders=0.0,
+    )
+
+    flagged = analytics.suspects(dataset_of(silent))
+
+    assert len(flagged) == 1
+    assert flagged[0].code == "zero_against_history"
+
+
+def test_traffic_without_orders_is_a_tracking_gap_not_a_conversion_problem():
+    """Also observed: hundreds of thousands of sessions, no recorded orders, and real
+    revenue. The business is there; the transactional tracking is not."""
+    untracked = unit(
+        key="hongkong",
+        actual=Drivers.sales_only(51_000.0),
+        budget=Drivers.sales_only(1_200_000.0),
+        last_year=Drivers.sales_only(900_000.0),
+        sessions=686_994.0,
+        orders=0.0,
+    )
+
+    flagged = analytics.suspects(dataset_of(untracked))
+
+    assert len(flagged) == 1
+    assert flagged[0].code == "traffic_without_orders"
+
+
+def test_a_broken_feed_never_competes_for_attention_with_a_real_gap():
+    """The whole point. A data incident at the top of the list teaches a CEO to stop
+    reading the list, and then the real gaps go unread too."""
+    broken = unit(
+        key="broken",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(20_000_000.0),
+        last_year=Drivers.sales_only(19_000_000.0),
+    )
+    real = unit(key="real", actual=ecom(8_600_000), budget=ecom(9_400_000))
+
+    ranked = analytics.fires(dataset_of(broken, real))
+
+    assert [f.unit.key for f in ranked] == ["real"]
+
+
+def test_a_genuine_zero_with_no_history_is_not_flagged():
+    """A market that has never sold anything is not a broken feed."""
+    new_market = unit(
+        key="new",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(0.0),
+        last_year=Drivers.sales_only(0.0),
+    )
+
+    assert analytics.suspects(dataset_of(new_market)) == []
+
+
+def test_every_suspect_says_what_to_do_about_it():
+    """Ask the data team, not the market director — and the screen has to say which."""
+    silent = unit(
+        key="finland",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(9_000.0),
+        last_year=Drivers.sales_only(8_361.0),
+    )
+
+    flag = analytics.suspects(dataset_of(silent))[0]
+
+    assert flag.message.strip()
+    assert flag.fix.strip()

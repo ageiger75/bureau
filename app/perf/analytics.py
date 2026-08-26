@@ -279,6 +279,71 @@ def check_explanation(unit: BusinessUnit) -> Optional[ExplanationCheck]:
     return ExplanationCheck(unit.management_explanation, verdict, evidence, residual)
 
 
+# ----------------------------------------------------------------- data quality
+
+
+class Suspect:
+    """A figure the cockpit refuses to read as a business event.
+
+    A market at zero with a non-zero history is a broken feed far more often than a
+    collapse. Ranking it as the largest gap of the month would put a data incident at the
+    top of a CEO's attention, and the second time that happens nobody reads the list.
+
+    So these are separated, not hidden: still shown, but as something to ask the data team
+    about rather than the market director.
+    """
+
+    __slots__ = ("unit", "code", "message", "fix")
+
+    def __init__(self, unit: BusinessUnit, code: str, message: str, fix: str) -> None:
+        self.unit = unit
+        self.code = code
+        self.message = message
+        self.fix = fix
+
+
+def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
+    """Whether this unit's figures look like a break in the data rather than the business."""
+    if unit.sales_actual == 0 and (unit.sales_last_year > 0 or unit.sales_budget > 0):
+        return Suspect(
+            unit,
+            code="zero_against_history",
+            message="No sales recorded this period, against %s last year."
+            % _eur(unit.sales_last_year),
+            fix="Check the feed before reading this as a commercial collapse.",
+        )
+
+    # Sessions arriving with no orders behind them: the business is there, the
+    # transactional tracking is not. Read from the raw counts rather than the drivers,
+    # because this is precisely the case where no driver set could be built.
+    sessions = unit.sessions if unit.sessions is not None else unit.actual.value_of("Sessions")
+    orders = unit.orders
+    if orders is None and unit.actual.has_breakdown:
+        conversion = unit.actual.value_of("Conversion")
+        orders = None if conversion is None or sessions is None else conversion * sessions
+    if (
+        sessions is not None
+        and orders is not None
+        and sessions > 0
+        and orders == 0
+        and unit.sales_actual > 0
+    ):
+        return Suspect(
+            unit,
+            code="traffic_without_orders",
+            message="%s sessions and no recorded orders, on %s of sales."
+            % (_num(sessions), _eur(unit.sales_actual)),
+            fix="Transaction tracking is missing here; the drivers cannot be read until "
+            "it is fixed.",
+        )
+    return None
+
+
+def suspects(dataset: Dataset) -> List[Suspect]:
+    found = [suspect_of(unit) for unit in dataset.units if not unit.is_aggregate]
+    return [item for item in found if item is not None]
+
+
 # --------------------------------------------------------------------------- fires
 
 
@@ -410,6 +475,9 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
         for unit in dataset.units
         if unit.is_below_budget
         and not unit.is_aggregate
+        # A broken feed is not a fire. It is listed separately, as a question for the
+        # data team rather than for the market.
+        and suspect_of(unit) is None
         and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
     ]
     candidates.sort(key=lambda fire: fire.priority.score, reverse=True)

@@ -100,6 +100,7 @@ def today(request: Request):
             "kpis": kpi_rules.needing_attention(kpis),
             "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
+            "suspects": analytics.suspects(dataset),
             "kpi_rules": kpi_rules,
         },
     )

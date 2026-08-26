@@ -53,6 +53,11 @@ def _env(name: str, default: str = "") -> str:
 DATA_SOURCES = ("mock", "snowflake")
 DEFAULT_DATA_SOURCE = "mock"
 
+#: Classeur de planification : budget et an dernier, par marché et par mois. Il vit dans
+#: `var/`, donc hors du dépôt — ce sont de vrais chiffres, et ils n'ont rien à faire dans
+#: un historique Git.
+DEFAULT_BUDGET_FILE = "var/budget.xlsx"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -61,6 +66,7 @@ class Settings:
     database_url: str
     autonomy_level: str
     data_source: str = DEFAULT_DATA_SOURCE
+    budget_file: str = DEFAULT_BUDGET_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
     #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
@@ -73,6 +79,15 @@ class Settings:
     @property
     def reads_warehouse(self) -> bool:
         return self.data_source == "snowflake"
+
+    @property
+    def budget_path(self) -> Path:
+        path = Path(self.budget_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_budget_file(self) -> bool:
+        return self.budget_path.exists()
 
     @property
     def is_sqlite(self) -> bool:
@@ -132,6 +147,7 @@ def load_settings() -> Settings:
         database_url=_env("CEOOS_DATABASE_URL", "sqlite:///var/ceo-os.db"),
         autonomy_level=autonomy,
         data_source=data_source,
+        budget_file=_env("CEOOS_BUDGET_FILE") or DEFAULT_BUDGET_FILE,
         snowflake_connection=snowflake_connection,
     )
 

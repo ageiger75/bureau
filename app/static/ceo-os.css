@@ -768,3 +768,13 @@ input:focus, textarea:focus, select:focus {
 .kpi-note-quiet { color: var(--ink-faint); font-size: 12px; }
 
 .customer-signal { font-size: 13px; color: var(--warn); margin: 8px 0 0; max-width: 62ch; }
+
+
+/* ------------------------------------------------- figures we cannot read yet */
+
+.suspect-list { list-style: none; margin: 0; padding: 0; }
+.suspect { border-top: 1px solid var(--rule); padding: 14px 0 14px 14px; border-left: 3px solid var(--warn); }
+.suspect:first-child { border-top: 0; }
+.suspect-head { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+.suspect-message { font-size: 14px; margin: 0 0 4px; max-width: 62ch; }
+.suspect-fix { font-size: 13px; color: var(--ink-soft); margin: 0; max-width: 62ch; }

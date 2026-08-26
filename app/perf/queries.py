@@ -46,6 +46,7 @@ organisation already reports.
 | market, region, channel | yes — STORE_COUNTRY, STORE_BUSINESS_AREA, TRANSACTION_CHANNEL |
 | retail drivers | yes — derive them so they telescope (see below) |
 | e-commerce drivers | **yes, but not from the sell-out view** — sessions and orders live in `V_SL_F_GRP_GA_SESSIONS` and `F_GRP_GA_TRANSACTIONS` |
+| sales_budget | **read it from the planning file, not from here** — see below |
 | sales_forecast, owner_name | **no** — neither exists in the warehouse |
 | KPI definitions, targets, cadence | **no, by design** — see below |
 
@@ -96,6 +97,17 @@ visible, its cause is declared unavailable.
 Sales carrying no channel at all must not be distributed silently. Unattributed revenue is
 not a data-quality footnote; it is a part of the business that cannot be diagnosed, and
 that is itself worth showing.
+
+### Budget comes from the planning file
+
+The warehouse carries goals for a minority of markets, and not for the largest ones. The
+planning workbook carries all of them, and is the version the business commits to. Where
+the two overlap they agree to the cent; where they differ, the file is the reference.
+
+That is not a workaround. **A budget is a decision, not a measurement** — it belongs with
+the other governance artefacts, next to KPI targets and definitions. `app/perf/budget.py`
+reads it; `SALES_AND_DRIVERS` should return actuals and drivers and leave `sales_budget`
+and `sales_last_year` to the file.
 
 ### Why KPI metadata is absent, and should stay absent
 

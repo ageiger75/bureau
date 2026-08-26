@@ -190,6 +190,8 @@ class BusinessUnit:
         "win_driver",
         "is_aggregate",
         "no_breakdown_reason",
+        "sessions",
+        "orders",
     )
 
     def __init__(
@@ -214,6 +216,8 @@ class BusinessUnit:
         win_driver: str = "",
         is_aggregate: bool = False,
         no_breakdown_reason: str = "",
+        sessions: Optional[float] = None,
+        orders: Optional[float] = None,
     ) -> None:
         self.key = key
         self.label = label
@@ -248,6 +252,12 @@ class BusinessUnit:
         #: footfall here" and "this channel reports sales only" are different facts, and
         #: the second is not a reason to go looking for the first.
         self.no_breakdown_reason = no_breakdown_reason
+        #: Raw counts as measured, kept whether or not they formed a usable driver set.
+        #: Sessions arriving with no orders is exactly the case where the drivers cannot
+        #: be built — and exactly the case worth reporting, so the evidence has to survive
+        #: the degradation.
+        self.sessions = sessions
+        self.orders = orders
 
     # ------------------------------------------------------------------ sales
 
