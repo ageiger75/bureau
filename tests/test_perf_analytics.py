@@ -354,9 +354,71 @@ def test_the_question_for_an_unmeasured_channel_asks_for_the_measurement():
     """Asking what will move a driver nobody measures would be asking for a guess."""
     fire = analytics.fires(dataset_of(sales_only_unit("brandcom", 8_600_000, 9_400_000)))[0]
 
-    assert "do not measure" in fire.question
+    assert "cannot see why" in fire.question
 
 
 def test_sales_only_drivers_still_total_correctly():
     assert Drivers.sales_only(1_234_567.0).sales == pytest.approx(1_234_567.0)
     assert not Drivers.sales_only(1.0).has_breakdown
+
+
+# ------------------------------------------- driver availability by market
+
+
+def test_retail_conversion_is_refused_where_footfall_is_not_counted():
+    """A wrong number is acted upon; an absent one is asked about.
+
+    The factory refuses whatever it is handed, so a mapping written months from now
+    cannot reintroduce a conversion rate from a market that has no counters.
+    """
+    from app.perf.model import retail_drivers
+
+    with_counters = retail_drivers("France", 17_600_000, 0.1175, 2.10, 47.50)
+    without = retail_drivers("Japan", 8_900_000, 0.1400, 2.00, 50.00)
+
+    assert with_counters.has_breakdown
+    assert not without.has_breakdown
+    # The sales figure survives intact; only the attribution is withheld.
+    assert without.sales == pytest.approx(8_900_000)
+
+
+def test_retail_drivers_fall_back_when_a_component_is_missing():
+    from app.perf.model import retail_drivers
+
+    assert not retail_drivers("France", 1_000_000, None, 2.0, 40.0).has_breakdown
+
+
+def test_ecommerce_drivers_close_the_identity_exactly():
+    """Sessions and orders come from analytics, money from the sales system. Deriving
+    value-per-order from the same sales figure is what keeps the product exact."""
+    from app.perf.model import ecommerce_drivers
+
+    drivers = ecommerce_drivers(sales=5_400_000, sessions=4_967_000, orders=62_197)
+
+    assert drivers.sales == pytest.approx(5_400_000)
+    assert drivers.value_of("Conversion") == pytest.approx(62_197 / 4_967_000)
+
+
+def test_ecommerce_without_sessions_degrades_rather_than_divides_by_zero():
+    from app.perf.model import ecommerce_drivers
+
+    assert not ecommerce_drivers(sales=1_000_000, sessions=0, orders=0).has_breakdown
+
+
+def test_the_screen_says_which_kind_of_blindness_it_is():
+    """"We do not count footfall here" and "this channel reports sales only" are
+    different facts, and the second is not a reason to go looking for the first."""
+    from app.perf.model import NO_COUNTER_REASON, retail_drivers
+
+    unmeasured = unit(
+        key="japan-retail",
+        actual=retail_drivers("Japan", 8_900_000),
+        budget=retail_drivers("Japan", 9_600_000),
+        last_year=retail_drivers("Japan", 9_250_000),
+        no_breakdown_reason=NO_COUNTER_REASON,
+    )
+
+    fire = analytics.fires(dataset_of(unmeasured))[0]
+
+    assert "footfall is not counted" in fire.diagnosis
+    assert "cannot see why" in fire.question

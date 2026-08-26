@@ -30,7 +30,16 @@ from .kpi import (
     Kpi,
     Reading,
 )
-from .model import ECOMMERCE, RETAIL, BusinessUnit, Dataset, Drivers, Owner
+from .model import (
+    ECOMMERCE,
+    NO_COUNTER_REASON,
+    RETAIL,
+    BusinessUnit,
+    Dataset,
+    Drivers,
+    Owner,
+    retail_drivers,
+)
 
 
 def _ecom(sales: float, conversion: float, aov: float) -> Drivers:
@@ -112,6 +121,25 @@ def units() -> List[BusinessUnit]:
             gap_history=(-520_000, -800_000),
             market_index_pct=0.010,
             action_focus="Traffic",
+        ),
+        # -- Japan retail: a market without reliable footfall counters. The gap is as
+        #    real as any other; its cause simply cannot be read, and the screen says which
+        #    of the two it is. Built through `retail_drivers`, which refuses to produce a
+        #    conversion rate here whatever it is handed.
+        BusinessUnit(
+            key="japan-retail",
+            label="Japan Retail",
+            market="Japan",
+            region="Asia",
+            channel=RETAIL,
+            owner=NAOKI,
+            actual=retail_drivers("Japan", 8_900_000),
+            budget=retail_drivers("Japan", 9_600_000),
+            last_year=retail_drivers("Japan", 9_250_000),
+            forecast_sales=9_100_000,
+            months_below_budget=2,
+            gap_history=(-450_000, -700_000),
+            no_breakdown_reason=NO_COUNTER_REASON,
         ),
         # -- China: the traffic problem (brief §24). Conversion is steady; the sessions
         #    simply are not there. A different diagnosis needs a different conversation.

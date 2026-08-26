@@ -342,9 +342,12 @@ class Fire:
     @property
     def diagnosis(self) -> str:
         if not self.has_breakdown:
+            if self.unit.no_breakdown_reason:
+                return "%s The gap is real; its cause is not measured." % (
+                    self.unit.no_breakdown_reason,
+                )
             return (
-                "No driver breakdown is reported for this channel, so the gap cannot be "
-                "attributed."
+                "No driver breakdown is reported here, so the gap cannot be attributed."
             )
         if self.main_driver is None or self.main_share is None:
             return "No single driver stands out; the gap is spread across all of them."
@@ -375,8 +378,8 @@ class Fire:
             # The missing measurement is the finding. Asking what will move a driver
             # nobody measures would be asking for a guess.
             return (
-                "%s below plan on a channel we do not measure. What would it take to "
-                "report traffic and conversion here?" % _eur(abs(self.gap))
+                "%s below plan where we cannot see why. What would it take to measure "
+                "this properly?" % _eur(abs(self.gap))
             )
         if self.misaligned_plan and self.main_driver is not None:
             return "Why is the plan focused on %s when %s is the largest driver of the gap?" % (

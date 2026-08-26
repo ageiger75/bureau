@@ -45,30 +45,53 @@ organisation already reports.
 | sales_actual, sales_budget, sales_last_year | yes — NET_SALES_EUR and the goals fact |
 | market, region, channel | yes — STORE_COUNTRY, STORE_BUSINESS_AREA, TRANSACTION_CHANNEL |
 | retail drivers | yes — derive them so they telescope (see below) |
-| e-commerce drivers | **no** — no sessions anywhere. Such channels carry sales only. |
+| e-commerce drivers | **yes, but not from the sell-out view** — sessions and orders live in `V_SL_F_GRP_GA_SESSIONS` and `F_GRP_GA_TRANSACTIONS` |
 | sales_forecast, owner_name | **no** — neither exists in the warehouse |
 | KPI definitions, targets, cadence | **no, by design** — see below |
 
-### Deriving retail drivers
+### Retail: only where footfall is counted
 
-Derive all four from the same facts, so the identity closes by construction:
+**Store conversion is trustworthy in Europe and North America and nowhere else.** Elsewhere
+the measure exists in the data and does not describe reality — no counter, or coverage too
+partial to represent the estate.
+
+A wrong number is acted upon; an absent one is asked about. So the rule is not advice:
+build every retail unit through `model.retail_drivers(market, sales, ...)`, which returns
+sales alone outside `TRAFFIC_COUNTER_MARKETS` whatever conversion it is handed. Set
+`no_breakdown_reason=NO_COUNTER_REASON` so the screen says which kind of blindness it is.
+
+Where counters exist, all four drivers come from the same facts and telescope exactly:
 
     Traffic × (tickets / traffic) × (quantity / tickets) × (net sales / quantity) = net sales
 
-This is a telescoping product, exact to the cent, which is what makes "about 90% of the
-gap comes from conversion" a sentence worth saying.
+That conversion is a **decomposition driver**, not the reported conversion rate. The
+organisation's governed CONVERSION_RATE is a different measure and belongs in the KPI
+section, with its own target and owner. Two numbers, two places, never substituted.
 
-The conversion computed this way is a **decomposition driver**, not the reported
-conversion rate. The organisation's governed CONVERSION_RATE is a different measure and
-belongs in the KPI section, with its own target and owner. Two numbers, two places, two
-purposes — never silently substituted for one another.
+### E-commerce: sessions exist, in the web analytics tables
+
+Not in the sell-out semantic view — in `V_SL_F_GRP_GA_SESSIONS` and
+`F_GRP_GA_TRANSACTIONS`. Sessions, orders, conversion rate and device split are all there,
+by site and by period.
+
+Use `model.ecommerce_drivers(sales, sessions, orders)`:
+
+    Sessions × (orders / sessions) × (sales / orders) = sales
+
+**Take `sales` in euros, not from the web analytics revenue field.** That field is in local
+currency, so its levels are not comparable between sites and cannot be summed into a group
+total. Deriving value-per-order from a euro sales figure keeps both the identity and the
+comparability — sessions and orders from analytics, money from the sales system.
+
+Two things to check before trusting a join: web orders and sell-out orders do not always
+agree, and the channel grouping in the warehouse is the default analytics grouping rather
+than the local custom ones, which makes any per-channel split unreliable.
 
 ### Channels
 
-The `ecommerce` / `retail` distinction in the model is not a commercial taxonomy: it says
-which driver model applies. Map a channel to `retail` where footfall and tickets exist,
-and give every other channel `Drivers.sales_only(...)` — its gap stays visible, its cause
-is declared unavailable.
+The `ecommerce` / `retail` distinction is not a commercial taxonomy: it says which driver
+model applies. Anything that fits neither takes `Drivers.sales_only(...)` — its gap stays
+visible, its cause is declared unavailable.
 
 Sales carrying no channel at all must not be distributed silently. Unattributed revenue is
 not a data-quality footnote; it is a part of the business that cannot be diagnosed, and

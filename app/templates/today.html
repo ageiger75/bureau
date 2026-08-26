@@ -55,8 +55,12 @@
         {% if not fire.has_breakdown %}
           {# Better an explicit absence than a table of blanks that reads as stability. #}
           <p class="no-breakdown">
-            No traffic or conversion is reported for this channel. The gap is real and
-            visible; its cause is not measured.
+            {% if fire.unit.no_breakdown_reason %}
+              {{ fire.unit.no_breakdown_reason }}
+            {% else %}
+              No traffic or conversion is reported here.
+            {% endif %}
+            The gap is real and visible; its cause is not measured.
           </p>
         {% else %}
         <ul class="evidence">

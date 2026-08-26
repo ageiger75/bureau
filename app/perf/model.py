@@ -23,6 +23,43 @@ DRIVER_LABELS = {
 #: Drivers expressed as a rate, shown as a percentage rather than a count.
 RATE_DRIVERS = frozenset({"Conversion"})
 
+#: Markets whose stores have footfall counters, and where a retail conversion rate can
+#: therefore be trusted.
+#:
+#: Everywhere else the measure exists in the data and does not describe reality — no
+#: counter, or coverage too partial to represent the estate. Showing it anyway would be
+#: worse than showing nothing: a wrong number is acted upon, an absent one is asked about.
+#:
+#: This list is a business fact, not a technical one. Keep it here, edit it by hand, and
+#: extend it market by market as counters are installed.
+TRAFFIC_COUNTER_MARKETS = frozenset(
+    {
+        "France",
+        "United Kingdom",
+        "Germany",
+        "Italy",
+        "Spain",
+        "Portugal",
+        "Belgium",
+        "Netherlands",
+        "Switzerland",
+        "Ireland",
+        "Austria",
+        "United States",
+        "Canada",
+    }
+)
+
+
+def retail_conversion_is_reliable(market: str) -> bool:
+    return market in TRAFFIC_COUNTER_MARKETS
+
+
+#: Shown wherever a retail unit carries no breakdown for this reason.
+NO_COUNTER_REASON = (
+    "Store footfall is not counted reliably in this market, so conversion cannot be read."
+)
+
 
 class Drivers:
     """Ordered multiplicative drivers of sales.
@@ -71,6 +108,45 @@ class Drivers:
         return list(zip(self.labels, self.values))
 
 
+def retail_drivers(
+    market: str,
+    sales: float,
+    conversion: Optional[float] = None,
+    upt: Optional[float] = None,
+    asp: Optional[float] = None,
+) -> "Drivers":
+    """Retail drivers for a market, or sales alone where footfall is not counted.
+
+    A factory rather than a rule to remember: whoever maps a query cannot accidentally
+    hand the cockpit a conversion rate from a market that has no counters. The wrong
+    number never gets built, so it never has to be caught downstream.
+    """
+    if not retail_conversion_is_reliable(market):
+        return Drivers.sales_only(sales)
+    if conversion is None or upt is None or asp is None:
+        return Drivers.sales_only(sales)
+    traffic = sales / (conversion * upt * asp)
+    return Drivers(("Traffic", "Conversion", "UPT", "ASP"), (traffic, conversion, upt, asp))
+
+
+def ecommerce_drivers(
+    sales: float, sessions: float, orders: float
+) -> "Drivers":
+    """Digital drivers that telescope to sales in the currency `sales` is expressed in.
+
+    Sessions × (orders / sessions) × (sales / orders) = sales, exactly. Deriving the value
+    per order from the same sales figure is what keeps the identity closed — and what
+    allows sessions and orders to come from web analytics while the money comes from the
+    sales system, in a single comparable currency.
+    """
+    if sessions <= 0 or orders <= 0:
+        return Drivers.sales_only(sales)
+    return Drivers(
+        ("Sessions", "Conversion", "AOV"),
+        (sessions, orders / sessions, sales / orders),
+    )
+
+
 class Owner:
     """A named person accountable for a business unit.
 
@@ -113,6 +189,7 @@ class BusinessUnit:
         "action_focus",
         "win_driver",
         "is_aggregate",
+        "no_breakdown_reason",
     )
 
     def __init__(
@@ -136,6 +213,7 @@ class BusinessUnit:
         action_focus: str = "",
         win_driver: str = "",
         is_aggregate: bool = False,
+        no_breakdown_reason: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -166,6 +244,10 @@ class BusinessUnit:
         #: in the fires: there is no one to challenge about "Rest of World", and letting
         #: it take a slot would push out a market someone can actually be asked about.
         self.is_aggregate = is_aggregate
+        #: Why this unit carries no driver breakdown. Shown on screen: "we do not measure
+        #: footfall here" and "this channel reports sales only" are different facts, and
+        #: the second is not a reason to go looking for the first.
+        self.no_breakdown_reason = no_breakdown_reason
 
     # ------------------------------------------------------------------ sales
 
