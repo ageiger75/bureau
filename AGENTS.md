@@ -37,6 +37,9 @@ standard plutôt qu'avec trois paquets tiers.
 | Une route | `app/routes/` — lit, appelle le domaine, écrit, redirige |
 | Une commande d'administration | `app/cli.py`, atteinte via `manage.py` |
 | Un composant d'affichage | `app/templates/macros.html` |
+| Un calcul de performance | `app/perf/analytics.py` — déterministe, jamais un modèle de langage pour de l'arithmétique |
+| Une règle de lecture d'un KPI | `app/perf/kpi.py` — cadence, sens, définition arrêtée ou non |
+| D'où viennent les chiffres | `app/perf/source.py` — seul module à le savoir |
 
 Une route qui contient un `if` métier est au mauvais endroit : deux écrans finiraient par
 juger différemment le même dossier.

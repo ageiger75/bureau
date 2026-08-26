@@ -6,7 +6,7 @@ Elle porte aujourd'hui **deux produits**, dont un seul est actif :
 
 | | | |
 | --- | --- | --- |
-| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, et si les engagements passés produisent des résultats. Écrit en anglais. Voir `PIVOT.md`. |
+| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, si les engagements passés produisent des résultats, et ce que font les clients — recrutement, ARC, panier, NPS. Écrit en anglais. Voir `PIVOT.md`. |
 | **Decision Room** | `/decisions` | Prototype précédent, complet et testé, conservé intact. Écrit en français. Documenté ci-dessous. |
 
 Le pivot de l'un vers l'autre — ce qui est réutilisé, ce qui est mis de côté, et pourquoi
@@ -242,7 +242,7 @@ app/
   templates/      Jinja2, sections du dossier dans partials/
   static/         ceo-os.css, ceo-os.js
 seed/demo.py      4 dossiers fictifs
-tests/            246 tests
+tests/            273 tests
 var/              base SQLite et journaux (git-ignoré)
 ```
 

@@ -733,3 +733,33 @@ input:focus, textarea:focus, select:focus {
   .fire { padding-left: 30px; }
   .evidence li { grid-template-columns: 1fr auto auto; gap: 10px; font-size: 13px; }
 }
+
+/* ------------------------------------------------------- customer KPIs */
+
+.kpi-list { list-style: none; margin: 0; padding: 0; }
+
+.kpi { border-top: 1px solid var(--rule); padding: 14px 0 14px 14px; border-left: 3px solid transparent; }
+.kpi:first-child { border-top: 0; }
+.kpi-alert { border-left-color: var(--alert); }
+.kpi-watch { border-left-color: var(--warn); }
+.kpi-on_track { border-left-color: var(--ok); }
+
+.kpi-head { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.kpi-name { font-size: 15px; font-weight: 600; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.kpi-scope { font-size: 12px; font-weight: 400; color: var(--ink-soft); letter-spacing: 0.04em; text-transform: uppercase; }
+.kpi-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-alert .kpi-value { color: var(--alert); }
+.kpi-watch .kpi-value { color: var(--warn); }
+
+.kpi-meta { font-size: 12.5px; color: var(--ink-soft); margin: 4px 0 8px; max-width: 70ch; }
+
+/* Withheld challenges must not look like an oversight: they are a decision. */
+.withheld {
+  font-size: 13px; color: var(--ink-faint); margin: 8px 0 0;
+  border-left: 3px solid var(--rule); padding-left: 14px; max-width: 62ch; font-style: italic;
+}
+
+.kpi-note { font-size: 13px; color: var(--ink-soft); margin: 16px 0 0; max-width: 70ch; }
+.kpi-note-quiet { color: var(--ink-faint); font-size: 12px; }
+
+.customer-signal { font-size: 13px; color: var(--warn); margin: 8px 0 0; max-width: 62ch; }

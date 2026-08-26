@@ -18,6 +18,18 @@ from typing import List, Optional
 from ..domain.commitments import CommitmentInput
 from ..domain.enums import CommitmentStatus
 from ..util import days_until, today
+from .kpi import (
+    ANNUAL,
+    DOWN,
+    LOCKED,
+    MONTHLY,
+    P1,
+    P2,
+    PROVISIONAL,
+    QUARTERLY,
+    Kpi,
+    Reading,
+)
 from .model import ECOMMERCE, RETAIL, BusinessUnit, Dataset, Drivers, Owner
 
 
@@ -406,5 +418,217 @@ def commitments() -> List[MockCommitment]:
             expected_impact="+€90k/month",
             due_date=_in_days(21),
             status=IN_PROGRESS,
+        ),
+    ]
+
+
+# --------------------------------------------------------------------- client KPIs
+
+#: Customer KPIs (brief follow-up: recruitment, ARC, and the rest of the tracker).
+#:
+#: The taxonomy is real — recruitment, active customers, average transaction value, NPS,
+#: lifetime value, retail turnover — because that is what has to be monitored. Every
+#: value, target and owner below is invented, as everywhere else in this file.
+#:
+#: The set is chosen to exercise the three reading rules rather than to look complete:
+#: one KPI where lower is better, one reported quarterly, one whose definition is not
+#: settled, and one genuinely late.
+
+
+def client_kpis() -> List[Kpi]:
+    return [
+        # -- Recruitment. Japan is the market already on fire for conversion; its
+        #    recruitment is falling too, which is a different conversation from a
+        #    checkout problem.
+        Kpi(
+            key="japan-new-customers",
+            label="New customers",
+            definition="Growth in newly recruited customers vs last year",
+            scope="Japan",
+            owner="Naoki",
+            pillar="Client Acquisition",
+            unit="%",
+            target=5.0,
+            frequency=MONTHLY,
+            source="CRM",
+            priority=P1,
+            last_year=6.2,
+            readings=[
+                Reading("2026-05", 2.1),
+                Reading("2026-06", 0.4),
+                Reading("2026-07", -1.8),
+            ],
+        ),
+        Kpi(
+            key="japan-arc",
+            label="ARC — active customers",
+            definition="Customers with at least one purchase in the last 12 months",
+            scope="Japan",
+            owner="Naoki",
+            pillar="Client Acquisition",
+            unit="k clients",
+            target=980.0,
+            frequency=MONTHLY,
+            source="CRM",
+            priority=P1,
+            last_year=968.0,
+            readings=[
+                Reading("2026-05", 962.0),
+                Reading("2026-06", 951.0),
+                Reading("2026-07", 944.0),
+            ],
+        ),
+        # -- France: recruitment is working. The problem there is conversion in store,
+        #    not the top of the funnel — and the KPIs should say so plainly.
+        Kpi(
+            key="france-new-customers",
+            label="New customers",
+            definition="Growth in newly recruited customers vs last year",
+            scope="France",
+            owner="Julien",
+            pillar="Client Acquisition",
+            unit="%",
+            target=4.0,
+            frequency=MONTHLY,
+            source="CRM",
+            priority=P1,
+            last_year=3.1,
+            readings=[
+                Reading("2026-05", 5.9),
+                Reading("2026-06", 6.8),
+                Reading("2026-07", 7.4),
+            ],
+        ),
+        Kpi(
+            key="france-atv",
+            label="ATV — average transaction value",
+            definition="Average basket, growth vs last year",
+            scope="France",
+            owner="Julien",
+            pillar="Client Acquisition",
+            unit="%",
+            target=2.0,
+            frequency=MONTHLY,
+            source="Revenue / RGM",
+            priority=P2,
+            last_year=1.4,
+            readings=[
+                Reading("2026-06", 1.2),
+                Reading("2026-07", 0.9),
+            ],
+        ),
+        # -- Lower is better. A single sign convention has to hold across the cockpit,
+        #    or a reader learns to check the direction before trusting a colour.
+        Kpi(
+            key="france-turnover",
+            label="Retail turnover — voluntary",
+            definition="Voluntary departures, rolling 12 months",
+            scope="France",
+            owner="People",
+            pillar="3P People",
+            unit="%",
+            target=20.0,
+            direction=DOWN,
+            frequency=MONTHLY,
+            source="HR",
+            priority=P2,
+            last_year=21.5,
+            readings=[
+                Reading("2026-06", 23.4),
+                Reading("2026-07", 24.1),
+            ],
+        ),
+        # -- Quarterly. In the middle of Q2 there is no August figure, and saying so is
+        #    the calendar rather than an alert.
+        Kpi(
+            key="us-nps",
+            label="NPS",
+            definition="VOC framework, market score",
+            scope="United States",
+            owner="Yann",
+            pillar="Brand Elevation",
+            unit="score",
+            target=76.0,
+            frequency=QUARTERLY,
+            source="VOC",
+            priority=P1,
+            last_year=71.0,
+            readings=[Reading("Q1 FY27", 78.0)],
+        ),
+        # -- Definition not settled. The variance is shown; the challenge is withheld,
+        #    with the reason, so nobody is sent to argue about an unagreed number.
+        Kpi(
+            key="japan-nps",
+            label="NPS",
+            definition="VOC framework — Asia methodology being aligned",
+            scope="Japan",
+            owner="Naoki",
+            pillar="Brand Elevation",
+            unit="score",
+            target=74.0,
+            frequency=QUARTERLY,
+            source="VOC",
+            definition_status=PROVISIONAL,
+            priority=P1,
+            last_year=70.0,
+            readings=[Reading("Q1 FY27", 68.0)],
+            open_question=(
+                "the Asia scoring method is not yet aligned with the one used in China, "
+                "so the two are not comparable"
+            ),
+        ),
+        # -- Genuinely late: quarterly, and the closed quarter was never reported.
+        Kpi(
+            key="germany-clv",
+            label="CLV — top customers",
+            definition="Average lifetime value of the top decile",
+            scope="Germany",
+            owner="Sofia",
+            pillar="Client Acquisition",
+            unit="€",
+            target=420.0,
+            frequency=QUARTERLY,
+            source="CRM",
+            priority=P2,
+            last_year=398.0,
+            readings=[Reading("Q4 FY26", 402.0)],
+        ),
+        Kpi(
+            key="us-new-customers",
+            label="New customers",
+            definition="Growth in newly recruited customers vs last year",
+            scope="United States",
+            owner="Yann",
+            pillar="Client Acquisition",
+            unit="%",
+            target=6.0,
+            frequency=MONTHLY,
+            source="CRM",
+            priority=P1,
+            last_year=8.0,
+            readings=[
+                Reading("2026-05", 9.8),
+                Reading("2026-06", 11.2),
+                Reading("2026-07", 12.6),
+            ],
+        ),
+        Kpi(
+            key="group-ntb",
+            label="Net NTB acquisition",
+            definition="Net new-to-brand customers across all markets",
+            scope="Group",
+            owner="Revenue",
+            pillar="Client Acquisition",
+            unit="k clients",
+            target=310.0,
+            frequency=MONTHLY,
+            source="CRM",
+            priority=P1,
+            last_year=298.0,
+            readings=[
+                Reading("2026-05", 302.0),
+                Reading("2026-06", 297.0),
+                Reading("2026-07", 291.0),
+            ],
         ),
     ]

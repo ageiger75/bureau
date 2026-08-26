@@ -68,7 +68,42 @@ data source → normalised performance model → analytics engine → interface
 it imports `mock`. Connecting a warehouse (brief §35, Phase 6) is a change in that one
 file.
 
-## 7. Where the phases stand
+## 7. The KPI layer
+
+Sales decompose into drivers. A managed KPI does not: it is a number somebody owns, with a
+target somebody agreed, reported on a cadence somebody set. `app/perf/kpi.py` reads them
+under three rules, each taken from the FY27 tracker itself rather than assumed:
+
+| Rule | Why it exists |
+| --- | --- |
+| **Cadence governs freshness** | A quarterly KPI has no August value. Reporting it missing every month would teach the reader to ignore the flag — and then the real gaps go unread too. |
+| **Direction decides what a gap is** | Retail turnover above target is bad news; a brand ranking above target is good news. A positive gap always means good news, whichever way the KPI should move. |
+| **A provisional definition suspends the challenge** | Where the definition or target is still moving, the variance is shown and the question is withheld, with the reason. Sending a CEO to challenge someone about a number nobody has agreed costs more than the insight is worth. |
+
+The fiscal calendar runs April to March (`app/perf/fiscal.py`). Q2 FY27 is July–September
+2026. Getting that wrong would make the cockpit ask for a quarter that has not closed.
+
+**No real figure from the tracker is in this repository.** The taxonomy is real —
+recruitment, active customers, ATV, NPS, CLV, retail turnover — because that is what has
+to be monitored. Every value, target and owner in `mock.py` is invented, as the repository
+has required from the start.
+
+## 8. Connecting real data, one source at a time
+
+Client and sell-out data exist today; sell-in is coming. The layer is built for that to
+arrive in pieces rather than in one cut-over:
+
+- A KPI with no reading reports `No reading yet`. It never guesses, and never shows a
+  stale figure as current.
+- A KPI absent from the source simply does not appear. Nothing breaks.
+- `source.py` returns three things — the sales dataset, the commitments, the KPIs. A real
+  source can serve one of them and leave the others mocked while IT works through them.
+
+The practical order follows what is already available: client KPIs first (recruitment,
+ARC, ATV — the data exists), then sell-out into the sales drivers, then sell-in. Each step
+is a change inside `source.py`; nothing above it moves.
+
+## 9. Where the phases stand
 
 | Phase | Content | State |
 | --- | --- | --- |

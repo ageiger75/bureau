@@ -152,3 +152,48 @@ def test_no_outbound_call_is_made_to_render_the_cockpit(client):
                 offenders.append("%s : %s" % (path.name, needle))
 
     assert offenders == []
+
+
+# --------------------------------------------------------------- customer KPIs
+
+
+def test_customer_kpis_are_on_the_screen(client):
+    """Recruitment and active customers lead the sales figures by months."""
+    page = page_text(client.get("/"))
+
+    assert "Customers" in page
+    assert "New customers" in page
+    assert "ARC — active customers" in page
+
+
+def test_a_lower_is_better_kpi_is_marked_as_such(client):
+    """Retail turnover above its ceiling is bad news, and the screen must not leave the
+    reader to work out the direction."""
+    page = page_text(client.get("/"))
+
+    assert "lower is better" in page
+
+
+def test_a_kpi_whose_definition_is_unsettled_is_shown_but_not_challenged(client):
+    page = page_text(client.get("/"))
+
+    assert "No challenge raised" in page
+    assert "not yet aligned with the one used in China" in page
+
+
+def test_a_quarterly_kpi_is_not_reported_missing_between_readings(client):
+    """The US NPS has a Q1 figure and no August one. That is the calendar, not a gap."""
+    page = page_text(client.get("/"))
+
+    assert "not reported" in page          # the genuinely late one is named
+    assert "CLV — top customers" in page
+    # and the rule is stated, so the absence of other flags is understood
+    assert "would teach you to ignore the flag" in page
+
+
+def test_customer_signals_are_attached_to_the_market_that_is_on_fire(client):
+    """A conversion gap with recruitment holding up is a different conversation from one
+    where both are falling."""
+    page = page_text(client.get("/"))
+
+    assert "Customer signals" in page

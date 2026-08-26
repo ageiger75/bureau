@@ -43,7 +43,7 @@
     <p class="empty">No market is materially below plan. Nothing here needs you today.</p>
   {% else %}
   <ol class="fire-list">
-    {% for fire, commitment in fires %}
+    {% for fire, commitment, signals in fires %}
       <li class="fire">
         <div class="fire-head">
           <h3>{{ fire.unit.label }}</h3>
@@ -86,6 +86,16 @@
         </p>
 
         <p class="ask">{{ fire.question }}</p>
+
+        {% if signals %}
+          <p class="customer-signal">
+            Customer signals —
+            {% for signal in signals %}
+              {{ signal.label }} {{ kpi_rules.format_value(signal, signal.latest.value) }}
+              (target {{ kpi_rules.format_value(signal, signal.target) }}){% if not loop.last %} · {% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
 
         {% if commitment %}
           <p class="linked-commitment">
@@ -194,6 +204,63 @@
     {% endfor %}
   </ul>
   {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ customers #}
+
+<section class="panel">
+  <h2>Customers</h2>
+  <p class="lede">
+    Recruitment, active customers, basket and advocacy. These lead the sales figures above
+    by months — which is the only reason to read them before the sales figures.
+  </p>
+
+  {% if not kpis %}
+    <p class="empty">Every customer KPI is at or above target.</p>
+  {% else %}
+  <ul class="kpi-list">
+    {% for item in kpis %}
+      <li class="kpi kpi-{{ item.status }}">
+        <div class="kpi-head">
+          <span class="kpi-name">{{ item.label }}<span class="kpi-scope">{{ item.scope }}</span></span>
+          <span class="kpi-value">{{ kpi_rules.format_value(item, item.latest.value) }}</span>
+        </div>
+        <p class="kpi-meta">
+          Target {{ kpi_rules.format_value(item, item.target) }}
+          · {{ kpi_rules.STATUS_LABELS[item.status] }}
+          {% if item.direction == 'down' %}· lower is better{% endif %}
+          {% if item.is_improving is not none %}
+            · {{ 'improving' if item.is_improving else 'still deteriorating' }}
+          {% endif %}
+          · {{ item.latest.period }}
+          · {{ kpi_rules.FREQUENCY_LABELS[item.frequency] }}
+          · {{ item.owner }} · {{ item.source }}
+        </p>
+        {% set question = item.question() %}
+        {% if question %}
+          <p class="ask">{{ question }}</p>
+        {% elif not item.can_be_challenged %}
+          {# A number nobody has agreed yet is not something to send a CEO to argue about. #}
+          <p class="withheld">No challenge raised — {{ item.withheld_reason }}</p>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if kpis_awaiting %}
+    <p class="kpi-note">
+      <strong>Awaiting a reading:</strong>
+      {% for item in kpis_awaiting %}
+        {{ item.label }} ({{ item.scope }}) — {{ item.expected_period() }} not reported{% if not loop.last %} · {% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+
+  <p class="kpi-note kpi-note-quiet">
+    KPIs reported quarterly or less often are not listed as missing between readings: the
+    figure does not exist yet, and flagging it every month would teach you to ignore the flag.
+  </p>
 </section>
 
 {# ------------------------------------------------------------------ commitments #}

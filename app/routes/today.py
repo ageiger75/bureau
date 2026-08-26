@@ -15,6 +15,7 @@ from typing import Dict, List
 from fastapi import APIRouter, Request
 
 from ..perf import analytics
+from ..perf import kpi as kpi_rules
 from ..perf.commitments import board
 from ..perf.source import current_source
 from ..web import render
@@ -34,12 +35,14 @@ def today(request: Request):
     source = current_source()
     dataset = source.dataset()
     commitments = board(source.commitments())
+    kpis = source.client_kpis()
 
     fires = analytics.fires(dataset)
     by_market = _commitments_by_market(commitments.items)
 
-    # A fire is worth more with the promise already made about it attached: the CEO then
-    # asks about the plan rather than about the problem.
+    # A fire is worth more with two things attached: the promise already made about it,
+    # and what the customer base is doing. A conversion gap with recruitment holding up is
+    # a different conversation from one where both are falling.
     linked = []
     for fire in fires:
         open_items = [
@@ -47,7 +50,12 @@ def today(request: Request):
             for item in by_market.get(fire.unit.market, [])
             if item.status not in ("done", "cancelled")
         ]
-        linked.append((fire, open_items[0] if open_items else None))
+        signals = [
+            item
+            for item in kpi_rules.by_scope(kpis, fire.unit.market)
+            if item.status in (kpi_rules.WATCH, kpi_rules.ALERT)
+        ]
+        linked.append((fire, open_items[0] if open_items else None, signals))
 
     return render(
         request,
@@ -71,5 +79,9 @@ def today(request: Request):
             "people": analytics.people_to_push(fires),
             "wins": analytics.wins(dataset),
             "commitments": commitments,
+            "kpis": kpi_rules.needing_attention(kpis),
+            "kpis_awaiting": kpi_rules.awaiting(kpis),
+            "kpis_provisional": kpi_rules.provisional(kpis),
+            "kpi_rules": kpi_rules,
         },
     )

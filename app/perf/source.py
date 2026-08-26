@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import List
 
 from . import mock
+from .kpi import Kpi
 from .model import Dataset
 
 
@@ -33,6 +34,9 @@ class MockSource:
 
     def commitments(self) -> List["mock.MockCommitment"]:
         return mock.commitments()
+
+    def client_kpis(self) -> List[Kpi]:
+        return mock.client_kpis()
 
 
 def current_source() -> MockSource:
