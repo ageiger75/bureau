@@ -313,3 +313,50 @@ def test_the_reason_to_push_someone_is_always_a_number():
 
     assert "€" in push.reason
     assert push.question.strip()
+
+
+# ------------------------------------------------- channels without driver data
+
+
+def sales_only_unit(key, actual, budget, last_year=None):
+    """A channel that reports sales but neither traffic nor conversion.
+
+    Not a hypothetical: an online channel may report neither, while the stores next to it
+    report both. The cockpit has to hold both kinds at once.
+    """
+    return unit(
+        key=key,
+        actual=Drivers.sales_only(actual),
+        budget=Drivers.sales_only(budget),
+        last_year=Drivers.sales_only(last_year if last_year is not None else budget),
+    )
+
+
+def test_a_channel_without_drivers_still_shows_its_gap():
+    """It belongs in the total and in the ranking; only its cause is unavailable."""
+    opaque = sales_only_unit("brandcom", 8_600_000, 9_400_000)
+
+    found = analytics.fires(dataset_of(opaque))
+
+    assert len(found) == 1
+    assert found[0].gap == pytest.approx(-800_000)
+
+
+def test_a_channel_without_drivers_says_so_instead_of_inventing_a_cause():
+    fire = analytics.fires(dataset_of(sales_only_unit("brandcom", 8_600_000, 9_400_000)))[0]
+
+    assert not fire.has_breakdown
+    assert fire.contributions == []
+    assert "cannot be attributed" in fire.diagnosis
+
+
+def test_the_question_for_an_unmeasured_channel_asks_for_the_measurement():
+    """Asking what will move a driver nobody measures would be asking for a guess."""
+    fire = analytics.fires(dataset_of(sales_only_unit("brandcom", 8_600_000, 9_400_000)))[0]
+
+    assert "do not measure" in fire.question
+
+
+def test_sales_only_drivers_still_total_correctly():
+    assert Drivers.sales_only(1_234_567.0).sales == pytest.approx(1_234_567.0)
+    assert not Drivers.sales_only(1.0).has_breakdown

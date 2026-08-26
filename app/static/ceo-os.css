@@ -645,6 +645,11 @@ input:focus, textarea:focus, select:focus {
 .evidence-delta { text-align: right; }
 .evidence-impact { text-align: right; min-width: 5.5rem; }
 
+.no-breakdown {
+  font-size: 14px; color: var(--warn); margin: 10px 0 12px;
+  border-left: 2px solid var(--warn); padding-left: 12px; max-width: 62ch;
+}
+
 .estimate-note { font-size: 12px; color: var(--ink-faint); margin: 6px 0 12px; max-width: 60ch; }
 
 .flag {

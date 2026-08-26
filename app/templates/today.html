@@ -52,6 +52,13 @@
 
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
 
+        {% if not fire.has_breakdown %}
+          {# Better an explicit absence than a table of blanks that reads as stability. #}
+          <p class="no-breakdown">
+            No traffic or conversion is reported for this channel. The gap is real and
+            visible; its cause is not measured.
+          </p>
+        {% else %}
         <ul class="evidence">
           {% for item in fire.contributions %}
             <li>
@@ -67,6 +74,7 @@
           Driver impacts are estimates from a chained decomposition of the gap, not
           measured causes. They sum to {{ fire.gap | eur }} exactly.
         </p>
+        {% endif %}
 
         {% if fire.forecast_flag %}
           <p class="flag">{{ fire.forecast_flag }}</p>

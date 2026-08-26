@@ -39,6 +39,21 @@ class Drivers:
         self.labels: Tuple[str, ...] = tuple(labels)
         self.values: Tuple[float, ...] = tuple(float(v) for v in values)
 
+    @classmethod
+    def sales_only(cls, amount: float) -> "Drivers":
+        """A unit whose sales are known but whose drivers are not.
+
+        Real warehouses do not measure every channel the same way: a market may report
+        footfall and tickets while an online channel reports neither. Such a unit still
+        belongs in the group total and still has a gap worth seeing — it simply cannot be
+        taken apart, and the screen has to say so rather than show a table of blanks.
+        """
+        return cls(("Sales",), (amount,))
+
+    @property
+    def has_breakdown(self) -> bool:
+        return len(self.labels) > 1
+
     @property
     def sales(self) -> float:
         """Sales implied by the drivers. Never stored separately — never inconsistent."""
@@ -165,6 +180,11 @@ class BusinessUnit:
     @property
     def sales_last_year(self) -> float:
         return self.last_year.sales
+
+    @property
+    def has_driver_breakdown(self) -> bool:
+        """Whether this unit's gap can be attributed to drivers at all."""
+        return self.actual.has_breakdown and self.budget.has_breakdown
 
     @property
     def gap_vs_budget(self) -> float:

@@ -304,7 +304,14 @@ class Fire:
         var = variance(unit.sales_actual, unit.sales_budget)
         self.gap = var.gap
         self.gap_pct = var.pct
-        self.contributions = contributions(unit.actual, unit.budget)
+        # A channel that reports no drivers cannot be taken apart. Attributing its whole
+        # gap to a single "Sales" pseudo-driver would be arithmetically true and say
+        # nothing, so the breakdown is simply absent and the screen states it.
+        self.contributions = (
+            contributions(unit.actual, unit.budget)
+            if unit.has_driver_breakdown
+            else []
+        )
         self.main_driver = largest_driver(self.contributions)
         self.main_share = (
             share_of_gap(self.main_driver, self.gap) if self.main_driver else None
@@ -329,7 +336,16 @@ class Fire:
         )
 
     @property
+    def has_breakdown(self) -> bool:
+        return bool(self.contributions)
+
+    @property
     def diagnosis(self) -> str:
+        if not self.has_breakdown:
+            return (
+                "No driver breakdown is reported for this channel, so the gap cannot be "
+                "attributed."
+            )
         if self.main_driver is None or self.main_share is None:
             return "No single driver stands out; the gap is spread across all of them."
         share = abs(self.main_share)
@@ -355,6 +371,13 @@ class Fire:
         product can tell a CEO, so it outranks everything else — including a forecast that
         keeps moving, which is a real issue but a slower one.
         """
+        if not self.has_breakdown:
+            # The missing measurement is the finding. Asking what will move a driver
+            # nobody measures would be asking for a guess.
+            return (
+                "%s below plan on a channel we do not measure. What would it take to "
+                "report traffic and conversion here?" % _eur(abs(self.gap))
+            )
         if self.misaligned_plan and self.main_driver is not None:
             return "Why is the plan focused on %s when %s is the largest driver of the gap?" % (
                 self.unit.action_focus.lower(),
