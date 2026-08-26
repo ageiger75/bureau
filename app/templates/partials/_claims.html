@@ -1,0 +1,188 @@
+{% import "macros.html" as ui %}
+
+{# Socle factuel. Le cœur du produit : faits, hypothèses, opinions et éléments à vérifier
+   sont affichés séparément, jamais mélangés dans une liste unique (brief §4). #}
+<section class="panel" id="socle-factuel">
+  <h2>Socle factuel</h2>
+  <p class="hint">
+    {{ coverage_label }}. Un fait sans source reste enregistré, mais il est signalé —
+    ici, sur l'accueil, et dans le diagnostic.
+  </p>
+
+  {% for category in CLAIM_CATEGORY_ORDER %}
+    {% set items = grouped_claims.get(category, []) %}
+    <div class="claim-group claim-group-{{ category }}">
+      <h3>
+        {{ ui.category_badge(category) }}
+        <span class="claim-group-count">{{ items|length }}</span>
+        <span class="claim-group-hint">{{ CLAIM_CATEGORY_HINTS.get(category) }}</span>
+      </h3>
+
+      {% if not items %}
+        <p class="empty">
+          {%- if category == 'sourced_fact' -%}
+            Aucun fait sourcé. La décision repose donc entièrement sur du déclaratif.
+          {%- elif category == 'assumption' -%}
+            Aucune hypothèse déclarée. Improbable sur une vraie décision.
+          {%- elif category == 'missing_verification' -%}
+            Aucune inconnue nommée.
+          {%- else -%}
+            Aucune opinion consignée.
+          {%- endif -%}
+        </p>
+      {% else %}
+        <ul class="claim-list">
+          {% for claim in items %}
+            {% set warnings = warnings_by_claim.get(claim.id, []) %}
+            <li class="claim {{ 'claim-flagged' if warnings else '' }}">
+              <div class="claim-main">
+                <p class="claim-text">{{ claim.text }}</p>
+                <div class="claim-tags">
+                  {{ ui.materiality_badge(claim.materiality) }}
+                  {% if claim.source_ref %}
+                    <span class="claim-source">Source : {{ claim.source_ref }}</span>
+                  {% else %}
+                    <span class="claim-source claim-source-none">Aucune source</span>
+                  {% endif %}
+                  {% if claim.as_of_date %}
+                    <span class="claim-date">Valable au {{ claim.as_of_date }}</span>
+                  {% endif %}
+                </div>
+
+                {% if claim.quote %}
+                  <blockquote class="claim-quote">{{ claim.quote }}</blockquote>
+                {% endif %}
+                {% if claim.rationale %}
+                  <p class="claim-sub"><span class="meta-k">Pourquoi</span> {{ claim.rationale }}</p>
+                {% endif %}
+                {% if claim.best_test %}
+                  <p class="claim-sub"><span class="meta-k">Test</span> {{ claim.best_test }}</p>
+                {% endif %}
+
+                {{ ui.claim_warnings(warnings) }}
+              </div>
+
+              <details class="editor editor-inline">
+                <summary>Modifier</summary>
+                <form method="post" action="/cases/{{ case.id }}/claims/{{ claim.id }}" novalidate>
+                  {% set field_prefix = 'c-' ~ claim.id %}
+                  <div class="field">
+                    <label for="{{ field_prefix }}-text">Affirmation</label>
+                    <textarea id="{{ field_prefix }}-text" name="text" rows="3" required>{{ claim.text }}</textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="{{ field_prefix }}-cat">Catégorie</label>
+                      <select id="{{ field_prefix }}-cat" name="category">
+                        {{ ui.select_options(CLAIM_CATEGORY_LABELS, claim.category) }}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="{{ field_prefix }}-mat">Matérialité</label>
+                      <select id="{{ field_prefix }}-mat" name="materiality">
+                        {{ ui.select_options(MATERIALITY_LABELS, claim.materiality) }}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="{{ field_prefix }}-asof">Valable au</label>
+                      <input type="date" id="{{ field_prefix }}-asof" name="as_of_date"
+                             value="{{ claim.as_of_date or '' }}">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="{{ field_prefix }}-src">Source</label>
+                    <input type="text" id="{{ field_prefix }}-src" name="source_ref"
+                           maxlength="500" value="{{ claim.source_ref }}">
+                  </div>
+                  <div class="field">
+                    <label for="{{ field_prefix }}-quote">Passage cité</label>
+                    <textarea id="{{ field_prefix }}-quote" name="quote" rows="2">{{ claim.quote }}</textarea>
+                  </div>
+                  <div class="field">
+                    <label for="{{ field_prefix }}-why">Pourquoi c'est tenu pour vrai</label>
+                    <textarea id="{{ field_prefix }}-why" name="rationale" rows="2">{{ claim.rationale }}</textarea>
+                  </div>
+                  <div class="field">
+                    <label for="{{ field_prefix }}-test">Test le moins coûteux</label>
+                    <textarea id="{{ field_prefix }}-test" name="best_test" rows="2">{{ claim.best_test }}</textarea>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-primary btn-small" type="submit">Enregistrer</button>
+                  </div>
+                </form>
+
+                <form class="danger-form" method="post"
+                      action="/cases/{{ case.id }}/claims/{{ claim.id }}/delete">
+                  <button class="btn btn-danger btn-small" type="submit"
+                          data-confirm="Retirer cette affirmation du dossier ?">Retirer</button>
+                </form>
+              </details>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <details class="editor editor-add">
+    <summary>Ajouter une affirmation</summary>
+    <form method="post" action="/cases/{{ case.id }}/claims" novalidate>
+      <div class="field">
+        <label for="new-claim-text">Affirmation</label>
+        <p class="hint">Une seule affirmation par entrée, formulée de façon vérifiable.</p>
+        <textarea id="new-claim-text" name="text" rows="3" required></textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="new-claim-cat">Catégorie</label>
+          <select id="new-claim-cat" name="category">
+            {{ ui.select_options(CLAIM_CATEGORY_LABELS, 'assumption') }}
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-claim-mat">Matérialité</label>
+          <p class="hint">« Déterminante » = la décision change si elle est fausse.</p>
+          <select id="new-claim-mat" name="materiality">
+            {{ ui.select_options(MATERIALITY_LABELS, 'medium') }}
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-claim-asof">Valable au</label>
+          <input type="date" id="new-claim-asof" name="as_of_date">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="new-claim-src">Source</label>
+        <p class="hint">
+          Document et emplacement : « Board pack juillet 2026, p. 12 ». En tranche 3, ce champ
+          deviendra un lien vers le passage importé.
+        </p>
+        <input type="text" id="new-claim-src" name="source_ref" maxlength="500">
+      </div>
+
+      <div class="field">
+        <label for="new-claim-quote">Passage cité</label>
+        <p class="hint">La phrase exacte du document, pour que la citation soit vérifiable.</p>
+        <textarea id="new-claim-quote" name="quote" rows="2"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="new-claim-why">Pourquoi c'est tenu pour vrai</label>
+        <p class="hint">À remplir pour une hypothèse : qui l'affirme, sur quelle base.</p>
+        <textarea id="new-claim-why" name="rationale" rows="2"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="new-claim-test">Test le moins coûteux</label>
+        <p class="hint">Ce qui trancherait cette inconnue rapidement et à faible coût.</p>
+        <textarea id="new-claim-test" name="best_test" rows="2"></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Ajouter</button>
+      </div>
+    </form>
+  </details>
+</section>

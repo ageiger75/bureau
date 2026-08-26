@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CEO OS — Decision Room{% endblock %}</title>
+  {# Feuille de style locale. La CSP interdit toute ressource externe : ni CDN, ni police
+     distante. Aucun style en ligne n'est possible dans ce projet, par conséquence. #}
+  <link rel="stylesheet" href="/static/ceo-os.css">
+</head>
+<body>
+<a class="skip-link" href="#contenu">Aller au contenu</a>
+
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-name">CEO OS</span>
+      <span class="brand-module">Decision Room</span>
+    </a>
+    <nav class="topnav">
+      <a href="/">Accueil</a>
+      <a href="/cases">Archive</a>
+      <a class="btn btn-primary btn-small" href="/cases/new">Nouveau dossier</a>
+    </nav>
+  </div>
+</header>
+
+{# Bandeau de périmètre : le produit doit dire ce qu'il n'est pas. Un prototype qui
+   ressemble à un outil authentifié invite à y déposer des données réelles. #}
+<div class="scope-banner">
+  <div class="wrap">
+    <strong>Prototype · {{ tranche_label }}</strong>
+    Aucune authentification, aucune donnée réelle attendue. Données locales ({{ database_label }}).
+    Aucun envoi, aucune écriture externe — niveau d'autonomie {{ autonomy_level }}.
+  </div>
+</div>
+
+<main id="contenu" class="wrap">
+  {% if flashes %}
+    <div class="flashes" role="status">
+      {% for item in flashes %}
+        <p class="flash flash-{{ item.kind }}">{{ item.message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <p>
+      CEO OS {{ app_version }} · environnement {{ env_name }} · {{ database_label }}
+      · accessible depuis 127.0.0.1 uniquement
+    </p>
+    <p class="footer-note">
+      L'outil prépare, alerte et structure. Le CEO décide.
+    </p>
+  </div>
+</footer>
+
+<script src="/static/ceo-os.js"></script>
+</body>
+</html>

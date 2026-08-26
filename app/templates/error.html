@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Erreur {{ status_code }} — CEO OS{% endblock %}
+
+{% block content %}
+<div class="panel panel-quiet">
+  <h1>Erreur {{ status_code }}</h1>
+  <p>{{ message }}</p>
+  <p><a class="btn btn-quiet" href="/">Retour à l'accueil</a></p>
+</div>
+{% endblock %}

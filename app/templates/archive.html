@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Archive — CEO OS{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Archive</h1>
+    <p class="lede">
+      {# Zéro au singulier : « 0 dossier clos ». #}
+      {{ rows|length }} dossier{{ 's' if rows|length > 1 else '' }} clos.
+      Du plus récemment clos au plus ancien.
+    </p>
+  </div>
+  <a class="btn" href="/">Dossiers ouverts</a>
+</div>
+
+{% if not rows %}
+  <div class="panel panel-quiet">
+    <h2>Aucun dossier clos</h2>
+    <p>
+      Un dossier se clôt par sa revue, une fois les hypothèses confrontées aux résultats.
+      Tant qu'aucune revue n'est terminée, il n'y a rien à relire ici.
+    </p>
+  </div>
+{% else %}
+
+  {% set with_lessons = rows | selectattr("lessons") | list %}
+  {% if with_lessons %}
+    <section class="panel">
+      <h2>Leçons</h2>
+      {# Le seul produit réutilisable d'une décision passée. Une leçon qu'on ne retrouve
+         pas n'a servi qu'une fois : elle s'affiche donc sans ouvrir le dossier. #}
+      <p class="lede">
+        Ce qu'il reste des décisions closes, et qui sert à la suivante.
+      </p>
+      <ul class="lesson-list">
+        {% for row in with_lessons %}
+          <li>
+            <p class="lesson-source">
+              <a href="/cases/{{ row.case.id }}#revue">{{ row.case.reference }}</a>
+              — clos le {{ row.closed_on }}
+            </p>
+            {{ row.lessons | paragraphs }}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <section class="panel">
+    <h2>Dossiers clos</h2>
+    <div class="case-list">
+      {% for row in rows %}
+        {% set case = row.case %}
+          <article class="case-card">
+            <header class="case-card-head">
+              <div class="case-card-title">
+                <span class="case-ref">{{ case.reference }}</span>
+                <h3><a href="/cases/{{ case.id }}">{{ case.title }}</a></h3>
+              </div>
+              <div class="case-card-badges">
+                {{ ui.status_badge(case.status) }}
+                {% if row.diverged %}
+                  {# Ce qu'on relit précisément à froid : l'outil recommandait autre chose. #}
+                  <span class="badge badge-warn">Écart avec la recommandation</span>
+                {% endif %}
+              </div>
+            </header>
+
+            <p class="case-question">{{ case.question }}</p>
+
+            <ul class="case-meta">
+              <li><span class="meta-k">Clos le</span> {{ row.closed_on }}</li>
+              {% if row.review and row.review.next_step %}
+                <li><span class="meta-k">Suite décidée</span> {{ NEXT_STEP_LABELS.get(row.review.next_step) }}</li>
+              {% endif %}
+              <li><span class="meta-k">Engagements</span> {{ case.commitments|length }}</li>
+            </ul>
+          </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

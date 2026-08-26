@@ -1,0 +1,119 @@
+{% import "macros.html" as ui %}
+
+{# Cadrage : ce que l'outil reformule. Le brief §6 en fait une étape à part entière —
+   « clarifier la vraie décision » avant de construire les options. #}
+<section class="panel" id="cadrage">
+  <h2>Cadrage</h2>
+
+  <div class="framing-grid">
+    <div class="framing-cell">
+      <h3>La vraie décision</h3>
+      {% if case.real_decision %}
+        <div class="prose">{{ case.real_decision|paragraphs }}</div>
+      {% else %}
+        <p class="empty">Non reformulée. La question posée est rarement la décision réelle.</p>
+      {% endif %}
+    </div>
+
+    <div class="framing-cell">
+      <h3>Ce qui n'est pas en jeu</h3>
+      {% if case.scope_out %}
+        {{ case.scope_out|bullets }}
+      {% else %}
+        <p class="empty">Non délimité. Sans cela, le débat glisse.</p>
+      {% endif %}
+    </div>
+
+    <div class="framing-cell">
+      <h3>Contraintes</h3>
+      {% if case.constraints %}
+        {{ case.constraints|bullets }}
+      {% else %}
+        <p class="empty">Aucune contrainte notée.</p>
+      {% endif %}
+    </div>
+
+    <div class="framing-cell framing-cell-blindspot">
+      <h3>Angle mort principal</h3>
+      {% if case.blind_spot %}
+        <div class="prose">{{ case.blind_spot|paragraphs }}</div>
+      {% else %}
+        <p class="empty">Non nommé.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if case.context %}
+    <details class="context-block">
+      <summary>Contexte</summary>
+      <div class="prose">{{ case.context|paragraphs }}</div>
+    </details>
+  {% endif %}
+
+  <details class="editor">
+    <summary>Modifier le cadrage</summary>
+    <form method="post" action="/cases/{{ case.id }}/framing" novalidate>
+      <div class="field">
+        <label for="f-title">Titre</label>
+        <input type="text" id="f-title" name="title" maxlength="300" value="{{ case.title }}" required>
+      </div>
+
+      <div class="field">
+        <label for="f-question">Question à trancher</label>
+        <textarea id="f-question" name="question" rows="3" required>{{ case.question }}</textarea>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="f-deadline">Échéance</label>
+          <input type="date" id="f-deadline" name="deadline" value="{{ case.deadline or '' }}">
+        </div>
+        <div class="field">
+          <label for="f-conf">Confidentialité</label>
+          <select id="f-conf" name="confidentiality">
+            {{ ui.select_options(CONFIDENTIALITY_LABELS, case.confidentiality) }}
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-context">Contexte</label>
+        <textarea id="f-context" name="context" rows="5">{{ case.context }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-real">La vraie décision</label>
+        <p class="hint">Ce qui se joue réellement, une fois la question posée reformulée.</p>
+        <textarea id="f-real" name="real_decision" rows="3">{{ case.real_decision }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-scope-out">Ce qui n'est pas en jeu</label>
+        <p class="hint">Une ligne par élément écarté du périmètre.</p>
+        <textarea id="f-scope-out" name="scope_out" rows="4">{{ case.scope_out }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-constraints">Contraintes</label>
+        <p class="hint">Une ligne par contrainte : budget, calendrier, engagement pris, règle interne.</p>
+        <textarea id="f-constraints" name="constraints" rows="4">{{ case.constraints }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-blind">Angle mort principal</label>
+        <p class="hint">Ce que ce dossier risque de ne pas voir. À remplir même si c'est inconfortable.</p>
+        <textarea id="f-blind" name="blind_spot" rows="3">{{ case.blind_spot }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="f-summary">Synthèse exécutive</label>
+        <p class="hint">Doit tenir sur un écran. La profondeur reste dans les sections ci-dessous.</p>
+        <textarea id="f-summary" name="executive_summary" rows="6">{{ case.executive_summary }}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Enregistrer le cadrage</button>
+      </div>
+    </form>
+  </details>
+</section>

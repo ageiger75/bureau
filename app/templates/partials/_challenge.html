@@ -1,0 +1,200 @@
+{% import "macros.html" as ui %}
+
+{# Challenge. Le brief §9 l'exige : « Ne cherche pas à plaire au CEO. » Un dossier que
+   personne n'a contesté ne peut pas passer en « Prêt à décider ». #}
+<section class="panel panel-challenge" id="challenge">
+  <h2>Challenge</h2>
+
+  {% if challenge_summary.total == 0 %}
+    <p class="empty">
+      Aucune objection. Un dossier que personne n'a contesté est un dossier qui confirme
+      l'intuition de départ — c'est le risque principal de cet outil.
+    </p>
+  {% else %}
+    <p class="hint">
+      {{ challenge_summary.total }} objection{{ 's' if challenge_summary.total > 1 else '' }} ·
+      {{ challenge_summary.unanswered }} sans réponse ·
+      {% if challenge_summary.premise_tested %}
+        au moins une prémisse testée
+      {% else %}
+        aucune prémisse testée
+      {% endif %}
+    </p>
+    {% if challenge_summary.missing_voice_labels %}
+      <p class="hint hint-warn">
+        Voix qui ne se sont pas exprimées : {{ challenge_summary.missing_voice_labels|join(', ') }}.
+      </p>
+    {% endif %}
+  {% endif %}
+
+  {% for voice in CHALLENGE_VOICE_ORDER %}
+    {% set items = grouped_challenges.get(voice, []) %}
+    {% if items %}
+      <div class="voice-group">
+        <h3>
+          <span class="badge badge-voice badge-voice-{{ voice }}">{{ CHALLENGE_VOICE_LABELS.get(voice) }}</span>
+          <span class="voice-question">{{ CHALLENGE_VOICE_QUESTIONS.get(voice) }}</span>
+        </h3>
+
+        <ul class="challenge-list">
+          {% for item in items %}
+            {% set warnings = warnings_by_challenge.get(item.id, []) %}
+            <li class="challenge sev-{{ item.severity }} {{ 'challenge-open' if item.is_unanswered else 'challenge-closed' }}">
+              <div class="challenge-main">
+                <div class="challenge-tags">
+                  <span class="badge badge-sev badge-sev-{{ item.severity }}">{{ SEVERITY_LABELS.get(item.severity) }}</span>
+                  <span class="badge badge-kind">{{ CHALLENGE_KIND_LABELS.get(item.kind) }}</span>
+                  <span class="badge badge-cstatus badge-cstatus-{{ item.status }}">{{ CHALLENGE_STATUS_LABELS.get(item.status) }}</span>
+                  {% if item.option %}
+                    <span class="challenge-scope">sur « {{ item.option.name }} »</span>
+                  {% else %}
+                    <span class="challenge-scope">sur le cadrage</span>
+                  {% endif %}
+                </div>
+
+                <p class="challenge-objection">{{ item.objection }}</p>
+
+                {% if item.evidence %}
+                  <p class="challenge-sub"><span class="meta-k">Sur quoi</span> {{ item.evidence }}</p>
+                {% endif %}
+                {% if item.response %}
+                  <div class="challenge-response">
+                    <span class="meta-k">Réponse</span>
+                    <div class="prose">{{ item.response|paragraphs }}</div>
+                    {% if item.answered_by %}
+                      <p class="challenge-author">{{ item.answered_by }}{% if item.answered_at %} · {{ item.answered_at[:10] }}{% endif %}</p>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                {{ ui.claim_warnings(warnings) }}
+              </div>
+
+              <details class="editor editor-inline">
+                <summary>{{ 'Répondre' if item.is_unanswered else 'Modifier' }}</summary>
+                <form method="post" action="/cases/{{ case.id }}/challenges/{{ item.id }}" novalidate>
+                  {% set p = 'ch-' ~ item.id %}
+                  <div class="field">
+                    <label for="{{ p }}-obj">Objection</label>
+                    <textarea id="{{ p }}-obj" name="objection" rows="3" required>{{ item.objection }}</textarea>
+                  </div>
+                  <div class="field-row">
+                    <div class="field">
+                      <label for="{{ p }}-voice">Voix</label>
+                      <select id="{{ p }}-voice" name="voice">
+                        {{ ui.select_options(CHALLENGE_VOICE_LABELS, item.voice) }}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="{{ p }}-kind">Nature</label>
+                      <select id="{{ p }}-kind" name="kind">
+                        {{ ui.select_options(CHALLENGE_KIND_LABELS, item.kind) }}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="{{ p }}-sev">Gravité</label>
+                      <select id="{{ p }}-sev" name="severity">
+                        {{ ui.select_options(SEVERITY_LABELS, item.severity) }}
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="{{ p }}-opt">Porte sur</label>
+                    <select id="{{ p }}-opt" name="option_id">
+                      <option value="" {{ '' if item.option_id else 'selected' }}>Le cadrage du dossier</option>
+                      {% for option in options %}
+                        <option value="{{ option.id }}" {{ 'selected' if item.option_id == option.id else '' }}>{{ option.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="{{ p }}-ev">Sur quoi elle s'appuie</label>
+                    <textarea id="{{ p }}-ev" name="evidence" rows="2">{{ item.evidence }}</textarea>
+                  </div>
+                  <div class="field">
+                    <label for="{{ p }}-resp">Réponse</label>
+                    <textarea id="{{ p }}-resp" name="response" rows="3">{{ item.response }}</textarea>
+                  </div>
+                  <div class="field">
+                    <label for="{{ p }}-st">Statut</label>
+                    <select id="{{ p }}-st" name="status">
+                      {{ ui.select_options(CHALLENGE_STATUS_LABELS, item.status) }}
+                    </select>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-primary btn-small" type="submit">Enregistrer</button>
+                  </div>
+                </form>
+
+                <form class="danger-form" method="post"
+                      action="/cases/{{ case.id }}/challenges/{{ item.id }}/delete">
+                  <button class="btn btn-danger btn-small" type="submit"
+                          data-confirm="Retirer cette objection du dossier ?">Retirer</button>
+                </form>
+              </details>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <details class="editor editor-add" {{ 'open' if challenge_summary.total == 0 else '' }}>
+    <summary>Ajouter une objection</summary>
+
+    <div class="voice-prompts">
+      <p class="hint">Les questions que chaque voix pose :</p>
+      <ul class="bullets">
+        {% for voice in CHALLENGE_VOICE_ORDER %}
+          <li><strong>{{ CHALLENGE_VOICE_LABELS.get(voice) }}</strong> — {{ CHALLENGE_VOICE_QUESTIONS.get(voice) }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <form method="post" action="/cases/{{ case.id }}/challenges" novalidate>
+      <div class="field">
+        <label for="new-ch-obj">Objection</label>
+        <p class="hint">Concrète et vérifiable. « C'est risqué » n'est pas une objection.</p>
+        <textarea id="new-ch-obj" name="objection" rows="3" required></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="new-ch-voice">Voix</label>
+          <select id="new-ch-voice" name="voice">
+            {{ ui.select_options(CHALLENGE_VOICE_LABELS, 'devils_advocate') }}
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-ch-kind">Nature</label>
+          <select id="new-ch-kind" name="kind">
+            {{ ui.select_options(CHALLENGE_KIND_LABELS, 'premise') }}
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-ch-sev">Gravité</label>
+          <p class="hint">« Bloquante » empêche de déclarer le dossier prêt.</p>
+          <select id="new-ch-sev" name="severity">
+            {{ ui.select_options(SEVERITY_LABELS, 'serious') }}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="new-ch-opt">Porte sur</label>
+        <select id="new-ch-opt" name="option_id">
+          <option value="" selected>Le cadrage du dossier</option>
+          {% for option in options %}
+            <option value="{{ option.id }}">{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="new-ch-ev">Sur quoi elle s'appuie</label>
+        <p class="hint">Le fait, le chiffre ou le signal qui la fonde. Sinon c'est une impression.</p>
+        <textarea id="new-ch-ev" name="evidence" rows="2"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Ajouter l'objection</button>
+      </div>
+    </form>
+  </details>
+</section>

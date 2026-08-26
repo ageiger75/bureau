@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}{{ case.reference }} — {{ case.title }}{% endblock %}
+
+{% block content %}
+<article class="case">
+
+  <header class="case-head urgency-{{ urgency }}">
+    <p class="breadcrumb"><a href="/">Décisions</a> · {{ case.reference }}</p>
+    <div class="case-head-main">
+      <h1>{{ case.title }}</h1>
+      <div class="case-head-badges">
+        {{ ui.status_badge(case.status) }}
+        {{ ui.deadline_chip(case.deadline, days_left, urgency) }}
+        <span class="badge badge-conf">{{ CONFIDENTIALITY_LABELS.get(case.confidentiality) }}</span>
+      </div>
+    </div>
+
+    <p class="case-question-lead">{{ case.question }}</p>
+
+    <ul class="case-meta case-meta-head">
+      <li><span class="meta-k">Propriétaire</span> {{ case.owner.display_name }}</li>
+      <li><span class="meta-k">Sources</span> {{ coverage_label }}</li>
+      <li><span class="meta-k">Créé le</span> {{ case.created_at[:10] }}</li>
+      <li><span class="meta-k">Modifié le</span> {{ case.updated_at[:10] }}</li>
+    </ul>
+
+    {# « Décidé » et « Clos » ne sont pas proposés ici : ils passent par leur écran, pour
+       qu'on ne puisse pas décider sans enregistrer le choix, ni clore sans revue. #}
+    {% if offered_statuses %}
+      <form class="status-form" method="post" action="/cases/{{ case.id }}/status">
+        <span class="status-form-label">Faire passer le dossier en</span>
+        {% for target in offered_statuses %}
+          <button class="btn btn-small btn-quiet" type="submit" name="status" value="{{ target }}">
+            {{ CASE_STATUS_LABELS.get(target, target) }}
+          </button>
+        {% endfor %}
+      </form>
+    {% endif %}
+  </header>
+
+  {# Le diagnostic est placé haut et non replié : c'est le point du produit. #}
+  <section class="panel panel-diagnosis" id="diagnostic">
+    <h2>Diagnostic</h2>
+    {{ ui.readiness_panel(readiness) }}
+  </section>
+
+  {% if case.executive_summary %}
+    <section class="panel" id="synthese">
+      <h2>Synthèse exécutive</h2>
+      <div class="prose">{{ case.executive_summary|paragraphs }}</div>
+    </section>
+  {% endif %}
+
+  {% include "partials/_framing.html" %}
+  {% include "partials/_claims.html" %}
+  {% include "partials/_options.html" %}
+  {% include "partials/_challenge.html" %}
+  {% include "partials/_recommendation.html" %}
+  {% include "partials/_decision.html" %}
+  {% include "partials/_commitments.html" %}
+  {% include "partials/_review.html" %}
+
+  <section class="panel panel-quiet" id="suite">
+    <h2>Ce que le prototype ne fait pas encore</h2>
+    <p class="hint">
+      Annoncé plutôt que masqué : un écran vide laisse croire à une donnée manquante,
+      alors qu'il s'agit d'une fonctionnalité non construite.
+    </p>
+    <ul class="bullets">
+      <li><strong>Sources</strong> — import PDF, PowerPoint, Word, Excel et lien cliquable jusqu'au passage cité (tranche 3). Aujourd'hui la source est du texte libre.</li>
+      <li><strong>Agents IA</strong> — extraction, détection de contradictions, objections proposées automatiquement (tranche 4). Aujourd'hui tout est saisi à la main.</li>
+      <li><strong>Identité et audit</strong> — Entra ID, droits par dossier, journal d'accès (tranche 5).</li>
+      <li><strong>Export</strong> — note Word ou PDF, sans envoi (tranche 3).</li>
+    </ul>
+  </section>
+
+</article>
+{% endblock %}

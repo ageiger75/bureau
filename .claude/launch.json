@@ -1,0 +1,11 @@
+{
+  "autoPort": true,
+  "commands": [
+    {
+      "name": "CEO OS",
+      "command": ".venv/bin/python manage.py serve",
+      "cwd": ".",
+      "autoPort": true
+    }
+  ]
+}

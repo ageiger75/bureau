@@ -1,0 +1,118 @@
+{% import "macros.html" as ui %}
+
+{# Recommandation : la position de l'outil, jamais confondue avec la décision du CEO.
+   Le brief §4 exige une position nette et les conditions qui l'invalideraient. #}
+<section class="panel panel-reco" id="recommandation">
+  <h2>Recommandation</h2>
+
+  {% if recommendation and recommendation.position %}
+    <div class="reco">
+      {% if recommendation.option %}
+        <p class="reco-option">Option retenue par la note : <strong>{{ recommendation.option.name }}</strong></p>
+      {% else %}
+        <p class="reco-option reco-option-none">
+          La position ne désigne aucune des options du dossier.
+        </p>
+      {% endif %}
+
+      <div class="reco-position">
+        <h3>Voilà ce que je ferais</h3>
+        <div class="prose">{{ recommendation.position|paragraphs }}</div>
+      </div>
+
+      {% if recommendation.reasons %}
+        <div class="reco-block">
+          <h3>Pourquoi</h3>
+          {{ recommendation.reasons|bullets }}
+        </div>
+      {% endif %}
+
+      {% if recommendation.success_conditions %}
+        <div class="reco-block">
+          <h3>Conditions de réussite</h3>
+          {{ recommendation.success_conditions|bullets }}
+        </div>
+      {% endif %}
+
+      <div class="reco-block reco-change">
+        <h3>Ce qui me ferait changer d'avis</h3>
+        {{ recommendation.would_change_if|bullets }}
+      </div>
+
+      {% if recommendation.open_disagreements %}
+        <div class="reco-block reco-disagreement">
+          <h3>Désaccords non résolus</h3>
+          <p class="hint">Affichés tels quels : une synthèse ne doit pas lisser les désaccords.</p>
+          {{ recommendation.open_disagreements|bullets }}
+        </div>
+      {% endif %}
+
+      <p class="reco-author">
+        Rédigé par {{ recommendation.author or '—' }} · mis à jour le {{ recommendation.updated_at[:10] }}
+      </p>
+    </div>
+  {% else %}
+    <p class="empty">
+      Aucune position prise. Après analyse, l'outil doit recommander une option et dire
+      pourquoi — sinon il produit un dossier, pas un arbitrage.
+    </p>
+  {% endif %}
+
+  <details class="editor" {{ 'open' if not (recommendation and recommendation.position) else '' }}>
+    <summary>{{ 'Modifier la recommandation' if recommendation and recommendation.position else 'Rédiger la recommandation' }}</summary>
+    <form method="post" action="/cases/{{ case.id }}/recommendation" novalidate>
+      <div class="field">
+        <label for="r-option">Option recommandée</label>
+        {% if options %}
+          <select id="r-option" name="option_id">
+            <option value="">— aucune option désignée —</option>
+            {% for option in options %}
+              <option value="{{ option.id }}"
+                {{ 'selected' if recommendation and recommendation.option_id == option.id else '' }}>
+                {{ option.name }}
+              </option>
+            {% endfor %}
+          </select>
+        {% else %}
+          <p class="empty">Ajouter au moins une option avant de pouvoir en recommander une.</p>
+        {% endif %}
+      </div>
+
+      <div class="field">
+        <label for="r-position">Voilà ce que je ferais</label>
+        <p class="hint">Une position nette. Pas « il faudrait étudier », mais ce que vous feriez.</p>
+        <textarea id="r-position" name="position" rows="4" required>{{ recommendation.position if recommendation else '' }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="r-reasons">Pourquoi</label>
+        <p class="hint">Une raison par ligne, appuyée sur les faits du dossier.</p>
+        <textarea id="r-reasons" name="reasons" rows="4">{{ recommendation.reasons if recommendation else '' }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="r-success">Conditions de réussite</label>
+        <textarea id="r-success" name="success_conditions" rows="3">{{ recommendation.success_conditions if recommendation else '' }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="r-change">Ce qui me ferait changer d'avis</label>
+        <p class="hint">
+          Obligatoire. Une recommandation qu'aucun fait ne pourrait invalider n'est pas
+          un raisonnement.
+        </p>
+        <textarea id="r-change" name="would_change_if" rows="3" required>{{ recommendation.would_change_if if recommendation else '' }}</textarea>
+      </div>
+
+      <div class="field">
+        <label for="r-disagree">Désaccords non résolus</label>
+        <p class="hint">Ce sur quoi les avis divergent encore. Ne pas masquer.</p>
+        <textarea id="r-disagree" name="open_disagreements" rows="3">{{ recommendation.open_disagreements if recommendation else '' }}</textarea>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Enregistrer la recommandation</button>
+      </div>
+    </form>
+  </details>
+</section>

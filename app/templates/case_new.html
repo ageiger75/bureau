@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Nouveau dossier — CEO OS{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Nouveau dossier de décision</h1>
+    <p class="lede">
+      Objectif du brief : un dossier complet en moins de trois minutes. Deux champs suffisent
+      pour commencer ; le cadrage se précise ensuite.
+    </p>
+  </div>
+  <a class="btn btn-quiet" href="/">Annuler</a>
+</div>
+
+<form class="panel form-panel" method="post" action="/cases" novalidate>
+  <div class="field">
+    <label for="title">Titre du dossier</label>
+    <p class="hint">Court, citable en réunion. Exemple : « Ouverture boutique Milan Duomo ».</p>
+    <input type="text" id="title" name="title" maxlength="300" required
+           value="{{ values.get('title', '') }}">
+    {{ ui.field_error(errors, 'title') }}
+  </div>
+
+  <div class="field">
+    <label for="question">Question à trancher</label>
+    <p class="hint">
+      Une question, pas un sujet. « Faut-il ouvrir un flagship à Milan avant décembre 2026 ? »
+      plutôt que « Retail Italie ».
+    </p>
+    <textarea id="question" name="question" rows="3" required>{{ values.get('question', '') }}</textarea>
+    {{ ui.field_error(errors, 'question') }}
+  </div>
+
+  <div class="field">
+    <label for="context">Contexte</label>
+    <p class="hint">Ce qui amène cette question maintenant. Ce qui a déjà été tenté ou écarté.</p>
+    <textarea id="context" name="context" rows="5">{{ values.get('context', '') }}</textarea>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="deadline">Échéance de décision</label>
+      <p class="hint">Format AAAA-MM-JJ. Facultatif, mais un dossier sans date ne remonte pas.</p>
+      <input type="date" id="deadline" name="deadline" value="{{ values.get('deadline') or '' }}">
+      {{ ui.field_error(errors, 'deadline') }}
+    </div>
+
+    <div class="field">
+      <label for="confidentiality">Confidentialité</label>
+      <p class="hint">Le défaut est « Confidentiel » : le partage est un acte explicite.</p>
+      <select id="confidentiality" name="confidentiality">
+        {{ ui.select_options(CONFIDENTIALITY_LABELS, values.get('confidentiality')) }}
+      </select>
+      {{ ui.field_error(errors, 'confidentiality') }}
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Créer le brouillon</button>
+    <a class="btn btn-quiet" href="/">Annuler</a>
+  </div>
+</form>
+{% endblock %}

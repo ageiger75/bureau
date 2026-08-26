@@ -1,0 +1,148 @@
+{% import "macros.html" as ui %}
+
+{# Suivi. Le produit ne relance personne : il rend le retard visible. C'est la réponse au
+   brief §2 — « les engagements existent dans plusieurs comptes rendus, sans lien direct
+   avec la décision initiale ». #}
+<section class="panel" id="suivi">
+  <h2>Suivi des engagements</h2>
+
+  {% if commitment_summary.total == 0 %}
+    <p class="empty">
+      Aucun engagement. Une décision sans engagement suivi ne s'exécute pas : elle s'oublie.
+    </p>
+  {% else %}
+    <p class="hint">
+      {{ commitment_summary.completion_label }}
+      {%- if commitment_summary.overdue %} · <span class="text-alert">{{ commitment_summary.overdue }} en retard</span>{% endif %}
+      {%- if commitment_summary.critical_overdue %} dont {{ commitment_summary.critical_overdue }} critique{{ 's' if commitment_summary.critical_overdue > 1 else '' }}{% endif %}
+      {%- if commitment_summary.rearbitration_needed %} · <span class="text-alert">{{ commitment_summary.rearbitration_needed }} à ré-arbitrer</span>{% endif %}
+    </p>
+    <p class="hint">
+      Aucun message n'est envoyé et aucun système externe n'est mis à jour : la mise à jour
+      des statuts est manuelle, et c'est délibéré.
+    </p>
+
+    <ul class="commitment-list">
+      {% for item in commitments %}
+        {% set alert = commitment_alerts.get(item.id) %}
+        {% set warnings = warnings_by_commitment.get(item.id, []) %}
+        <li class="commitment alert-{{ alert }} {{ 'commitment-critical' if item.is_critical else '' }}">
+          <div class="commitment-main">
+            <div class="commitment-tags">
+              <span class="badge badge-cmt badge-cmt-{{ item.status }}">{{ COMMITMENT_STATUS_LABELS.get(item.status) }}</span>
+              {% if item.is_critical %}<span class="badge badge-critical">Critique</span>{% endif %}
+              {% if alert == 'overdue' %}
+                <span class="badge badge-deadline badge-deadline-overdue">En retard · {{ item.due_date }}</span>
+              {% elif alert == 'due_soon' %}
+                <span class="badge badge-deadline badge-deadline-critical">Échéance {{ item.due_date }}</span>
+              {% elif alert == 'no_date' %}
+                <span class="badge badge-deadline badge-deadline-none">Sans échéance</span>
+              {% elif item.due_date %}
+                <span class="badge badge-deadline">{{ item.due_date }}</span>
+              {% endif %}
+            </div>
+
+            <p class="commitment-action">{{ item.action }}</p>
+
+            <p class="commitment-sub">
+              <span class="meta-k">Propriétaire</span>
+              {% if item.owner_name %}{{ item.owner_name }}{% else %}<span class="text-alert">non nommé</span>{% endif %}
+            </p>
+
+            {% if item.evidence %}
+              <p class="commitment-sub"><span class="meta-k">Preuve d'avancement</span> {{ item.evidence }}</p>
+            {% endif %}
+
+            {{ ui.claim_warnings(warnings) }}
+          </div>
+
+          <details class="editor editor-inline">
+            <summary>Mettre à jour</summary>
+            <form method="post" action="/cases/{{ case.id }}/commitments/{{ item.id }}" novalidate>
+              {% set p = 'cm-' ~ item.id %}
+              <div class="field">
+                <label for="{{ p }}-action">Action</label>
+                <textarea id="{{ p }}-action" name="action" rows="2" required>{{ item.action }}</textarea>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="{{ p }}-owner">Propriétaire</label>
+                  <input type="text" id="{{ p }}-owner" name="owner_name" maxlength="500"
+                         value="{{ item.owner_name }}">
+                </div>
+                <div class="field">
+                  <label for="{{ p }}-due">Échéance</label>
+                  <input type="date" id="{{ p }}-due" name="due_date" value="{{ item.due_date or '' }}">
+                </div>
+                <div class="field">
+                  <label for="{{ p }}-status">Statut</label>
+                  <select id="{{ p }}-status" name="status">
+                    {{ ui.select_options(COMMITMENT_STATUS_LABELS, item.status) }}
+                  </select>
+                </div>
+              </div>
+              <div class="field field-check">
+                <input type="checkbox" id="{{ p }}-crit" name="is_critical" value="1"
+                       {{ 'checked' if item.is_critical else '' }}>
+                <label for="{{ p }}-crit">Critique : son échec remet la décision en cause</label>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-ev">Preuve d'avancement</label>
+                <textarea id="{{ p }}-ev" name="evidence" rows="2">{{ item.evidence }}</textarea>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary btn-small" type="submit">Enregistrer</button>
+              </div>
+            </form>
+
+            <form class="danger-form" method="post"
+                  action="/cases/{{ case.id }}/commitments/{{ item.id }}/delete">
+              <button class="btn btn-danger btn-small" type="submit"
+                      data-confirm="Retirer cet engagement du dossier ?">Retirer</button>
+            </form>
+          </details>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  <details class="editor editor-add">
+    <summary>Ajouter un engagement</summary>
+    <form method="post" action="/cases/{{ case.id }}/commitments" novalidate>
+      <div class="field">
+        <label for="new-cm-action">Action</label>
+        <p class="hint">Ce qui doit être fait, formulé de façon vérifiable.</p>
+        <textarea id="new-cm-action" name="action" rows="2" required></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="new-cm-owner">Propriétaire</label>
+          <p class="hint">Une personne. « L'équipe » n'est le nom de personne.</p>
+          <input type="text" id="new-cm-owner" name="owner_name" maxlength="500">
+        </div>
+        <div class="field">
+          <label for="new-cm-due">Échéance</label>
+          <p class="hint">Sans date, l'engagement ne remontera jamais comme en retard.</p>
+          <input type="date" id="new-cm-due" name="due_date">
+        </div>
+        <div class="field">
+          <label for="new-cm-status">Statut</label>
+          <select id="new-cm-status" name="status">
+            {{ ui.select_options(COMMITMENT_STATUS_LABELS, 'open') }}
+          </select>
+        </div>
+      </div>
+      <div class="field field-check">
+        <input type="checkbox" id="new-cm-crit" name="is_critical" value="1">
+        <label for="new-cm-crit">Critique : son échec remet la décision en cause</label>
+      </div>
+      <div class="field">
+        <label for="new-cm-ev">Preuve d'avancement</label>
+        <textarea id="new-cm-ev" name="evidence" rows="2"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Ajouter l'engagement</button>
+      </div>
+    </form>
+  </details>
+</section>

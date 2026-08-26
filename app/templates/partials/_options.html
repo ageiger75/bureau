@@ -1,0 +1,182 @@
+{% import "macros.html" as ui %}
+
+{# Options. Deux ou trois, statu quo compris. La limite est contrôlée au passage en
+   « Prêt à décider » et non à la saisie : on laisse poser des pistes en réfléchissant. #}
+<section class="panel" id="options">
+  <h2>Options</h2>
+  <p class="hint">
+    {# En français, zéro reste au singulier : « 0 option », pas « 0 options ». #}
+    {{ options|length }} option{{ 's' if options|length > 1 else '' }} ·
+    deux ou trois choix réellement distincts, le statu quo compris quand il est pertinent.
+  </p>
+
+  {% if not options %}
+    <p class="empty">
+      Aucune option. Sans alternative comparable, il n'y a pas d'arbitrage — seulement une
+      intention à valider.
+    </p>
+  {% else %}
+    <div class="option-grid">
+      {% for option in options %}
+        <article class="option-card {{ 'option-status-quo' if option.is_status_quo else '' }}">
+          <header class="option-head">
+            <h3>{{ option.name }}</h3>
+            <div class="option-badges">
+              {% if option.is_status_quo %}<span class="badge badge-sq">Statu quo</span>{% endif %}
+              {{ ui.reversibility_badge(option.reversibility) }}
+            </div>
+          </header>
+
+          {% if option.description %}
+            <div class="prose">{{ option.description|paragraphs }}</div>
+          {% endif %}
+
+          <dl class="option-dl">
+            {% if option.benefits %}
+              <dt>Ce que ça apporte</dt><dd>{{ option.benefits|bullets }}</dd>
+            {% endif %}
+            {% if option.risks %}
+              <dt>Risques</dt><dd>{{ option.risks|bullets }}</dd>
+            {% endif %}
+            {% if option.assumptions %}
+              <dt>Hypothèses portées</dt><dd>{{ option.assumptions|bullets }}</dd>
+            {% endif %}
+            {% if option.success_conditions %}
+              <dt>Conditions de réussite</dt><dd>{{ option.success_conditions|bullets }}</dd>
+            {% endif %}
+            {% if option.time_to_effect %}
+              <dt>Délai d'effet</dt><dd><p>{{ option.time_to_effect }}</p></dd>
+            {% endif %}
+            {% if option.reversibility_note %}
+              <dt>Coût de sortie</dt><dd><p>{{ option.reversibility_note }}</p></dd>
+            {% endif %}
+          </dl>
+
+          {% if recommendation and recommendation.option_id == option.id %}
+            <p class="option-recommended">Option recommandée par la note</p>
+          {% endif %}
+
+          <details class="editor editor-inline">
+            <summary>Modifier</summary>
+            <form method="post" action="/cases/{{ case.id }}/options/{{ option.id }}" novalidate>
+              {% set p = 'o-' ~ option.id %}
+              <div class="field">
+                <label for="{{ p }}-name">Nom</label>
+                <input type="text" id="{{ p }}-name" name="name" maxlength="300"
+                       value="{{ option.name }}" required>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-desc">Description</label>
+                <textarea id="{{ p }}-desc" name="description" rows="3">{{ option.description }}</textarea>
+              </div>
+              <div class="field field-check">
+                <input type="checkbox" id="{{ p }}-sq" name="is_status_quo" value="1"
+                       {{ 'checked' if option.is_status_quo else '' }}>
+                <label for="{{ p }}-sq">C'est le statu quo</label>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-ben">Ce que ça apporte</label>
+                <textarea id="{{ p }}-ben" name="benefits" rows="3">{{ option.benefits }}</textarea>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-risk">Risques</label>
+                <textarea id="{{ p }}-risk" name="risks" rows="3">{{ option.risks }}</textarea>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-assum">Hypothèses portées</label>
+                <textarea id="{{ p }}-assum" name="assumptions" rows="3">{{ option.assumptions }}</textarea>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-succ">Conditions de réussite</label>
+                <textarea id="{{ p }}-succ" name="success_conditions" rows="3">{{ option.success_conditions }}</textarea>
+              </div>
+              <div class="field-row">
+                <div class="field">
+                  <label for="{{ p }}-rev">Réversibilité</label>
+                  <select id="{{ p }}-rev" name="reversibility">
+                    {{ ui.select_options(REVERSIBILITY_LABELS, option.reversibility) }}
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="{{ p }}-time">Délai d'effet</label>
+                  <input type="text" id="{{ p }}-time" name="time_to_effect" maxlength="500"
+                         value="{{ option.time_to_effect }}">
+                </div>
+              </div>
+              <div class="field">
+                <label for="{{ p }}-revnote">Coût de sortie</label>
+                <textarea id="{{ p }}-revnote" name="reversibility_note" rows="2">{{ option.reversibility_note }}</textarea>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary btn-small" type="submit">Enregistrer</button>
+              </div>
+            </form>
+
+            <form class="danger-form" method="post"
+                  action="/cases/{{ case.id }}/options/{{ option.id }}/delete">
+              <button class="btn btn-danger btn-small" type="submit"
+                      data-confirm="Supprimer l'option « {{ option.name }} » ?">Supprimer</button>
+            </form>
+          </details>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <details class="editor editor-add">
+    <summary>Ajouter une option</summary>
+    <form method="post" action="/cases/{{ case.id }}/options" novalidate>
+      <div class="field">
+        <label for="new-option-name">Nom</label>
+        <p class="hint">Ce que l'on fait, en quelques mots. Pas un slogan.</p>
+        <input type="text" id="new-option-name" name="name" maxlength="300" required>
+      </div>
+      <div class="field">
+        <label for="new-option-desc">Description</label>
+        <textarea id="new-option-desc" name="description" rows="3"></textarea>
+      </div>
+      <div class="field field-check">
+        <input type="checkbox" id="new-option-sq" name="is_status_quo" value="1">
+        <label for="new-option-sq">C'est le statu quo</label>
+      </div>
+      <div class="field">
+        <label for="new-option-ben">Ce que ça apporte</label>
+        <p class="hint">Une ligne par élément.</p>
+        <textarea id="new-option-ben" name="benefits" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="new-option-risk">Risques</label>
+        <textarea id="new-option-risk" name="risks" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="new-option-assum">Hypothèses portées</label>
+        <p class="hint">Ce que cette option suppose vrai, et qui n'est pas démontré.</p>
+        <textarea id="new-option-assum" name="assumptions" rows="3"></textarea>
+      </div>
+      <div class="field">
+        <label for="new-option-succ">Conditions de réussite</label>
+        <textarea id="new-option-succ" name="success_conditions" rows="3"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="new-option-rev">Réversibilité</label>
+          <select id="new-option-rev" name="reversibility">
+            {{ ui.select_options(REVERSIBILITY_LABELS, 'costly') }}
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-option-time">Délai d'effet</label>
+          <p class="hint">Exemple : « effet visible sur le CA à 9 mois ».</p>
+          <input type="text" id="new-option-time" name="time_to_effect" maxlength="500">
+        </div>
+      </div>
+      <div class="field">
+        <label for="new-option-revnote">Coût de sortie</label>
+        <textarea id="new-option-revnote" name="reversibility_note" rows="2"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Ajouter l'option</button>
+      </div>
+    </form>
+  </details>
+</section>

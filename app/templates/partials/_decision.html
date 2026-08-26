@@ -1,0 +1,154 @@
+{% import "macros.html" as ui %}
+
+{# Décision. Le brief §2 note que « la décision finale est connue, mais ses raisons,
+   réserves et critères de succès sont rarement conservés ». C'est exactement ce que cet
+   écran refuse d'enregistrer à moitié. #}
+<section class="panel panel-decision" id="decision">
+  <h2>Décision</h2>
+
+  {% if decision %}
+    <div class="decision">
+      <p class="decision-option">
+        Option retenue : <strong>{{ decision.option.name }}</strong>
+        {% if decision.diverges_from_recommendation %}
+          <span class="badge badge-divergence">S'écarte de la recommandation</span>
+        {% endif %}
+      </p>
+
+      {% if decision.diverges_from_recommendation %}
+        <div class="decision-block decision-divergence">
+          <h3>Pourquoi s'écarter de la recommandation</h3>
+          {% if decision.divergence_reason %}
+            <div class="prose">{{ decision.divergence_reason|paragraphs }}</div>
+          {% else %}
+            <p class="empty">
+              Non écrit. C'est précisément ce qu'on voudra relire à la revue.
+            </p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <div class="decision-block">
+        <h3>Raisons</h3>
+        {{ decision.reasons|bullets }}
+      </div>
+
+      <div class="decision-block decision-reservations">
+        <h3>Réserves assumées</h3>
+        {% if decision.reservations %}
+          {{ decision.reservations|bullets }}
+        {% else %}
+          <p class="empty">Aucune réserve consignée : la décision est présentée comme sans angle mort.</p>
+        {% endif %}
+      </div>
+
+      <div class="decision-block">
+        <h3>Critères de succès</h3>
+        {{ decision.success_criteria|bullets }}
+      </div>
+
+      {% if decision.change_conditions %}
+        <div class="decision-block decision-change">
+          <h3>Ce qui déclencherait un ré-arbitrage</h3>
+          {{ decision.change_conditions|bullets }}
+        </div>
+      {% endif %}
+
+      <ul class="case-meta">
+        <li><span class="meta-k">Décidé par</span> {{ decision.decided_by.display_name }}</li>
+        <li><span class="meta-k">Le</span> {{ decision.decided_at[:10] }}</li>
+        <li><span class="meta-k">Revue prévue</span> {{ decision.review_date }}</li>
+      </ul>
+    </div>
+  {% elif case.status in ('draft', 'analysis') and not readiness.is_ready %}
+    <p class="empty">
+      Le dossier n'est pas encore prêt à décider. Le diagnostic en haut de page liste ce
+      qui manque.
+    </p>
+  {% else %}
+    <p class="empty">
+      Aucune décision enregistrée. Le choix, les raisons, les réserves, les critères de
+      succès et la date de revue sont conservés ensemble — c'est ce qui manque le plus
+      souvent après une réunion.
+    </p>
+  {% endif %}
+
+  {% if readiness.is_ready or decision %}
+    <details class="editor" {{ 'open' if not decision else '' }}>
+      <summary>{{ 'Modifier la décision' if decision else 'Enregistrer la décision' }}</summary>
+      <form method="post" action="/cases/{{ case.id }}/decision" novalidate>
+        <div class="field">
+          <label for="d-option">Option retenue</label>
+          {% if recommended_option_id %}
+            <p class="hint">
+              L'outil recommande une option. En choisir une autre est parfaitement légitime :
+              l'écart sera simplement enregistré, pour être relu à la revue.
+            </p>
+          {% endif %}
+          <select id="d-option" name="option_id" required>
+            <option value="">— choisir —</option>
+            {% for option in options %}
+              <option value="{{ option.id }}"
+                {{ 'selected' if decision and decision.option_id == option.id else '' }}>
+                {{ option.name }}{% if option.id == recommended_option_id %} (recommandée){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="d-reasons">Raisons de l'arbitrage</label>
+          <p class="hint">Une raison par ligne. Ce que vous relirez dans six mois.</p>
+          <textarea id="d-reasons" name="reasons" rows="4" required>{{ decision.reasons if decision else '' }}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="d-reserv">Réserves assumées</label>
+          <p class="hint">
+            Ce que vous savez ne pas avoir résolu en décidant. Le champ le plus utile du
+            dossier, et le plus souvent laissé vide.
+          </p>
+          <textarea id="d-reserv" name="reservations" rows="3">{{ decision.reservations if decision else '' }}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="d-success">Critères de succès</label>
+          <p class="hint">Comment on saura, à la revue, que c'était la bonne décision.</p>
+          <textarea id="d-success" name="success_criteria" rows="3" required>{{ decision.success_criteria if decision else '' }}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="d-change">Ce qui déclencherait un ré-arbitrage</label>
+          <textarea id="d-change" name="change_conditions" rows="3">{{ decision.change_conditions if decision else '' }}</textarea>
+        </div>
+
+        <div class="field">
+          <label for="d-review">Date de revue</label>
+          <p class="hint">
+            À 3 ou 6 mois selon le délai d'effet. La revue est créée automatiquement à cette
+            date : une revue qu'il faut penser à planifier n'a jamais lieu.
+          </p>
+          <input type="date" id="d-review" name="review_date" required
+                 value="{{ decision.review_date if decision else '' }}">
+        </div>
+
+        <div class="field field-check">
+          <input type="checkbox" id="d-div" name="diverges_from_recommendation" value="1"
+                 {{ 'checked' if decision and decision.diverges_from_recommendation else '' }}>
+          <label for="d-div">Cette décision s'écarte de la recommandation</label>
+        </div>
+
+        <div class="field">
+          <label for="d-divreason">Pourquoi s'en écarter</label>
+          <textarea id="d-divreason" name="divergence_reason" rows="2">{{ decision.divergence_reason if decision else '' }}</textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">
+            {{ 'Enregistrer les modifications' if decision else 'Enregistrer la décision' }}
+          </button>
+        </div>
+      </form>
+    </details>
+  {% endif %}
+</section>

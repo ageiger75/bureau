@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% import "macros.html" as ui %}
+
+{% block title %}Accueil — CEO OS{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Décisions</h1>
+    <p class="lede">
+      {# Zéro au singulier : « 0 dossier ouvert ». #}
+      {{ rows|length }} dossier{{ 's' if rows|length > 1 else '' }} ouvert{{ 's' if rows|length > 1 else '' }}.
+      Triés par urgence, puis par fragilité — pas par date de création.
+    </p>
+  </div>
+  <a class="btn btn-primary" href="/cases/new">Nouveau dossier</a>
+</div>
+
+{% if not rows %}
+  <div class="panel panel-quiet">
+    <h2>Aucun dossier ouvert</h2>
+    <p>
+      L'unité de travail du produit est la décision : une question explicite, des preuves
+      traçables, des options comparables, une position assumée.
+    </p>
+    <p><a class="btn btn-primary" href="/cases/new">Créer le premier dossier</a></p>
+  </div>
+{% else %}
+
+  {% if attention_rows %}
+    <section class="panel panel-attention">
+      <h2>Demande attention</h2>
+      <ul class="attention-list">
+        {% for row in attention_rows %}
+          <li>
+            <a href="/cases/{{ row.case.id }}">{{ row.case.reference }} — {{ row.case.title }}</a>
+            {# Des raisons nommées plutôt qu'un pictogramme : le brief §4 exige de montrer
+               ce qui soutient l'analyse, pas de le résumer par un symbole. #}
+            <span class="attention-why">{{ row.attention_reasons|join(' · ') }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if overdue_commitments %}
+    <section class="panel panel-overdue">
+      <h2>Engagements en retard</h2>
+      <p class="hint">
+        Aucune relance n'est envoyée : le produit rend le retard visible, il n'agit pas à
+        l'extérieur.
+      </p>
+      <ul class="commitment-lines">
+        {% for line in overdue_commitments %}
+          <li class="{{ 'line-critical' if line.commitment.is_critical else '' }}">
+            <div class="line-main">
+              <p class="line-action">
+                {% if line.commitment.is_critical %}<span class="badge badge-critical">Critique</span>{% endif %}
+                {{ line.commitment.action }}
+              </p>
+              <p class="line-meta">
+                <a href="/cases/{{ line.case.id }}#suivi">{{ line.case.reference }}</a>
+                · {{ line.commitment.owner_name or 'propriétaire non nommé' }}
+                · {{ COMMITMENT_STATUS_LABELS.get(line.commitment.status) }}
+              </p>
+            </div>
+            <span class="badge badge-deadline badge-deadline-overdue">
+              {{ line.days_late }} j de retard
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  {% if review_lines %}
+    <section class="panel panel-reviews">
+      <h2>Revues</h2>
+      <ul class="commitment-lines">
+        {% for line in review_lines %}
+          <li>
+            <div class="line-main">
+              <p class="line-action">
+                <a href="/cases/{{ line.case.id }}#revue">{{ line.case.reference }} — {{ line.case.title }}</a>
+              </p>
+              <p class="line-meta">
+                Comparer les hypothèses d'origine aux résultats observés
+              </p>
+            </div>
+            {% if line.is_due %}
+              <span class="badge badge-deadline badge-deadline-overdue">
+                Échue · prévue le {{ line.review.planned_date }}
+              </span>
+            {% else %}
+              <span class="badge badge-deadline badge-deadline-critical">
+                Dans {{ line.days_left }} j · {{ line.review.planned_date }}
+              </span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <div class="case-list">
+    {% for row in rows %}
+      {% set case = row.case %}
+      <article class="case-card urgency-{{ row.urgency }}">
+        <header class="case-card-head">
+          <div class="case-card-title">
+            <span class="case-ref">{{ case.reference }}</span>
+            <h3><a href="/cases/{{ case.id }}">{{ case.title }}</a></h3>
+          </div>
+          <div class="case-card-badges">
+            {{ ui.status_badge(case.status) }}
+            {{ ui.deadline_chip(case.deadline, row.days_left, row.urgency) }}
+          </div>
+        </header>
+
+        <p class="case-question">{{ case.question }}</p>
+
+        {% set decided = case.status in ('decided', 'executing', 'to_review', 'closed') %}
+
+        <ul class="case-meta">
+          <li><span class="meta-k">Propriétaire</span> {{ case.owner.display_name }}</li>
+          {% if decided %}
+            <li><span class="meta-k">Engagements</span> {{ row.commitments.completion_label }}</li>
+            {% if row.review %}
+              <li><span class="meta-k">Revue</span> {{ REVIEW_STATUS_LABELS.get(row.review.status) }} · {{ row.review.planned_date }}</li>
+            {% endif %}
+          {% else %}
+            <li><span class="meta-k">Options</span> {{ row.option_count }}</li>
+            <li><span class="meta-k">Affirmations</span> {{ row.claim_count }}</li>
+          {% endif %}
+          <li><span class="meta-k">Confidentialité</span> {{ CONFIDENTIALITY_LABELS.get(case.confidentiality) }}</li>
+        </ul>
+
+        {# Le diagnostic de maturité ne concerne que les dossiers pas encore décidés :
+           afficher « prêt à décider » sur un dossier déjà arbitré serait absurde. #}
+        {% if decided %}
+          {% if row.commitments.overdue or row.review_is_due %}
+            <p class="case-diagnosis-alert">{{ row.attention_reasons|join(' · ') }}</p>
+          {% else %}
+            <p class="case-diagnosis-ok">Exécution sans écart signalé</p>
+          {% endif %}
+        {% elif row.readiness.blockers or row.readiness.warnings %}
+          <details class="case-diagnosis">
+            <summary>
+              {%- if row.readiness.blockers -%}
+                {{ row.readiness.blockers|length }} bloquant{{ 's' if row.readiness.blockers|length > 1 else '' }}
+              {%- else -%}
+                Prêt à décider
+              {%- endif -%}
+              {%- if row.readiness.warnings %} · {{ row.readiness.warnings|length }} signalement{{ 's' if row.readiness.warnings|length > 1 else '' }}{% endif -%}
+            </summary>
+            {{ ui.readiness_panel(row.readiness, compact=true) }}
+          </details>
+        {% else %}
+          <p class="case-diagnosis-ok">Prêt à décider · aucun signalement</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,107 @@
+{# Composants d'affichage réutilisés. Toute étiquette d'état passe par ici : une valeur
+   brute affichée quelque part finirait par diverger du vocabulaire du domaine. #}
+
+{% macro status_badge(status) -%}
+<span class="badge badge-status badge-status-{{ status }}"
+      title="{{ CASE_STATUS_MEANINGS.get(status, '') }}">{{ CASE_STATUS_LABELS.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro category_badge(category) -%}
+<span class="badge badge-cat badge-cat-{{ category }}"
+      title="{{ CLAIM_CATEGORY_HINTS.get(category, '') }}">{{ CLAIM_CATEGORY_LABELS.get(category, category) }}</span>
+{%- endmacro %}
+
+{% macro materiality_badge(materiality) -%}
+<span class="badge badge-mat badge-mat-{{ materiality }}">{{ MATERIALITY_LABELS.get(materiality, materiality) }}</span>
+{%- endmacro %}
+
+{% macro reversibility_badge(reversibility) -%}
+<span class="badge badge-rev badge-rev-{{ reversibility }}">{{ REVERSIBILITY_LABELS.get(reversibility, reversibility) }}</span>
+{%- endmacro %}
+
+{% macro deadline_chip(deadline, days_left, urgency) -%}
+  {%- if deadline -%}
+    <span class="badge badge-deadline badge-deadline-{{ urgency }}">
+      {%- if days_left is not none and days_left < 0 -%}
+        Échéance dépassée de {{ -days_left }} j · {{ deadline }}
+      {%- elif days_left == 0 -%}
+        Échéance aujourd'hui · {{ deadline }}
+      {%- elif days_left is not none -%}
+        {{ days_left }} j · {{ deadline }}
+      {%- else -%}
+        {{ deadline }}
+      {%- endif -%}
+    </span>
+  {%- else -%}
+    <span class="badge badge-deadline badge-deadline-none">Sans échéance</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{# Bloc de diagnostic. Les bloquants et les avertissements ne sont jamais fondus dans un
+   score : le brief §4 interdit de présenter une moyenne comme une vérité. #}
+{% macro readiness_panel(readiness, compact=false) -%}
+<div class="readiness {{ 'readiness-compact' if compact else '' }}">
+  {% if readiness.blockers %}
+    <div class="readiness-group readiness-blockers">
+      <h4>Ce qui empêche de décider</h4>
+      <ul>
+        {% for item in readiness.blockers %}
+          <li><span class="w-msg">{{ item.message }}</span>
+              <span class="w-fix">{{ item.fix }}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <p class="readiness-ok">Aucun bloquant : le dossier peut passer en « Prêt à décider ».</p>
+  {% endif %}
+
+  {% if readiness.warnings %}
+    <div class="readiness-group readiness-warnings">
+      <h4>À voir avant de trancher</h4>
+      <ul>
+        {% for item in readiness.warnings %}
+          <li class="sev-{{ item.severity }}">
+            <span class="w-msg">{{ item.message }}</span>
+            <span class="w-fix">{{ item.fix }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro claim_warnings(warnings) -%}
+  {% if warnings %}
+    <ul class="claim-warnings">
+      {% for item in warnings %}
+        <li class="sev-{{ item.severity }}">
+          <span class="w-msg">{{ item.message }}</span>
+          <span class="w-fix">{{ item.fix }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{%- endmacro %}
+
+{% macro field_error(errors, name) -%}
+  {% if errors and errors.get(name) %}
+    <p class="field-error">{{ errors.get(name) }}</p>
+  {% endif %}
+{%- endmacro %}
+
+{% macro select_options(mapping, current) -%}
+  {% for value, label in mapping.items() %}
+    <option value="{{ value }}" {{ 'selected' if value == current else '' }}>{{ label }}</option>
+  {% endfor %}
+{%- endmacro %}
+
+{# Section repliable, en HTML natif : aucun JavaScript nécessaire pour lire un dossier. #}
+{% macro details_start(summary_text, open=false, extra_class='') -%}
+<details class="editor {{ extra_class }}" {{ 'open' if open else '' }}>
+  <summary>{{ summary_text }}</summary>
+{%- endmacro %}
+
+{% macro details_end() -%}
+</details>
+{%- endmacro %}

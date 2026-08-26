@@ -1,0 +1,17 @@
+# Secrets et environnement local
+.env
+
+# Base SQLite, journaux WAL et fichiers de travail : jamais versionnés. Ils contiennent
+# le contenu des dossiers, et un dépôt n'est pas le bon endroit pour ça.
+var/
+
+# Environnement virtuel : recréé par run.sh, dépendant de chemins absolus.
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Systèmes de fichiers
+.DS_Store

@@ -30,6 +30,7 @@ standard plutôt qu'avec trois paquets tiers.
 | Besoin | Fichier |
 | --- | --- |
 | Une règle métier | `app/domain/` — ni import FastAPI, ni import SQLAlchemy |
+| Un bloquant ou un avertissement | `app/domain/warnings.py` — code, message **et** correctif |
 | Un libellé français | `app/domain/enums.py`, jamais en dur dans un gabarit |
 | Lire un formulaire | `app/forms.py` |
 | Une requête ou un calcul sur les objets persistés | `app/services.py` |
@@ -70,6 +71,11 @@ La distinction est délibérée, et un nouveau champ doit se ranger dans l'une d
 Le point de bascule de la première règle est isolé dans
 `app/domain/claims.py::resolve_category` : si la politique devait durcir, c'est le seul
 endroit à changer.
+
+La même distinction gouverne la boucle décisionnelle : un engagement sans propriétaire ni
+échéance est **enregistré et signalé** — le refuser le ferait vivre hors du dossier —
+tandis qu'une revue sans résultat ni leçon **ne peut pas être close**, parce qu'une revue
+vide n'apprend rien à la décision suivante.
 
 ## Tests
 

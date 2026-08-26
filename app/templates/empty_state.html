@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Base vide — CEO OS{% endblock %}
+
+{% block content %}
+<div class="panel panel-quiet">
+  <h1>Base vide</h1>
+  <p>
+    Aucun utilisateur n'existe encore. La tranche 1 n'a pas d'authentification : l'identité
+    courante est prise dans les données de démonstration.
+  </p>
+  <p>Depuis le dossier <code>ceo-os</code> :</p>
+  <pre class="code">.venv/bin/python -m app.cli seed</pre>
+  <p>Puis recharger cette page.</p>
+</div>
+{% endblock %}

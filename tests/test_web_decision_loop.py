@@ -468,8 +468,9 @@ def test_engagement_d_un_autre_dossier_est_inaccessible(client):
 # --------------------------------------------------------------------------- revue
 
 
-def _to_review(client, case_id: str) -> str:
-    decide(client, case_id, review_date="2026-01-31")  # revue déjà échue
+def _to_review(client, case_id: str, option_index: int = 1) -> str:
+    # Revue déjà échue : c'est le signal que le dossier doit remonter sur l'accueil.
+    decide(client, case_id, option_index=option_index, review_date="2026-01-31")
     client.post(
         "/cases/%s/commitments" % case_id,
         data={

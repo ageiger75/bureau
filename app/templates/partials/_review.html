@@ -1,0 +1,161 @@
+{% import "macros.html" as ui %}
+
+{# Revue. L'étape qui transforme une décision en apprentissage. Le brief §3 en fait un
+   objectif mesurable : comparer les hypothèses initiales aux résultats observés. #}
+<section class="panel panel-review" id="revue">
+  <h2>Revue</h2>
+
+  {% if not review %}
+    <p class="empty">
+      Aucune revue planifiée. Elle est créée automatiquement au moment où la décision est
+      enregistrée, à la date choisie.
+    </p>
+  {% else %}
+    <div class="review-head">
+      <span class="badge badge-rev-status badge-rev-status-{{ review.status }}">{{ REVIEW_STATUS_LABELS.get(review.status) }}</span>
+      {% if review.is_completed %}
+        <span class="badge">Tenue le {{ review.held_date }}</span>
+      {% elif review_days_left is not none and review_days_left < 0 %}
+        <span class="badge badge-deadline badge-deadline-overdue">
+          Échue depuis {{ -review_days_left }} j · prévue le {{ review.planned_date }}
+        </span>
+      {% elif review_days_left is not none %}
+        <span class="badge badge-deadline">Dans {{ review_days_left }} j · {{ review.planned_date }}</span>
+      {% endif %}
+    </div>
+
+    {% if review.initial_expectations %}
+      <div class="review-block review-expectations">
+        <h3>Ce qu'on attendait, écrit le jour de la décision</h3>
+        <p class="hint">
+          Recopié au moment de l'arbitrage. La revue compare aux attentes d'origine, pas à
+          celles réécrites entre-temps.
+        </p>
+        {{ review.initial_expectations|bullets }}
+      </div>
+    {% endif %}
+
+    {% if review.observed_results or review.gaps or review.lessons %}
+      {% if review.observed_results %}
+        <div class="review-block">
+          <h3>Résultats observés</h3>
+          <div class="prose">{{ review.observed_results|paragraphs }}</div>
+        </div>
+      {% endif %}
+      {% if review.gaps %}
+        <div class="review-block review-gaps">
+          <h3>Écarts</h3>
+          {{ review.gaps|bullets }}
+        </div>
+      {% endif %}
+      {% if review.invalidated_assumptions %}
+        <div class="review-block">
+          <h3>Hypothèses confrontées aux faits</h3>
+          {{ review.invalidated_assumptions|bullets }}
+        </div>
+      {% endif %}
+      {% if review.lessons %}
+        <div class="review-block review-lessons">
+          <h3>Leçons</h3>
+          {{ review.lessons|bullets }}
+        </div>
+      {% endif %}
+      {% if review.next_step %}
+        <div class="review-block">
+          <h3>Suite décidée</h3>
+          <p><strong>{{ NEXT_STEP_LABELS.get(review.next_step) }}</strong></p>
+          {% if review.next_step_note %}
+            <div class="prose">{{ review.next_step_note|paragraphs }}</div>
+          {% endif %}
+        </div>
+      {% endif %}
+      {% if review.is_completed and review.completed_by %}
+        <p class="reco-author">Revue conduite par {{ review.completed_by.display_name }}</p>
+      {% endif %}
+    {% else %}
+      <p class="empty">Revue pas encore renseignée.</p>
+    {% endif %}
+
+    {% if not review.is_completed %}
+      <details class="editor" {{ 'open' if review_days_left is not none and review_days_left <= 0 else '' }}>
+        <summary>Conduire la revue</summary>
+        <form method="post" action="/cases/{{ case.id }}/review/{{ review.id }}" novalidate>
+          <div class="field">
+            <label for="rv-results">Résultats observés</label>
+            <p class="hint">Ce qui s'est réellement passé, chiffres à l'appui quand ils existent.</p>
+            <textarea id="rv-results" name="observed_results" rows="4">{{ review.observed_results }}</textarea>
+          </div>
+
+          <div class="field">
+            <label for="rv-gaps">Écarts avec ce qui était attendu</label>
+            <textarea id="rv-gaps" name="gaps" rows="3">{{ review.gaps }}</textarea>
+          </div>
+
+          <div class="field">
+            <label for="rv-assum">Hypothèses confrontées aux faits</label>
+            <p class="hint">
+              Laquelle a tenu, laquelle non. Si toutes ont tenu, l'écrire explicitement —
+              c'est une information, pas un silence.
+            </p>
+            <textarea id="rv-assum" name="invalidated_assumptions" rows="3">{{ review.invalidated_assumptions }}</textarea>
+          </div>
+
+          <div class="field">
+            <label for="rv-lessons">Leçons réutilisables</label>
+            <p class="hint">Ce qu'on saura mieux la prochaine fois, même si c'est inconfortable.</p>
+            <textarea id="rv-lessons" name="lessons" rows="3">{{ review.lessons }}</textarea>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="rv-next">Suite</label>
+              <select id="rv-next" name="next_step">
+                <option value="">— à décider —</option>
+                {{ ui.select_options(NEXT_STEP_LABELS, review.next_step) }}
+              </select>
+            </div>
+            <div class="field">
+              <label for="rv-held">Date de la revue</label>
+              <input type="date" id="rv-held" name="held_date" value="{{ review.held_date or '' }}">
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="rv-note">Précision sur la suite</label>
+            <p class="hint">
+              Obligatoire pour « pas encore » : nommer la condition de reprise et une date
+              de revisite. Sans cela ce n'est pas une issue, c'est un report.
+            </p>
+            <textarea id="rv-note" name="next_step_note" rows="2">{{ review.next_step_note }}</textarea>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Enregistrer la revue</button>
+          </div>
+        </form>
+
+        {# Clore est un second geste : il change l'état du dossier, il ne se déclenche pas
+           par inadvertance en enregistrant un brouillon de revue. #}
+        <form class="review-complete" method="post"
+              action="/cases/{{ case.id }}/review/{{ review.id }}/complete">
+          <input type="hidden" name="observed_results" value="{{ review.observed_results }}">
+          <input type="hidden" name="gaps" value="{{ review.gaps }}">
+          <input type="hidden" name="invalidated_assumptions" value="{{ review.invalidated_assumptions }}">
+          <input type="hidden" name="lessons" value="{{ review.lessons }}">
+          <input type="hidden" name="next_step" value="{{ review.next_step }}">
+          <input type="hidden" name="next_step_note" value="{{ review.next_step_note }}">
+          <input type="hidden" name="held_date" value="{{ review.held_date or '' }}">
+          <p class="hint">
+            Enregistrer d'abord, clore ensuite. Selon la suite décidée, clore le dossier ou
+            le renvoyer en analyse — « revenir sur la décision » et « pas encore » rouvrent
+            le dossier.
+          </p>
+          <button class="btn btn-primary" type="submit"
+                  data-confirm="Terminer la revue avec ce qui est enregistré ?">
+            Terminer la revue
+          </button>
+        </form>
+      </details>
+    {% endif %}
+  {% endif %}
+</section>
