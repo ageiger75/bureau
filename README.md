@@ -32,6 +32,10 @@ insère les données de démonstration et démarre le serveur sur <http://127.0.
 
 Pour repartir de zéro : `./run.sh --reset`.
 
+Si le shell répond `permission denied`, le bit d'exécution a été perdu en route — c'est ce
+que fait un téléchargement en ZIP depuis GitHub, là où un `git clone` le conserve. Deux
+sorties : `bash run.sh` immédiatement, ou `chmod +x run.sh manage.py` une fois pour toutes.
+
 À la main :
 
 ```bash
