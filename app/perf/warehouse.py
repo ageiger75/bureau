@@ -128,12 +128,51 @@ def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any
         connection.close()
 
 
-def check() -> str:
+#: Session facts, no business data. Everything here is about who you are connected as,
+#: which is exactly what has to be known before writing a single query.
+SESSION_QUERY = """
+select
+    current_account()   as account,
+    current_user()      as username,
+    current_role()      as role,
+    current_warehouse() as warehouse,
+    current_database()  as database,
+    current_schema()    as schema,
+    current_region()    as region
+"""
+
+
+def check() -> dict:
     """Prove the connection works without reading any business data."""
-    result = rows("select current_account() as account, current_role() as role")
-    if not result:
-        return "connected, no result returned"
-    return "connected as role %s on account %s" % (
-        result[0].get("role"),
-        result[0].get("account"),
-    )
+    result = rows(SESSION_QUERY)
+    return result[0] if result else {}
+
+
+def describe_session() -> str:
+    """The connection, in the terms needed to write a query against it."""
+    facts = check()
+    if not facts:
+        return "Connecté, mais la session n'a rien renvoyé."
+
+    lines = ["Connecté."]
+    for label, key in (
+        ("Compte", "account"),
+        ("Utilisateur", "username"),
+        ("Rôle", "role"),
+        ("Entrepôt", "warehouse"),
+        ("Base", "database"),
+        ("Schéma", "schema"),
+        ("Région", "region"),
+    ):
+        value = facts.get(key)
+        lines.append("  %-13s %s" % (label, value if value else "— non défini par la connexion"))
+
+    if not facts.get("warehouse"):
+        lines.append("")
+        lines.append(
+            "  Aucun entrepôt actif : une requête de données échouera tant qu'il n'y en a"
+        )
+        lines.append(
+            "  pas. Ajouter `warehouse = \"...\"` à la connexion dans connections.toml."
+        )
+    return "\n".join(lines)

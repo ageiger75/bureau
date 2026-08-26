@@ -143,3 +143,13 @@ def test_the_connector_is_optional(monkeypatch):
     import sys
 
     assert "snowflake" not in sys.modules
+
+
+def test_the_session_query_reads_nothing_but_session_facts():
+    """Proving the connection works must never touch business data."""
+    from app.perf import warehouse
+
+    warehouse.assert_read_only(warehouse.SESSION_QUERY)
+    assert "current_role()" in warehouse.SESSION_QUERY
+    # No table, no schema, nothing that belongs to the business.
+    assert " from " not in warehouse.SESSION_QUERY.lower()

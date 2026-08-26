@@ -105,8 +105,11 @@ def cmd_warehouse() -> int:
         return 2
     from .perf import warehouse
 
+    print("Ouverture de la connexion « %s »." % settings.snowflake_connection)
+    print("Une page d'authentification peut s'ouvrir dans le navigateur.")
+    print()
     try:
-        print(warehouse.check())
+        print(warehouse.describe_session())
     except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
         print("Connexion impossible : %s" % exc, file=sys.stderr)
         return 1
