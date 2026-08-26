@@ -104,6 +104,7 @@ def cmd_warehouse(argv: List[str]) -> int:
     if not settings.reads_warehouse:
         print("CEOOS_DATA_SOURCE n'est pas « snowflake » : rien à tester.", file=sys.stderr)
         return 2
+    _silence_third_party_noise()
     from .perf import warehouse
 
     try:
@@ -169,6 +170,24 @@ def _warehouse_action(warehouse, argv: List[str]) -> int:
     print("  manage.py warehouse --tables SCHEMA [--like MOTIF%]")
     print("  manage.py warehouse --columns SCHEMA.TABLE")
     return 0
+
+
+def _silence_third_party_noise() -> None:
+    """Tait les avertissements des dépendances, jamais les nôtres.
+
+    Le connecteur tire boto3 et une copie d'urllib3 qui préviennent, à chaque appel, que
+    Python 3.9 vieillit et que macOS livre LibreSSL. Les deux sont vraies et sans effet
+    ici, mais elles s'intercalent entre la question posée et la réponse — et une sortie
+    illisible est une sortie qu'on cesse de lire.
+    """
+    import warnings
+
+    for pattern in (
+        r".*LibreSSL.*",
+        r".*Boto3 will no longer support Python 3\.9.*",
+        r".*Dependency 'keyring' is not installed.*",
+    ):
+        warnings.filterwarnings("ignore", message=pattern)
 
 
 def _option(argv: List[str], flag: str) -> str:
