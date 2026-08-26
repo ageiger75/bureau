@@ -190,3 +190,29 @@ def test_a_valid_identifier_is_accepted_and_upper_cased():
 def test_a_search_pattern_cannot_smuggle_sql():
     with pytest.raises(warehouse.QueryRefused):
         warehouse._like("x' or 1=1 --")
+
+
+# ------------------------------------------------- pointing at an unready source
+
+
+def test_an_unready_source_explains_itself_instead_of_crashing(monkeypatch):
+    """Pointing at a warehouse whose queries are unwritten is a normal state during
+    connection, not a fault. A stack trace would say neither what is missing nor how to
+    get back.
+    """
+    from starlette.testclient import TestClient
+
+    import app.routes.today as today_route
+    from app.main import app
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(today_route, "current_source", lambda: SnowflakeSource())
+
+    with TestClient(app) as client:
+        response = client.get("/")
+
+    assert response.status_code == 503
+    assert "Data source not ready" in response.text
+    assert "SALES_AND_DRIVERS" in response.text
+    # And it says how to get back to a working screen.
+    assert "CEOOS_DATA_SOURCE=mock" in response.text

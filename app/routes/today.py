@@ -33,9 +33,27 @@ def _commitments_by_market(items) -> Dict[str, List]:
 @router.get("/")
 def today(request: Request):
     source = current_source()
-    dataset = source.dataset()
-    commitments = board(source.commitments())
-    kpis = source.client_kpis()
+    try:
+        dataset = source.dataset()
+        commitments = board(source.commitments())
+        kpis = source.client_kpis()
+    except NotImplementedError as incomplete:
+        # Pointing at a warehouse whose queries are not written yet is a normal state
+        # during connection, not a crash. Say what is missing and how to get back to
+        # mock data — a stack trace would say neither.
+        from ..perf import queries
+
+        return render(
+            request,
+            "source_incomplete.html",
+            {
+                "user": None,
+                "source": source,
+                "detail": str(incomplete),
+                "missing": queries.missing(),
+            },
+            status_code=503,
+        )
 
     fires = analytics.fires(dataset)
     by_market = _commitments_by_market(commitments.items)

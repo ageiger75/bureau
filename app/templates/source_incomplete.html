@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Data source not ready — CEO Performance{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Data source not ready</h1>
+    <p class="lede">
+      The cockpit is pointed at <strong>{{ source.label }}</strong>, and the queries it
+      needs have not been written yet.
+    </p>
+  </div>
+</div>
+
+<section class="panel">
+  <p>{{ detail }}</p>
+
+  {% if missing %}
+    <h2>Still to write</h2>
+    <ul class="bullets">
+      {% for name in missing %}<li><code>{{ name }}</code></li>{% endfor %}
+    </ul>
+    <p class="lede">
+      They live in <code>app/perf/queries.py</code>, which describes exactly what each one
+      must return.
+    </p>
+  {% endif %}
+
+  <h2>Why this is not an empty screen</h2>
+  <p>
+    A cockpit showing nothing looks like a business with no problems. Refusing to render
+    is the honest failure; a calm-looking screen would be the expensive one.
+  </p>
+
+  <h2>Going back to mock data</h2>
+  <p>Unset the source, or set it to <code>mock</code>, and restart:</p>
+  <pre><code>CEOOS_DATA_SOURCE=mock ./run.sh</code></pre>
+</section>
+{% endblock %}
