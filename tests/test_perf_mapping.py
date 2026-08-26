@@ -1,0 +1,263 @@
+"""The seam between the warehouse and the planning file.
+
+Two sources meet here and nowhere else: money and drivers come from Snowflake, budget and
+last year come from Adrien's planning workbook. Everything above this module trusts that
+the join is honest — that a silence on one side arrives as a silence and not as a zero,
+and that a disagreement between the two is reported rather than resolved by preference.
+
+These tests are written against invented figures with a real taxonomy, per AGENTS.md.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.perf import mapping, owners
+from app.perf.budget import Budget, BudgetLine
+from app.perf.model import ECOMMERCE, RETAIL
+
+PERIOD = "2026-07"
+
+
+def row(market="Japan", channel=ECOMMERCE, **overrides):
+    base = {
+        "market": market,
+        "region": "APAC",
+        "channel": channel,
+        "period": PERIOD,
+        "sales_actual": 1_259_700.0,
+        "sessions": 1_640_000.0,
+        "orders": 12_800.0,
+        "sessions_last_year": 1_824_000.0,
+        "orders_last_year": 17_800.0,
+    }
+    base.update(overrides)
+    return base
+
+
+def budget_of(*lines):
+    return Budget(list(lines))
+
+
+def line(market="Japan", channel=ECOMMERCE, period=PERIOD, budget=1_861_700.0, last_year=1_622_900.0):
+    return BudgetLine(
+        market=market,
+        region="APAC",
+        segment="EBU",
+        channel=channel,
+        period=period,
+        budget=budget,
+        last_year=last_year,
+    )
+
+
+# --------------------------------------------------------------------- the basic join
+
+
+def test_the_warehouse_supplies_the_money_and_the_file_supplies_the_commitment():
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    unit = mapped.units[0]
+
+    assert unit.sales_actual == pytest.approx(1_259_700)
+    assert unit.sales_budget == pytest.approx(1_861_700)
+    assert unit.budget_known is True
+
+
+def test_a_market_absent_from_the_planning_file_has_no_budget_rather_than_a_zero():
+    """The distinction the phantom-win bug turned on."""
+    mapped = mapping.units_from_rows([row(market="Taiwan")], budget=budget_of(line()))
+
+    unit = mapped.units[0]
+
+    assert unit.budget_known is False
+    assert unit.sales_actual == pytest.approx(1_259_700)
+
+
+def test_no_budget_at_all_still_produces_units():
+    """Before the file is copied onto the machine, the cockpit still shows the numbers."""
+    mapped = mapping.units_from_rows([row()])
+
+    assert len(mapped.units) == 1
+    assert mapped.units[0].budget_known is False
+
+
+def test_a_row_without_a_market_is_dropped():
+    """A total row, or a null dimension. It cannot be attributed to anyone."""
+    mapped = mapping.units_from_rows([row(market=""), row()])
+
+    assert [u.market for u in mapped.units] == ["Japan"]
+
+
+def test_market_names_are_normalised_before_the_join():
+    """The warehouse says USA, the planning file says United States. Same country."""
+    mapped = mapping.units_from_rows(
+        [row(market="USA")],
+        budget=budget_of(line(market="United States")),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.market == "United States"
+    assert unit.budget_known is True
+
+
+# ------------------------------------------------------------------------- the drivers
+
+
+def test_ecommerce_drivers_are_built_from_sessions_and_orders():
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    assert mapped.units[0].actual.labels == ("Sessions", "Conversion", "AOV")
+
+
+def test_last_year_carries_drivers_so_the_movement_can_be_attributed():
+    """The plan has no funnel behind it; last year is the only baseline that does."""
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    _, label = mapped.units[0].decomposition_baseline()
+
+    assert label == "last year"
+
+
+def test_last_year_without_its_drivers_is_a_plain_number():
+    """The query has not always returned them. The unit degrades; it does not lie."""
+    mapped = mapping.units_from_rows(
+        [row(sessions_last_year=None, orders_last_year=None)],
+        budget=budget_of(line()),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.sales_last_year == pytest.approx(1_622_900)
+    assert unit.has_driver_breakdown is False
+    assert unit.no_breakdown_reason
+
+
+def test_a_site_reporting_no_sessions_gets_no_invented_funnel():
+    mapped = mapping.units_from_rows(
+        [row(sessions=None, orders=None)],
+        budget=budget_of(line()),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is False
+    assert "not reported" in unit.no_breakdown_reason
+
+
+def test_retail_conversion_is_refused_where_there_are_no_traffic_counters():
+    """The CEO's own correction: outside Europe and the US the number is not real."""
+    mapped = mapping.units_from_rows(
+        [row(market="Japan", channel=RETAIL)],
+        budget=budget_of(line(channel=RETAIL)),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is False
+    assert unit.no_breakdown_reason
+
+
+def test_retail_in_a_counted_market_says_nothing_about_counters():
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel=RETAIL)],
+        budget=budget_of(line(market="France", channel=RETAIL)),
+    )
+
+    assert "traffic counter" not in mapped.units[0].no_breakdown_reason.lower()
+
+
+# ---------------------------------------------------------------- when sources disagree
+
+
+def test_a_disagreement_between_the_two_sources_is_reported():
+    """Not resolved silently. Someone has to know the two are drifting apart."""
+    mapped = mapping.units_from_rows(
+        [row(sales_budget=1_500_000.0)],
+        budget=budget_of(line(budget=1_861_700.0)),
+    )
+
+    assert len(mapped.conflicts) == 1
+    assert "planning file" in mapped.conflicts[0].message
+
+
+def test_the_file_wins_the_disagreement():
+    """Stated by the CEO: the Excel targets are more reliable than Snowflake's."""
+    mapped = mapping.units_from_rows(
+        [row(sales_budget=1_500_000.0)],
+        budget=budget_of(line(budget=1_861_700.0)),
+    )
+
+    assert mapped.units[0].sales_budget == pytest.approx(1_861_700)
+
+
+def test_a_rounding_difference_is_not_a_conflict():
+    mapped = mapping.units_from_rows(
+        [row(sales_budget=1_861_699.0)],
+        budget=budget_of(line(budget=1_861_700.0)),
+    )
+
+    assert mapped.conflicts == []
+
+
+def test_the_warehouse_budget_is_used_when_the_file_is_silent():
+    """A fallback, not a preference: better than no comparison at all."""
+    mapped = mapping.units_from_rows(
+        [row(market="Taiwan", sales_budget=400_000.0)],
+        budget=budget_of(line()),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.budget_known is True
+    assert unit.sales_budget == pytest.approx(400_000)
+
+
+# ----------------------------------------------------------------------------- owners
+
+
+def test_an_unknown_market_gets_no_invented_owner():
+    """Putting a real person's name in front of a question they do not own is worse
+    than leaving the line blank."""
+    owner = owners.owner_for("Nowhereland")
+
+    assert owner.name == ""
+    assert owners.is_named(owner) is False
+
+
+def test_the_markets_left_out_are_countable():
+    """The screen says how many were left out. It never says who they are."""
+    mapped = mapping.units_from_rows(
+        [row(market="Japan"), row(market="Taiwan")],
+        budget=budget_of(line()),
+    )
+
+    assert mapped.markets_without_owner == ["Japan", "Taiwan"]
+
+
+def test_a_named_market_carries_its_owner_through_the_join(monkeypatch):
+    monkeypatch.setitem(owners.OWNERS, "Japan", ("Naoki", "Managing Director"))
+
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    assert mapped.units[0].owner.name == "Naoki"
+    assert mapped.markets_without_owner == []
+
+
+# ---------------------------------------------------------------------------- dataset
+
+
+def test_a_dataset_is_built_end_to_end():
+    dataset = mapping.dataset_from_rows(
+        [row(market="Japan"), row(market="Taiwan")],
+        budget=budget_of(line()),
+        period_label="Sales MTD",
+        as_of="2026-07-31",
+    )
+
+    assert dataset.period_label == "Sales MTD"
+    assert dataset.sales_actual == pytest.approx(2_519_400)
+    # Taiwan has no plan, so it is outside the company's variance to plan.
+    assert dataset.sales_budget == pytest.approx(1_861_700)
+    assert [u.market for u in dataset.unbudgeted] == ["Taiwan"]

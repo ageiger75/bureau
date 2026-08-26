@@ -505,3 +505,174 @@ def test_every_suspect_says_what_to_do_about_it():
 
     assert flag.message.strip()
     assert flag.fix.strip()
+
+
+# ------------------------------------------------- a budget that does not exist (§21A)
+#
+# The planning file does not cover every market the warehouse reports. Before these tests,
+# a missing budget arrived as zero, the gap came out as the market's entire turnover, and
+# the least-known market in the company was crowned its greatest success. A silent zero is
+# the most dangerous default in the cockpit: it is indistinguishable from a real number.
+
+
+def test_a_market_with_no_budget_is_never_a_win():
+    """Beating a budget that does not exist is not an achievement."""
+    unbudgeted = unit(
+        key="taiwan",
+        actual=ecom(2_000_000),
+        budget=Drivers.sales_only(0.0),
+        budget_known=False,
+        last_year=ecom(1_900_000),
+    )
+
+    assert [w.unit.key for w in analytics.wins(dataset_of(unbudgeted))] == []
+
+
+def test_a_market_with_no_budget_is_never_a_fire():
+    """Nor is it a failure. There is simply nothing to compare it to."""
+    unbudgeted = unit(
+        key="taiwan",
+        actual=ecom(10_000),
+        budget=Drivers.sales_only(0.0),
+        budget_known=False,
+        last_year=ecom(1_900_000),
+    )
+
+    assert [f.unit.key for f in analytics.fires(dataset_of(unbudgeted))] == []
+
+
+def test_a_missing_budget_is_left_out_of_the_company_total():
+    """Otherwise the company looks ahead of a plan it was never measured against."""
+    covered = unit(key="japan", actual=ecom(900_000), budget=ecom(1_000_000))
+    uncovered = unit(
+        key="taiwan",
+        actual=ecom(2_000_000),
+        budget=Drivers.sales_only(0.0),
+        budget_known=False,
+    )
+
+    dataset = dataset_of(covered, uncovered)
+
+    assert dataset.sales_budget == pytest.approx(1_000_000)
+    assert dataset.sales_actual == pytest.approx(2_900_000)
+
+
+def test_the_omission_stays_visible():
+    """Excluded, but not hidden: the screen has to be able to say what it left out."""
+    uncovered = unit(
+        key="taiwan",
+        actual=ecom(2_000_000),
+        budget=Drivers.sales_only(0.0),
+        budget_known=False,
+    )
+
+    dataset = dataset_of(unit(key="japan"), uncovered)
+
+    assert [u.key for u in dataset.unbudgeted] == ["taiwan"]
+    assert dataset.unbudgeted_sales == pytest.approx(2_000_000)
+
+
+# ---------------------------------------------------- what the drivers are measured against
+#
+# A budget is a committed number with no funnel behind it: nobody planned a conversion
+# rate. So a gap against plan cannot be attributed to a driver, and the decomposition has
+# to fall back on the only baseline that was measured the same way — last year. The reader
+# then has to be told which one was used, because the two answer different questions.
+
+
+def test_a_plan_without_drivers_falls_back_to_last_year():
+    plain_budget = unit(
+        key="japan",
+        actual=ecom(900_000),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=ecom(950_000),
+    )
+
+    baseline, label = plain_budget.decomposition_baseline()
+
+    assert label == "last year"
+    assert baseline.labels == ("Sessions", "Conversion", "AOV")
+
+
+def test_a_plan_with_matching_drivers_is_preferred():
+    """When the plan does carry a funnel, it answers the more useful question."""
+    planned = unit(key="japan", actual=ecom(900_000), budget=ecom(1_000_000))
+
+    _, label = planned.decomposition_baseline()
+
+    assert label == "plan"
+
+
+def test_no_common_baseline_means_no_attribution():
+    """Silence beats a decomposition against a number that was measured differently."""
+    orphan = unit(
+        key="japan",
+        actual=ecom(900_000),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=Drivers.sales_only(950_000),
+    )
+
+    assert orphan.decomposition_baseline() == (None, "")
+    assert orphan.has_driver_breakdown is False
+
+
+def test_mismatched_drivers_never_raise():
+    """The bug this replaces was a 500 on the home page, not a wrong number."""
+    plain_budget = unit(
+        key="japan",
+        actual=ecom(900_000),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=ecom(950_000),
+    )
+
+    fire = analytics.fires(dataset_of(plain_budget))[0]
+
+    assert fire.gap == pytest.approx(-100_000)
+    assert fire.movement == pytest.approx(-50_000)
+
+
+def test_the_diagnosis_names_the_baseline_it_used():
+    """"-€100k against plan, and here is why" would be a small lie in a confident voice:
+    the why was measured against last year."""
+    plain_budget = unit(
+        key="japan",
+        actual=ecom(900_000, conversion=0.016),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=ecom(950_000, conversion=0.02),
+    )
+
+    fire = analytics.fires(dataset_of(plain_budget))[0]
+
+    assert fire.baseline_label == "last year"
+    assert "versus last year" in fire.diagnosis
+
+
+def test_a_plan_baseline_still_speaks_of_a_gap():
+    """Against a plan the word is 'gap'; the sentence must not say 'versus last year'."""
+    planned = unit(
+        key="japan",
+        actual=ecom(900_000, conversion=0.0185),
+        budget=ecom(1_000_000, conversion=0.02),
+    )
+
+    fire = analytics.fires(dataset_of(planned))[0]
+
+    assert fire.baseline_label == "plan"
+    assert "of the gap comes from" in fire.diagnosis
+    assert "versus last year" not in fire.diagnosis
+
+
+def test_the_contributions_still_add_up_to_the_measured_movement():
+    """The fallback changes the baseline, never the arithmetic."""
+    plain_budget = unit(
+        key="japan",
+        actual=ecom(900_000, conversion=0.016),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=ecom(950_000, conversion=0.02),
+    )
+
+    fire = analytics.fires(dataset_of(plain_budget))[0]
+    total = sum(c.impact for c in fire.contributions)
+
+    assert total == pytest.approx(fire.movement)
+    assert fire.movement != fire.gap

@@ -192,6 +192,7 @@ class BusinessUnit:
         "no_breakdown_reason",
         "sessions",
         "orders",
+        "budget_known",
     )
 
     def __init__(
@@ -218,6 +219,7 @@ class BusinessUnit:
         no_breakdown_reason: str = "",
         sessions: Optional[float] = None,
         orders: Optional[float] = None,
+        budget_known: bool = True,
     ) -> None:
         self.key = key
         self.label = label
@@ -258,6 +260,11 @@ class BusinessUnit:
         #: the degradation.
         self.sessions = sessions
         self.orders = orders
+        #: False when no budget exists for this market and period. A missing budget must
+        #: never be read as a budget of zero: the gap would then equal the whole of sales
+        #: and the market would top the screen as a triumph. Such units are kept out of
+        #: both fires and wins, and counted so the omission is visible.
+        self.budget_known = budget_known
 
     # ------------------------------------------------------------------ sales
 
@@ -273,10 +280,29 @@ class BusinessUnit:
     def sales_last_year(self) -> float:
         return self.last_year.sales
 
+    def decomposition_baseline(self):
+        """What the drivers can honestly be compared against, and its name.
+
+        A budget is a single committed number, not a funnel: nothing was planned for
+        sessions or conversion, so a gap against it cannot be attributed to either. Last
+        year, on the other hand, was measured the same way the current period was — so it
+        is the only baseline a decomposition can use, and the reader has to be told which
+        one was used.
+
+        Returns `(drivers, label)` or `(None, "")`.
+        """
+        if not self.actual.has_breakdown:
+            return None, ""
+        if self.budget.has_breakdown and self.budget.labels == self.actual.labels:
+            return self.budget, "plan"
+        if self.last_year.has_breakdown and self.last_year.labels == self.actual.labels:
+            return self.last_year, "last year"
+        return None, ""
+
     @property
     def has_driver_breakdown(self) -> bool:
-        """Whether this unit's gap can be attributed to drivers at all."""
-        return self.actual.has_breakdown and self.budget.has_breakdown
+        """Whether this unit's movement can be attributed to drivers at all."""
+        return self.decomposition_baseline()[0] is not None
 
     @property
     def gap_vs_budget(self) -> float:
@@ -319,7 +345,12 @@ class Dataset:
 
     @property
     def sales_budget(self) -> float:
-        return sum(unit.sales_budget for unit in self.units)
+        """Group budget, over the units that have one.
+
+        Units without a budget contribute nothing here and their sales are reported
+        separately, rather than silently widening or narrowing the group variance.
+        """
+        return sum(unit.sales_budget for unit in self.units if unit.budget_known)
 
     @property
     def sales_last_year(self) -> float:
@@ -328,6 +359,15 @@ class Dataset:
     @property
     def sales_forecast(self) -> float:
         return sum(unit.forecast_sales for unit in self.units)
+
+    @property
+    def unbudgeted(self) -> List[BusinessUnit]:
+        """Units whose variance cannot be computed, because nothing was committed."""
+        return [unit for unit in self.units if not unit.budget_known]
+
+    @property
+    def unbudgeted_sales(self) -> float:
+        return sum(unit.sales_actual for unit in self.unbudgeted)
 
     def by_key(self, key: str) -> Optional[BusinessUnit]:
         for unit in self.units:

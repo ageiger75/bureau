@@ -24,8 +24,14 @@ One row per business unit and period, with these columns, lowercased:
 Plus the drivers, which must multiply out to sales — the cockpit checks this and will
 refuse a row where they disagree:
 
-    e-commerce:  sessions, conversion_rate, aov
-    retail:      traffic, conversion_rate, upt, asp
+    e-commerce:  sessions, orders
+    retail:      traffic, tickets, quantity
+
+**And the same drivers for the same period one year earlier**, as
+`sessions_last_year` and `orders_last_year`. They are not optional: a budget is a
+committed number with no funnel behind it, so a movement can only be attributed to a
+driver by comparing measured periods. Without last year's drivers the cockpit shows the
+gap and refuses to explain it.
 
 For KPIs, one row per KPI and reading:
 

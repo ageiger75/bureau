@@ -187,8 +187,11 @@ def priority_of(unit: BusinessUnit) -> Priority:
     cost more trust than a slightly imperfect one.
     """
     gap = abs(min(0.0, unit.gap_vs_budget))
-    items = contributions(unit.actual, unit.budget)
-    level = confidence_of(items, unit.gap_vs_budget)
+    # Confidence describes how concentrated the explanation is, so it is read against the
+    # baseline the decomposition could actually use — which is rarely the plan.
+    baseline, _ = unit.decomposition_baseline()
+    items = contributions(unit.actual, baseline) if baseline is not None else []
+    level = confidence_of(items, unit.sales_actual - baseline.sales) if baseline else LOW
 
     persistence, persistence_reason = persistence_factor(unit.months_below_budget)
     acceleration, acceleration_reason = acceleration_factor(unit.gap_history)
@@ -359,9 +362,11 @@ class Fire:
         "main_share",
         "confidence",
         "priority",
+        "movement",
         "explanation_check",
         "misaligned_plan",
         "forecast_flag",
+        "baseline_label",
     )
 
     def __init__(self, unit: BusinessUnit) -> None:
@@ -372,16 +377,24 @@ class Fire:
         # A channel that reports no drivers cannot be taken apart. Attributing its whole
         # gap to a single "Sales" pseudo-driver would be arithmetically true and say
         # nothing, so the breakdown is simply absent and the screen states it.
+        baseline, baseline_label = unit.decomposition_baseline()
+        #: What the drivers were compared against. Named on screen, because "conversion
+        #: explains the gap" means something different against a plan and against last
+        #: year, and the reader must not have to guess which.
+        self.baseline_label = baseline_label
         self.contributions = (
-            contributions(unit.actual, unit.budget)
-            if unit.has_driver_breakdown
-            else []
+            contributions(unit.actual, baseline) if baseline is not None else []
         )
         self.main_driver = largest_driver(self.contributions)
-        self.main_share = (
-            share_of_gap(self.main_driver, self.gap) if self.main_driver else None
+        # The share is of the movement the decomposition actually measures, which is the
+        # movement against the baseline — not against the plan, when they differ.
+        self.movement = (
+            unit.sales_actual - baseline.sales if baseline is not None else self.gap
         )
-        self.confidence = confidence_of(self.contributions, self.gap)
+        self.main_share = (
+            share_of_gap(self.main_driver, self.movement) if self.main_driver else None
+        )
+        self.confidence = confidence_of(self.contributions, self.movement)
         self.priority = priority_of(unit)
         self.explanation_check = check_explanation(unit)
         #: The sharpest question this product can ask: the plan targets one thing while
@@ -418,18 +431,40 @@ class Fire:
             return "No single driver stands out; the gap is spread across all of them."
         share = abs(self.main_share)
         if share > 1.15:
-            # The driver cost more than the total gap because another one offset it.
+            # The driver cost more than the total movement because another one offset it.
             # Saying "291% of the gap" would be arithmetically right and useless.
-            return "%s cost %s on its own; other drivers partly offset it." % (
+            return "%s cost %s on its own%s; other drivers partly offset it." % (
                 self.main_driver.label,
                 _eur(abs(self.main_driver.impact)),
+                self.measured_against,
             )
         # Phrased so the sentence works for every driver label, singular or plural:
         # "Sessions accounts for" and "Conversion account for" are both wrong.
-        return "About %s of the gap comes from %s." % (
+        return "About %s of the %s comes from %s." % (
             _share(share),
+            self.measured_what,
             self.main_driver.label.lower(),
         )
+
+    # The decomposition is not always measured against the plan, so the sentence cannot
+    # always say "gap". A plan is a committed number with no funnel behind it: when it
+    # carries no drivers, the only base with a funnel is last year. Naming the wrong base
+    # would be a small lie told in a confident voice, which is the one thing the CEO
+    # cannot afford to read here.
+
+    @property
+    def measured_against(self) -> str:
+        """The comparison base, as a suffix, or nothing when it is the plan."""
+        if self.baseline_label == "last year":
+            return " versus last year"
+        return ""
+
+    @property
+    def measured_what(self) -> str:
+        """The noun for what was decomposed: a gap against plan, a movement against LY."""
+        if self.baseline_label == "last year":
+            return "movement versus last year"
+        return "gap"
 
     @property
     def question(self) -> str:
@@ -473,7 +508,8 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
     candidates = [
         Fire(unit)
         for unit in dataset.units
-        if unit.is_below_budget
+        if unit.budget_known
+        and unit.is_below_budget
         and not unit.is_aggregate
         # A broken feed is not a fire. It is listed separately, as a question for the
         # data team rather than for the market.
@@ -594,6 +630,9 @@ class Win:
 def wins(dataset: Dataset, limit: int = 3) -> List[Win]:
     found = []
     for unit in dataset.units:
+        if not unit.budget_known:
+            # Beating a budget that does not exist is not an achievement.
+            continue
         var = variance(unit.sales_actual, unit.sales_budget)
         beats_last_year = unit.gap_vs_last_year > 0
         if (
