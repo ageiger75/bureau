@@ -81,13 +81,21 @@ def test_comments_do_not_hide_the_real_first_word():
 # --------------------------------------------------------------------- unwritten queries
 
 
-def test_every_query_is_still_a_placeholder():
-    """A reminder in executable form: nothing has been written against the real schema.
+def test_only_the_written_queries_report_as_written():
+    """SALES_AND_DRIVERS is written against the real schema; the other five are not.
 
-    When these are filled in, this test is the one to delete — and its failure is the
-    signal that the mapping tests should exist by then.
+    Kept as an inventory rather than deleted: `missing()` is what the 503 page lists, so a
+    query that silently stopped counting as written would produce a screen claiming a
+    source is ready when it is not. Narrow this set as each query lands — and when it
+    empties, the mapping tests are what should exist in its place.
     """
-    assert set(queries.missing()) == set(queries.ALL)
+    assert set(queries.missing()) == {
+        "SALES_HISTORY",
+        "KPI_READINGS",
+        "MARKET_INDEX",
+        "COMMITMENTS",
+        "FORECAST_HISTORY",
+    }
 
 
 def test_an_unwritten_query_makes_the_source_refuse_rather_than_return_nothing():
@@ -213,6 +221,8 @@ def test_an_unready_source_explains_itself_instead_of_crashing(monkeypatch):
 
     assert response.status_code == 503
     assert "Data source not ready" in response.text
-    assert "SALES_AND_DRIVERS" in response.text
+    # It names what is still missing — the mapping first, since the SQL now exists.
+    assert "mapping" in response.text
+    assert "SALES_HISTORY" in response.text
     # And it says how to get back to a working screen.
     assert "CEOOS_DATA_SOURCE=mock" in response.text
