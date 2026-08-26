@@ -103,7 +103,39 @@ The practical order follows what is already available: client KPIs first (recrui
 ARC, ATV — the data exists), then sell-out into the sales drivers, then sell-in. Each step
 is a change inside `source.py`; nothing above it moves.
 
-## 9. Where the phases stand
+## 9. Reading the warehouse
+
+Snowflake access is built and switched off. Two things must be said out loud before
+anything leaves the machine — a source (`CEOOS_DATA_SOURCE=snowflake`) and a connection
+name (`CEOOS_SNOWFLAKE_CONNECTION`) — and the default is neither.
+
+**No credential lives in this application.** It names an entry in
+`~/.snowflake/connections.toml`, the file the Snowflake CLI and Cortex Code already
+maintain, and the connector resolves it. There is no secret to leak from this repository
+and no password to rotate.
+
+**Reads only, twice over.** `app/perf/warehouse.py::assert_read_only` refuses anything that
+is not a SELECT, WITH, SHOW, DESCRIBE or EXPLAIN, rejects any write keyword anywhere in
+the body, and refuses a second statement smuggled behind a semicolon — all before a
+connection is opened. That is the second lock. **The first belongs to whoever administers
+Snowflake: a role with no write grant.** Code cannot grant itself permissions it lacks,
+and should not be trusted to withhold ones it holds.
+
+**The connector is optional.** Pinned to `snowflake-connector-python==4.5.0`, because 4.7
+and later require Python 3.10 while the workstation runs 3.9.6. It is never installed by
+default, and the whole test suite passes without it.
+
+**The queries are not written.** `app/perf/queries.py` holds six named placeholders and a
+precise description of what each must return. An unwritten query raises rather than
+returning an empty list — a calm-looking cockpit on a business with problems is the most
+expensive lie this product could tell. `manage.py check` lists what is still missing;
+`manage.py warehouse` proves the connection works without reading any business data.
+
+One rule to preserve when writing them: **prefer measures the organisation has already
+modelled to recomputing from raw tables.** A cockpit whose number differs from the one in
+a team's report loses the argument in the room, whatever its arithmetic says.
+
+## 10. Where the phases stand
 
 | Phase | Content | State |
 | --- | --- | --- |

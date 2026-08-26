@@ -26,3 +26,14 @@ httpx==0.28.1                  # requis par starlette.testclient
 # pypdf / extraction PPTX-XLSX  -> import de documents (tranche 3)
 # msal / azure-identity         -> Entra ID et Microsoft Graph (tranche 5)
 # alembic                       -> migrations versionnées, à introduire avec PostgreSQL
+
+# --- Optionnel : lecture de l'entrepôt (CEOOS_DATA_SOURCE=snowflake) ---
+# Volontairement absent de l'installation par défaut. Le cockpit tourne, et toute sa
+# suite de tests passe, sur une machine qui n'a jamais entendu parler de Snowflake.
+#
+#   .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0'
+#
+# La version est épinglée : à partir de 4.7, le connecteur exige Python 3.10, alors que
+# le poste est en 3.9.6. Aucun identifiant n'accompagne cette dépendance — la connexion
+# est nommée dans ~/.snowflake/connections.toml, le fichier que la CLI Snowflake et
+# Cortex Code entretiennent déjà.

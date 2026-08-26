@@ -4,6 +4,7 @@
     python -m app.cli seed           insère les données fictives si la base est vide
     python -m app.cli seed --reset    efface tout et réinsère
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
+    python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -74,7 +75,41 @@ def cmd_check() -> int:
     print("Base                %s" % database_label())
     print("Niveau d'autonomie  %s" % settings.autonomy_level)
     print("Écoute              %s:%d (boucle locale uniquement)" % (host, port))
-    print("Appels externes     aucun (ni Microsoft 365, ni fournisseur IA)")
+
+    if settings.reads_warehouse:
+        from .perf import queries
+
+        print("Données perf        Snowflake, connexion « %s » de ~/.snowflake/connections.toml"
+              % settings.snowflake_connection)
+        print("                    aucun identifiant lu ni stocké par l'application")
+        restant = queries.missing()
+        if restant:
+            print("Requêtes à écrire   %s" % ", ".join(restant))
+        else:
+            print("Requêtes            toutes écrites")
+    else:
+        print("Données perf        fictives (CEOOS_DATA_SOURCE=mock)")
+
+    print("Écritures externes  aucune. Le cockpit prépare, signale et structure.")
+    print("Appels externes     %s" % (
+        "l'entrepôt Snowflake en lecture seule, et rien d'autre"
+        if settings.reads_warehouse
+        else "aucun (ni Microsoft 365, ni fournisseur IA)"))
+    return 0
+
+
+def cmd_warehouse() -> int:
+    """Prouve que la connexion fonctionne, sans lire une seule donnée métier."""
+    if not settings.reads_warehouse:
+        print("CEOOS_DATA_SOURCE n'est pas « snowflake » : rien à tester.", file=sys.stderr)
+        return 2
+    from .perf import warehouse
+
+    try:
+        print(warehouse.check())
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Connexion impossible : %s" % exc, file=sys.stderr)
+        return 1
     return 0
 
 
@@ -106,6 +141,8 @@ def main(argv: List[str]) -> int:
         return cmd_seed(argv[1:])
     if command == "check":
         return cmd_check()
+    if command == "warehouse":
+        return cmd_warehouse()
     if command == "serve":
         return cmd_serve(argv[1:])
     print("Commande inconnue : %s" % command, file=sys.stderr)

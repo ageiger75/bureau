@@ -48,16 +48,31 @@ def _env(name: str, default: str = "") -> str:
     return os.environ.get(name, default).strip()
 
 
+#: Où les chiffres de performance sont lus. `mock` est le défaut et le restera : une
+#: connexion à l'entrepôt se demande explicitement, elle ne s'obtient jamais par accident.
+DATA_SOURCES = ("mock", "snowflake")
+DEFAULT_DATA_SOURCE = "mock"
+
+
 @dataclass(frozen=True)
 class Settings:
     env: str
     secret_key: str
     database_url: str
     autonomy_level: str
+    data_source: str = DEFAULT_DATA_SOURCE
+    #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
+    #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
+    #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
+    snowflake_connection: str = ""
 
     @property
     def is_local(self) -> bool:
         return self.env == "local"
+
+    @property
+    def reads_warehouse(self) -> bool:
+        return self.data_source == "snowflake"
 
     @property
     def is_sqlite(self) -> bool:
@@ -97,11 +112,27 @@ def load_settings() -> Settings:
             "implemente et requiert une gouvernance separee (brief §13)."
         )
 
+    data_source = (_env("CEOOS_DATA_SOURCE") or DEFAULT_DATA_SOURCE).lower()
+    if data_source not in DATA_SOURCES:
+        raise ConfigError(
+            "CEOOS_DATA_SOURCE doit valoir %s." % " ou ".join(DATA_SOURCES)
+        )
+
+    snowflake_connection = _env("CEOOS_SNOWFLAKE_CONNECTION")
+    if data_source == "snowflake" and not snowflake_connection:
+        raise ConfigError(
+            "CEOOS_DATA_SOURCE=snowflake exige CEOOS_SNOWFLAKE_CONNECTION : le nom d'une "
+            "connexion declaree dans ~/.snowflake/connections.toml. L'application ne lit "
+            "ni ne stocke d'identifiant elle-meme."
+        )
+
     return Settings(
         env=env,
         secret_key=secret_key,
         database_url=_env("CEOOS_DATABASE_URL", "sqlite:///var/ceo-os.db"),
         autonomy_level=autonomy,
+        data_source=data_source,
+        snowflake_connection=snowflake_connection,
     )
 
 

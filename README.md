@@ -242,7 +242,7 @@ app/
   templates/      Jinja2, sections du dossier dans partials/
   static/         ceo-os.css, ceo-os.js
 seed/demo.py      4 dossiers fictifs
-tests/            273 tests
+tests/            300 tests
 var/              base SQLite et journaux (git-ignoré)
 ```
 

@@ -1,0 +1,139 @@
+"""Reading performance figures from Snowflake.
+
+This module is the single declared exception to a rule the rest of the application still
+obeys: nothing else opens a network connection. That exception is deliberate, narrow, and
+guarded.
+
+**Credentials.** None are read, stored or carried by this application. It names a
+connection from `~/.snowflake/connections.toml` — the file the Snowflake CLI and Cortex
+Code already maintain — and the connector resolves it. There is therefore no secret to
+leak from this repository, and no password to rotate in a `.env`.
+
+**Read-only.** Every statement passes `assert_read_only` before it reaches the warehouse.
+That is a second lock, not the first: the real one is a role with no write grant, which
+belongs to whoever administers Snowflake. Code cannot grant itself permissions it does not
+have, and should not be trusted to withhold ones it does.
+
+**The queries are not written here.** They depend on a schema this repository does not
+know. `queries.py` holds them, one named constant each, and an unfilled query raises
+rather than returning an empty result — an empty cockpit that looks calm is the worst
+possible failure.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any, Dict, List, Optional, Sequence
+
+from ..config import settings
+
+#: Statements a reporting tool has any business issuing. Anything else is refused before
+#: it reaches the network, whatever the role would have allowed.
+READ_ONLY_PREFIXES = ("select", "with", "show", "describe", "desc", "explain")
+
+#: Refused outright, even inside a comment or a second statement. The cockpit prepares,
+#: flags and structures; it does not change anything anywhere.
+FORBIDDEN = re.compile(
+    r"\b(insert|update|delete|merge|truncate|drop|alter|create|grant|revoke|call|copy)\b",
+    re.IGNORECASE,
+)
+
+
+class QueryRefused(RuntimeError):
+    """A statement that is not a read. Raised before any connection is opened."""
+
+
+class QueryNotConfigured(RuntimeError):
+    """A query placeholder that nobody has filled in yet.
+
+    Raised rather than returning nothing: a cockpit showing an empty section looks like a
+    business with no problems, which is the most expensive lie it could tell.
+    """
+
+
+def strip_comments(sql: str) -> str:
+    without_block = re.sub(r"/\*.*?\*/", " ", sql, flags=re.DOTALL)
+    return re.sub(r"--[^\n]*", " ", without_block)
+
+
+def assert_read_only(sql: str) -> str:
+    """Refuse anything that is not a read. Returns the statement when it passes."""
+    if not sql or not sql.strip():
+        raise QueryRefused("Empty statement.")
+
+    body = strip_comments(sql).strip()
+    if not body:
+        raise QueryRefused("Statement contains nothing but comments.")
+
+    lowered = body.lstrip().lower()
+    if not lowered.startswith(READ_ONLY_PREFIXES):
+        raise QueryRefused(
+            "Only read statements are allowed (%s). Refused: %s"
+            % (", ".join(READ_ONLY_PREFIXES), body.split()[0])
+        )
+
+    forbidden = FORBIDDEN.search(body)
+    if forbidden:
+        raise QueryRefused(
+            "Statement contains a write keyword (%s). The cockpit never writes."
+            % forbidden.group(0).upper()
+        )
+
+    # A second statement could smuggle a write past a SELECT prefix.
+    if ";" in body.rstrip().rstrip(";"):
+        raise QueryRefused("Only one statement per query.")
+
+    return sql
+
+
+def _connect():
+    """Open a connection from the named entry in ~/.snowflake/connections.toml.
+
+    Imported lazily so the connector stays an optional dependency: the cockpit runs, and
+    its whole test suite passes, on a machine that has never heard of Snowflake.
+    """
+    try:
+        import snowflake.connector  # noqa: WPS433 — deliberate lazy import
+    except ImportError as exc:  # pragma: no cover — depends on the local install
+        raise RuntimeError(
+            "The Snowflake connector is not installed. On Python 3.9 use:\n"
+            "    .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0'\n"
+            "Versions from 4.7 onwards require Python 3.10 or later."
+        ) from exc
+
+    if not settings.snowflake_connection:
+        raise RuntimeError("No connection name configured (CEOOS_SNOWFLAKE_CONNECTION).")
+
+    return snowflake.connector.connect(connection_name=settings.snowflake_connection)
+
+
+def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any]]:
+    """Run one read statement and return dictionaries keyed by lowercased column name.
+
+    Snowflake returns column names uppercased; lowering them here keeps every caller from
+    having to remember that, and keeps the mock and warehouse sources interchangeable.
+    """
+    assert_read_only(sql)
+
+    connection = _connect()
+    try:
+        cursor = connection.cursor()
+        try:
+            cursor.execute(sql, params or ())
+            columns = [column[0].lower() for column in cursor.description]
+            return [dict(zip(columns, record)) for record in cursor.fetchall()]
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+
+
+def check() -> str:
+    """Prove the connection works without reading any business data."""
+    result = rows("select current_account() as account, current_role() as role")
+    if not result:
+        return "connected, no result returned"
+    return "connected as role %s on account %s" % (
+        result[0].get("role"),
+        result[0].get("account"),
+    )
