@@ -54,6 +54,11 @@ echo
 # --------------------------------------------------------------- serveur
 
 echo "→ Démarrage · ${URL}"
-echo "   Pour arrêter : Ctrl-C dans cette fenêtre."
+echo
+echo "   Cette fenêtre devient le serveur : elle n'accepte plus de commandes."
+echo "   Pour taper autre chose, ouvrir une nouvelle fenêtre avec ⌘T, puis :"
+echo "       cd $(pwd)"
+echo
+echo "   Pour arrêter le serveur : Ctrl-C ici."
 echo
 exec bash run.sh "$@"

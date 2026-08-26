@@ -52,6 +52,11 @@ et démarre avec la version déjà présente.
 
 Pour arrêter : `Ctrl-C` dans la fenêtre Terminal ouverte.
 
+**Cette fenêtre devient le serveur** et n'accepte plus de commandes. Pour lancer autre
+chose — tests, `manage.py check`, `manage.py warehouse` — ouvrir une **seconde** fenêtre
+(`⌘T`) et s'y placer dans le dossier du projet. Du texte tapé dans la fenêtre du serveur
+n'exécute rien : il est avalé par un processus qui n'attend pas de commandes.
+
 ### Installation, une seule fois
 
 ```bash
@@ -112,10 +117,16 @@ Tests :
 .venv/bin/python -m pytest
 ```
 
-Vérifier le périmètre actif :
+Vérifier le périmètre actif — quelle source de données, quelles requêtes restent à écrire :
 
 ```bash
 .venv/bin/python manage.py check
+```
+
+Tester la connexion à l'entrepôt sans lire aucune donnée métier :
+
+```bash
+.venv/bin/python manage.py warehouse
 ```
 
 ---
