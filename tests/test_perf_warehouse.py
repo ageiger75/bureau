@@ -98,13 +98,25 @@ def test_only_the_written_queries_report_as_written():
     }
 
 
-def test_an_unwritten_query_makes_the_source_refuse_rather_than_return_nothing():
+def test_a_source_missing_a_piece_refuses_rather_than_returning_nothing():
     """An empty cockpit looks like a business with no problems. That is the most
     expensive lie this product could tell."""
     from app.perf.source import SnowflakeSource
 
     with pytest.raises(NotImplementedError):
         SnowflakeSource().dataset()
+
+
+def test_the_planning_file_is_checked_before_the_network():
+    """A missing local file is not worth a round trip, and the refusal reads better when
+    nothing has been read yet. Also: without budgets every market is unbudgeted, so the
+    cockpit would render calm on a business it never compared to anything."""
+    from app.perf.source import SnowflakeSource
+
+    with pytest.raises(NotImplementedError) as refusal:
+        SnowflakeSource().dataset()
+
+    assert "planning workbook" in str(refusal.value)
 
 
 # --------------------------------------------------------------------- the switch
@@ -221,8 +233,127 @@ def test_an_unready_source_explains_itself_instead_of_crashing(monkeypatch):
 
     assert response.status_code == 503
     assert "Data source not ready" in response.text
-    # It names what is still missing — the mapping first, since the SQL now exists.
-    assert "mapping" in response.text
+    # It names what is still missing. The SQL and the mapping now exist, so the first
+    # thing standing in the way is the planning workbook on the machine.
+    assert "planning workbook" in response.text
     assert "SALES_HISTORY" in response.text
     # And it says how to get back to a working screen.
     assert "CEOOS_DATA_SOURCE=mock" in response.text
+
+
+# ------------------------------------------------------- warehouse rows to a screen
+#
+# The wiring between the query and the model. These tests stub the connection: what they
+# check is the assembly, not the SQL, which only the warehouse itself can validate.
+
+
+def _sales_row(market="Japan", **overrides):
+    row = {
+        "market": market,
+        "region": "APAC",
+        "channel": "ecommerce",
+        "period": "2026-07",
+        "sales_actual": 1_259_700.0,
+        "sessions": 1_640_000.0,
+        "orders": 12_800.0,
+        "sessions_last_year": 1_824_000.0,
+        "orders_last_year": 17_800.0,
+    }
+    row.update(overrides)
+    return row
+
+
+def _budget_for(market="Japan"):
+    from app.perf.budget import Budget, BudgetLine
+
+    return Budget(
+        [
+            BudgetLine(
+                market=market,
+                region="APAC",
+                segment="EBU",
+                channel="ecommerce",
+                period="2026-07",
+                budget=1_861_700.0,
+                last_year=1_622_900.0,
+            )
+        ]
+    )
+
+
+def test_the_source_assembles_a_dataset_from_warehouse_rows(monkeypatch):
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert [unit.market for unit in dataset.units] == ["Japan"]
+    assert dataset.sales_actual == 1_259_700.0
+    assert dataset.sales_budget == 1_861_700.0
+
+
+def test_the_period_label_names_the_month_it_actually_shows(monkeypatch):
+    """The query anchors on the last complete month. A screen headed "MTD" would promise
+    a month in progress while showing one that has closed."""
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert dataset.period_label == "July 2026 sales"
+
+
+def test_a_query_that_returns_nothing_is_a_refusal_not_a_blank_screen(monkeypatch):
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    with pytest.raises(NotImplementedError):
+        SnowflakeSource().dataset()
+
+
+def test_a_disagreement_between_file_and_warehouse_survives_to_the_source(monkeypatch):
+    """It has to reach the screen, or nobody learns the two sources are drifting."""
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: [_sales_row(sales_budget=1_000_000.0)]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    source = SnowflakeSource()
+    source.dataset()
+
+    assert len(source.conflicts) == 1
+
+
+def test_performance_renders_even_though_commitments_are_not_connected(monkeypatch):
+    """The panels connect on their own schedule. One missing piece dims its own panel;
+    it does not take down a screen whose main job now works."""
+    from starlette.testclient import TestClient
+
+    import app.routes.today as today_route
+    from app.main import app
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+    monkeypatch.setattr(today_route, "current_source", lambda: SnowflakeSource())
+
+    with TestClient(app) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Japan" in response.text
+    # And says so, rather than showing an empty board that reads as "nothing outstanding".
+    assert "Not connected to this source yet" in response.text

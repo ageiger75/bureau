@@ -249,7 +249,13 @@
     by months — which is the only reason to read them before the sales figures.
   </p>
 
-  {% if not kpis %}
+  {% if "kpis" in unavailable %}
+    <p class="empty">
+      Not connected to this source yet. The readings come from the warehouse; the
+      definitions, targets and cadence come from the KPI tracker. Until both are wired,
+      this panel says nothing rather than saying everything is fine.
+    </p>
+  {% elif not kpis %}
     <p class="empty">Every customer KPI is at or above target.</p>
   {% else %}
   <ul class="kpi-list">
@@ -301,6 +307,12 @@
 
 <section class="panel">
   <h2>Commitments</h2>
+  {% if "commitments" in unavailable %}
+  <p class="empty">
+    Not connected to this source yet. An empty board would read as "nothing outstanding",
+    which is the opposite of what it would mean.
+  </p>
+  {% else %}
   <p class="commitment-counts">
     <span class="count"><strong>{{ commitments.open_count }}</strong> open</span>
     <span class="count count-alert"><strong>{{ commitments.overdue | length }}</strong> overdue</span>
@@ -328,6 +340,7 @@
       <li><span class="tag tag-good">Worked</span> {{ item.action }} — expected {{ item.expected_impact }}, observed {{ item.actual_impact }}</li>
     {% endfor %}
   </ul>
+  {% endif %}
 </section>
 
 {# ------------------------------------------------------------------ ask #}

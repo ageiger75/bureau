@@ -35,8 +35,6 @@ def today(request: Request):
     source = current_source()
     try:
         dataset = source.dataset()
-        commitments = board(source.commitments())
-        kpis = source.client_kpis()
     except NotImplementedError as incomplete:
         # Pointing at a warehouse whose queries are not written yet is a normal state
         # during connection, not a crash. Say what is missing and how to get back to
@@ -54,6 +52,22 @@ def today(request: Request):
             },
             status_code=503,
         )
+
+    # Performance is the screen. Commitments and customer KPIs enrich it, and they connect
+    # on their own schedule — so a missing one dims its own panel instead of taking the
+    # page down. What it must not do is render an empty board: "no overdue commitments"
+    # and "not connected to commitments" look the same and mean opposite things.
+    unavailable = []
+    try:
+        commitments = board(source.commitments())
+    except NotImplementedError:
+        commitments = board([])
+        unavailable.append("commitments")
+    try:
+        kpis = source.client_kpis()
+    except NotImplementedError:
+        kpis = []
+        unavailable.append("kpis")
 
     fires = analytics.fires(dataset)
     by_market = _commitments_by_market(commitments.items)
@@ -102,5 +116,8 @@ def today(request: Request):
             "kpis_provisional": kpi_rules.provisional(kpis),
             "suspects": analytics.suspects(dataset),
             "kpi_rules": kpi_rules,
+            "unavailable": unavailable,
+            "conflicts": getattr(source, "conflicts", []),
+            "markets_without_owner": getattr(source, "markets_without_owner", []),
         },
     )

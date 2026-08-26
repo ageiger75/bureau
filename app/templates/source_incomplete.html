@@ -6,8 +6,8 @@
   <div>
     <h1>Data source not ready</h1>
     <p class="lede">
-      The cockpit is pointed at <strong>{{ source.label }}</strong>, and the queries it
-      needs have not been written yet.
+      The cockpit is pointed at <strong>{{ source.label }}</strong>, and something it
+      needs is not in place yet.
     </p>
   </div>
 </div>
@@ -16,7 +16,7 @@
   <p>{{ detail }}</p>
 
   {% if missing %}
-    <h2>Still to write</h2>
+    <h2>Queries still to write</h2>
     <ul class="bullets">
       {% for name in missing %}<li><code>{{ name }}</code></li>{% endfor %}
     </ul>
