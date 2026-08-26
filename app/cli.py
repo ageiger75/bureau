@@ -5,6 +5,7 @@
     python -m app.cli seed --reset    efface tout et réinsère
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
+                                     --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -98,22 +99,85 @@ def cmd_check() -> int:
     return 0
 
 
-def cmd_warehouse() -> int:
+def cmd_warehouse(argv: List[str]) -> int:
     """Prouve que la connexion fonctionne, sans lire une seule donnée métier."""
     if not settings.reads_warehouse:
         print("CEOOS_DATA_SOURCE n'est pas « snowflake » : rien à tester.", file=sys.stderr)
         return 2
     from .perf import warehouse
 
+    try:
+        return _warehouse_action(warehouse, argv)
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Échec : %s" % exc, file=sys.stderr)
+        return 1
+
+
+def _warehouse_action(warehouse, argv: List[str]) -> int:
+    """Exploration en lecture seule, pour écrire les requêtes contre le vrai schéma."""
+    facts = None
+
+    if "--schemas" in argv:
+        facts = warehouse.check()
+        database = _option(argv, "--database") or facts.get("database")
+        if not database:
+            print("Aucune base : préciser --database NOM.", file=sys.stderr)
+            return 2
+        print("Schémas de %s :" % database)
+        for name in warehouse.schemas(database):
+            print("  %s" % name)
+        return 0
+
+    if "--tables" in argv:
+        facts = warehouse.check()
+        schema = _option(argv, "--tables")
+        database = _option(argv, "--database") or facts.get("database")
+        if not schema or not database:
+            print("Usage : manage.py warehouse --tables SCHEMA [--database BASE]",
+                  file=sys.stderr)
+            return 2
+        print("Objets de %s.%s :" % (database, schema))
+        for item in warehouse.tables(database, schema, _option(argv, "--like") or ""):
+            count = "" if item["rows"] is None else "  (%s lignes)" % item["rows"]
+            print("  %-8s %s%s" % (item["kind"], item["name"], count))
+        return 0
+
+    if "--columns" in argv:
+        facts = warehouse.check()
+        target = _option(argv, "--columns") or ""
+        parts = target.split(".")
+        if len(parts) == 3:
+            database, schema, table = parts
+        elif len(parts) == 2:
+            database, (schema, table) = facts.get("database"), parts
+        else:
+            print("Usage : manage.py warehouse --columns [BASE.]SCHEMA.TABLE",
+                  file=sys.stderr)
+            return 2
+        print("Colonnes de %s.%s.%s :" % (database, schema, table))
+        for column in warehouse.columns(database, schema, table):
+            print("  %-34s %-18s %s" % (column["name"], column["type"], column["null"]))
+        return 0
+
     print("Ouverture de la connexion « %s »." % settings.snowflake_connection)
     print("Une page d'authentification peut s'ouvrir dans le navigateur.")
     print()
-    try:
-        print(warehouse.describe_session())
-    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
-        print("Connexion impossible : %s" % exc, file=sys.stderr)
-        return 1
+    print(warehouse.describe_session())
+    print()
+    print("Explorer le schéma, sans lire de donnée métier :")
+    print("  manage.py warehouse --schemas")
+    print("  manage.py warehouse --tables SCHEMA [--like MOTIF%]")
+    print("  manage.py warehouse --columns SCHEMA.TABLE")
     return 0
+
+
+def _option(argv: List[str], flag: str) -> str:
+    """Valeur suivant un drapeau, ou chaîne vide."""
+    if flag in argv:
+        position = argv.index(flag) + 1
+        if position < len(argv) and not argv[position].startswith("--"):
+            return argv[position]
+    return ""
 
 
 def cmd_serve(argv: List[str]) -> int:
@@ -145,7 +209,7 @@ def main(argv: List[str]) -> int:
     if command == "check":
         return cmd_check()
     if command == "warehouse":
-        return cmd_warehouse()
+        return cmd_warehouse(argv[1:])
     if command == "serve":
         return cmd_serve(argv[1:])
     print("Commande inconnue : %s" % command, file=sys.stderr)

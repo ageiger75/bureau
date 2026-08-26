@@ -153,3 +153,40 @@ def test_the_session_query_reads_nothing_but_session_facts():
     assert "current_role()" in warehouse.SESSION_QUERY
     # No table, no schema, nothing that belongs to the business.
     assert " from " not in warehouse.SESSION_QUERY.lower()
+
+
+# --------------------------------------------------------------------------- exploring
+
+
+def test_an_identifier_containing_a_write_word_is_still_readable():
+    """A table called CUSTOMER_UPDATE is a table, not a write.
+
+    Object names reach SHOW and DESCRIBE by string interpolation, because Snowflake does
+    not bind parameters for them. This is therefore the case most likely to produce a
+    false refusal, and the one most likely to be met in a real warehouse.
+    """
+    for sql in (
+        "describe table DWH.SALES.CUSTOMER_UPDATE",
+        "select is_deleted from DWH.CRM.CLIENTS",
+        "select * from DWH.SALES.DELETE_FLAGS",
+    ):
+        assert warehouse.assert_read_only(sql) == sql
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["DWH; drop table t", "a b", "sales--", "'; select 1 --", "", "1SALES.x"],
+)
+def test_an_object_name_that_is_not_an_identifier_is_refused(name):
+    """The only thing between a typed name and an interpolated statement."""
+    with pytest.raises(warehouse.QueryRefused):
+        warehouse._identifier(name)
+
+
+def test_a_valid_identifier_is_accepted_and_upper_cased():
+    assert warehouse._identifier("sales_daily") == "SALES_DAILY"
+
+
+def test_a_search_pattern_cannot_smuggle_sql():
+    with pytest.raises(warehouse.QueryRefused):
+        warehouse._like("x' or 1=1 --")

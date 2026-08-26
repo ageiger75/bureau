@@ -176,3 +176,73 @@ def describe_session() -> str:
             "  pas. Ajouter `warehouse = \"...\"` à la connexion dans connections.toml."
         )
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- exploring
+
+#: How many rows an exploration command prints. A warehouse can hold thousands of
+#: objects; a wall of names helps nobody write a query.
+EXPLORE_LIMIT = 200
+
+
+def schemas(database: str) -> List[str]:
+    """Schemas visible to the current role in `database`."""
+    found = rows("show schemas in database %s" % _identifier(database))
+    return [record.get("name", "") for record in found]
+
+
+def tables(database: str, schema: str, like: str = "") -> List[Dict[str, Any]]:
+    """Tables and views in one schema, with their row counts where Snowflake knows them.
+
+    Views are included: a warehouse's modelled layer usually lives in views, and those are
+    exactly the objects to prefer over raw tables.
+    """
+    scope = "%s.%s" % (_identifier(database), _identifier(schema))
+    pattern = " like '%s'" % _like(like) if like else ""
+
+    found = rows("show tables%s in schema %s" % (pattern, scope))
+    result = [
+        {"name": r.get("name", ""), "kind": "table", "rows": r.get("rows")}
+        for r in found
+    ]
+    views = rows("show views%s in schema %s" % (pattern, scope))
+    result.extend(
+        {"name": r.get("name", ""), "kind": "view", "rows": None} for r in views
+    )
+    result.sort(key=lambda item: item["name"])
+    return result[:EXPLORE_LIMIT]
+
+
+def columns(database: str, schema: str, table: str) -> List[Dict[str, Any]]:
+    """Column names and types of one object."""
+    target = "%s.%s.%s" % (
+        _identifier(database),
+        _identifier(schema),
+        _identifier(table),
+    )
+    found = rows("describe table %s" % target)
+    return [
+        {"name": r.get("name", ""), "type": r.get("type", ""), "null": r.get("null?")}
+        for r in found
+    ]
+
+
+def _identifier(name: str) -> str:
+    """Refuse anything that is not a plain SQL identifier.
+
+    These names reach the statement by string interpolation, because `SHOW` and
+    `DESCRIBE` do not accept bind parameters for object names. That makes this check the
+    only thing standing between a typed name and the statement, so it is strict rather
+    than clever: letters, digits and underscores, nothing else.
+    """
+    if not name or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", name):
+        raise QueryRefused(
+            "Invalid identifier %r. Letters, digits and underscores only." % name
+        )
+    return name.upper()
+
+
+def _like(pattern: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9_%$]*", pattern or ""):
+        raise QueryRefused("Invalid pattern %r." % pattern)
+    return pattern.upper()
