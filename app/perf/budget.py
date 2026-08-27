@@ -86,11 +86,14 @@ SELL_IN_SEGMENTS = frozenset(
     ("WEBP", "TRA", "DIS", "DPT", "WHOCH", "WHOIN", "TVC", "WHOSP")
 )
 
-#: Still to settle. Web Partners covers e-retailers, and the model differs by contract: a
-#: platform where the Maison operates the store is sell-out, a retailer buying stock to
-#: resell is sell-in. The same is true of one marketplace under two contracts. The code
-#: cannot know; it says so rather than choosing quietly.
-AMBIGUOUS_SEGMENTS = frozenset(("WEBP",))
+#: Segments whose model the code cannot read off the segment name, and which nobody has
+#: settled yet. Empty today: marketplaces were confirmed as stores the Maison operates,
+#: and Web Partners as e-retailers who buy to resell.
+#:
+#: Kept as a mechanism rather than deleted, because the question recurs. A marketplace can
+#: be run under either contract, and the day one is, the code must say it does not know
+#: instead of placing it by resemblance to its neighbours.
+AMBIGUOUS_SEGMENTS = frozenset()
 
 #: Everything the sell-out warehouse can account for, however it reached the shopper.
 SELL_OUT_SEGMENTS = OWN_SEGMENTS | PLATFORM_SEGMENTS

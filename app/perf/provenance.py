@@ -106,8 +106,10 @@ REGISTER: Dict[str, Measure] = {
         label="Sell-in",
         maturity=ABSENT,
         note="Everything invoiced to a partner who then resells: wholesale, distributors, "
-        "department stores, travel retail, marketplaces. No semantic layer covers it "
-        "yet, so it is missing from every figure on this screen.",
+        "department stores, travel retail, e-retailers. No semantic layer covers it yet, "
+        "so it is missing from every figure on this screen. Marketplace stores are not "
+        "in this list — the Maison runs them, so they are sell-out with no funnel rather "
+        "than revenue invoiced away.",
         to_confirm="A sell-in semantic layer reproducing last year's monthly actuals.",
     ),
     "commitments": Measure(

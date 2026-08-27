@@ -353,18 +353,29 @@ def test_revenue_with_no_plan_is_counted_and_named(capsys, monkeypatch):
     assert "120 000" in out
 
 
-def test_the_boundary_segments_are_declared_rather_than_settled(capsys, monkeypatch):
-    """A consignment marketplace is closer to own e-commerce than to wholesale. The code
-    cannot know which, so it says so instead of choosing quietly."""
+def test_web_partners_are_resellers():
+    """Settled by the business, not by the code: e-retailers who buy stock to resell."""
+    assert budget_module.perimeter_of("WEBP - Web Partners") == "sell-in"
+
+
+def test_nothing_is_on_the_boundary_today():
+    """Both open questions were answered. The mechanism stays; the list is empty."""
+    assert budget_module.AMBIGUOUS_SEGMENTS == frozenset()
+
+
+def test_an_unsettled_segment_would_still_be_declared(capsys, monkeypatch):
+    """The question recurs — a marketplace can be run under either contract. The day one
+    is, the code has to say it does not know rather than place it by resemblance."""
     from app.cli import cmd_budget
     from app.config import settings
 
     plan = Budget(
-        [BudgetLine("Japan", "APAC", "WEBP - Web Partners", "webp",
+        [BudgetLine("Japan", "APAC", "MKTP - Market place", "mktp",
                     "2026-07", 500_000.0, 430_000.0)]
     )
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
+    monkeypatch.setattr(budget_module, "AMBIGUOUS_SEGMENTS", frozenset(("MKTP",)))
 
     cmd_budget(["--segments"])
 
