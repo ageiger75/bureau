@@ -22,10 +22,18 @@ fi
 # accident. Mais un écran de démonstration ressemble assez à l'écran réel pour qu'on le
 # lise sans s'en apercevoir — d'où cette ligne, dite au lancement plutôt que découverte en
 # bas de page.
-if grep -qE '^CEOOS_DATA_SOURCE=mock' .env 2>/dev/null && [ -z "${CEOOS_DATA_SOURCE:-}" ]; then
-  echo "→ Données de démonstration. Pour les vrais chiffres, dans .env :"
+# La condition porte sur ce qui sera effectivement lu, pas sur la présence d'une ligne :
+# un .env créé avant que ces réglages existent n'en contient aucune, et un avertissement
+# qui exige la ligne resterait muet précisément dans ce cas-là.
+SOURCE_SET="${CEOOS_DATA_SOURCE:-}"
+if [ -z "$SOURCE_SET" ] && [ -f .env ]; then
+  SOURCE_SET="$(sed -n 's/^CEOOS_DATA_SOURCE=//p' .env | tail -1)"
+fi
+if [ "$SOURCE_SET" != "snowflake" ]; then
+  echo "→ Données de démonstration. Pour les vrais chiffres, ajouter à .env :"
   echo "     CEOOS_DATA_SOURCE=snowflake"
   echo "     CEOOS_SNOWFLAKE_CONNECTION=<le nom entre crochets de ~/.snowflake/connections.toml>"
+  echo "   puis relancer. Un .env plus ancien que ces réglages ne les contient pas encore."
 fi
 
 # Un serveur déjà lancé donne « Address already in use », qui ne dit ni qui occupe le port
