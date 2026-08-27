@@ -6,6 +6,8 @@
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
+    python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
+                                     --period AAAA-MM pour détailler un mois
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -97,6 +99,84 @@ def cmd_check() -> int:
         if settings.reads_warehouse
         else "aucun (ni Microsoft 365, ni fournisseur IA)"))
     return 0
+
+
+def cmd_budget(argv: List[str]) -> int:
+    """Lit le classeur de planification et dit ce qu'il contient.
+
+    Aucun réseau, aucune base : c'est un fichier sur le disque. La commande existe pour
+    répondre à la seule question qui compte avant de brancher l'entrepôt — le budget
+    couvre-t-il bien les marchés dont on va lire les ventes ? Un classeur illisible ou
+    incomplet vaut mieux découvert ici que devant un écran serein.
+    """
+    from .perf import budget as budget_module
+
+    if not settings.has_budget_file:
+        print("Classeur absent : %s" % settings.budget_path, file=sys.stderr)
+        print("Copier le fichier de planification à cet emplacement, puis relancer.",
+              file=sys.stderr)
+        return 2
+
+    try:
+        plan = budget_module.load(settings.budget_path)
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Lecture impossible : %s" % exc, file=sys.stderr)
+        return 1
+
+    periods = plan.periods()
+    markets = plan.markets()
+    print("Classeur            %s" % settings.budget_path)
+    print("Lignes              %d" % len(plan.lines))
+    print("Marchés             %d" % len(markets))
+    print("Périodes            %d, de %s à %s" % (
+        len(periods), periods[0] if periods else "?", periods[-1] if periods else "?"))
+
+    wanted = _option(argv, "--period")
+    if wanted:
+        if wanted not in periods:
+            print("Période inconnue : %s" % wanted, file=sys.stderr)
+            return 2
+        _print_period(plan, wanted)
+        return 0
+
+    # Sans période demandée, un total par mois : une colonne vide ou un mois manquant
+    # se voit d'un coup d'œil, ce qu'une somme annuelle cacherait.
+    print("")
+    print("%-10s %16s %16s" % ("Période", "Budget", "An dernier"))
+    for period in periods:
+        print("%-10s %16s %16s" % (
+            period,
+            _eur(plan.total_budget(period)),
+            _eur(plan.total_last_year(period)),
+        ))
+    return 0
+
+
+def _print_period(plan, period: str) -> None:
+    lines = sorted(
+        (l for l in plan.lines if l.period == period),
+        key=lambda l: -(l.budget or 0.0),
+    )
+    print("")
+    print("%-24s %-10s %16s %16s" % ("Marché", "Canal", "Budget", "An dernier"))
+    for line in lines:
+        print("%-24s %-10s %16s %16s" % (
+            line.market[:24],
+            line.channel,
+            _eur(line.budget),
+            _eur(line.last_year),
+        ))
+
+
+def _eur(value) -> str:
+    """Des euros lisibles, et un tiret quand la case est vide.
+
+    Un zéro affiché à la place d'une absence est exactement le mensonge que le reste du
+    cockpit passe son temps à éviter.
+    """
+    if value is None:
+        return "—"
+    return "{:,.0f}".format(value).replace(",", " ")
 
 
 def cmd_warehouse(argv: List[str]) -> int:
@@ -229,6 +309,8 @@ def main(argv: List[str]) -> int:
         return cmd_check()
     if command == "warehouse":
         return cmd_warehouse(argv[1:])
+    if command == "budget":
+        return cmd_budget(argv[1:])
     if command == "serve":
         return cmd_serve(argv[1:])
     print("Commande inconnue : %s" % command, file=sys.stderr)

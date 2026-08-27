@@ -17,6 +17,7 @@ import zipfile
 import pytest
 
 from app.perf import budget as budget_module
+from app.perf.budget import Budget, BudgetLine
 from app.perf.xlsx import Workbook, WorkbookError, read_sheet
 
 CONTENT_TYPES = (
@@ -169,3 +170,73 @@ def test_a_workbook_without_budget_columns_is_refused(tmp_path):
 
     with pytest.raises(WorkbookError):
         budget_module.load(path)
+
+
+# ----------------------------------------------------------- reading the file by hand
+#
+# `manage.py budget` exists to answer one question before the warehouse is ever reached:
+# does the planning file cover the markets whose sales we are about to read? A workbook
+# that is unreadable, or silently missing a month, is better found here than in front of
+# a screen that looks calm.
+
+
+def test_the_command_refuses_clearly_when_the_file_is_absent(capsys, monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: False))
+
+    assert cmd_budget([]) == 2
+    assert "Classeur absent" in capsys.readouterr().err
+
+
+def test_the_command_reports_what_the_file_covers(capsys, monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+    from app.perf import budget as budget_module
+
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "EBU", "ecommerce", "2026-07", 1_861_700.0, 1_622_900.0),
+            BudgetLine("France", "EMEA", "RET", "retail", "2026-08", 900_000.0, 850_000.0),
+        ]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    assert cmd_budget([]) == 0
+
+    out = capsys.readouterr().out
+    assert "Marchés             2" in out
+    assert "2026-07" in out and "2026-08" in out
+
+
+def test_an_empty_cell_prints_a_dash_rather_than_a_zero(capsys, monkeypatch):
+    """A zero shown where a number is missing is the exact lie the cockpit avoids."""
+    from app.cli import cmd_budget
+    from app.config import settings
+    from app.perf import budget as budget_module
+
+    plan = Budget(
+        [BudgetLine("Japan", "APAC", "EBU", "ecommerce", "2026-07", 1_861_700.0, None)]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    cmd_budget(["--period", "2026-07"])
+
+    assert "—" in capsys.readouterr().out
+
+
+def test_an_unknown_period_is_refused_rather_than_shown_empty(monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+    from app.perf import budget as budget_module
+
+    plan = Budget(
+        [BudgetLine("Japan", "APAC", "EBU", "ecommerce", "2026-07", 1_861_700.0, 1_622_900.0)]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    assert cmd_budget(["--period", "2026-12"]) == 2
