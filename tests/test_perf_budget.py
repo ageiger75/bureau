@@ -641,3 +641,34 @@ def test_a_cell_split_across_rows_is_confronted_as_one(tmp_path, monkeypatch):
     path = _candidate(tmp_path, [["Japan", "DIS - Distributors", "2025-07", "400000"]])
 
     assert cmd_reconcile([str(path)]) == 0
+
+
+def test_the_spec_and_the_check_count_the_same_cells(tmp_path, capsys, monkeypatch):
+    """They used to differ — the file wrote every planning row, the check summed them by
+    key — so the same workbook announced 1 330 constraints and then expected 1 298. Both
+    were defensible alone, which is the worst case: a reader comparing the two outputs
+    concludes there is a bug and cannot tell which side has it."""
+    from app.cli import cmd_budget, cmd_reconcile
+    from app.config import settings
+
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-07", 500_000.0, 300_000.0),
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-07", 100_000.0, 100_000.0),
+        ]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    target = tmp_path / "spec.csv"
+    cmd_budget(["--spec", str(target)])
+    announced = capsys.readouterr().out
+
+    written = [l for l in target.read_text().strip().splitlines()[1:] if l.strip()]
+
+    assert "Contraintes         1" in announced
+    assert len(written) == 1
+    # And the single written row carries the summed figure, not one of the two parts.
+    assert "400000.00" in written[0]

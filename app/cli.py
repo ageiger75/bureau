@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from .config import settings
 from .db import create_all, database_label
@@ -423,32 +423,45 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
         print("Aucun réalisé sur ce périmètre.", file=sys.stderr)
         return 1
 
-    rows.sort(key=lambda l: (l.market, l.segment, l.period))
-    periods = sorted({previous_year(l.period) for l in rows})
+    # Folded to one row per cell, exactly as the reconciliation reads it. The two used to
+    # count differently — the file wrote every planning row, the check summed them by key —
+    # so the same workbook announced 1 330 constraints and then expected 1 298. Both were
+    # defensible on their own, which is the worst case: a reader comparing the two outputs
+    # concludes there is a bug, and cannot tell which side has it.
+    cells: Dict[tuple, List] = {}
+    for line in rows:
+        key = (line.market, line.segment, previous_year(line.period))
+        if key in cells:
+            cells[key][1] += line.last_year
+        else:
+            cells[key] = [line, line.last_year]
+
+    ordered = sorted(cells.items(), key=lambda item: item[0])
+    periods = sorted({key[2] for key in cells})
     path = Path(destination)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(
             ["market", "region", "segment", "perimeter", "period", "actual_eur"]
         )
-        for line in rows:
+        for (market, segment, period), (line, total) in ordered:
             writer.writerow([
-                line.market,
+                market,
                 line.region,
-                line.segment,
-                perimeter_of(line.segment),
+                segment,
+                perimeter_of(segment),
                 # The month this figure belongs to, not the month whose plan it sits
                 # beside. A specification that misdates its own evidence sends whoever
                 # reads it looking for FY27 actuals in months that have not happened.
-                previous_year(line.period),
-                "%.2f" % line.last_year,
+                period,
+                "%.2f" % total,
             ])
 
-    total = sum(l.last_year for l in rows)
+    total = sum(entry[1] for entry in cells.values())
     print("Écrit               %s" % path)
     print("Périmètre           %s" % wanted)
-    print("Contraintes         %d (marché × segment × mois)" % len(rows))
-    print("Marchés             %d" % len({l.market for l in rows}))
+    print("Contraintes         %d (marché × segment × mois)" % len(cells))
+    print("Marchés             %d" % len({key[0] for key in cells}))
     print("Mois                %d, de %s à %s" % (
         len(periods), periods[0], periods[-1]))
     print("Total réalisé       %s" % _eur(total))

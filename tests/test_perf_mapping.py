@@ -421,3 +421,125 @@ def test_the_channel_reaches_the_label():
     )
 
     assert mapped.units[0].label == "France Retail"
+
+
+# --------------------------------------------- several store formats, one channel
+#
+# The warehouse reports the shape of the point of sale — mall store, street store, shop in
+# shop, outlet, road show, corner. The plan commits to one figure for all of them. So the
+# formats fold, and the fold is the most dangerous line of code in this module.
+
+
+def test_every_store_format_lands_on_retail():
+    """Keeping them apart would read as finer detail and behave as a catastrophe: each
+    format would find no budget line, be marked unbudgeted, and drop out of the ranking —
+    taking nearly half the plan off the screen while every number stayed true."""
+    for shape in ("MALL STORE", "STREET STORE", "SHOP IN SHOP", "OUTLET",
+                  "ROAD SHOW", "CORNER", "SPECIAL STORES"):
+        assert mapping.normalise_channel(shape) == RETAIL, shape
+
+
+def test_a_marketplace_is_its_own_channel_not_e_commerce():
+    """The plan commits to it separately, and it has no sessions to compare."""
+    assert mapping.normalise_channel("MARKETPLACE") == "marketplace"
+
+
+def test_the_formats_of_one_market_become_a_single_unit():
+    mapped = mapping.units_from_rows(
+        [
+            row(market="France", channel="MALL STORE", sales_actual=2_000_000.0),
+            row(market="France", channel="STREET STORE", sales_actual=1_500_000.0),
+            row(market="France", channel="OUTLET", sales_actual=500_000.0),
+        ],
+        budget=budget_of(line(market="France", channel=RETAIL, budget=4_500_000.0)),
+    )
+
+    assert len(mapped.units) == 1
+    assert mapped.units[0].sales_actual == pytest.approx(4_000_000.0)
+
+
+def test_a_folded_channel_carries_its_budget_once():
+    """The failure this exists to prevent: three formats, three units, and the same
+    commitment counted three times — a company shown far behind a plan it is meeting."""
+    dataset = mapping.dataset_from_rows(
+        [
+            row(market="France", channel="MALL STORE", sales_actual=2_000_000.0),
+            row(market="France", channel="STREET STORE", sales_actual=1_500_000.0),
+            row(market="France", channel="OUTLET", sales_actual=500_000.0),
+        ],
+        budget=budget_of(line(market="France", channel=RETAIL, budget=4_500_000.0)),
+    )
+
+    assert dataset.sales_budget == pytest.approx(4_500_000.0)
+
+
+def test_folding_keeps_an_absence_absent():
+    """Summing nothing with nothing must not produce a zero, or a channel nobody measured
+    becomes a channel measured at nothing."""
+    folded = mapping.fold_rows([
+        row(market="France", channel="MALL STORE", sessions=None, orders=None),
+        row(market="France", channel="OUTLET", sessions=None, orders=None),
+    ])
+
+    assert folded[0]["sessions"] is None
+    assert folded[0]["orders"] is None
+
+
+def test_a_channel_that_measured_anything_counts_as_measured():
+    folded = mapping.fold_rows([
+        row(market="France", channel="MALL STORE", funnel_status="not_a_web_channel"),
+        row(market="France", channel="OUTLET", funnel_status="measured"),
+    ])
+
+    assert folded[0]["funnel_status"] == "measured"
+
+
+def test_the_most_actionable_fault_survives_the_fold():
+    """"Tracking stopped on a date" can be found. "No site" cannot. When neither channel
+    measured anything, the one worth chasing is the one that names a date."""
+    folded = mapping.fold_rows([
+        row(market="France", channel="MALL STORE", funnel_status="no_analytics_site"),
+        row(market="France", channel="OUTLET", funnel_status="order_tracking_lost"),
+    ])
+
+    assert folded[0]["funnel_status"] == "order_tracking_lost"
+
+
+def test_different_channels_never_fold_together():
+    mapped = mapping.units_from_rows(
+        [
+            row(market="France", channel="MALL STORE"),
+            row(market="France", channel="E-COMMERCE"),
+            row(market="France", channel="MARKETPLACE"),
+        ],
+        budget=budget_of(
+            line(market="France", channel=RETAIL),
+            line(market="France", channel=ECOMMERCE),
+        ),
+    )
+
+    assert len(mapped.units) == 3
+
+
+def test_different_markets_never_fold_together():
+    mapped = mapping.units_from_rows(
+        [
+            row(market="France", channel="MALL STORE"),
+            row(market="Japan", channel="STREET STORE"),
+        ],
+        budget=budget_of(line(market="France", channel=RETAIL)),
+    )
+
+    assert {u.market for u in mapped.units} == {"France", "Japan"}
+
+
+def test_a_store_is_not_told_its_web_tracking_broke():
+    """A shop has no web funnel to lose. Saying otherwise sends someone to repair
+    something that was never there."""
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel="MALL STORE", funnel_status="not_a_web_channel",
+             sessions=None, orders=None)],
+        budget=budget_of(line(market="France", channel=RETAIL)),
+    )
+
+    assert "orders" not in mapped.units[0].no_breakdown_reason.lower()

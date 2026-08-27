@@ -13,6 +13,11 @@ from typing import List, Optional, Sequence, Tuple
 ECOMMERCE = "ecommerce"
 RETAIL = "retail"
 
+#: Sold by the Maison to the end customer on a platform it does not run. Sell-out, and
+#: kept apart from e-commerce because it has no funnel of its own: the platform owns the
+#: traffic, so there are no sessions to compare and none to be recovered.
+MARKETPLACE = "marketplace"
+
 #: Driver labels per channel, in decomposition order (brief §14).
 #: Sales = product of the drivers, exactly.
 DRIVER_LABELS = {

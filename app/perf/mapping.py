@@ -16,6 +16,7 @@ from . import owners as owners_module
 from .budget import Budget, normalise_market
 from .model import (
     ECOMMERCE,
+    MARKETPLACE,
     NO_COUNTER_REASON,
     RETAIL,
     BusinessUnit,
@@ -37,6 +38,20 @@ MEASURED = "measured"
 ORDERS_NOT_TRACKED = "orders_not_tracked"
 ORDER_TRACKING_LOST = "order_tracking_lost"
 NO_ANALYTICS_SITE = "no_analytics_site"
+#: A store has no web funnel to lose. Distinguishing it from a site whose tagging broke is
+#: what stops anyone being sent to repair something that was never there.
+NOT_A_WEB_CHANNEL = "not_a_web_channel"
+
+#: Which status survives when several warehouse rows fold into one channel. A channel that
+#: measured anything at all is measured; otherwise the most specific fault wins, because
+#: "tracking stopped on a date" is actionable where "no site" is not.
+STATUS_PRECEDENCE = (
+    MEASURED,
+    ORDER_TRACKING_LOST,
+    ORDERS_NOT_TRACKED,
+    NO_ANALYTICS_SITE,
+    NOT_A_WEB_CHANNEL,
+)
 
 #: Why a funnel cannot be read, in the words the reader needs. Each says who to ask.
 FUNNEL_REASONS = {
@@ -67,17 +82,48 @@ BROKEN_FUNNELS = frozenset({ORDERS_NOT_TRACKED, ORDER_TRACKING_LOST})
 #: hyphenates; the planning file abbreviates; the model has two words for the channels it
 #: can decompose. This is where the three meet, and it has to be exhaustive rather than
 #: clever: a channel that lands on the wrong name joins to the wrong budget line.
+#: The warehouse reports the shape of the point of sale — mall store, street store, shop
+#: in shop, outlet, road show, corner. The plan commits to one figure for all of them:
+#: `RET - Retail`, one line per market.
+#:
+#: So the formats collapse. Keeping them apart would read as finer detail and behave as a
+#: catastrophe: every format would find no budget line, be marked unbudgeted, drop out of
+#: the ranking, and the entire store business — nearly half the plan — would vanish from
+#: the screen while every number on it stayed technically true.
+#:
+#: It is also the right grain regardless. "France Retail is below plan" is a management
+#: unit; "France Mall Store" is a property of the estate, and no one is accountable for it
+#: separately from the rest.
 CHANNEL_ALIASES = {
+    # The web, on a site of ours.
     "e-commerce": ECOMMERCE,
     "ecommerce": ECOMMERCE,
     "e commerce": ECOMMERCE,
+    "brand.com": ECOMMERCE,
     "web": ECOMMERCE,
+    # Stores, whatever their format.
     "retail": RETAIL,
+    "mall store": RETAIL,
+    "street store": RETAIL,
+    "shop in shop": RETAIL,
+    "outlet": RETAIL,
+    "road show": RETAIL,
+    "corner": RETAIL,
+    "special stores": RETAIL,
     "boutique": RETAIL,
     "stores": RETAIL,
     "store": RETAIL,
+    # Sold by the Maison to the end customer, on a platform it does not run. Sell-out with
+    # no funnel — and its own channel rather than folded into e-commerce, because the plan
+    # commits to it separately and because it has no sessions to compare.
+    "marketplace": MARKETPLACE,
+    "market place": MARKETPLACE,
+    # Small own channels the plan carries as their own lines.
+    "spa": "spa",
+    "cafe": "cafe",
+    "café": "cafe",
+    "direct selling": "direct selling",
 }
-
 
 def normalise_channel(name: str) -> str:
     """`E-COMMERCE` -> `ecommerce`. An unknown channel keeps its own name, lowercased.
@@ -154,6 +200,80 @@ def _drivers_for(
     return Drivers.sales_only(sales)
 
 
+#: Warehouse figures that add up when rows fold together. Everything else — market names,
+#: the period, the region — must agree already, and does: the fold is keyed on them.
+SUMMED_FIELDS = (
+    "sales_actual",
+    "sales_budget",
+    "sales_last_year",
+    "sales_forecast",
+    "sessions",
+    "orders",
+    "sessions_last_year",
+    "orders_last_year",
+)
+
+
+def fold_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
+    """Collapse warehouse rows onto one row per market, channel and period.
+
+    The warehouse reports the shape of the point of sale; the cockpit and the plan both
+    speak in channels. Several store formats therefore land on the same channel, and if
+    they arrived as several units each would carry the channel's *entire* budget — the
+    same commitment counted four times over, and a company shown far behind a plan it is
+    in fact meeting.
+
+    Absent stays absent through the fold: summing None with None must not produce a zero,
+    or a channel nobody measured becomes a channel measured at nothing.
+    """
+    folded: Dict[tuple, Dict[str, object]] = {}
+    order: List[tuple] = []
+
+    for row in rows:
+        raw_market = str(row.get("market") or "").strip()
+        if not raw_market:
+            continue
+        market = normalise_market(raw_market)
+        channel = normalise_channel(str(row.get("channel") or ECOMMERCE))
+        period = str(row.get("period") or "")
+        key = (market, channel, period)
+
+        if key not in folded:
+            merged = dict(row)
+            merged["market"] = market
+            merged["channel"] = channel
+            folded[key] = merged
+            order.append(key)
+            continue
+
+        merged = folded[key]
+        for field in SUMMED_FIELDS:
+            merged[field] = _add(_number(merged.get(field)), _number(row.get(field)))
+        merged["funnel_status"] = _better_status(
+            str(merged.get("funnel_status") or ""), str(row.get("funnel_status") or "")
+        )
+
+    return [folded[key] for key in order]
+
+
+def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return first + second
+
+
+def _better_status(first: str, second: str) -> str:
+    ranked = [s for s in (first.strip().lower(), second.strip().lower()) if s]
+    if not ranked:
+        return ""
+    known = [s for s in ranked if s in STATUS_PRECEDENCE]
+    if not known:
+        return ranked[0]
+    return min(known, key=STATUS_PRECEDENCE.index)
+
+
 def units_from_rows(
     rows: Sequence[Dict[str, object]],
     budget: Optional[Budget] = None,
@@ -170,7 +290,7 @@ def units_from_rows(
     conflicts: List[BudgetConflict] = []
     seen_markets: List[tuple] = []
 
-    for row in rows:
+    for row in fold_rows(rows):
         raw_market = str(row.get("market") or "").strip()
         if not raw_market:
             continue

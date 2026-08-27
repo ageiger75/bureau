@@ -36,9 +36,16 @@ ACTUAL_COLUMN = re.compile(r"^(\d{4})\.([A-Z]{3})$")
 
 #: Planning segments mapped to the cockpit's driver models. Anything unmapped keeps its
 #: own name and carries no driver breakdown — which is the honest default.
+#: Planning segments to the channel vocabulary the warehouse rows land on. Both sides have
+#: to reach the same word or a channel joins to no budget line at all — which the cockpit
+#: reports honestly, and which is still a market missing from the ranking.
 SEGMENT_CHANNEL = {
     "EBU": "ecommerce",
     "RET": "retail",
+    "MKTP": "marketplace",
+    "SPA": "spa",
+    "CAF": "cafe",
+    "DDS": "direct selling",
 }
 
 #: Market names differ between the planning file and the warehouse. Kept explicit and
