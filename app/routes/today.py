@@ -31,6 +31,18 @@ def _commitments_by_market(items) -> Dict[str, List]:
     return grouped
 
 
+def settled_now() -> List[str]:
+    """Measures this instance has actually resolved, whatever the register says.
+
+    The register describes the design. Whether the directory file is on this machine is a
+    fact about this machine, and the screen should not ask the CEO to chase something he
+    has already provided.
+    """
+    from ..perf import owners
+
+    return ["owners"] if len(owners.current()) else []
+
+
 @router.get("/")
 def today(request: Request):
     source = current_source()
@@ -118,7 +130,7 @@ def today(request: Request):
             "suspects": analytics.suspects(dataset),
             "kpi_rules": kpi_rules,
             "unavailable": unavailable,
-            "unsettled": provenance.unsettled(),
+            "unsettled": provenance.unsettled(settled=settled_now()),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "conflicts": getattr(source, "conflicts", []),
             "markets_without_owner": getattr(source, "markets_without_owner", []),

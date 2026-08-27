@@ -102,7 +102,7 @@ def units_from_rows(
     """
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
-    seen_markets: List[str] = []
+    seen_markets: List[tuple] = []
 
     for row in rows:
         raw_market = str(row.get("market") or "").strip()
@@ -111,7 +111,7 @@ def units_from_rows(
         market = normalise_market(raw_market)
         channel = str(row.get("channel") or ECOMMERCE).strip().lower()
         period = str(row.get("period") or "")
-        seen_markets.append(market)
+        seen_markets.append((market, str(row.get("region") or "").strip()))
 
         actual = _number(row.get("sales_actual")) or 0.0
         sessions = _number(row.get("sessions"))
@@ -161,7 +161,9 @@ def units_from_rows(
                 market=market,
                 region=str(row.get("region") or "").strip(),
                 channel=channel,
-                owner=owners_module.owner_for(market),
+                # Region matters: it is what lets an unlisted market fall to its BU head
+                # instead of going unowned.
+                owner=owners_module.owner_for(market, str(row.get("region") or "")),
                 actual=_drivers_for(channel, market, actual, sessions, orders),
                 # Budget and last year carry no drivers: they are commitments and history,
                 # not measured funnels. A gap against them is still exact.
@@ -182,7 +184,10 @@ def units_from_rows(
     return Mapped(
         units=units,
         conflicts=conflicts,
-        markets_without_owner=owners_module.unnamed_markets(seen_markets),
+        markets_without_owner=sorted(
+            {market for market, region in seen_markets
+             if owners_module.current().entry_for(market, region) is None}
+        ),
     )
 
 

@@ -97,6 +97,21 @@ def cmd_check() -> int:
     else:
         print("Données perf        fictives (CEOOS_DATA_SOURCE=mock)")
 
+    if settings.has_budget_file:
+        print("Plan                %s" % settings.budget_path)
+    else:
+        print("Plan                absent — copier le classeur dans %s" % settings.budget_path)
+
+    from .perf import owners
+
+    directory = owners.current()
+    if len(directory):
+        named = sum(1 for e in directory.entries if e.level == owners.COUNTRY_GM)
+        print("Annuaire            %d entrées, dont %d GM pays" % (len(directory), named))
+    else:
+        print("Annuaire            absent — « Qui challenger » restera muet")
+        print("                    déposer le fichier dans %s" % settings.owners_path)
+
     print("Écritures externes  aucune. Le cockpit prépare, signale et structure.")
     print("Appels externes     %s" % (
         "l'entrepôt Snowflake en lecture seule, et rien d'autre"

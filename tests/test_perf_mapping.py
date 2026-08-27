@@ -217,17 +217,21 @@ def test_the_warehouse_budget_is_used_when_the_file_is_silent():
 # ----------------------------------------------------------------------------- owners
 
 
-def test_an_unknown_market_gets_no_invented_owner():
+def test_an_unknown_market_gets_no_invented_owner(monkeypatch):
     """Putting a real person's name in front of a question they do not own is worse
     than leaving the line blank."""
+    monkeypatch.setattr(owners, "current", lambda: owners.EMPTY)
+
     owner = owners.owner_for("Nowhereland")
 
     assert owner.name == ""
     assert owners.is_named(owner) is False
 
 
-def test_the_markets_left_out_are_countable():
+def test_the_markets_left_out_are_countable(monkeypatch):
     """The screen says how many were left out. It never says who they are."""
+    monkeypatch.setattr(owners, "current", lambda: owners.EMPTY)
+
     mapped = mapping.units_from_rows(
         [row(market="Japan"), row(market="Taiwan")],
         budget=budget_of(line()),
@@ -237,11 +241,23 @@ def test_the_markets_left_out_are_countable():
 
 
 def test_a_named_market_carries_its_owner_through_the_join(monkeypatch):
-    monkeypatch.setitem(owners.OWNERS, "Japan", ("Naoki", "Managing Director"))
+    directory = owners.Directory(
+        [
+            owners.Entry(
+                name="A. Manager",
+                role="Managing Director",
+                bu="Japon",
+                zone="Japon",
+                level=owners.COUNTRY_GM,
+                markets=["Japan"],
+            )
+        ]
+    )
+    monkeypatch.setattr(owners, "current", lambda: directory)
 
     mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
 
-    assert mapped.units[0].owner.name == "Naoki"
+    assert mapped.units[0].owner.name == "A. Manager"
     assert mapped.markets_without_owner == []
 
 

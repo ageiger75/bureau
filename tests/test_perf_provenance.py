@@ -89,3 +89,19 @@ def test_no_plan_at_all_carries_no_caveat():
     from app.perf.source import _perimeter_note
 
     assert _perimeter_note(None) == ""
+
+
+def test_a_measure_this_instance_has_resolved_drops_off_the_list():
+    """The register describes the design; only the running instance knows what it has in
+    hand. Asking the CEO to chase a file he has already provided would teach him to stop
+    reading the panel."""
+    before = [m.key for m in provenance.unsettled()]
+    after = [m.key for m in provenance.unsettled(settled=["owners"])]
+
+    assert "owners" in before
+    assert "owners" not in after
+    assert len(after) == len(before) - 1
+
+
+def test_naming_something_already_validated_changes_nothing():
+    assert provenance.unsettled(settled=["sales_budget"]) == provenance.unsettled()

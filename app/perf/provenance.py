@@ -22,7 +22,7 @@ whose author did not ask themselves the question.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
 
 VALIDATED = "validated"
 BETA = "beta"
@@ -128,10 +128,13 @@ REGISTER: Dict[str, Measure] = {
     "owners": Measure(
         key="owners",
         label="Market owners",
-        maturity=ABSENT,
-        note="Not organisational data the warehouse holds, nor should. Ten lines of a "
-        "table, maintained by hand.",
-        to_confirm="Who owns each market. This one is not IT's to answer.",
+        maturity=BETA,
+        note="Read from the directory file, which lists BU heads and country GMs. A "
+        "market the directory names goes to its GM; a market it does not goes to the BU "
+        "head, who does own it. What is never done is expanding a named grouping — "
+        "Nordics, Southern Europe, Central Europe, SEA — into countries the file does "
+        "not list, so those markets are answered one level up.",
+        to_confirm="Which countries sit in each named grouping, to route them precisely.",
     ),
 }
 
@@ -140,13 +143,18 @@ def measure(key: str) -> Optional[Measure]:
     return REGISTER.get(key)
 
 
-def unsettled() -> List[Measure]:
+def unsettled(settled: Sequence[str] = ()) -> List[Measure]:
     """Everything not validated, worst first.
 
     Sorted so that what is missing outranks what is merely unconfirmed: a wrong number can
     be argued with, an absent one cannot.
+
+    `settled` names measures the running configuration has resolved — a file that is
+    present, a source that connected. The register describes the design; only the running
+    instance knows what it actually has in hand.
     """
-    found = [m for m in REGISTER.values() if not m.is_settled]
+    resolved = set(settled)
+    found = [m for m in REGISTER.values() if not m.is_settled and m.key not in resolved]
     found.sort(key=lambda m: (ORDER[m.maturity], m.label))
     return found
 
