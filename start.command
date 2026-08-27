@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CEO OS — Decision Room · lancement depuis le Finder
+# CEO OS — Performance Cockpit · lancement depuis le Finder
 #
 # Fichier `.command` : double-cliquable depuis le Finder ou le Dock, qui l'ouvre dans
 # Terminal. Il fait les trois gestes dans l'ordre — récupérer la dernière version,
@@ -16,7 +16,7 @@ cd "$(dirname "$0")"
 PORT="${PORT:-8000}"
 URL="http://127.0.0.1:${PORT}"
 
-echo "CEO OS — Decision Room"
+echo "CEO OS — Performance Cockpit"
 echo
 
 # --------------------------------------------------------------- mise à jour
@@ -28,7 +28,19 @@ if [ -d .git ]; then
   if git pull --ff-only 2>&1 | sed 's/^/   /'; then
     :
   else
-    echo "   Mise à jour impossible — le dossier a divergé, ou GitHub est injoignable."
+    # « Le dossier a divergé » est exact et n'apprend rien. Deux causes très
+    # différentes se cachent derrière, et une seule appelle un geste : du travail
+    # commité ici et jamais poussé — ce qui arrive dès qu'un agent écrit du code sur
+    # ce poste. Le dire, plutôt que de laisser chercher.
+    AHEAD="$(git log --oneline @{u}..HEAD 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "${AHEAD:-0}" != "0" ]; then
+      echo
+      echo "   ${AHEAD} commit(s) fait(s) ici et jamais poussé(s) — c'est pour ça que la"
+      echo "   mise à jour s'arrête. Rien n'est perdu. Dans une autre fenêtre :"
+      echo "       cd $(pwd) && git pull --rebase && git push"
+    else
+      echo "   Mise à jour impossible — GitHub est injoignable, ou l'historique a divergé."
+    fi
     echo "   Démarrage avec la version déjà présente."
   fi
 else
@@ -59,6 +71,6 @@ echo "   Cette fenêtre devient le serveur : elle n'accepte plus de commandes."
 echo "   Pour taper autre chose, ouvrir une nouvelle fenêtre avec ⌘T, puis :"
 echo "       cd $(pwd)"
 echo
-echo "   Pour arrêter le serveur : Ctrl-C ici."
+echo "   Pour arrêter le serveur : Ctrl-C ici, ou fermer la fenêtre."
 echo
 exec bash run.sh "$@"
