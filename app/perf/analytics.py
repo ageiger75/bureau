@@ -330,6 +330,18 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     # the warehouse; the heuristics below only ever inferred from shape. Note that orders
     # now arrive as absent rather than as zero, which is correct and which is exactly why
     # the shape-based check underneath can no longer see these markets.
+    # A market that recorded nothing at all outranks a missing tag, whatever the query
+    # says about its funnel. Otherwise Finland — no sales, and no order tracking either —
+    # is told that "the sales are real" underneath a figure of zero.
+    if unit.sales_actual == 0 and (unit.sales_last_year > 0 or unit.sales_budget > 0):
+        return Suspect(
+            unit,
+            code="zero_against_history",
+            message="No sales recorded this period, against %s last year."
+            % _eur(unit.sales_last_year),
+            fix="Check the feed before reading this as a commercial collapse.",
+        )
+
     if unit.funnel_status == ORDER_TRACKING_LOST:
         return Suspect(
             unit,
@@ -347,15 +359,6 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
             % _eur(unit.sales_actual),
             fix="A tag to install, not a market to question. The sales are real; the "
             "funnel behind them is not measured.",
-        )
-
-    if unit.sales_actual == 0 and (unit.sales_last_year > 0 or unit.sales_budget > 0):
-        return Suspect(
-            unit,
-            code="zero_against_history",
-            message="No sales recorded this period, against %s last year."
-            % _eur(unit.sales_last_year),
-            fix="Check the feed before reading this as a commercial collapse.",
         )
 
     # Sessions arriving with no orders behind them: the business is there, the

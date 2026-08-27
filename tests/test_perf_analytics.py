@@ -937,3 +937,39 @@ def test_markets_selling_on_platforms_are_listable():
     )
 
     assert dataset.markets_without_own_site == ["China"]
+
+
+def test_a_silent_market_outranks_a_missing_tag():
+    """Finland reported no sales at all and no order tracking either, and was told
+    "the sales are real" underneath a figure of zero. Nothing recorded is the bigger
+    fact, and the two faults have different owners."""
+    silent = _with_status(
+        "orders_not_tracked",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(9_000.0),
+        last_year=Drivers.sales_only(8_361.0),
+    )
+
+    flag = analytics.suspect_of(silent)
+
+    assert flag.code == "zero_against_history"
+    assert "sales are real" not in flag.fix
+
+
+def test_a_market_with_sales_and_no_tag_is_still_a_tag_problem():
+    """The reordering must not swallow the ordinary case."""
+    assert analytics.suspect_of(_with_status("orders_not_tracked")).code == (
+        "traffic_without_orders"
+    )
+
+
+def test_a_platform_market_with_no_sales_is_still_not_flagged():
+    """No own site and no online sales is how that market works, not a silent feed."""
+    quiet = _with_status(
+        "no_analytics_site",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(9_000.0),
+        last_year=Drivers.sales_only(8_361.0),
+    )
+
+    assert analytics.suspect_of(quiet) is None

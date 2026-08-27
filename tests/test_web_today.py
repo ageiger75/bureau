@@ -311,3 +311,18 @@ def test_a_name_and_a_role_do_not_run_together_when_copied():
     # The mock owner's name and role, adjacent in the markup.
     assert "Naoki" in page
     assert "NaokiManaging" not in page and "NaokiGeneral" not in page
+
+
+def test_the_confidence_and_the_owner_do_not_glue_together_when_copied():
+    """The same defect as the name and the role, in a second place: flex layout drops
+    whitespace-only nodes between its items, so "Confidence HIGHNaoki YAMAMOTO" is what a
+    copied screen hands to the reader."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "HIGHNaoki" not in page
+    assert "MEDIUMNaoki" not in page

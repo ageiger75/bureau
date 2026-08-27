@@ -120,7 +120,7 @@
 
         <p class="fire-meta">
           <span class="confidence confidence-{{ fire.confidence }}">Confidence {{ fire.confidence | upper }}</span>
-          <span class="owner">{{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
+          <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
         </p>
 
         <p class="ask">{{ fire.question }}</p>
@@ -188,7 +188,7 @@
         <p class="calculation">{{ item.calculation }}</p>
         <p class="fire-meta">
           <span class="confidence confidence-{{ item.confidence }}">Confidence {{ item.confidence | upper }}</span>
-          <span class="owner">{{ item.unit.owner.name }} · {{ item.unit.owner.role }}</span>
+          <span class="owner">· {{ item.unit.owner.name }} · {{ item.unit.owner.role }}</span>
         </p>
         <p class="ask">{{ item.question }}</p>
       </li>
@@ -208,11 +208,12 @@
   <ul class="people-list">
     {% for push in people %}
       <li class="person">
-        {# The separator is a real space, not just a flex gap: this screen gets copied into
-           mails and notes, and a copy is plain text where "YAMAMOTOBU Leader Japan" is
-           what a reader receives. #}
-        <p class="person-name">{{ push.owner.name }}
-          <span class="person-role">{{ push.owner.role }} · {{ push.owner.market }}</span></p>
+        {# A printed separator, not a flex gap and not whitespace either: flex layout drops
+           whitespace-only nodes between its items outright, so the first attempt at this
+           changed nothing. This screen is copied into mails and notes, where a reader
+           received "YAMAMOTOBU Leader Japan". #}
+        <p class="person-name"><span>{{ push.owner.name }}</span>
+          <span class="person-role">· {{ push.owner.role }} · {{ push.owner.market }}</span></p>
         {% if push.owner.local_lead %}
           <p class="person-local">Runs it day to day: {{ push.owner.local_lead }}</p>
         {% endif %}

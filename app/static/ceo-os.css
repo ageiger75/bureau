@@ -666,7 +666,9 @@ input:focus, textarea:focus, select:focus {
 .challenge-verdict { margin: 0 0 4px; font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
 .challenge-evidence { margin: 0; font-size: 14px; }
 
-.fire-meta { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 12px 0 10px; font-size: 13px; }
+/* Same reason as .person-name: a copied screen must keep its separators. */
+.fire-meta { margin: 12px 0 10px; font-size: 13px; line-height: 1.9; }
+.fire-meta > span { margin-right: 6px; }
 .owner { color: var(--ink-soft); }
 
 .confidence { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); }
@@ -704,7 +706,11 @@ input:focus, textarea:focus, select:focus {
 }
 .calculation { font-size: 13px; color: var(--ink-faint); font-family: ui-monospace, Menlo, Consolas, monospace; }
 
-.person-name { font-size: 16px; font-weight: 600; margin: 0 0 4px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+/* Not flex: flex drops whitespace-only nodes between items, so a name and a role laid out
+   this way copy into a mail glued together. The separator is a printed character now, and
+   the spacing comes from the character rather than from the layout. */
+.person-name { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+.person-name > span { margin-right: 6px; }
 .person-role { font-size: 13px; font-weight: 400; color: var(--ink-soft); }
 
 /* ----------------------------------------------------------- commitments */
