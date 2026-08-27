@@ -275,6 +275,37 @@ def _better_status(first: str, second: str) -> str:
     return min(known, key=STATUS_PRECEDENCE.index)
 
 
+#: Sell-in rows arrive with a segment label rather than a channel, because that is what
+#: the plan commits to. The channel is derived from it by the same function the planning
+#: file uses, so both sides of the join speak one vocabulary.
+def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
+    """Turn consolidation rows into the shape `units_from_rows` reads.
+
+    Nothing is invented here and nothing can be: invoiced revenue has no funnel, so the
+    row carries money and no drivers at all. What the function does is translate the
+    plan's segment label into the channel vocabulary, so a sell-in row joins to its own
+    budget line rather than to none.
+    """
+    from .budget import channel_of
+
+    translated: List[Dict[str, object]] = []
+    for row in rows:
+        segment = str(row.get("segment") or "").strip()
+        if not segment:
+            continue
+        merged = dict(row)
+        merged["channel"] = channel_of(segment)
+        # Stated rather than inferred: a sell-in row has no web funnel and never had one,
+        # which is a different thing from a site whose tagging broke.
+        merged["funnel_status"] = NOT_A_WEB_CHANNEL
+        merged["sessions"] = None
+        merged["orders"] = None
+        merged["sessions_last_year"] = None
+        merged["orders_last_year"] = None
+        translated.append(merged)
+    return translated
+
+
 def units_from_rows(
     rows: Sequence[Dict[str, object]],
     budget: Optional[Budget] = None,
@@ -335,8 +366,16 @@ def units_from_rows(
         # warehouse, and a reason established beats a reason inferred.
         funnel_status = str(row.get("funnel_status") or "").strip().lower()
 
+        from .budget import perimeter_of
+
         reason = ""
-        if channel == RETAIL and not retail_conversion_is_reliable(market):
+        if str(row.get("segment") or "") and perimeter_of(str(row.get("segment"))) == "sell-in":
+            reason = (
+                "Invoiced to a partner who then resells, so there is no funnel behind "
+                "this figure and none missing. What happens after the invoice — how much "
+                "of it reaches a shopper, and when — is not measured here at all."
+            )
+        elif channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON
         elif funnel_status in FUNNEL_REASONS:
             reason = FUNNEL_REASONS[funnel_status]

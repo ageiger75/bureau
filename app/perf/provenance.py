@@ -110,7 +110,9 @@ REGISTER: Dict[str, Measure] = {
         "so it is missing from every figure on this screen. Marketplace stores are not "
         "in this list — the Maison runs them, so they are sell-out with no funnel rather "
         "than revenue invoiced away.",
-        to_confirm="A sell-in semantic layer reproducing last year's monthly actuals.",
+        to_confirm="A sell-in source reproducing last year's monthly actuals. One has "
+        "been built against the management consolidation and reproduces them to within "
+        "0.29 euros across the year — it is not yet wired in, and it is not governed.",
     ),
     "commitments": Measure(
         key="commitments",

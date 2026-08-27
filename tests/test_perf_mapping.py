@@ -543,3 +543,93 @@ def test_a_store_is_not_told_its_web_tracking_broke():
     )
 
     assert "orders" not in mapped.units[0].no_breakdown_reason.lower()
+
+
+# ---------------------------------------------------------------------------- sell-in
+#
+# Roughly two fifths of the plan, invisible to every sell-out source by construction: the
+# revenue is recognised when the Maison ships, not when a shopper buys. It arrives from
+# the management consolidation with a segment label rather than a channel, because a
+# segment is what the plan commits to.
+
+
+def sell_in(entity="M_024", market="Japan", segment="DIS - Distributors", **overrides):
+    base = {
+        "entity": entity,
+        "market": market,
+        "region": "APAC",
+        "segment": segment,
+        "period": PERIOD,
+        "sales_actual": 480_000.0,
+        "sales_last_year": 430_000.0,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_a_segment_label_becomes_the_channel_the_plan_commits_to():
+    translated = mapping.sell_in_rows([sell_in()])
+
+    assert translated[0]["channel"] == "dis"
+
+
+def test_a_sell_in_row_carries_no_funnel_and_never_pretends_to():
+    translated = mapping.sell_in_rows([sell_in()])
+
+    assert translated[0]["sessions"] is None
+    assert translated[0]["orders"] is None
+    assert translated[0]["funnel_status"] == mapping.NOT_A_WEB_CHANNEL
+
+
+def test_a_sell_in_unit_joins_to_its_own_budget_line():
+    """The failure this guards is silent and total: with no matching line every sell-in
+    market is unbudgeted, drops out of the ranking, and two fifths of the plan goes
+    missing while every figure on screen stays true."""
+    mapped = mapping.units_from_rows(
+        mapping.sell_in_rows([sell_in()]),
+        budget=budget_of(
+            line(market="Japan", channel="dis", budget=500_000.0),
+            line(market="Japan", channel=ECOMMERCE, budget=1_861_700.0),
+        ),
+    )
+
+    unit = mapped.units[0]
+
+    assert unit.budget_known is True
+    assert unit.sales_budget == pytest.approx(500_000.0)
+
+
+def test_a_sell_in_unit_says_why_it_has_no_cause():
+    """Not "the tracking is broken" — there was never anything to track. What happens
+    after the invoice is a different measurement problem, and naming it as a funnel gap
+    would send someone to fix a tag that does not exist."""
+    mapped = mapping.units_from_rows(
+        mapping.sell_in_rows([sell_in()]),
+        budget=budget_of(line(market="Japan", channel="dis")),
+    )
+
+    reason = mapped.units[0].no_breakdown_reason
+
+    assert "Invoiced to a partner" in reason
+    assert "none missing" in reason
+
+
+def test_a_row_with_no_segment_is_dropped():
+    assert mapping.sell_in_rows([sell_in(segment="")]) == []
+
+
+def test_sell_in_and_sell_out_live_side_by_side():
+    """Disjoint by construction — different channels — so the group total is a sum, not a
+    risk of counting the same euro twice."""
+    dataset = mapping.dataset_from_rows(
+        [row(market="Japan", channel="E-COMMERCE", sales_actual=1_259_700.0)]
+        + mapping.sell_in_rows([sell_in(sales_actual=480_000.0)]),
+        budget=budget_of(
+            line(market="Japan", channel=ECOMMERCE, budget=1_861_700.0),
+            line(market="Japan", channel="dis", budget=500_000.0),
+        ),
+    )
+
+    assert len(dataset.units) == 2
+    assert dataset.sales_actual == pytest.approx(1_739_700.0)
+    assert dataset.sales_budget == pytest.approx(2_361_700.0)

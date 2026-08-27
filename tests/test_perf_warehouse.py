@@ -91,6 +91,7 @@ def test_only_the_written_queries_report_as_written():
     """
     assert set(queries.missing()) == {
         "SALES_HISTORY",
+        "SELL_IN",
         "KPI_READINGS",
         "MARKET_INDEX",
         "COMMITMENTS",
@@ -639,3 +640,74 @@ def test_the_cached_rows_are_primitives(monkeypatch):
 
     assert stored["rows"][0]["market"] == "Japan"
     assert "read_at" in stored
+
+
+# ------------------------------------------------------------------ sell-in, separately
+#
+# It comes from a different source with a different cadence. Reading it inside the
+# sell-out read would mean one outage taking down both — and the sell-out three fifths of
+# the plan are worth showing even on a day the other two fifths are unavailable.
+
+
+def test_sell_in_is_read_when_its_query_exists(monkeypatch):
+    from app.perf import queries, warehouse
+    from app.perf.source import SnowflakeSource
+
+    asked = []
+
+    def rows(sql, params=None):
+        asked.append(sql)
+        if sql == "SELL IN SQL":
+            return [{
+                "entity": "M_024", "market": "Japan", "region": "APAC",
+                "segment": "DIS - Distributors", "period": "2026-07",
+                "sales_actual": 480_000.0, "sales_last_year": 430_000.0,
+            }]
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", rows)
+    monkeypatch.setattr(queries, "SELL_IN", "SELL IN SQL")
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert "SELL IN SQL" in asked
+    assert {u.channel for u in dataset.units} == {"ecommerce", "dis"}
+
+
+def test_a_sell_in_outage_costs_its_own_lines_and_no_others(monkeypatch, capsys):
+    """Two fifths of the plan going missing is a bad day. Refusing to render the other
+    three fifths over it would help nobody, and the screen already says what it cannot
+    see."""
+    from app.perf import queries, warehouse
+    from app.perf.source import SnowflakeSource
+
+    def rows(sql, params=None):
+        if sql == "SELL IN SQL":
+            raise RuntimeError("object does not exist")
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", rows)
+    monkeypatch.setattr(queries, "SELL_IN", "SELL IN SQL")
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert [u.channel for u in dataset.units] == ["ecommerce"]
+    assert dataset.sales_actual > 0
+
+
+def test_an_unwritten_sell_in_query_is_not_reached_for(monkeypatch):
+    from app.perf import queries, warehouse
+    from app.perf.source import SnowflakeSource
+
+    asked = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: asked.append(sql) or [_sales_row()]
+    )
+    monkeypatch.setattr(queries, "SELL_IN", "")
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+
+    assert len(asked) == 1
