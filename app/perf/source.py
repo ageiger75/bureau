@@ -335,7 +335,9 @@ class SnowflakeSource:
         if not queries.SELL_IN.strip():
             return []
         try:
-            return mapping.sell_in_rows(warehouse.rows(queries.SELL_IN))
+            return mapping.sell_in_rows(
+                warehouse.rows(queries.SELL_IN, label="SELL_IN")
+            )
         except Exception as exc:  # noqa: BLE001 — one source failing is not all of them
             LOG.info("warehouse: sell-in unavailable (%s)", exc)
             return []
@@ -364,7 +366,7 @@ class SnowflakeSource:
             rows, stamp, read_at_text = stored
             LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
         else:
-            rows = warehouse.rows(queries.SALES_AND_DRIVERS)
+            rows = warehouse.rows(queries.SALES_AND_DRIVERS, label="SALES_AND_DRIVERS")
             # Sell-in comes from a different source with a different cadence, so it is
             # read separately and its absence costs its own lines rather than the whole
             # screen. Read here and not after the cache branch: what gets written to

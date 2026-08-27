@@ -130,7 +130,9 @@ def _connect():
     )
 
 
-def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any]]:
+def rows(
+    sql: str, params: Optional[Sequence[Any]] = None, label: str = ""
+) -> List[Dict[str, Any]]:
     """Run one read statement and return dictionaries keyed by lowercased column name.
 
     Snowflake returns column names uppercased; lowering them here keeps every caller from
@@ -155,7 +157,8 @@ def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any
     # Logged, not silent: the first question anyone asks about a slow screen is where the
     # time went, and "connecting" and "querying" have entirely different remedies.
     LOG.info(
-        "warehouse: %d rows · connect %.1fs · query %.1fs",
+        "warehouse: %s%d rows · connect %.1fs · query %.1fs",
+        "%s · " % label if label else "",
         len(records),
         connected_at - started,
         time.time() - connected_at,

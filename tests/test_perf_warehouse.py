@@ -302,7 +302,7 @@ def test_the_source_assembles_a_dataset_from_warehouse_rows(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     dataset = SnowflakeSource().dataset()
@@ -318,7 +318,7 @@ def test_the_period_label_names_the_month_it_actually_shows(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     dataset = SnowflakeSource().dataset()
@@ -337,7 +337,7 @@ def test_the_screen_is_stamped_with_when_it_was_read(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     dataset = SnowflakeSource().dataset()
@@ -351,7 +351,7 @@ def test_a_query_that_returns_nothing_is_a_refusal_not_a_blank_screen(monkeypatc
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     with pytest.raises(NotImplementedError):
@@ -364,7 +364,7 @@ def test_a_disagreement_between_file_and_warehouse_survives_to_the_source(monkey
     from app.perf.source import SnowflakeSource
 
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: [_sales_row(sales_budget=1_000_000.0)]
+        warehouse, "rows", lambda sql, params=None, label='': [_sales_row(sales_budget=1_000_000.0)]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -384,7 +384,7 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
     monkeypatch.setattr(today_route, "current_source", lambda: SnowflakeSource())
 
@@ -411,7 +411,7 @@ def test_a_second_read_does_not_hit_the_warehouse_again(monkeypatch):
 
     calls = []
 
-    def counted(sql, params=None):
+    def counted(sql, params=None, label=''):
         calls.append(sql)
         return [_sales_row()]
 
@@ -436,7 +436,7 @@ def test_the_cache_survives_a_new_source_object(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -457,7 +457,7 @@ def test_an_expired_cache_reads_again(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
     monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
@@ -477,7 +477,7 @@ def test_a_refresh_is_not_refused_by_the_cache(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -496,7 +496,7 @@ def test_a_cached_screen_still_says_when_it_was_read(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     first = SnowflakeSource().dataset()
@@ -514,7 +514,7 @@ def test_the_conflicts_survive_a_cached_read(monkeypatch):
     from app.perf.source import SnowflakeSource
 
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: [_sales_row(sales_budget=1_000_000.0)]
+        warehouse, "rows", lambda sql, params=None, label='': [_sales_row(sales_budget=1_000_000.0)]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -542,7 +542,7 @@ def test_a_restart_reuses_the_last_read(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -562,7 +562,7 @@ def test_a_restarted_screen_still_carries_the_original_read_time(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     first = SnowflakeSource().dataset()
@@ -583,7 +583,7 @@ def test_a_corrupt_cache_costs_one_query_and_nothing_else(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(sql) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(sql) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -603,7 +603,7 @@ def test_an_expired_file_is_ignored(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -623,7 +623,7 @@ def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -644,7 +644,7 @@ def test_the_cached_rows_are_primitives(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
-    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
@@ -667,7 +667,7 @@ def test_sell_in_is_read_when_its_query_exists(monkeypatch):
 
     asked = []
 
-    def rows(sql, params=None):
+    def rows(sql, params=None, label=''):
         asked.append(sql)
         if sql == "SELL IN SQL":
             return [{
@@ -694,7 +694,7 @@ def test_a_sell_in_outage_costs_its_own_lines_and_no_others(monkeypatch, capsys)
     from app.perf import queries, warehouse
     from app.perf.source import SnowflakeSource
 
-    def rows(sql, params=None):
+    def rows(sql, params=None, label=''):
         if sql == "SELL IN SQL":
             raise RuntimeError("object does not exist")
         return [_sales_row()]
@@ -715,7 +715,7 @@ def test_an_unwritten_sell_in_query_is_not_reached_for(monkeypatch):
 
     asked = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: asked.append(sql) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None, label='': asked.append(sql) or [_sales_row()]
     )
     monkeypatch.setattr(queries, "SELL_IN", "")
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
@@ -746,7 +746,7 @@ def test_a_cached_read_does_not_count_sell_in_twice(monkeypatch):
         "sales_last_year": 400.0,
     }
 
-    def counted(sql, params=None):
+    def counted(sql, params=None, label=''):
         if "f_management_operating_profit_country" in sql:
             return [dict(sell_in)]
         return [_sales_row()]

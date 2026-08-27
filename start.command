@@ -53,10 +53,23 @@ echo
 
 # Ouvert en tâche de fond : `run.sh` ne rend jamais la main, puisqu'il devient le serveur.
 # On attend que le port réponde plutôt que de deviner un délai.
+# Deux gestes une fois le serveur debout, dans cet ordre précis.
+#
+# D'abord ouvrir l'écran, qui s'affiche instantanément sur la dernière lecture. Puis
+# demander une relecture en tâche de fond, qui prend des minutes et n'empêche personne de
+# lire pendant ce temps.
+#
+# La version précédente oubliait le cache avant de démarrer, ce qui faisait payer
+# l'attente complète à chaque ouverture — l'inverse de ce qu'on cherchait. Un écran vieux
+# de quelques heures, affiché tout de suite et portant son heure de lecture, vaut mieux
+# qu'un écran frais qu'on attend trois minutes et qu'on finit par ne plus ouvrir.
 (
   for _ in $(seq 1 60); do
     if curl -s -o /dev/null "${URL}/health" 2>/dev/null; then
       open "$URL" 2>/dev/null || true
+      # Relecture derrière l'écran déjà affiché. Recharger la page dans quelques minutes
+      # donne les chiffres du jour ; l'horodatage en haut dit lesquels sont à l'écran.
+      curl -s -o /dev/null --max-time 900 "${URL}/?refresh=1" 2>/dev/null || true
       exit 0
     fi
     sleep 0.5
@@ -65,19 +78,15 @@ echo
 
 # --------------------------------------------------------------- serveur
 
-# Un double-clic veut dire « je regarde maintenant » : la lecture en cache est donc
-# oubliée avant de démarrer. Le cache garde son intérêt entre deux affichages dans la même
-# session — recharger une page ne doit pas coûter trois minutes — mais il n'a rien à faire
-# entre deux ouvertures délibérées.
-if [ -x .venv/bin/python ]; then
-  .venv/bin/python -m app.cli refresh 2>/dev/null | sed 's/^/   /' || true
-fi
-
 echo "→ Démarrage · ${URL}"
 echo
 echo "   Cette fenêtre devient le serveur : elle n'accepte plus de commandes."
 echo "   Pour taper autre chose, ouvrir une nouvelle fenêtre avec ⌘T, puis :"
 echo "       cd $(pwd)"
+echo
+echo "   L'écran s'ouvre sur la dernière lecture, puis se rafraîchit en arrière-plan."
+echo "   Recharger la page dans quelques minutes pour les chiffres du jour ;"
+echo "   l'horodatage en haut de l'écran dit toujours lesquels sont affichés."
 echo
 echo "   Pour arrêter le serveur : Ctrl-C ici, ou fermer la fenêtre."
 echo

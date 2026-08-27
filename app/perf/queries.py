@@ -187,6 +187,37 @@ from __future__ import annotations
 #: The brand filter cannot be the cause of any of it: it is applied to the host dimension,
 #: which both funnel legs join through, so a wrong `BRAND_ID` would remove the sessions too.
 #:
+#: ## Where the time goes, and it is not the joins
+#:
+#: Measured on the machine: 233 seconds cold. The cause is visible without profiling.
+#:
+#: `sellout_day` and `goals_day` carry **no date bound inside the semantic view**. They
+#: aggregate the entire history at country × sub-channel × day grain, and the window is
+#: only applied afterwards, in `money` and `budget`, against a `period` CTE those views
+#: cannot see. A predicate that references another CTE cannot be pushed into an opaque
+#: aggregation, so every year the warehouse holds is scanned to produce thirteen months.
+#:
+#: The fix is a bound the semantic view can read on its own — a constant expression, no
+#: subquery:
+#:
+#:     where d_stores.store_brand = 'L''OCCITANE'
+#:       and f_sellout_sales_details.transaction_date >= dateadd(month, -26, current_date)
+#:
+#: Twenty-six months is deliberately generous: the screen shows the last complete month
+#: and the same month a year earlier, so fourteen would do, and the margin costs nothing
+#: while a bound that is one month too tight silently empties last year's column. Same
+#: bound on `goals_day`, against `f_sales_goals.goals_date`.
+#:
+#: If that alone does not move it, time each CTE on its own before touching anything else.
+#: `web_orders` counts distinct transaction identifiers over thirteen months and is the
+#: next candidate; the two GA legs already carry their bound in the `where`, so they are
+#: less likely.
+#:
+#: What must not be done to make it faster: narrowing the window to the current month
+#: only. Last year's column is what makes the decomposition possible at all — a budget is
+#: a committed number with no funnel behind it — and losing it would buy seconds at the
+#: cost of the one thing this screen does that a report cannot.
+#:
 #: The join is on ISO2 country, and it is a full outer join on purpose: a market with euro
 #: sales but no analytics site (China, Mexico, Luxembourg, Vietnam) keeps its revenue in the
 #: group total, and a site with traffic but no sales would still appear. Dropping either
