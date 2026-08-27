@@ -19,4 +19,10 @@ market,channel,since,kind,note,source
 # Ces notes ne corrigent aucun chiffre. Elles changent la question, et retirent le marché
 # de « Qui challenger » : on ne demande pas à un directeur de pays de répondre d'une
 # décision fiscale.
-Exampleland,,2026-06,basis_change,"Une phrase disant ce qui a changé et pourquoi le plan ne s'y compare plus.",Qui l'affirme
+# Exemple, volontairement commenté : copier ce fichier ne doit pas créer une note pour un
+# marché qui n'existe pas. Écrivez plutôt la vôtre avec `manage.py note`, qui vous dira ce
+# qu'elle va changer avant de l'écrire :
+#
+#   manage.py note "Japan" "Ce qui s'est passé." --since 2026-07
+#
+# Exampleland,,2026-06,basis_change,"Ce qui a changé et pourquoi le plan ne s'y compare plus.",Qui l'affirme

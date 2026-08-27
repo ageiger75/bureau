@@ -28,6 +28,14 @@ DRIVER_LABELS = {
 #: Drivers expressed as a rate, shown as a percentage rather than a count.
 RATE_DRIVERS = frozenset({"Conversion"})
 
+#: Drivers that measure money per unit sold, as opposed to volume. They move when trading
+#: changes — and also when what counts as a sale changes. A tax reform lands entirely here:
+#: the basket a shopper fills is untouched, the euros recognised against it are not. Volume
+#: drivers survive such a change unharmed, which is what makes the distinction worth
+#: keeping: the decomposition stays readable if the reader is told which half moved for a
+#: reason that has nothing to do with the market.
+MONEY_DRIVERS = frozenset({"AOV", "ASP"})
+
 #: Markets whose stores have footfall counters, and where a retail conversion rate can
 #: therefore be trusted.
 #:

@@ -325,3 +325,88 @@ def test_a_market_name_is_normalised_on_the_way_in(notes_at):
     cmd_note(["USA", "Something changed."])
 
     assert context.load(notes_at).notes[0].market == "United States"
+
+
+def test_a_commented_line_is_documentation_not_a_note(tmp_path):
+    """The example file, copied verbatim, put a market nobody named on the screen. A line
+    the writer commented out is meant to be read, not obeyed."""
+    path = tmp_path / "context.csv"
+    path.write_text(
+        "market,channel,since,kind,note,source\n"
+        "# Exampleland,,2026-06,basis_change,An example line.,Someone\n"
+        "Japan,,2026-07,one_off,A flagship closed.,CEO\n",
+        encoding="utf-8",
+    )
+
+    loaded = context.load(path)
+
+    assert len(loaded) == 1
+    assert loaded.notes[0].market == "Japan"
+
+
+def test_the_shipped_template_creates_nothing_when_copied():
+    """It is a template. Copying it must leave the cockpit exactly as it was."""
+    assert len(context.load("docs/context.example.csv")) == 0
+
+
+def test_a_basis_change_names_the_drivers_it_moved():
+    """The decomposition stays exact and says "most of the movement comes from AOV" —
+    true, and useless as a management signal. A tax change lands entirely on money per
+    unit sold: the basket a shopper fills is untouched, the euros recognised against it
+    are not."""
+    from app.perf.model import ecommerce_drivers
+
+    taxed = unit(
+        key="brazil-ecommerce",
+        channel=ECOMMERCE,
+        notes=[note()],
+        actual=ecommerce_drivers(2_600_000.0, 1_000_000.0, 40_000.0),
+        budget=Drivers.sales_only(3_100_000.0),
+        last_year=ecommerce_drivers(3_050_000.0, 1_000_000.0, 40_000.0),
+    )
+
+    fire = analytics.fires(dataset_of(taxed))[0]
+
+    assert "AOV" in fire.basis_caveat
+    assert "volume drivers beside it do not" in fire.basis_caveat
+
+
+def test_a_market_with_no_basis_change_carries_no_caveat():
+    """A warning that appears everywhere is a warning nobody reads."""
+    from app.perf.model import ecommerce_drivers
+
+    ordinary = unit(
+        key="japan-ecommerce",
+        channel=ECOMMERCE,
+        notes=[],
+        actual=ecommerce_drivers(2_600_000.0, 1_000_000.0, 40_000.0),
+        budget=Drivers.sales_only(3_100_000.0),
+        last_year=ecommerce_drivers(3_050_000.0, 1_000_000.0, 40_000.0),
+    )
+
+    assert analytics.fires(dataset_of(ordinary))[0].basis_caveat == ""
+
+
+def test_a_one_off_does_not_claim_the_basis_moved():
+    """A store closing is not a change of yardstick. Saying so would blunt the warning
+    for the case that needs it."""
+    from app.perf.model import ecommerce_drivers
+
+    closed = unit(
+        key="japan-ecommerce",
+        channel=ECOMMERCE,
+        notes=[note(kind=context.ONE_OFF, market="Japan")],
+        market="Japan",
+        actual=ecommerce_drivers(2_600_000.0, 1_000_000.0, 40_000.0),
+        budget=Drivers.sales_only(3_100_000.0),
+        last_year=ecommerce_drivers(3_050_000.0, 1_000_000.0, 40_000.0),
+    )
+
+    assert analytics.fires(dataset_of(closed))[0].basis_caveat == ""
+
+
+def test_a_market_with_no_drivers_at_all_carries_no_caveat():
+    """Nothing to qualify where nothing was decomposed."""
+    fire = analytics.fires(dataset_of(unit(notes=[note()])))[0]
+
+    assert fire.basis_caveat == ""

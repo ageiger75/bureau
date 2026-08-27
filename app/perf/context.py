@@ -117,6 +117,12 @@ def load(path) -> Context:
     notes: List[Note] = []
     with open(path, encoding="utf-8-sig", newline="") as handle:
         for record in csv.DictReader(handle):
+            market_cell = str(record.get("market") or "").strip()
+            # A line the writer commented out is documentation, not a note. Reading it as
+            # one puts a market nobody named on the screen — and the example file, copied
+            # verbatim, would have created exactly that.
+            if market_cell.startswith("#"):
+                continue
             kind = str(record.get("kind") or "").strip().lower()
             text = str(record.get("note") or "").strip()
             if kind not in KINDS or not text:
@@ -124,7 +130,7 @@ def load(path) -> Context:
             raw_channel = str(record.get("channel") or "").strip()
             notes.append(
                 Note(
-                    market=normalise_market(str(record.get("market") or "")),
+                    market=normalise_market(market_cell),
                     channel=normalise_channel(raw_channel) if raw_channel else "",
                     since=str(record.get("since") or "").strip(),
                     kind=kind,

@@ -826,3 +826,6 @@ input:focus, textarea:focus, select:focus {
 
 /* Whoever runs the market day to day, under whoever answers for its number. */
 .person-local { font-size: 13px; color: var(--ink-soft); margin: 2px 0 6px; }
+
+/* An exact table that would be misread without one more sentence. */
+.estimate-note.is-warning { color: var(--warn); }

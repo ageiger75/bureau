@@ -565,6 +565,29 @@ class Fire:
         return self.unit.context_notes
 
     @property
+    def basis_caveat(self) -> str:
+        """Which drivers moved for a reason that is not the market.
+
+        A tax change lands entirely on money per unit sold: the basket a shopper fills is
+        untouched, the euros recognised against it are not. So the decomposition is still
+        arithmetically exact and still says "most of the movement comes from AOV" — true,
+        and useless as a management signal unless the reader is told which half of the
+        funnel moved because the yardstick moved.
+        """
+        from .model import MONEY_DRIVERS
+
+        if not self.unit.basis_changed or not self.has_breakdown:
+            return ""
+        affected = [c.label for c in self.contributions if c.label in MONEY_DRIVERS]
+        if not affected:
+            return ""
+        return (
+            "%s measures money per unit sold, so it carries the change of basis above as "
+            "well as any change in trading. The volume drivers beside it do not."
+            % _listed_labels(affected)
+        )
+
+    @property
     def diagnosis(self) -> str:
         # Context first. Everything below explains a gap; this says whether the gap means
         # what it appears to mean, which has to be read before, not after.
@@ -885,6 +908,12 @@ def _pct(value: Optional[float], digits: int = 1) -> str:
 #: Driver labels that are initialisms, not words. Lower-casing them mid-sentence turns
 #: "AOV" into "aov", which reads as a typo in the one sentence the CEO reads first.
 INITIALISMS = frozenset({"AOV", "UPT", "ASP"})
+
+
+def _listed_labels(labels) -> str:
+    if len(labels) < 2:
+        return "".join(labels)
+    return "%s and %s" % (", ".join(labels[:-1]), labels[-1])
 
 
 def _driver_word(label: str) -> str:

@@ -100,6 +100,11 @@
           Driver impacts are estimates from a chained decomposition of the gap, not
           measured causes. They sum to {{ fire.gap | eur }} exactly.
         </p>
+        {% if fire.basis_caveat %}
+          {# Without this the table reads as a finding about the market. It is exact, and
+             half of it moved because the yardstick moved. #}
+          <p class="estimate-note is-warning">{{ fire.basis_caveat }}</p>
+        {% endif %}
         {% endif %}
 
         {% if fire.forecast_flag %}
