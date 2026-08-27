@@ -31,8 +31,16 @@
       <span class="variance-label">vs last year · {{ header.vs_last_year.pct | pct }}</span>
     </li>
     <li>
-      <span class="variance-value is-neutral">{{ header.forecast | eur }}</span>
-      <span class="variance-label">full-period forecast</span>
+      {# A forecast of exactly zero is not a forecast of nothing: it is the absence of one.
+         Printing €0 would put a number where no one has made a commitment, which is the
+         one habit this cockpit is built to break. #}
+      {% if header.forecast %}
+        <span class="variance-value is-neutral">{{ header.forecast | eur }}</span>
+        <span class="variance-label">full-period forecast</span>
+      {% else %}
+        <span class="variance-value is-absent">—</span>
+        <span class="variance-label">no forecast reported</span>
+      {% endif %}
     </li>
   </ul>
 </section>
@@ -235,6 +243,16 @@
     These look like breaks in the data rather than events in the business, so they are
     kept out of the ranking above. A data incident at the top of that list would teach you
     to stop reading it.
+  </p>
+
+  {% if suspect_patterns %}
+    {# The shape, said once. Twelve identical incidents read as twelve problems and get
+       triaged as none; naming the pattern sends the question to the right place. #}
+    {% for line in suspect_patterns %}
+      <p class="suspect-pattern">{{ line }}</p>
+    {% endfor %}
+  {% endif %}
+  <p class="lede">
   </p>
   <ul class="suspect-list">
     {% for item in suspects %}

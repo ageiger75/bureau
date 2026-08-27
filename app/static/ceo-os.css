@@ -806,3 +806,14 @@ input:focus, textarea:focus, select:focus {
 .provenance-name { font-weight: 600; font-size: 15px; }
 .provenance-note { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch; line-height: 1.55; }
 .provenance-ask { font-size: 14px; margin: 6px 0 0; max-width: 74ch; }
+
+/* A measure nobody reported. Dimmed rather than coloured: it is neither good news nor
+   bad, and dressing an absence in red would make it compete with a real gap. */
+.is-absent { color: var(--ink-faint); }
+
+/* One fault repeated across markets. Set apart from the list it summarises, because the
+   pattern is a different piece of information from any of its instances. */
+.suspect-pattern {
+  font-size: 15px; line-height: 1.55; max-width: 74ch;
+  border-left: 2px solid var(--alert); padding-left: 14px; margin: 14px 0;
+}

@@ -83,6 +83,7 @@ def today(request: Request):
         unavailable.append("kpis")
 
     fires = analytics.fires(dataset)
+    suspects = analytics.suspects(dataset)
     by_market = _commitments_by_market(commitments.items)
 
     # A fire is worth more with two things attached: the promise already made about it,
@@ -127,7 +128,8 @@ def today(request: Request):
             "kpis": kpi_rules.needing_attention(kpis),
             "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
-            "suspects": analytics.suspects(dataset),
+            "suspects": suspects,
+            "suspect_patterns": analytics.patterns(suspects),
             "kpi_rules": kpi_rules,
             "unavailable": unavailable,
             "unsettled": provenance.unsettled(settled=settled_now()),

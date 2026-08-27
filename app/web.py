@@ -98,6 +98,12 @@ templates.env.globals.update(
         "env_name": settings.env,
         "autonomy_level": settings.autonomy_level,
         "database_label": database_label(),
+        # Whether real figures are on screen. The banner used to say "no real data
+        # expected" unconditionally, which stopped being true the moment the warehouse
+        # was connected — and a banner that denies the confidentiality of what it sits
+        # above is worse than no banner: it tells a passing reader the numbers are
+        # invented when they are the Maison's own.
+        "reads_warehouse": settings.reads_warehouse,
         "CASE_STATUS_LABELS": CASE_STATUS_LABELS,
         "CASE_STATUS_MEANINGS": CASE_STATUS_MEANINGS,
         "CLAIM_CATEGORY_LABELS": CLAIM_CATEGORY_LABELS,

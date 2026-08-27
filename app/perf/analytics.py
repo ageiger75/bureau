@@ -385,6 +385,54 @@ def _factor(value: float) -> str:
     return "%.2fx" % value
 
 
+#: Beyond this many markets sharing one fault, it stops being a coincidence.
+PATTERN_THRESHOLD = 3
+
+#: What a repeated fault means, as opposed to a single occurrence of it. The distinction
+#: changes who is asked and what is asked of them.
+PATTERN_MEANING = {
+    "traffic_without_orders": (
+        "%d markets report sessions with no orders at all, on %s of sales between them. "
+        "That many independent tracking failures in one month is not plausible: this is "
+        "one join not matching, not %d separate incidents."
+    ),
+    "traffic_discontinuity": (
+        "%d markets show traffic moving by a multiple while their sales sit still, on %s "
+        "between them. A change of that shape arriving in several markets at once is a "
+        "change in how traffic is counted, not %d coincidences."
+    ),
+    "zero_against_history": (
+        "%d markets report no sales at all against a real history, worth %s last year. "
+        "A feed that stops for %d markets at once stopped once."
+    ),
+}
+
+
+def patterns(found: Sequence[Suspect]) -> List[str]:
+    """What several markets failing the same way means, said once.
+
+    A list of twelve identical incidents reads as twelve problems and gets triaged as
+    none. Naming the shape sends the question to the right place — one query to fix rather
+    than twelve markets to chase — and it is the only thing on this screen that a reader
+    could work out for themselves but reliably will not.
+    """
+    by_code = {}
+    for item in found:
+        by_code.setdefault(item.code, []).append(item)
+
+    said = []
+    for code, items in sorted(by_code.items(), key=lambda pair: -len(pair[1])):
+        if len(items) < PATTERN_THRESHOLD or code not in PATTERN_MEANING:
+            continue
+        money = sum(
+            item.unit.sales_last_year if code == "zero_against_history"
+            else item.unit.sales_actual
+            for item in items
+        )
+        said.append(PATTERN_MEANING[code] % (len(items), _eur(money), len(items)))
+    return said
+
+
 def suspects(dataset: Dataset) -> List[Suspect]:
     found = [suspect_of(unit) for unit in dataset.units if not unit.is_aggregate]
     return [item for item in found if item is not None]
@@ -486,7 +534,7 @@ class Fire:
         return "About %s of the %s comes from %s." % (
             _share(share),
             self.measured_what,
-            self.main_driver.label.lower(),
+            _driver_word(self.main_driver.label),
         )
 
     # The decomposition is not always measured against the plan, so the sentence cannot
@@ -527,7 +575,7 @@ class Fire:
         if self.misaligned_plan and self.main_driver is not None:
             return "Why is the plan focused on %s when %s is the largest driver of the gap?" % (
                 self.unit.action_focus.lower(),
-                self.main_driver.label.lower(),
+                _driver_word(self.main_driver.label),
             )
         if self.forecast_flag:
             return (
@@ -538,7 +586,7 @@ class Fire:
             return "What would it take to explain this gap before the next review?"
         return (
             "What will move %s within 30 days, and how much of the %s gap does each "
-            "action close?" % (self.main_driver.label.lower(), _eur(abs(self.gap)))
+            "action close?" % (_driver_word(self.main_driver.label), _eur(abs(self.gap)))
         )
 
 
@@ -632,11 +680,11 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
         assumption=(
             "Assumes %s returns to last year's %s while %s and the other drivers hold at "
             "today's level."
-            % (label.lower(), _pct(before, digits=2), volume_label.lower())
+            % (_driver_word(label), _pct(before, digits=2), volume_label.lower())
         ),
         calculation=(
             "%s %s × %s %s (LY) vs actual sales"
-            % (volume_label, _num(volume_now), label.lower(), _pct(before, digits=2))
+            % (volume_label, _num(volume_now), _driver_word(label), _pct(before, digits=2))
         ),
         confidence=level,
     )
@@ -757,6 +805,15 @@ def _pct(value: Optional[float], digits: int = 1) -> str:
     if value is None:
         return "n/a"
     return "%+.*f%%" % (digits, value * 100) if digits else "%+.0f%%" % (value * 100)
+
+
+#: Driver labels that are initialisms, not words. Lower-casing them mid-sentence turns
+#: "AOV" into "aov", which reads as a typo in the one sentence the CEO reads first.
+INITIALISMS = frozenset({"AOV", "UPT", "ASP"})
+
+
+def _driver_word(label: str) -> str:
+    return label if label in INITIALISMS else label.lower()
 
 
 def _share(value: float) -> str:

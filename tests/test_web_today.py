@@ -236,3 +236,62 @@ def test_the_headline_figure_is_flagged_while_anything_is_unsettled():
         body = client.get("/").text
 
     assert "badge-beta" in body
+
+
+# ------------------------------------------------------- saying what is on the screen
+
+
+def test_the_banner_does_not_deny_real_data_when_there_is_some(monkeypatch):
+    """The banner said "no real data expected" unconditionally. The moment the warehouse
+    was connected that became false — and a banner telling a passing reader that the
+    Maison's own figures are invented is worse than no banner at all."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+    from app.web import templates
+
+    monkeypatch.setitem(templates.env.globals, "reads_warehouse", True)
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "no real data expected" not in page
+    assert "Confidential" in page
+
+
+def test_the_prototype_banner_still_appears_on_invented_data():
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "no real data expected" in page
+
+
+def test_a_missing_forecast_is_a_dash_not_a_zero(monkeypatch):
+    """A forecast of exactly zero is not a forecast of nothing: it is the absence of one.
+    Printing €0 puts a number where nobody has made a commitment."""
+    from starlette.testclient import TestClient
+
+    import app.routes.today as today_route
+    from app.main import app
+    from app.perf import mock
+    from app.perf.model import Dataset
+
+    original = mock.dataset
+
+    def without_forecast():
+        built = original()
+        for item in built.units:
+            item.forecast_sales = 0.0
+        return built
+
+    monkeypatch.setattr(mock, "dataset", without_forecast)
+    today_route.current_source().dataset()
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "no forecast reported" in page

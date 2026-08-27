@@ -34,9 +34,16 @@
     {# The chrome follows the primary product, which is now the cockpit and is in
        English. Decision Room's own screens keep their French — a transition state,
        stated rather than hidden. #}
-    <strong>Prototype</strong>
-    No authentication, no real data expected. Local storage only ({{ database_label }}).
-    Nothing is sent, nothing is written outside — autonomy level {{ autonomy_level }}.
+    {% if reads_warehouse %}
+      <strong>Confidential</strong>
+      Real company figures, read from the warehouse. No authentication on this screen —
+      it is reachable from this machine only ({{ database_label }}). Nothing is sent,
+      nothing is written back — autonomy level {{ autonomy_level }}.
+    {% else %}
+      <strong>Prototype</strong>
+      No authentication, no real data expected. Local storage only ({{ database_label }}).
+      Nothing is sent, nothing is written outside — autonomy level {{ autonomy_level }}.
+    {% endif %}
   </div>
 </div>
 

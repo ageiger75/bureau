@@ -772,3 +772,100 @@ def test_the_flag_says_who_to_ask():
 
     assert "tracking" in flag.fix
     assert "audience" in flag.fix
+
+
+def test_an_initialism_survives_the_sentence():
+    """"About 65% of the movement comes from aov" reads as a typo, in the one sentence
+    the CEO reads first."""
+    aov_led = unit(
+        key="japan",
+        actual=Drivers(("Sessions", "Conversion", "AOV"), (1_000_000.0, 0.02, 45.0)),
+        budget=Drivers.sales_only(1_500_000.0),
+        last_year=Drivers(("Sessions", "Conversion", "AOV"), (1_000_000.0, 0.02, 60.0)),
+    )
+
+    fire = analytics.fires(dataset_of(aov_led))[0]
+
+    assert "AOV" in fire.diagnosis
+    assert "aov" not in fire.diagnosis
+    assert "AOV" in fire.question
+
+
+def test_an_ordinary_driver_is_still_lower_cased():
+    """The rule is about initialisms, not about shouting every driver name."""
+    session_led = unit(
+        key="australia",
+        actual=Drivers(("Sessions", "Conversion", "AOV"), (700_000.0, 0.02, 60.0)),
+        budget=Drivers.sales_only(1_500_000.0),
+        last_year=Drivers(("Sessions", "Conversion", "AOV"), (1_000_000.0, 0.02, 60.0)),
+    )
+
+    fire = analytics.fires(dataset_of(session_led))[0]
+
+    assert "comes from sessions" in fire.diagnosis
+
+
+# ------------------------------------------------------ one fault, or many incidents
+#
+# The first real screen showed twelve markets each reporting sessions and no orders. Read
+# as a list, that is twelve problems and gets triaged as none. Read as a shape, it is one
+# join not matching — one query to fix rather than twelve markets to chase.
+
+
+def _no_orders(key, sales):
+    return unit(
+        key=key,
+        actual=sessions_of(sales, sales * 4),
+        budget=Drivers.sales_only(sales),
+        last_year=sessions_of(sales, sales * 4),
+        orders=0,
+        sessions=sales * 4,
+    )
+
+
+def test_several_markets_failing_the_same_way_are_named_as_one_fault():
+    dataset = dataset_of(*[_no_orders("m%d" % i, 100_000) for i in range(5)])
+
+    said = analytics.patterns(analytics.suspects(dataset))
+
+    assert len(said) == 1
+    assert "5 markets" in said[0]
+    assert "not 5 separate incidents" in said[0]
+
+
+def test_the_pattern_carries_the_money_behind_it():
+    """Twelve small markets and twelve large ones are not the same problem."""
+    dataset = dataset_of(*[_no_orders("m%d" % i, 200_000) for i in range(4)])
+
+    assert "€800k" in analytics.patterns(analytics.suspects(dataset))[0]
+
+
+def test_two_markets_are_not_yet_a_pattern():
+    """Below the threshold, coincidence is still the simpler explanation, and a pattern
+    claimed too early is a pattern nobody believes the next time."""
+    dataset = dataset_of(_no_orders("a", 100_000), _no_orders("b", 100_000))
+
+    assert analytics.patterns(analytics.suspects(dataset)) == []
+
+
+def test_the_instances_are_still_listed_beneath_the_pattern():
+    """Naming the shape must not hide which markets are affected — that is what makes it
+    checkable."""
+    dataset = dataset_of(*[_no_orders("m%d" % i, 100_000) for i in range(4)])
+
+    assert len(analytics.suspects(dataset)) == 4
+
+
+def test_different_faults_are_never_merged_into_one_pattern():
+    silent = unit(
+        key="finland",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(9_000.0),
+        last_year=Drivers.sales_only(8_361.0),
+    )
+    dataset = dataset_of(silent, *[_no_orders("m%d" % i, 100_000) for i in range(4)])
+
+    said = analytics.patterns(analytics.suspects(dataset))
+
+    assert len(said) == 1
+    assert "no orders at all" in said[0]
