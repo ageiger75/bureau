@@ -277,3 +277,66 @@ def test_a_dataset_is_built_end_to_end():
     # Taiwan has no plan, so it is outside the company's variance to plan.
     assert dataset.sales_budget == pytest.approx(1_861_700)
     assert [u.market for u in dataset.unbudgeted] == ["Taiwan"]
+
+
+# ------------------------------------------------- what the query says about the funnel
+#
+# The query now establishes why a funnel is unreadable instead of leaving a blank for this
+# module to interpret. Four states with four different remedies, and collapsing them into
+# one word for "missing" sends the wrong person after the wrong thing.
+
+
+def test_the_reason_established_by_the_query_is_the_one_shown():
+    """It read the warehouse. This module only ever inferred from shape."""
+    mapped = mapping.units_from_rows(
+        [row(funnel_status="orders_not_tracked", orders=None)],
+        budget=budget_of(line()),
+    )
+
+    assert "never the orders" in mapped.units[0].no_breakdown_reason
+
+
+def test_tracking_lost_is_not_the_same_as_never_tracked():
+    """One is a tag to install, the other is a thing that broke on a date and can be
+    found. The same blank on screen, an entirely different next step."""
+    never = mapping.units_from_rows(
+        [row(funnel_status="orders_not_tracked", orders=None)], budget=budget_of(line())
+    ).units[0]
+    lost = mapping.units_from_rows(
+        [row(funnel_status="order_tracking_lost", orders=None)], budget=budget_of(line())
+    ).units[0]
+
+    assert never.no_breakdown_reason != lost.no_breakdown_reason
+    assert "stopped" in lost.no_breakdown_reason
+
+
+def test_a_market_selling_on_platforms_says_the_revenue_is_real():
+    """The correction that mattered: no own site does not mean no sell-out. A shopper
+    buying on a marketplace store is still a sale to the end customer, and calling that
+    revenue "invoiced to a reseller" would have written off a real channel."""
+    mapped = mapping.units_from_rows(
+        [row(market="China", funnel_status="no_analytics_site", sessions=None, orders=None)],
+        budget=budget_of(line(market="China")),
+    )
+
+    reason = mapped.units[0].no_breakdown_reason
+
+    assert "revenue is counted" in reason
+    assert "none to repair" in reason
+
+
+def test_the_status_survives_onto_the_unit():
+    mapped = mapping.units_from_rows(
+        [row(funnel_status="measured")], budget=budget_of(line())
+    )
+
+    assert mapped.units[0].funnel_status == "measured"
+
+
+def test_a_row_without_a_status_still_maps():
+    """The column arrived after the first real screens did. Its absence must break
+    neither a cached read nor an older query."""
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    assert mapped.units[0].funnel_status == ""
+    assert mapped.units[0].actual.has_breakdown is True

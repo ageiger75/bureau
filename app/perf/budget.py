@@ -65,31 +65,52 @@ def normalise_market(name: str) -> str:
     return raw.title()
 
 
-#: Segments where the Maison invoices a third party who then resells to the end customer.
-#: This is the sell-in perimeter, and it exists nowhere in the warehouse yet — which is
-#: exactly why the planning file can specify it.
-SELL_IN_SEGMENTS = frozenset(
-    ("WEBP", "MKTP", "TRA", "DIS", "DPT", "WHOCH", "WHOIN", "TVC", "WHOSP")
-)
+#: Three ways revenue reaches the Maison, not two. The binary split — ours or resold —
+#: broke on the first real question: a Tmall flagship operated by the Maison sells to the
+#: end customer, so it is sell-out, but it happens on a platform that is not our site and
+#: has no funnel we can read. Collapsing that into either bucket loses something true.
 
-#: Segments the Maison operates itself, where the invoice and the end customer coincide.
+#: Sold by the Maison, on the Maison's own site or in its own stores. Sell-out, and the
+#: only case where the whole funnel — visits, conversion, basket — can be measured.
 OWN_SEGMENTS = frozenset(("RET", "EBU", "CAF", "SPA"))
 
-#: Marketplaces and web partners sit on the boundary: a consignment marketplace is closer
-#: to own e-commerce than to wholesale, and the contract decides, not the segment code.
-#: They are counted as sell-in here because that is how the planning file groups them, and
-#: any reconciliation against the warehouse has to be told which convention it is using.
-AMBIGUOUS_SEGMENTS = frozenset(("MKTP", "WEBP"))
+#: Sold by the Maison to the end customer, on someone else's platform. Still sell-out: the
+#: revenue is recognised when the shopper buys. But the platform owns the traffic, so
+#: there is no funnel behind the number — which is why these markets can show real sales
+#: and no conversion at all, and why that is not a fault to repair.
+PLATFORM_SEGMENTS = frozenset(("MKTP",))
+
+#: Invoiced to a partner who then resells. Sell-in: the revenue is recognised when the
+#: Maison ships, not when a shopper buys, and no sell-out source will ever show it.
+SELL_IN_SEGMENTS = frozenset(
+    ("WEBP", "TRA", "DIS", "DPT", "WHOCH", "WHOIN", "TVC", "WHOSP")
+)
+
+#: Still to settle. Web Partners covers e-retailers, and the model differs by contract: a
+#: platform where the Maison operates the store is sell-out, a retailer buying stock to
+#: resell is sell-in. The same is true of one marketplace under two contracts. The code
+#: cannot know; it says so rather than choosing quietly.
+AMBIGUOUS_SEGMENTS = frozenset(("WEBP",))
+
+#: Everything the sell-out warehouse can account for, however it reached the shopper.
+SELL_OUT_SEGMENTS = OWN_SEGMENTS | PLATFORM_SEGMENTS
 
 
 def perimeter_of(segment: str) -> str:
-    """`sell-in`, `own`, or `other`. Never a guess: unlisted codes fall to `other`."""
+    """`own`, `platform`, `sell-in`, or `other`. Never a guess: unlisted codes fall to
+    `other` rather than being placed by resemblance."""
     code = segment_code(segment)
-    if code in SELL_IN_SEGMENTS:
-        return "sell-in"
     if code in OWN_SEGMENTS:
         return "own"
+    if code in PLATFORM_SEGMENTS:
+        return "platform"
+    if code in SELL_IN_SEGMENTS:
+        return "sell-in"
     return "other"
+
+
+def is_sell_out(segment: str) -> bool:
+    return segment_code(segment) in SELL_OUT_SEGMENTS
 
 
 def segment_code(segment: str) -> str:

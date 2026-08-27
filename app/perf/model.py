@@ -208,6 +208,7 @@ class BusinessUnit:
         "sessions",
         "orders",
         "budget_known",
+        "funnel_status",
     )
 
     def __init__(
@@ -235,6 +236,7 @@ class BusinessUnit:
         sessions: Optional[float] = None,
         orders: Optional[float] = None,
         budget_known: bool = True,
+        funnel_status: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -280,6 +282,10 @@ class BusinessUnit:
         #: and the market would top the screen as a triumph. Such units are kept out of
         #: both fires and wins, and counted so the omission is visible.
         self.budget_known = budget_known
+        #: What the query established about this market's funnel: measured, never tracked,
+        #: tracking lost, or no own site at all. Four states with four different remedies,
+        #: which is why they are not collapsed into one word for "missing".
+        self.funnel_status = funnel_status
 
     # ------------------------------------------------------------------ sales
 
@@ -374,6 +380,20 @@ class Dataset:
     @property
     def sales_forecast(self) -> float:
         return sum(unit.forecast_sales for unit in self.units)
+
+    @property
+    def markets_without_own_site(self) -> List[str]:
+        """Markets that sell online only through partners who resell.
+
+        Not a fault, and not a gap to chase: it is how those markets work. But a reader
+        looking for a large market and not finding it deserves to be told why, or they
+        will assume the screen lost it.
+        """
+        from .mapping import NO_ANALYTICS_SITE
+
+        return sorted(
+            {u.market for u in self.units if u.funnel_status == NO_ANALYTICS_SITE}
+        )
 
     @property
     def unbudgeted(self) -> List[BusinessUnit]:

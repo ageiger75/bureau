@@ -164,9 +164,9 @@ def _perimeter_note(budget, units=()) -> str:
 
     share = 100.0 * measured / total
     return (
-        "%s — about %.0f%% of the plan. The rest is store sales and everything invoiced "
-        "to partners who resell: wholesale, distributors, travel retail, marketplaces. "
-        "No source measures it here yet."
+        "%s — about %.0f%% of the plan. The rest is store sales, marketplace sales, and "
+        "everything invoiced to partners who resell: wholesale, distributors, travel "
+        "retail, e-retailers. No source measures it here yet."
         % (covers, share)
     )
 

@@ -869,3 +869,71 @@ def test_different_faults_are_never_merged_into_one_pattern():
 
     assert len(said) == 1
     assert "no orders at all" in said[0]
+
+
+# ------------------------------------------- absent orders, now absent rather than zero
+#
+# The query was corrected to return no order count where the transaction identifier is
+# empty, instead of returning zero. That is right — zero reads as "nobody bought" on a
+# market that sells every day — and it silently disarmed the shape-based guard, which
+# could only ever see a zero. The status is what the guard reads now.
+
+
+def _with_status(status, **overrides):
+    fields = {
+        "key": "brazil",
+        "actual": Drivers.sales_only(179_000.0),
+        "budget": Drivers.sales_only(200_000.0),
+        "last_year": Drivers.sales_only(180_000.0),
+        "funnel_status": status,
+        "sessions": 207_000.0,
+        "orders": None,
+    }
+    fields.update(overrides)
+    return unit(**fields)
+
+
+def test_an_absent_order_count_is_still_caught_by_the_status():
+    """The regression this guards: orders stopped being zero, so the old check stopped
+    firing, and a dozen markets would have walked into the ranking looking ordinary."""
+    flag = analytics.suspect_of(_with_status("orders_not_tracked"))
+
+    assert flag is not None
+    assert flag.code == "traffic_without_orders"
+
+
+def test_tracking_lost_carries_its_own_code():
+    """Because its remedy is different: something broke on a date and can be found."""
+    flag = analytics.suspect_of(_with_status("order_tracking_lost"))
+
+    assert flag.code == "order_tracking_lost"
+    assert "recently" in flag.fix
+
+
+def test_a_market_selling_on_platforms_is_never_flagged_as_broken():
+    """Its revenue is real sell-out and its missing funnel is not a fault. Sending anyone
+    to repair it would send them after nothing, and a guard that cries about normality is
+    a guard nobody reads."""
+    assert analytics.suspect_of(_with_status("no_analytics_site")) is None
+
+
+def test_a_platform_market_with_no_online_sales_is_not_a_broken_feed_either():
+    no_site = _with_status(
+        "no_analytics_site",
+        actual=Drivers.sales_only(0.0),
+        last_year=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(0.0),
+    )
+
+    assert analytics.suspect_of(no_site) is None
+
+
+def test_markets_selling_on_platforms_are_listable():
+    """A reader looking for a large market and not finding it assumes the screen lost it,
+    and stops trusting the rest of the list."""
+    dataset = dataset_of(
+        _with_status("no_analytics_site", key="china", market="China"),
+        _with_status("measured", key="japan", market="Japan", orders=12_800.0),
+    )
+
+    assert dataset.markets_without_own_site == ["China"]

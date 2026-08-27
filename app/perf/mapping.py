@@ -30,6 +30,38 @@ from .model import (
 #: are not two roundings of the same number. Worth knowing about; not worth blocking on.
 BUDGET_DISAGREEMENT = 0.02
 
+#: What the query says about each market's funnel. Four states, established by reading the
+#: warehouse rather than by guessing at it, and they have four different remedies — which
+#: is the whole reason for keeping them apart instead of collapsing them into "missing".
+MEASURED = "measured"
+ORDERS_NOT_TRACKED = "orders_not_tracked"
+ORDER_TRACKING_LOST = "order_tracking_lost"
+NO_ANALYTICS_SITE = "no_analytics_site"
+
+#: Why a funnel cannot be read, in the words the reader needs. Each says who to ask.
+FUNNEL_REASONS = {
+    ORDERS_NOT_TRACKED: (
+        "Web analytics records the visits here but never the orders — the transaction "
+        "identifier is empty on every row. Sales are real; the funnel behind them is not "
+        "measured. This is a tag to install, not a market to question."
+    ),
+    ORDER_TRACKING_LOST: (
+        "Order tracking stopped on this site partway through the period, and has not "
+        "resumed. The visits still arrive. This one broke recently, which means it can be "
+        "found — and until it is, no driver here can be read."
+    ),
+    NO_ANALYTICS_SITE: (
+        "The Maison has no own site measured in this market: online here happens on "
+        "platforms it does not run. The revenue is counted — a shopper buying on a "
+        "marketplace store is still a sale to the end customer — but the platform owns "
+        "the traffic, so there is no funnel behind the number and none to repair."
+    ),
+}
+
+#: The two that a data team can actually fix. The third is a fact about how the market
+#: sells, and telling someone to repair it would send them after nothing.
+BROKEN_FUNNELS = frozenset({ORDERS_NOT_TRACKED, ORDER_TRACKING_LOST})
+
 
 def _number(value) -> Optional[float]:
     if value is None:
@@ -143,9 +175,16 @@ def units_from_rows(
         budget_value = from_file_budget if from_file_budget is not None else from_warehouse_budget
         last_year_value = from_file_ly if from_file_ly is not None else from_warehouse_ly
 
+        # The query now states why a funnel is unreadable instead of leaving a blank for
+        # this module to interpret. Where it does, its word is taken: it read the
+        # warehouse, and a reason established beats a reason inferred.
+        funnel_status = str(row.get("funnel_status") or "").strip().lower()
+
         reason = ""
         if channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON
+        elif funnel_status in FUNNEL_REASONS:
+            reason = FUNNEL_REASONS[funnel_status]
         elif channel == ECOMMERCE and not (sessions and orders):
             reason = "Sessions or orders are not reported for this site."
         elif channel == ECOMMERCE and not (sessions_ly and orders_ly):
@@ -178,6 +217,7 @@ def units_from_rows(
                 sessions=sessions,
                 orders=orders,
                 no_breakdown_reason=reason,
+                funnel_status=funnel_status,
             )
         )
 

@@ -314,6 +314,41 @@ class Suspect:
 
 def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     """Whether this unit's figures look like a break in the data rather than the business."""
+    from .mapping import (
+        NO_ANALYTICS_SITE,
+        ORDER_TRACKING_LOST,
+        ORDERS_NOT_TRACKED,
+    )
+
+    # A market with no own site is not a broken feed. It sells through partners who
+    # resell, so having no funnel — and often no own online revenue at all — is how that
+    # market works. Sending anyone to repair it would send them after nothing.
+    if unit.funnel_status == NO_ANALYTICS_SITE:
+        return None
+
+    # Where the query established why the funnel is unreadable, its word is taken. It read
+    # the warehouse; the heuristics below only ever inferred from shape. Note that orders
+    # now arrive as absent rather than as zero, which is correct and which is exactly why
+    # the shape-based check underneath can no longer see these markets.
+    if unit.funnel_status == ORDER_TRACKING_LOST:
+        return Suspect(
+            unit,
+            code="order_tracking_lost",
+            message="Order tracking stopped on this site during the period, on %s of "
+            "sales." % _eur(unit.sales_actual),
+            fix="This broke recently, so it can be found. Ask the data team, not the "
+            "market.",
+        )
+    if unit.funnel_status == ORDERS_NOT_TRACKED:
+        return Suspect(
+            unit,
+            code="traffic_without_orders",
+            message="Visits are recorded here but orders never are, on %s of sales."
+            % _eur(unit.sales_actual),
+            fix="A tag to install, not a market to question. The sales are real; the "
+            "funnel behind them is not measured.",
+        )
+
     if unit.sales_actual == 0 and (unit.sales_last_year > 0 or unit.sales_budget > 0):
         return Suspect(
             unit,
@@ -400,6 +435,11 @@ PATTERN_MEANING = {
         "%d markets show traffic moving by a multiple while their sales sit still, on %s "
         "between them. A change of that shape arriving in several markets at once is a "
         "change in how traffic is counted, not %d coincidences."
+    ),
+    "order_tracking_lost": (
+        "%d markets lost their order tracking during the period, on %s of sales between "
+        "them. Tracking that stops in several markets at once stops for one reason — a "
+        "deployment, a migration — not %d times."
     ),
     "zero_against_history": (
         "%d markets report no sales at all against a real history, worth %s last year. "

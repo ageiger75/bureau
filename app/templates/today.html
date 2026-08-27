@@ -17,6 +17,15 @@
        excludes belongs next to it, not in a footnote at the bottom of the page. #}
     <p class="cockpit-caveat">{{ perimeter_note }}</p>
   {% endif %}
+  {% if markets_without_own_site %}
+    {# Naming them is the point. A reader looking for a large market and not finding it
+       assumes the screen lost it, and stops trusting the rest of the list. #}
+    <p class="cockpit-caveat">
+      Sold on platforms rather than on a site of ours, so counted without a funnel:
+      {{ markets_without_own_site | join(", ") }}. The revenue is real; the conversion
+      behind it belongs to the platform and cannot be read here.
+    </p>
+  {% endif %}
   <ul class="cockpit-variances">
     <li>
       <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">

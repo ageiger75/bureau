@@ -260,6 +260,26 @@ def test_an_operated_segment_is_own():
     assert budget_module.perimeter_of("EBU - E-business") == "own"
 
 
+def test_a_marketplace_store_is_sell_out_on_someone_elses_platform():
+    """The correction that broke the binary split. A flagship the Maison operates on a
+    marketplace sells to the end customer — that is sell-out, however little it looks
+    like an own site. What it does not have is a funnel: the platform owns the traffic."""
+    assert budget_module.perimeter_of("MKTP - Market place") == "platform"
+    assert budget_module.is_sell_out("MKTP - Market place") is True
+
+
+def test_a_platform_sale_is_not_counted_as_resold():
+    """Placing it in sell-in would have hidden real sell-out revenue behind a caveat
+    saying no source measures it — when the source measures it perfectly well."""
+    assert budget_module.perimeter_of("MKTP - Market place") != "sell-in"
+
+
+def test_what_the_sell_out_warehouse_can_account_for():
+    assert budget_module.is_sell_out("RET - Retail") is True
+    assert budget_module.is_sell_out("EBU - E-business") is True
+    assert budget_module.is_sell_out("DIS - Distributors") is False
+
+
 def test_an_unlisted_segment_falls_to_other_rather_than_being_guessed():
     """A new segment code appearing in next year's file must not be silently counted as
     sell-in because it looks a bit like wholesale."""
@@ -340,7 +360,7 @@ def test_the_boundary_segments_are_declared_rather_than_settled(capsys, monkeypa
     from app.config import settings
 
     plan = Budget(
-        [BudgetLine("Japan", "APAC", "MKTP - Market place", "mktp",
+        [BudgetLine("Japan", "APAC", "WEBP - Web Partners", "webp",
                     "2026-07", 500_000.0, 430_000.0)]
     )
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
