@@ -340,3 +340,46 @@ def test_the_reason_a_gap_cannot_be_explained_is_given_once():
 
     assert page.count("its cause is not measured") <= page.count("below plan")
     assert "The gap is real and visible" not in page
+
+
+# ------------------------------------------------ the screen must not contradict itself
+#
+# The demonstration screen showed it first: ten open commitments listed in one panel, and
+# "no commitment source is connected" in the panel below. Two halves of one screen
+# disagreeing costs more than either half is worth — a reader who catches it once stops
+# believing the careful half too.
+
+
+def test_a_panel_that_shows_data_is_not_listed_as_unmeasured():
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    # Mock data provides both, so neither may appear among the things nothing measures.
+    assert "No source connected" not in page
+    assert "Neither is wired" not in page
+
+
+def test_a_panel_with_no_source_is_still_listed(monkeypatch):
+    """The fix must not silence the register: a measure that genuinely has no source has
+    to keep saying so."""
+    from starlette.testclient import TestClient
+
+    import app.routes.today as today_route
+    from app.main import app
+    from app.perf.source import MockSource
+
+    def refuse(self):
+        raise NotImplementedError("no commitment source")
+
+    monkeypatch.setattr(
+        today_route, "current_source", lambda: type("S", (MockSource,), {"commitments": refuse})()
+    )
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "No source connected" in page

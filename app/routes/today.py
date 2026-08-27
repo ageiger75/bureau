@@ -10,7 +10,7 @@ arithmetic on the Investigate screen.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 from fastapi import APIRouter, Request
 
@@ -31,16 +31,25 @@ def _commitments_by_market(items) -> Dict[str, List]:
     return grouped
 
 
-def settled_now() -> List[str]:
+def settled_now(unavailable: Sequence[str] = ()) -> List[str]:
     """Measures this instance has actually resolved, whatever the register says.
 
-    The register describes the design. Whether the directory file is on this machine is a
-    fact about this machine, and the screen should not ask the CEO to chase something he
-    has already provided.
+    The register describes the design; what this machine has in hand is a different
+    question, and the screen must not ask the CEO to chase something already in front of
+    him. It did: the commitments panel listed ten open items while the panel below it
+    announced that no commitment source was connected. Two halves of one screen
+    contradicting each other costs more than either half is worth.
     """
     from ..perf import owners
 
-    return ["owners"] if len(owners.current()) else []
+    settled = []
+    if len(owners.current()):
+        settled.append("owners")
+    if "commitments" not in unavailable:
+        settled.append("commitments")
+    if "kpis" not in unavailable:
+        settled.append("client_kpis")
+    return settled
 
 
 @router.get("/")
@@ -136,7 +145,7 @@ def today(request: Request):
             "suspect_patterns": analytics.patterns(suspects),
             "kpi_rules": kpi_rules,
             "unavailable": unavailable,
-            "unsettled": provenance.unsettled(settled=settled_now()),
+            "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,
             "conflicts": getattr(source, "conflicts", []),
