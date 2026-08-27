@@ -29,7 +29,23 @@ BASIS_CHANGE = "basis_change"
 #: the previous month, a one-off order.
 ONE_OFF = "one_off"
 
-KINDS = (BASIS_CHANGE, ONE_OFF)
+#: The plan and the accounts draw a boundary in different places. Nothing changed and
+#: nobody is wrong about a number — a customer sits on the line between two segments, and
+#: each source files it on its own side. The market total is identical; only the split
+#: differs.
+#:
+#: Left unsaid this is worse than a single wrong figure, because it produces two: one
+#: segment above plan and its neighbour below it by exactly the same amount, both stated
+#: with confidence, both meaningless.
+RECLASSIFIED = "reclassified"
+
+KINDS = (BASIS_CHANGE, ONE_OFF, RECLASSIFIED)
+
+#: Kinds where the gap is not a statement about trading, so nobody is asked to answer for
+#: it. A gap that is real in the accounts and belongs to no one's performance must never
+#: reach "People to push": handing it over would be this product's most expensive kind of
+#: mistake — confidently wrong, about a named human being.
+NOT_TRADING = frozenset({BASIS_CHANGE, RECLASSIFIED})
 
 #: What each kind means for the reader, and — more usefully — what it means for the ask.
 KIND_MEANING = {
@@ -40,12 +56,46 @@ KIND_MEANING = {
     ONE_OFF: (
         "A one-off event sits inside this figure, so the gap is not the run rate."
     ),
+    RECLASSIFIED: (
+        "The plan and the accounts file this revenue under different segments, so the gap "
+        "here is a boundary rather than a result. The market total is unaffected."
+    ),
 }
 
 KIND_QUESTION = {
     BASIS_CHANGE: "Should the plan be rebased, and what is the trend on a like-for-like basis?",
     ONE_OFF: "What does the gap look like with this event set aside?",
+    RECLASSIFIED: (
+        "Which classification is right — and is the neighbouring segment's plan wrong by "
+        "the same amount?"
+    ),
 }
+
+
+def resolve_channel(name: str) -> str:
+    """A channel from whatever the writer had in front of them.
+
+    They may type a channel the screen shows (`retail`), a segment label the plan uses
+    (`WEBP - Web Partners`), or a bare segment code (`WEBP`). All three name the same
+    thing, and asking someone to remember which vocabulary this file wants would be a good
+    way to have the note written wrongly or not at all.
+    """
+    from .budget import channel_of, segment_code
+    from .mapping import normalise_channel
+
+    raw = (name or "").strip()
+    if not raw:
+        return ""
+    if "-" in raw:
+        return channel_of(raw)
+    direct = normalise_channel(raw)
+    from .mapping import CHANNEL_ALIASES
+
+    if raw.strip().lower() in CHANNEL_ALIASES:
+        return direct
+    # Not a channel this cockpit names, so read it as a segment code — `WEBP`, `DIS`.
+    coded = channel_of(segment_code(raw))
+    return coded or direct
 
 
 class Note:
@@ -112,7 +162,6 @@ def load(path) -> Context:
     import csv
 
     from .budget import normalise_market
-    from .mapping import normalise_channel
 
     notes: List[Note] = []
     with open(path, encoding="utf-8-sig", newline="") as handle:
@@ -131,7 +180,7 @@ def load(path) -> Context:
             notes.append(
                 Note(
                     market=normalise_market(market_cell),
-                    channel=normalise_channel(raw_channel) if raw_channel else "",
+                    channel=resolve_channel(raw_channel),
                     since=str(record.get("since") or "").strip(),
                     kind=kind,
                     text=text,

@@ -410,3 +410,104 @@ def test_a_market_with_no_drivers_at_all_carries_no_caveat():
     fire = analytics.fires(dataset_of(unit(notes=[note()])))[0]
 
     assert fire.basis_caveat == ""
+
+
+# ------------------------------------------- a boundary drawn in two different places
+#
+# Nothing changed and nobody is wrong about a number. A customer sits on the line between
+# two segments — a retailer's own web shop is both a chain and a web partner — and each
+# source files it on its own side. The market total is identical; only the split differs.
+#
+# Left unsaid this is worse than one wrong figure, because it produces two: a segment
+# above plan and its neighbour below it by exactly the same amount, both confident, both
+# meaningless.
+
+
+def test_a_reclassification_is_not_a_statement_about_trading():
+    reclassified = unit(
+        key="us-webp",
+        market="United States",
+        channel="webp",
+        notes=[context.Note("United States", "webp", "2025-09", context.RECLASSIFIED,
+                            "Sephora.com is filed under chains in the accounts.", "CEO")],
+    )
+
+    fire = analytics.fires(dataset_of(reclassified))[0]
+
+    assert "boundary rather than a result" in fire.diagnosis
+    assert analytics.people_to_push([fire]) == []
+
+
+def test_the_question_points_at_the_neighbouring_plan():
+    """The actionable half. If the accounts are right, the neighbouring segment's plan is
+    wrong by the same amount — and that distorts a target conversation for a year."""
+    reclassified = unit(
+        key="us-webp",
+        market="United States",
+        channel="webp",
+        notes=[context.Note("United States", "webp", "", context.RECLASSIFIED,
+                            "Sephora.com is filed under chains.", "CEO")],
+    )
+
+    assert "neighbouring segment" in analytics.fires(dataset_of(reclassified))[0].question
+
+
+def test_a_reclassification_does_not_claim_the_money_drivers_moved():
+    """A change of basis moves money per unit sold. A reclassification moves the whole
+    line to a neighbour and leaves every driver where it was. Saying otherwise would blunt
+    the warning for the case that needs it."""
+    from app.perf.model import ecommerce_drivers
+
+    reclassified = unit(
+        key="us-ecommerce",
+        market="United States",
+        channel=ECOMMERCE,
+        notes=[context.Note("United States", "", "", context.RECLASSIFIED,
+                            "Filed differently.", "CEO")],
+        actual=ecommerce_drivers(2_600_000.0, 1_000_000.0, 40_000.0),
+        budget=Drivers.sales_only(3_100_000.0),
+        last_year=ecommerce_drivers(3_050_000.0, 1_000_000.0, 40_000.0),
+    )
+
+    assert analytics.fires(dataset_of(reclassified))[0].basis_caveat == ""
+
+
+# --------------------------------------------------- naming a segment however you have it
+
+
+def test_a_note_can_name_a_segment_instead_of_a_channel():
+    """Three vocabularies name the same thing: the channel the screen shows, the segment
+    label the plan uses, the bare code. Asking someone to remember which one this file
+    wants is a good way to have the note written wrongly, or not at all."""
+    assert context.resolve_channel("WEBP - Web Partners") == "webp"
+    assert context.resolve_channel("WEBP") == "webp"
+    assert context.resolve_channel("retail") == RETAIL
+    assert context.resolve_channel("") == ""
+
+
+def test_a_segment_scoped_note_is_written_that_way(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note([
+        "United States", "Sephora.com is filed under chains.",
+        "--kind", "reclassified", "--channel", "WEBP - Web Partners",
+    ])
+
+    written = context.load(notes_at).notes[0]
+
+    assert written.channel == "webp"
+    assert written.kind == context.RECLASSIFIED
+
+
+def test_a_segment_scoped_note_stays_on_its_segment(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note([
+        "United States", "Sephora.com is filed under chains.",
+        "--kind", "reclassified", "--channel", "WEBP",
+    ])
+
+    book = context.load(notes_at)
+
+    assert book.notes_for("United States", "webp", "2025-09")
+    assert book.notes_for("United States", "whoch", "2025-09") == []

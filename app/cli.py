@@ -347,6 +347,8 @@ def cmd_note(argv: List[str]) -> int:
 
         manage.py note "Brazil" "Les taxes ont changé en juin, le budget est antérieur."
         manage.py note "Japan" "Fermeture d'un magasin phare." --kind one_off --since 2026-07
+        manage.py note "United States" "Sephora.com est classé ailleurs." \\
+            --kind reclassified --channel "WEBP - Web Partners"
         manage.py note --list
         manage.py note --forget 2
     """
@@ -354,7 +356,6 @@ def cmd_note(argv: List[str]) -> int:
 
     from .perf import context
     from .perf.budget import normalise_market
-    from .perf.mapping import normalise_channel
 
     path = settings.context_path
     existing = _read_notes(path)
@@ -402,7 +403,7 @@ def cmd_note(argv: List[str]) -> int:
     channel = _option(argv, "--channel") or ""
     row = {
         "market": normalise_market(market),
-        "channel": normalise_channel(channel) if channel else "",
+        "channel": context.resolve_channel(channel),
         "since": (_option(argv, "--since") or "").strip(),
         "kind": kind,
         "note": text,

@@ -25,4 +25,5 @@ market,channel,since,kind,note,source
 #
 #   manage.py note "Japan" "Ce qui s'est passé." --since 2026-07
 #
+# kind: basis_change · one_off · reclassified
 # Exampleland,,2026-06,basis_change,"Ce qui a changé et pourquoi le plan ne s'y compare plus.",Qui l'affirme

@@ -321,15 +321,16 @@ class BusinessUnit:
 
     @property
     def basis_changed(self) -> bool:
-        """Whether the plan and the actual are measured on the same basis.
+        """Whether this gap is a statement about trading at all.
 
-        When they are not, the gap between them is real in the accounts and says nothing
-        about how the market is trading — so it must not be handed to whoever runs that
-        market as a performance question.
+        It is not when the plan and the actual are measured on different bases, and it is
+        not when they classify the same revenue under different segments. Either way the
+        gap is real in the accounts and says nothing about how the market is doing — so it
+        must never be handed to whoever runs that market as a performance question.
         """
-        from .context import BASIS_CHANGE
+        from .context import NOT_TRADING
 
-        return any(note.kind == BASIS_CHANGE for note in self.context_notes)
+        return any(note.kind in NOT_TRADING for note in self.context_notes)
 
     def decomposition_baseline(self):
         """What the drivers can honestly be compared against, and its name.
