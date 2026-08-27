@@ -7,6 +7,8 @@ Ces tests vérifient qu'elle est portée par le code : le service refuse de dém
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from app import cli, config
@@ -130,3 +132,49 @@ def test_boucle_locale_inclut_le_client_de_test():
     tests se heurterait au middleware qui n'accepte que la boucle locale."""
     assert "127.0.0.1" in config.LOOPBACK_HOSTS
     assert "testclient" in config.LOOPBACK_HOSTS
+
+
+# ------------------------------------------------- la configuration du poste reste dehors
+#
+# Elle n'y restait pas. Dès qu'une connexion Snowflake était écrite dans `.env`, la suite
+# lisait le vrai entrepôt : des tests lents, non déterministes, consommant du crédit, et
+# dix-neuf qui échouaient en accusant le dernier commit poussé. Une suite qui dépend de la
+# configuration de la machine n'atteste de rien — et elle avait l'air verte partout
+# ailleurs, ce qui est la pire forme de ce défaut.
+
+
+def test_le_fichier_env_peut_etre_ignore(tmp_path, monkeypatch):
+    from app.config import _load_dotenv
+
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("CEOOS_TEST_MARKER=depuis-le-fichier\n", encoding="utf-8")
+
+    monkeypatch.delenv("CEOOS_TEST_MARKER", raising=False)
+    monkeypatch.setenv("CEOOS_DOTENV", "0")
+    _load_dotenv(dotenv)
+
+    assert "CEOOS_TEST_MARKER" not in os.environ
+
+
+def test_le_fichier_env_est_lu_par_defaut(tmp_path, monkeypatch):
+    """Le garde-fou ne doit pas rendre le fichier inutile : c'est ainsi que le poste se
+    configure une fois pour toutes."""
+    from app.config import _load_dotenv
+
+    dotenv = tmp_path / ".env"
+    dotenv.write_text("CEOOS_TEST_MARKER=depuis-le-fichier\n", encoding="utf-8")
+
+    monkeypatch.delenv("CEOOS_TEST_MARKER", raising=False)
+    monkeypatch.delenv("CEOOS_DOTENV", raising=False)
+    _load_dotenv(dotenv)
+
+    assert os.environ["CEOOS_TEST_MARKER"] == "depuis-le-fichier"
+    monkeypatch.delenv("CEOOS_TEST_MARKER", raising=False)
+
+
+def test_la_suite_tourne_sur_des_donnees_fictives():
+    """Quelle que soit la machine. Un test qui lit l'entrepôt de production est lent, non
+    déterministe, et coûte de l'argent à chaque exécution."""
+    from app.config import settings
+
+    assert settings.reads_warehouse is False

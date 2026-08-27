@@ -29,8 +29,25 @@ class ConfigError(RuntimeError):
     """Configuration refusée : le service ne doit pas démarrer."""
 
 
+def _env(name: str, default: str = "") -> str:
+    return os.environ.get(name, default).strip()
+
+
 def _load_dotenv(path: Path) -> None:
-    """Charge un .env sans dépendance externe. Une variable déjà définie n'est pas écrasée."""
+    """Charge un .env sans dépendance externe. Une variable déjà définie n'est pas écrasée.
+
+    `CEOOS_DOTENV=0` désactive entièrement la lecture du fichier. Ce n'est pas un réglage
+    de test : un service qui reçoit sa configuration de son environnement n'a rien à
+    prendre dans un fichier oublié à côté de lui, et la surprise est silencieuse.
+
+    Elle l'a d'ailleurs été. La suite de tests lisait ce fichier et pointait donc sur le
+    vrai entrepôt dès qu'un poste y avait écrit une connexion — des tests lents, non
+    déterministes, qui consomment du crédit d'entrepôt, et dix-neuf qui échouaient en
+    accusant le dernier commit. Une suite qui dépend de la configuration de la machine
+    n'atteste de rien.
+    """
+    if _env("CEOOS_DOTENV", "1") in ("0", "false", "no"):
+        return
     if not path.is_file():
         return
     for raw in path.read_text(encoding="utf-8").splitlines():
@@ -42,10 +59,6 @@ def _load_dotenv(path: Path) -> None:
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
-
-
-def _env(name: str, default: str = "") -> str:
-    return os.environ.get(name, default).strip()
 
 
 #: Où les chiffres de performance sont lus. `mock` est le défaut et le restera : une

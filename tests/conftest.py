@@ -17,6 +17,12 @@ import pytest
 
 TEST_DIR = Path(tempfile.mkdtemp(prefix="ceoos-tests-"))
 
+# Le .env du poste ne doit jamais atteindre la suite. Il l'atteignait : dès qu'une
+# connexion Snowflake y était écrite, les tests lisaient le vrai entrepôt — lents, non
+# déterministes, consommant du crédit, et dix-neuf échouaient en accusant le dernier
+# commit. Une suite qui dépend de la configuration de la machine n'atteste de rien.
+os.environ["CEOOS_DOTENV"] = "0"
+
 os.environ["CEOOS_ENV"] = "local"
 os.environ["CEOOS_AUTONOMY_LEVEL"] = "PREPARE"
 os.environ["CEOOS_SECRET_KEY"] = "test-secret-key-for-pytest-only"
