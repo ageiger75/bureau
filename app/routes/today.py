@@ -46,8 +46,12 @@ def settled_now() -> List[str]:
 @router.get("/")
 def today(request: Request):
     source = current_source()
+    # `?refresh=1` forces a fresh read. Not a button, deliberately: a CEO who can make the
+    # screen wait three minutes with one click will do it by reflex and learn that the
+    # cockpit is slow. Whoever needs it knows to type it.
+    refresh = request.query_params.get("refresh") in ("1", "true", "yes")
     try:
-        dataset = source.dataset()
+        dataset = source.dataset(refresh=refresh)
     except NotImplementedError as incomplete:
         # Pointing at a warehouse whose queries are not written yet is a normal state
         # during connection, not a crash. Say what is missing and how to get back to

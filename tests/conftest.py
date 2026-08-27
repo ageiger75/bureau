@@ -40,10 +40,15 @@ def fresh_warehouse_cache():
     """
     from app.perf import owners, source
 
-    source.cache_clear()
+    # Pointed at the test directory, not at the working `var/`: a test run must never
+    # write into — or read from — the cache a real screen is using.
+    cache_at = TEST_DIR / "warehouse-rows.json"
+    source._cache_path = lambda: cache_at
+
+    source.cache_forget()
     owners.reset()
     yield
-    source.cache_clear()
+    source.cache_forget()
     owners.reset()
 
 

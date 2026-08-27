@@ -6,6 +6,7 @@
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
+    python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
                                      --segments pour la vue par segment et par périmètre
@@ -117,6 +118,20 @@ def cmd_check() -> int:
         "l'entrepôt Snowflake en lecture seule, et rien d'autre"
         if settings.reads_warehouse
         else "aucun (ni Microsoft 365, ni fournisseur IA)"))
+    return 0
+
+
+def cmd_refresh() -> int:
+    """Oublie la lecture gardée sur le disque.
+
+    La requête prend des minutes, donc elle est mise en cache une heure et survit aux
+    redémarrages — sans quoi chaque relance la repaye. Reste à pouvoir dire « non, relis
+    maintenant » quand l'entrepôt a bougé.
+    """
+    from .perf import source
+
+    source.cache_forget()
+    print("Cache oublié. La prochaine lecture ira à l'entrepôt.")
     return 0
 
 
@@ -460,6 +475,8 @@ def main(argv: List[str]) -> int:
         return cmd_warehouse(argv[1:])
     if command == "budget":
         return cmd_budget(argv[1:])
+    if command == "refresh":
+        return cmd_refresh()
     if command == "serve":
         return cmd_serve(argv[1:])
     print("Commande inconnue : %s" % command, file=sys.stderr)

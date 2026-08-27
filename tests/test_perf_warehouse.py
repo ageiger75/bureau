@@ -518,3 +518,124 @@ def test_the_conflicts_survive_a_cached_read(monkeypatch):
 
     assert len(later.conflicts) == 1
     source_module.cache_clear()
+
+
+# ---------------------------------------------------------- surviving a restart
+#
+# The cost that actually bites is not a second page load, it is a second launch: the
+# server is restarted far more often than an hour goes by, and each restart used to pay
+# the full query again.
+
+
+def test_a_restart_reuses_the_last_read(monkeypatch):
+    """A fresh process, a fresh source object, no cached dataset in memory — and still no
+    query, because the rows are on disk."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    source_module.cache_clear()  # the process ends; the file does not
+    SnowflakeSource().dataset()
+
+    assert len(calls) == 1
+
+
+def test_a_restarted_screen_still_carries_the_original_read_time(monkeypatch):
+    """The whole point of stamping the read is that it stays said. A restart that
+    restamped would quietly turn an hour-old figure into a fresh one."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    first = SnowflakeSource().dataset()
+    source_module.cache_clear()
+    monkeypatch.setattr(source_module, "read_at", lambda: "2099-01-01 00:00 UTC")
+    second = SnowflakeSource().dataset()
+
+    assert second.as_of == first.as_of
+
+
+def test_a_corrupt_cache_costs_one_query_and_nothing_else(monkeypatch):
+    """A cache that can break a screen is worse than no cache."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    source_module._cache_path().write_text("{ this is not json", encoding="utf-8")
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert len(calls) == 1
+    assert dataset.sales_actual > 0
+
+
+def test_an_expired_file_is_ignored(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    source_module.cache_clear()
+    monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
+    SnowflakeSource().dataset()
+
+    assert len(calls) == 2
+
+
+def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    source_module.cache_forget()
+    SnowflakeSource().dataset()
+
+    assert len(calls) == 2
+
+
+def test_the_cached_rows_are_primitives(monkeypatch):
+    """Stored as plain JSON, never as pickled objects: a cache file is data the next
+    version of this code has to be able to read, or refuse cleanly."""
+    import json
+
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    stored = json.loads(source_module._cache_path().read_text(encoding="utf-8"))
+
+    assert stored["rows"][0]["market"] == "Japan"
+    assert "read_at" in stored

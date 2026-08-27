@@ -17,8 +17,11 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import Response
 
 from . import __version__
+from .logs import configure_logging
 from .config import LOOPBACK_HOSTS, ROOT, settings
 from .db import create_all
+
+configure_logging()
 from .routes import include_all
 from .web import render
 

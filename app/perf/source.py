@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import List
 
+import logging
 import time
 
 from ..config import settings
@@ -29,15 +30,27 @@ _MONTHS = (
 )
 
 
-#: How long a warehouse read stays good for. The underlying facts move once a day at
-#: most, while the query takes minutes — so re-running it on every page load costs the
-#: reader everything and buys nothing. The screen still carries the moment of the read, so
-#: a cached figure is never passed off as a fresh one.
-CACHE_SECONDS = 900
+#: How long a warehouse read stays good for. The screen shows a month that has closed, so
+#: the figures behind it move only when the warehouse reprocesses a fact — once a day at
+#: most. The query takes minutes. Re-reading it more often than this costs the reader
+#: everything and buys nothing, and the screen still carries the moment of the read, so a
+#: cached figure is never passed off as a fresh one.
+CACHE_SECONDS = 3600
 
-#: (dataset, read at). Module level rather than on the instance: `current_source()` builds
-#: a new source per request, and a cache that dies with the request is not a cache.
+#: The same read, kept on disk. Without it every restart pays the query again, which is
+#: the cost that actually bites: the server is restarted far more often than an hour goes
+#: by. Only the warehouse rows are stored — primitives, no pickled objects — so a stale or
+#: corrupt file can never do worse than force one more query.
+CACHE_FILE = "warehouse-rows.json"
+
+#: (dataset, read at, conflicts, unnamed markets, perimeter note). Module level rather
+#: than on the instance: `current_source()` builds a new source per request, and a cache
+#: that dies with the request is not a cache.
 _cached = None
+
+
+def _cache_path():
+    return settings.budget_path.parent / CACHE_FILE
 
 
 def cache_clear() -> None:
@@ -45,9 +58,63 @@ def cache_clear() -> None:
     _cached = None
 
 
+def cache_forget() -> None:
+    """Drop the disk cache too. For `--refresh`, and for a warehouse known to have moved."""
+    cache_clear()
+    try:
+        _cache_path().unlink()
+    except OSError:
+        pass
+
+
+def _read_disk_cache():
+    """The last warehouse read, if it is still young enough to use.
+
+    Anything unreadable is treated as absent rather than raised: a cache that can break a
+    screen is worse than no cache, and the only cost of ignoring it is one query.
+    """
+    import json
+
+    path = _cache_path()
+    try:
+        with path.open(encoding="utf-8") as handle:
+            stored = json.load(handle)
+        stamp = float(stored["stamp"])
+        rows = stored["rows"]
+        read_at_text = str(stored["read_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(rows, list) or not rows:
+        return None
+    if time.time() - stamp >= CACHE_SECONDS:
+        return None
+    return rows, stamp, read_at_text
+
+
+def _write_disk_cache(rows, stamp: float, read_at_text: str) -> None:
+    import json
+
+    path = _cache_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as handle:
+            # `default=str` because a warehouse hands back dates and decimals; every
+            # consumer of these rows parses numbers from text already.
+            json.dump(
+                {"stamp": stamp, "read_at": read_at_text, "rows": rows},
+                handle,
+                default=str,
+            )
+    except OSError as exc:  # pragma: no cover — depends on the local filesystem
+        LOG.info("warehouse: cache not written (%s)", exc)
+
+
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"
+
+
+LOG = logging.getLogger("ceoos.warehouse")
 
 
 def _perimeter_note(budget, units=()) -> str:
@@ -212,7 +279,15 @@ class SnowflakeSource:
         # the warehouse, and the refusal is clearer when nothing has been read yet.
         budget = self._budget()
 
-        rows = warehouse.rows(queries.SALES_AND_DRIVERS)
+        stored = None if refresh else _read_disk_cache()
+        if stored is not None:
+            rows, stamp, read_at_text = stored
+            LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
+        else:
+            rows = warehouse.rows(queries.SALES_AND_DRIVERS)
+            stamp = time.time()
+            read_at_text = read_at()
+
         if not rows:
             raise NotImplementedError(
                 "The query ran and returned nothing. An empty cockpit and a healthy "
@@ -234,12 +309,16 @@ class SnowflakeSource:
             # reprocessed on recent months, so the same query run hours apart returns
             # different figures for some markets. Two screens that disagree are a
             # scandal; two screens stamped an hour apart are a fact about the pipeline.
-            as_of=read_at(),
+            # The moment of the *read*, which a cached screen inherits rather than
+            # restamps: the whole point of saying when is that it stays said.
+            as_of=read_at_text,
             units=mapped.units,
         )
+        if stored is None:
+            _write_disk_cache(rows, stamp, read_at_text)
         _cached = (
             built,
-            time.time(),
+            stamp,
             self.conflicts,
             self.markets_without_owner,
             self.perimeter_note,
