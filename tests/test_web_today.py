@@ -197,3 +197,42 @@ def test_customer_signals_are_attached_to_the_market_that_is_on_fire(client):
     page = page_text(client.get("/"))
 
     assert "Customer signals" in page
+
+
+# ------------------------------------------------ saying which figures are not settled
+
+
+def test_the_screen_lists_what_is_not_settled():
+    """A register nobody renders is a register that protects nobody."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "Not settled yet" in page
+    assert "Sell-in" in page
+
+
+def test_each_unsettled_line_carries_the_question_that_would_close_it():
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert "To confirm" in page
+
+
+def test_the_headline_figure_is_flagged_while_anything_is_unsettled():
+    """The number that gets quoted in a meeting is the one that most needs the mark."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        body = client.get("/").text
+
+    assert "badge-beta" in body

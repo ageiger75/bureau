@@ -32,6 +32,35 @@ def read_at() -> str:
     return now_iso()[:16].replace("T", " ") + " UTC"
 
 
+def _perimeter_note(budget) -> str:
+    """What share of the plan this screen cannot see, and why.
+
+    The warehouse measures what the Maison sells to the end customer. Everything invoiced
+    to a partner who then resells is outside it, and on this plan that is not a rounding
+    error. A market with a large wholesale business would otherwise appear far below a
+    budget that was never comparable to what is being measured.
+
+    The share is read from the file, never written here: it changes every year, and a
+    number hard-coded into a caveat is a caveat that quietly stops being true.
+    """
+    from .budget import perimeter_of
+
+    total = 0.0
+    outside = 0.0
+    for line in budget.lines if budget else []:
+        amount = line.budget or 0.0
+        total += amount
+        if perimeter_of(line.segment) != "own":
+            outside += amount
+    if total <= 0 or outside <= 0:
+        return ""
+    return (
+        "Own retail and e-commerce only. About %.0f%% of the plan is invoiced to partners "
+        "who resell — wholesale, distributors, travel retail, marketplaces — and no "
+        "source measures it yet." % (100.0 * outside / total)
+    )
+
+
 def _period_label(period: str) -> str:
     """'2026-07' -> 'July 2026 sales'. Falls back to the raw value rather than guessing."""
     parts = period.split("-")
@@ -86,6 +115,9 @@ class SnowflakeSource:
         #: which markets have no named owner — both worth saying out loud on the screen.
         self.conflicts = []
         self.markets_without_owner = []
+        #: What the headline figure leaves out, in the plan's own proportions. Computed
+        #: from the file rather than written down, so it stays true when the file changes.
+        self.perimeter_note = ""
 
     def _refuse_if_unwritten(self, *names: str) -> None:
         from . import queries
@@ -137,6 +169,7 @@ class SnowflakeSource:
         # business, and the screen shows them where it shows the caveat.
         self.conflicts = mapped.conflicts
         self.markets_without_owner = mapped.markets_without_owner
+        self.perimeter_note = _perimeter_note(budget)
 
         period = str(rows[0].get("period") or "")
         return Dataset(

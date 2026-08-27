@@ -16,6 +16,7 @@ from fastapi import APIRouter, Request
 
 from ..perf import analytics
 from ..perf import kpi as kpi_rules
+from ..perf import provenance
 from ..perf.commitments import board
 from ..perf.source import current_source
 from ..web import render
@@ -117,6 +118,8 @@ def today(request: Request):
             "suspects": analytics.suspects(dataset),
             "kpi_rules": kpi_rules,
             "unavailable": unavailable,
+            "unsettled": provenance.unsettled(),
+            "perimeter_note": getattr(source, "perimeter_note", ""),
             "conflicts": getattr(source, "conflicts", []),
             "markets_without_owner": getattr(source, "markets_without_owner", []),
         },

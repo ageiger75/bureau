@@ -778,3 +778,31 @@ input:focus, textarea:focus, select:focus {
 .suspect-head { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
 .suspect-message { font-size: 14px; margin: 0 0 4px; max-width: 62ch; }
 .suspect-fix { font-size: 13px; color: var(--ink-soft); margin: 0; max-width: 62ch; }
+
+/* Provenance — how settled a figure is.
+   Deliberately quiet. A "beta" badge shouting at the reader would be read once and then
+   filtered out; the point is that it stays legible on the hundredth reading. */
+
+.badge {
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px; border: 1px solid var(--rule);
+  color: var(--ink-soft); white-space: nowrap; margin-left: 8px;
+}
+.badge-beta { border-color: var(--warn); color: var(--warn); }
+.badge-absent { border-color: var(--alert); color: var(--alert); }
+
+/* Next to the headline figure, because that is the number that gets quoted in a meeting
+   and it is the one with the largest hole in it. */
+.cockpit-caveat {
+  font-size: 13px; color: var(--ink-soft); max-width: 62ch;
+  margin: 6px 0 0; line-height: 1.5;
+}
+
+.provenance-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
+.provenance { border-left: 2px solid var(--rule); padding-left: 14px; }
+.provenance-beta { border-left-color: var(--warn); }
+.provenance-absent { border-left-color: var(--alert); }
+.provenance-head { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.provenance-name { font-weight: 600; font-size: 15px; }
+.provenance-note { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch; line-height: 1.55; }
+.provenance-ask { font-size: 14px; margin: 6px 0 0; max-width: 74ch; }

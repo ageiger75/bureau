@@ -7,8 +7,16 @@
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
 
 <section class="cockpit-header">
-  <p class="cockpit-eyebrow">{{ dataset.period_label }} · as of {{ dataset.as_of }}</p>
+  <p class="cockpit-eyebrow">
+    {{ dataset.period_label }} · as of {{ dataset.as_of }}
+    {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
+  </p>
   <p class="cockpit-total">{{ header.actual | eur }}</p>
+  {% if perimeter_note %}
+    {# The most-read figure on the screen is also the most incomplete one. Saying what it
+       excludes belongs next to it, not in a footnote at the bottom of the page. #}
+    <p class="cockpit-caveat">{{ perimeter_note }}</p>
+  {% endif %}
   <ul class="cockpit-variances">
     <li>
       <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
@@ -342,6 +350,33 @@
   </ul>
   {% endif %}
 </section>
+
+{# --------------------------------------------------- what is not settled yet #}
+
+{% if unsettled %}
+<section class="panel panel-quiet">
+  <h2>Not settled yet</h2>
+  <p class="lede">
+    This screen is being read before the data behind it is finished, which is the right
+    call — but it means a checked figure and an unchecked one would otherwise look
+    identical. Each line below says which it is, and what would settle it.
+  </p>
+  <ul class="provenance-list">
+    {% for item in unsettled %}
+      <li class="provenance provenance-{{ item.maturity }}">
+        <div class="provenance-head">
+          <span class="provenance-name">{{ item.label }}</span>
+          <span class="badge badge-{{ item.maturity }}">{{ item.badge }}</span>
+        </div>
+        <p class="provenance-note">{{ item.note }}</p>
+        {% if item.to_confirm %}
+          <p class="provenance-ask"><strong>To confirm:</strong> {{ item.to_confirm }}</p>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 {# ------------------------------------------------------------------ ask #}
 
