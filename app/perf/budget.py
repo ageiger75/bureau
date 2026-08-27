@@ -128,6 +128,15 @@ def segment_code(segment: str) -> str:
     return (segment or "").split("-", 1)[0].strip().upper()
 
 
+def entity_code(entity: str) -> str:
+    """`M_007_UNLOC - Far East` -> `M_007_UNLOC`.
+
+    The label after the dash is a human name that drifts; the code in front of it is what
+    the consolidation actually keys on.
+    """
+    return (entity or "").split("-", 1)[0].strip().upper()
+
+
 def channel_of(segment: str) -> str:
     return SEGMENT_CHANNEL.get(segment_code(segment), segment_code(segment).lower())
 
@@ -155,7 +164,10 @@ def _period(year: str, month: str) -> Optional[str]:
 
 
 class BudgetLine:
-    __slots__ = ("market", "region", "segment", "channel", "period", "budget", "last_year")
+    __slots__ = (
+        "market", "region", "segment", "channel", "period", "budget", "last_year",
+        "entity",
+    )
 
     def __init__(
         self,
@@ -166,6 +178,7 @@ class BudgetLine:
         period: str,
         budget: Optional[float],
         last_year: Optional[float],
+        entity: str = "",
     ) -> None:
         self.market = market
         self.region = region
@@ -174,6 +187,12 @@ class BudgetLine:
         self.period = period
         self.budget = budget
         self.last_year = last_year
+        #: The consolidation entity the plan attributes this line to — `M_024`, `M_098`.
+        #: It is the plan's own answer to "which market does this revenue belong to", and
+        #: therefore the join key for anything that has to reproduce the plan. Reaching for
+        #: a company or a customer hierarchy instead is reaching for someone else's answer
+        #: to the same question, and the two do not agree.
+        self.entity = entity
 
 
 def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
@@ -213,6 +232,7 @@ class Budget:
                     period=line.period,
                     budget=line.budget,
                     last_year=line.last_year,
+                    entity=line.entity,
                 )
                 continue
             existing.budget = _add(existing.budget, line.budget)
@@ -265,6 +285,10 @@ def load(path) -> Budget:
             % (SHEET, ", ".join(h for h in header if h))
         ) from exc
 
+    # Optional: older versions of the workbook did not carry it, and its absence costs the
+    # join key rather than the whole read.
+    entity_at = header.index("Entity") if "Entity" in header else None
+
     budget_at: Dict[str, int] = {}
     actual_at: Dict[str, int] = {}
     for position, name in enumerate(header):
@@ -295,6 +319,7 @@ def load(path) -> Budget:
         region = str(cell(region_at) or "").strip()
         segment = str(cell(segment_at) or "").strip()
         channel = channel_of(segment)
+        entity = entity_code(str(cell(entity_at) or "")) if entity_at is not None else ""
 
         for period, position in budget_at.items():
             budget = cell(position)
@@ -316,6 +341,7 @@ def load(path) -> Budget:
                     last_year=float(last_year) * THOUSANDS
                     if isinstance(last_year, float)
                     else None,
+                    entity=entity,
                 )
             )
     return Budget(lines)

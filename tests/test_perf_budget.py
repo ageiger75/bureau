@@ -672,3 +672,113 @@ def test_the_spec_and_the_check_count_the_same_cells(tmp_path, capsys, monkeypat
     assert len(written) == 1
     # And the single written row carries the summed figure, not one of the two parts.
     assert "400000.00" in written[0]
+
+
+# ------------------------------------------------------- the key the plan itself uses
+#
+# The plan designates its markets by a consolidation entity — M_024, M_098_TRA. That code
+# is the plan's own answer to "which market does this revenue belong to". Reaching for a
+# company code or a customer hierarchy instead is reaching for someone else's answer to
+# the same question, and the two do not agree: eleven markets are billed by a hub and
+# disappear entirely under a company-based attribution.
+
+
+def test_the_entity_code_is_read_off_its_label():
+    """The name after the dash drifts; the code in front of it is what consolidation
+    keys on."""
+    assert budget_module.entity_code("M_007_UNLOC - Far East") == "M_007_UNLOC"
+    assert budget_module.entity_code("M_024 - OCC JAPAN - Total") == "M_024"
+    assert budget_module.entity_code("") == ""
+
+
+def test_the_spec_carries_the_join_key(tmp_path, monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    target = tmp_path / "spec.csv"
+    cmd_budget(["--spec", str(target)])
+
+    lines = target.read_text().strip().splitlines()
+
+    assert lines[0].startswith("entity,")
+    assert lines[1].startswith("M_024,")
+
+
+def test_a_candidate_can_join_on_the_entity_instead_of_the_market(tmp_path, capsys, monkeypatch):
+    """A market name is typed by people and translated twice on the way here. The entity
+    code is what the consolidation itself uses."""
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
+                   "2026-07", 500_000.0, 430_000.0, entity="M_098_TRA"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        # No market column at all: the entity carries the attribution on its own.
+        writer.writerow(["M_098_TRA", "TRA - Travel retail", "2025-07", "430000"])
+
+    assert cmd_reconcile([str(path)]) == 0
+    assert "Jointes par entité  1" in capsys.readouterr().out
+
+
+def test_a_candidate_without_an_entity_still_joins_on_the_market(tmp_path, monkeypatch):
+    """The entity is a better key, not a required one."""
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["market", "segment", "period", "value"])
+        writer.writerow(["Japan", "DIS - Distributors", "2025-07", "430000"])
+
+    assert cmd_reconcile([str(path)]) == 0
+
+
+def test_an_unknown_entity_falls_back_rather_than_vanishing(tmp_path, capsys, monkeypatch):
+    """A candidate naming an entity the plan does not carry must not silently disappear
+    into the unmatched pile without its market being tried."""
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "market", "segment", "period", "value"])
+        writer.writerow(["M_999_UNKNOWN", "Japan", "DIS - Distributors", "2025-07", "430000"])
+
+    assert cmd_reconcile([str(path)]) == 0

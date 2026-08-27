@@ -174,6 +174,7 @@ def cmd_reconcile(argv: List[str]) -> int:
     plan = budget_module.load(settings.budget_path)
 
     expected = {}
+    by_entity = {}
     for line in plan.lines:
         if line.last_year is None:
             continue
@@ -183,6 +184,11 @@ def cmd_reconcile(argv: List[str]) -> int:
         # two files have to describe the same months or nothing will ever agree.
         key = (line.market, line.segment, previous_year(line.period))
         expected[key] = expected.get(key, 0.0) + line.last_year
+        # A second way in, for a candidate that joins on the plan's own entity code. It is
+        # a stronger key than a market name: names are typed by people and translated
+        # twice on the way here, while the code is what the consolidation itself uses.
+        if line.entity:
+            by_entity[(line.entity, line.segment, previous_year(line.period))] = key
 
     if not expected:
         print("Aucun réalisé connu sur ce périmètre.", file=sys.stderr)
@@ -190,13 +196,24 @@ def cmd_reconcile(argv: List[str]) -> int:
 
     found = {}
     unknown = 0
+    matched_on_entity = 0
     with candidate_path.open(encoding="utf-8-sig", newline="") as handle:
         for record in csv.DictReader(handle):
-            key = (
-                normalise_market(str(record.get("market") or "")),
-                str(record.get("segment") or "").strip(),
-                str(record.get("period") or "").strip(),
-            )
+            segment = str(record.get("segment") or "").strip()
+            period = str(record.get("period") or "").strip()
+            entity = str(record.get("entity") or "").strip().upper()
+
+            key = None
+            if entity:
+                key = by_entity.get((entity, segment, period))
+                if key is not None:
+                    matched_on_entity += 1
+            if key is None:
+                key = (
+                    normalise_market(str(record.get("market") or "")),
+                    segment,
+                    period,
+                )
             try:
                 value = float(str(record.get("value") or record.get("actual_eur") or ""))
             except ValueError:
@@ -206,10 +223,14 @@ def cmd_reconcile(argv: List[str]) -> int:
                 continue
             found[key] = found.get(key, 0.0) + value
 
-    return _report_reconciliation(expected, found, unknown, wanted)
+    return _report_reconciliation(
+        expected, found, unknown, wanted, matched_on_entity
+    )
 
 
-def _report_reconciliation(expected, found, unknown, perimeter) -> int:
+def _report_reconciliation(
+    expected, found, unknown, perimeter, matched_on_entity=0
+) -> int:
     agree = []
     differ = []
     for key, target in expected.items():
@@ -234,6 +255,9 @@ def _report_reconciliation(expected, found, unknown, perimeter) -> int:
     if unknown:
         print("Hors périmètre      %d lignes du candidat ne correspondent à rien d'attendu"
               % unknown)
+    if matched_on_entity:
+        print("Jointes par entité  %d lignes — la clé du plan plutôt qu'un nom de marché"
+              % matched_on_entity)
 
     if covered:
         rate = 100.0 * len(agree) / covered
@@ -595,11 +619,16 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
     path = Path(destination)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
+        # `entity` first, because it is the column that matters most and the one a reader
+        # skims for. It is the plan's own answer to "which market does this revenue belong
+        # to" — reaching for a company code or a customer hierarchy instead is reaching
+        # for someone else's answer to the same question, and the two do not agree.
         writer.writerow(
-            ["market", "region", "segment", "perimeter", "period", "actual_eur"]
+            ["entity", "market", "region", "segment", "perimeter", "period", "actual_eur"]
         )
         for (market, segment, period), (line, total) in ordered:
             writer.writerow([
+                line.entity,
                 market,
                 line.region,
                 segment,
@@ -618,6 +647,9 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
     print("Marchés             %d" % len({key[0] for key in cells}))
     print("Mois                %d, de %s à %s" % (
         len(periods), periods[0], periods[-1]))
+    entities = sorted({entry[0].entity for entry in cells.values() if entry[0].entity})
+    if entities:
+        print("Entités             %d — la clé d'attribution du plan" % len(entities))
     print("Total réalisé       %s" % _eur(total))
     print("")
     print("Ce sont des réalisés, pas un budget : une requête d'entrepôt se valide contre")
