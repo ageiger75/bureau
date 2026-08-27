@@ -37,10 +37,17 @@ def _row(index, values):
     return '<row r="%d">%s</row>' % (index, cells)
 
 
-def directory_file(tmp_path, rows):
-    """A directory workbook, built by hand, with invented people."""
+def directory_file(tmp_path, rows, lookup=None, name="owners.xlsx"):
+    """A directory workbook, built by hand, with invented people.
+
+    Optionally carries a second sheet in the shape of the country lookup, which is the
+    form the real directory took once it stopped needing to be interpreted.
+    """
     body = "".join(_row(i + 1, values) for i, values in enumerate(rows))
-    path = tmp_path / "owners.xlsx"
+    lookup_body = (
+        "".join(_row(i + 1, values) for i, values in enumerate(lookup)) if lookup else ""
+    )
+    path = tmp_path / name
     with zipfile.ZipFile(path, "w") as book:
         book.writestr(
             "[Content_Types].xml",
@@ -59,17 +66,29 @@ def directory_file(tmp_path, rows):
             "xl/workbook.xml",
             '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/'
             'spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/'
-            'officeDocument/2006/relationships"><sheets><sheet name="Directory" '
-            'sheetId="1" r:id="rId1"/></sheets></workbook>',
+            'officeDocument/2006/relationships"><sheets><sheet name="Responsables" '
+            'sheetId="1" r:id="rId1"/>'
+            + ('<sheet name="Recherche par pays" sheetId="2" r:id="rId2"/>' if lookup else "")
+            + "</sheets></workbook>",
         )
         book.writestr(
             "xl/_rels/workbook.xml.rels",
             '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/'
             'package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.'
             'openxmlformats.org/officeDocument/2006/relationships/worksheet" '
-            'Target="worksheets/sheet1.xml"/></Relationships>',
+            'Target="worksheets/sheet1.xml"/>'
+            + (
+                '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/'
+                'officeDocument/2006/relationships/worksheet" '
+                'Target="worksheets/sheet2.xml"/>'
+                if lookup
+                else ""
+            )
+            + "</Relationships>",
         )
         book.writestr("xl/worksheets/sheet1.xml", SHEET % body)
+        if lookup:
+            book.writestr("xl/worksheets/sheet2.xml", SHEET % lookup_body)
     return path
 
 
@@ -186,3 +205,105 @@ def test_a_file_without_the_expected_header_is_refused(tmp_path):
 
     with pytest.raises(ValueError):
         owners.load(wrong)
+
+
+# ------------------------------------------------------------ the country lookup shape
+#
+# The directory's better form: one row per market, naming its BU, its BU head and its GM.
+# It removes this module's judgement entirely — nothing to split, expand or infer — so it
+# is preferred wherever a workbook carries one.
+
+LEADERS_HEADER = ["BU", "Niveau", "Prénom", "Nom", "Poste", "Pays couverts", "Statut"]
+LOOKUP_HEADER = [
+    "Pays / entité marché",
+    "BU",
+    "Responsable BU (MD)",
+    "Responsable pays / cluster (GM)",
+    "Responsable local complémentaire",
+    "Commentaire",
+]
+
+
+@pytest.fixture
+def looked_up(tmp_path):
+    return directory_file(
+        tmp_path,
+        rows=[
+            LEADERS_HEADER,
+            ["EMEA", "MD", "Luc", "MARTIN", "Managing Director EMEA", "France", ""],
+            ["EMEA", "GM", "Sofia", "ROSSI", "Managing Director France", "France", ""],
+            ["Travel Retail", "MD", "Ines", "COSTA", "Managing Director Global TR",
+             "Monde, canal Travel Retail", ""],
+            ["Travel Retail", "GM", "Otto", "BRANDT", "General Manager TR EMEAA",
+             "Europe, canal Travel Retail", ""],
+        ],
+        lookup=[
+            LOOKUP_HEADER,
+            ["France", "EMEA", "Luc MARTIN", "Sofia ROSSI", "", ""],
+            ["Slovaquie", "EMEA", "Luc MARTIN", "", "", "Sans GM"],
+            ["Thaïlande", "EMEA", "Luc MARTIN", "Sofia ROSSI", "Nok SRISAI", "Cluster"],
+        ],
+        name="lookup.xlsx",
+    )
+
+
+def test_the_country_lookup_is_preferred_over_the_leaders_sheet(looked_up):
+    """It states the answer outright. Nothing has to be parsed out of a text field."""
+    assert owners.load(looked_up).owner_for("France", "GE COUNTRIES").name == "Sofia ROSSI"
+
+
+def test_a_market_with_no_gm_answers_to_its_bu_head(looked_up):
+    """Stated by the file itself, not inferred: the GM column is simply empty."""
+    assert owners.load(looked_up).owner_for("Slovakia", "GE COUNTRIES").name == "Luc MARTIN"
+
+
+def test_a_country_gm_carries_the_bu_head_above_them(looked_up):
+    """Not a chain of command to invoke by default. It is there so a conversation that
+    has already happened twice has somewhere to go."""
+    owner = owners.load(looked_up).owner_for("France", "GE COUNTRIES")
+
+    assert owner.escalates_to == "Luc MARTIN"
+
+
+def test_a_bu_head_escalates_to_nobody(looked_up):
+    assert owners.load(looked_up).owner_for("Slovakia", "GE COUNTRIES").escalates_to == ""
+
+
+def test_the_person_on_the_ground_is_named_beside_the_owner_not_instead(looked_up):
+    """The question goes to whoever answers for the number; the detail lives with whoever
+    runs the market day to day. Collapsing the two loses one of them."""
+    owner = owners.load(looked_up).owner_for("Thailand", "APAC")
+
+    assert owner.name == "Sofia ROSSI"
+    assert owner.local_lead == "Nok SRISAI"
+
+
+def test_job_titles_come_from_the_leaders_sheet(looked_up):
+    """The lookup names people but not their titles. "Managing Director France" is a name
+    the reader recognises; "General Manager" is a label."""
+    assert owners.load(looked_up).owner_for("France", "GE").role == "Managing Director France"
+
+
+def test_a_business_unit_owning_no_country_still_has_a_head(looked_up):
+    """Travel Retail runs a channel worldwide, so no country row routes to it. Its head is
+    on the leaders sheet, and the two sheets are read together for exactly this case."""
+    owner = owners.load(looked_up).owner_for("Anywhere", "WW TR")
+
+    assert owner.name == "Ines COSTA"
+
+
+def test_a_regional_travel_retail_gm_never_claims_a_country(looked_up):
+    """Their remit is a continent within a channel, not a market. Routing France to the
+    TR EMEAA GM would hand them a question about a business they do not run."""
+    book = owners.load(looked_up)
+
+    assert "BRANDT" not in book.owner_for("France", "GE COUNTRIES").name
+
+
+def test_a_first_name_is_never_mistaken_for_a_surname(looked_up):
+    """`nom` is a substring of `prénom`. A loose column match named everyone twice by
+    their first name, which is the kind of bug that survives a reading."""
+    owner = owners.load(looked_up).owner_for("Anywhere", "WW TR")
+
+    first, _, last = owner.name.partition(" ")
+    assert first != last

@@ -154,12 +154,27 @@ class Owner:
     Nothing in this class ranks a person — the ranking applies to the business.
     """
 
-    __slots__ = ("name", "role", "market")
+    __slots__ = ("name", "role", "market", "escalates_to", "local_lead")
 
-    def __init__(self, name: str, role: str, market: str) -> None:
+    def __init__(
+        self,
+        name: str,
+        role: str,
+        market: str,
+        escalates_to: str = "",
+        local_lead: str = "",
+    ) -> None:
         self.name = name
         self.role = role
         self.market = market
+        #: The BU head above this owner, when the owner is a country or cluster GM. Not a
+        #: chain of command to invoke by default — it is there so a conversation that has
+        #: already happened twice has somewhere to go.
+        self.escalates_to = escalates_to
+        #: Whoever runs the market day to day, when that is not the accountable owner.
+        #: Named separately rather than instead: the question goes to the person who
+        #: answers for the number, and the detail lives with the person on the ground.
+        self.local_lead = local_lead
 
 
 class BusinessUnit:

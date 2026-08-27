@@ -62,6 +62,27 @@ COUNTRY_ALIASES = {
     "belgique": "Belgium",
     "pays-bas": "Netherlands",
     "autriche": "Austria",
+    "royaume-uni": "United Kingdom",
+    "luxembourg": "Luxembourg",
+    "pologne": "Poland",
+    "république tchèque": "Czechia",
+    "republique tcheque": "Czechia",
+    "hongrie": "Hungary",
+    "slovaquie": "Slovakia",
+    "norvège": "Norway",
+    "norvege": "Norway",
+    "suède": "Sweden",
+    "suede": "Sweden",
+    "danemark": "Denmark",
+    "finlande": "Finland",
+    "émirats arabes unis": "United Arab Emirates",
+    "emirats arabes unis": "United Arab Emirates",
+    "arabie saoudite": "Saudi Arabia",
+    "corée du sud": "South Korea",
+    "taïwan": "Taiwan",
+    "malaisie": "Malaysia",
+    "singapour": "Singapore",
+    "états-unis": "United States",
 }
 
 #: Warehouse region names to the business unit that owns them. The regions come from the
@@ -74,6 +95,10 @@ REGION_TO_BU = {
     "APAC": "apac",
     "GE COUNTRIES": "emea",
     "GE DISTRIBUTORS": "emea",
+    # Travel Retail is a business unit, not a geography: it runs a channel worldwide. Its
+    # BU head therefore owns every market in it, and its regional GMs cover continents
+    # rather than countries — which is why no country row ever routes to one of them.
+    "WW TR": "travel retail",
 }
 
 #: Rows whose remit is a named grouping rather than a list of countries. They are kept in
@@ -108,10 +133,12 @@ def _split_zone(zone: str) -> List[str]:
         return []
     lowered = raw.lower()
     if any(marker in lowered for marker in GROUPING_MARKERS) and not (
-        "+" in raw or "&" in raw
+        "+" in raw or "&" in raw or ";" in raw
     ):
         return []
-    parts = [p.strip() for p in raw.replace("&", "+").split("+")]
+    parts = [
+        p.strip() for p in raw.replace("&", ";").replace("+", ";").split(";")
+    ]
     found = []
     for part in parts:
         if not part:
@@ -124,15 +151,21 @@ def _split_zone(zone: str) -> List[str]:
 
 
 class Entry:
-    __slots__ = ("name", "role", "bu", "zone", "level", "markets")
+    __slots__ = (
+        "name", "role", "bu", "zone", "level", "markets", "escalates_to", "local_lead",
+    )
 
-    def __init__(self, name, role, bu, zone, level, markets) -> None:
+    def __init__(
+        self, name, role, bu, zone, level, markets, escalates_to="", local_lead=""
+    ) -> None:
         self.name = name
         self.role = role
         self.bu = bu
         self.zone = zone
         self.level = level
         self.markets = markets
+        self.escalates_to = escalates_to
+        self.local_lead = local_lead
 
 
 class Directory:
@@ -168,7 +201,13 @@ class Directory:
         found = self.entry_for(market, region)
         if found is None:
             return Owner(name="", role="", market=market)
-        return Owner(name=found.name, role=found.role, market=market)
+        return Owner(
+            name=found.name,
+            role=found.role,
+            market=market,
+            escalates_to=found.escalates_to,
+            local_lead=found.local_lead,
+        )
 
     def is_named(self, owner: Optional[Owner]) -> bool:
         return bool(owner and owner.name.strip())
@@ -184,43 +223,210 @@ EMPTY = Directory()
 _loaded: Optional[Directory] = None
 
 
-def load(path) -> Directory:
-    """Read the directory workbook. Columns are found by header, not by position."""
-    from .xlsx import Workbook
-
-    book = Workbook(path)
-    sheet = book.sheet_names[0]
-    rows = [
+def _sheet_rows(book, name):
+    return [
         row
-        for row in book.rows(sheet)
+        for row in book.rows(name)
         if any(cell is not None and str(cell).strip() for cell in row)
     ]
 
-    header_at = None
-    columns: Dict[str, int] = {}
-    for index, row in enumerate(rows):
-        cells = {_key(str(c)): i for i, c in enumerate(row) if c is not None}
-        if "bu" in cells and ("prénom" in cells or "prenom" in cells):
-            header_at = index
-            columns = cells
-            break
-    if header_at is None:
-        raise ValueError(
-            "No header row found: expected columns BU, Prénom, Nom, Poste, Pays / Zone, Type."
-        )
 
-    def at(*names):
-        for name in names:
-            if name in columns:
-                return columns[name]
+def _header(rows, *required):
+    """Find the header row by its column names, and return (index, {name: position}).
+
+    By name rather than by position, because a directory is a document people edit: a
+    column inserted in front of another must not silently shift every name by one.
+    """
+    for index, row in enumerate(rows):
+        columns = {_key(str(c)): i for i, c in enumerate(row) if c is not None}
+        if all(any(r in c for c in columns) for r in required):
+            return index, columns
+    return None, {}
+
+
+def _at(columns, *fragments):
+    """Locate a column by name, exact match first.
+
+    The order is not a nicety: `nom` is a substring of `prénom`, so a loose match on the
+    first pass hands back the wrong column and every person in the directory is named
+    twice by their first name.
+    """
+    for fragment in fragments:
+        for name, position in columns.items():
+            if fragment == name:
+                return position
+    for fragment in fragments:
+        for name, position in columns.items():
+            if fragment in name:
+                return position
+    return None
+
+
+def _from_lookup(book) -> Optional["Directory"]:
+    """Read the country lookup sheet, when the directory has one.
+
+    Preferred over every other reading, because it removes this module's judgement
+    entirely: one row per market, naming its BU, its BU head and its GM. Nothing has to be
+    split, expanded or inferred, and a country that is not on it is a country nobody has
+    claimed rather than one this code failed to place.
+    """
+    name = None
+    for candidate in book.sheet_names:
+        lowered = _key(candidate)
+        if "pays" in lowered and ("recherche" in lowered or "lookup" in lowered):
+            name = candidate
+            break
+    if name is None:
         return None
 
-    first_at = at("prénom", "prenom")
-    last_at = at("nom")
-    role_at = at("poste")
-    zone_at = at("pays / zone", "pays/zone", "zone")
-    type_at = at("type")
-    bu_at = at("bu")
+    rows = _sheet_rows(book, name)
+    header_at, columns = _header(rows, "pays", "bu")
+    if header_at is None:
+        return None
+
+    # The lookup names people but not their titles. Reading the titles from the leaders
+    # sheet costs one pass and turns "General Manager" into "Managing Director DACH",
+    # which is the difference between a label and a name the reader recognises.
+    titles = _titles(book)
+
+    market_at = _at(columns, "pays / entité", "pays /", "pays")
+    bu_at = _at(columns, "bu")
+    md_at = _at(columns, "responsable bu")
+    gm_at = _at(columns, "responsable pays", "cluster")
+    local_at = _at(columns, "local")
+
+    entries: List[Entry] = []
+    for row in rows[header_at + 1 :]:
+        def cell(position):
+            if position is None or position >= len(row) or row[position] is None:
+                return ""
+            return str(row[position]).strip()
+
+        market = _normalise(cell(market_at))
+        if not market:
+            continue
+        head = cell(md_at)
+        gm = cell(gm_at)
+        # The accountable owner is the country or cluster GM where there is one, and the
+        # BU head otherwise. Both are real; the question goes to whoever answers for the
+        # number rather than to whoever is most senior.
+        name_of = gm or head
+        if not name_of:
+            continue
+        entries.append(
+            Entry(
+                name=name_of,
+                role=titles.get(
+                    _key(name_of), "General Manager" if gm else "Managing Director"
+                ),
+                bu=cell(bu_at),
+                zone=market,
+                level=COUNTRY_GM if gm else BU_HEAD,
+                markets=[market],
+                escalates_to=head if gm and head != gm else "",
+                local_lead=cell(local_at),
+            )
+        )
+    if not entries:
+        return None
+    # The lookup covers countries. A business unit that owns no country — Travel Retail
+    # runs a channel worldwide — has its head only on the leaders sheet, so both are read:
+    # the lookup places markets, the leaders sheet places business units.
+    entries.extend(_bu_heads(book))
+    return Directory(entries)
+
+
+def _leaders_rows(book):
+    """The leaders sheet, if the workbook has one: (rows, header index, columns)."""
+    for candidate in book.sheet_names:
+        lowered = _key(candidate)
+        if "responsable" in lowered or "leader" in lowered:
+            rows = _sheet_rows(book, candidate)
+            header_at, columns = _header(rows, "bu", "nom")
+            if header_at is None:
+                return None, None, {}
+            return rows, header_at, columns
+    return None, None, {}
+
+
+def _titles(book) -> Dict[str, str]:
+    """Person to job title, read from the leaders sheet."""
+    rows, header_at, columns = _leaders_rows(book)
+    if rows is None:
+        return {}
+    first_at = _at(columns, "prénom", "prenom")
+    last_at = _at(columns, "nom")
+    role_at = _at(columns, "poste")
+    found: Dict[str, str] = {}
+    for row in rows[header_at + 1 :]:
+        def cell(position):
+            if position is None or position >= len(row) or row[position] is None:
+                return ""
+            return str(row[position]).strip()
+
+        name = ("%s %s" % (cell(first_at), cell(last_at))).strip()
+        role = cell(role_at)
+        if name and role:
+            found[_key(name)] = role
+    return found
+
+
+def _bu_heads(book) -> List["Entry"]:
+    """BU heads from the leaders sheet, so every business unit has someone above it."""
+    rows, header_at, columns = _leaders_rows(book)
+    if rows is None:
+        return []
+
+    first_at = _at(columns, "prénom", "prenom")
+    last_at = _at(columns, "nom")
+    role_at = _at(columns, "poste")
+    level_at = _at(columns, "niveau", "type")
+    bu_at = _at(columns, "bu")
+
+    found: List[Entry] = []
+    for row in rows[header_at + 1 :]:
+        def cell(position):
+            if position is None or position >= len(row) or row[position] is None:
+                return ""
+            return str(row[position]).strip()
+
+        if _key(cell(level_at)) not in ("md", "patron de bu"):
+            continue
+        name = ("%s %s" % (cell(first_at), cell(last_at))).strip()
+        if not name:
+            continue
+        found.append(
+            Entry(
+                name=name,
+                role=cell(role_at),
+                bu=cell(bu_at),
+                zone="",
+                level=BU_HEAD,
+                # No markets: this entry exists to answer for its business unit, never to
+                # claim a country the lookup did not give it.
+                markets=[],
+            )
+        )
+    return found
+
+
+def _from_leaders(book) -> "Directory":
+    """Read a flat leaders sheet: one row per person, with the markets they cover."""
+    sheet = book.sheet_names[0]
+    rows = _sheet_rows(book, sheet)
+
+    header_at, columns = _header(rows, "bu", "nom")
+    if header_at is None:
+        raise ValueError(
+            "No header row found: expected columns naming a BU, a person and their markets."
+        )
+
+    first_at = _at(columns, "prénom", "prenom")
+    last_at = _at(columns, "nom")
+    role_at = _at(columns, "poste")
+    zone_at = _at(columns, "pays couverts", "pays / zone", "pays/zone", "zone", "pays")
+    level_at = _at(columns, "niveau", "type")
+    bu_at = _at(columns, "bu")
 
     entries: List[Entry] = []
     for row in rows[header_at + 1 :]:
@@ -230,11 +436,11 @@ def load(path) -> Directory:
             return str(row[position]).strip()
 
         first = cell(first_at)
-        if not first:
-            continue
         last = cell(last_at)
-        kind = _key(cell(type_at))
-        level = BU_HEAD if "bu" in kind else COUNTRY_GM
+        if not (first or last):
+            continue
+        kind = _key(cell(level_at))
+        level = BU_HEAD if kind in ("md", "") or "bu" in kind else COUNTRY_GM
         zone = cell(zone_at)
         entries.append(
             Entry(
@@ -247,6 +453,23 @@ def load(path) -> Directory:
             )
         )
     return Directory(entries)
+
+
+def load(path) -> Directory:
+    """Read the directory workbook.
+
+    Two shapes are accepted. A country lookup sheet is preferred when present — it states
+    the answer outright. A flat leaders sheet is read otherwise, and then the markets a
+    person covers have to be parsed out of the text, which is where guessing starts and
+    where this module stops.
+    """
+    from .xlsx import Workbook
+
+    book = Workbook(path)
+    from_lookup = _from_lookup(book)
+    if from_lookup is not None:
+        return from_lookup
+    return _from_leaders(book)
 
 
 def current() -> Directory:
