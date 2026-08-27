@@ -139,8 +139,20 @@ from __future__ import annotations
 
 #: Sales and their drivers, current period, one row per market × channel.
 #:
-#: E-commerce only. Money comes from the sell-out fact in euros; sessions and orders come
-#: from web analytics. `PRODUCT_REVENUE` is deliberately unused: it is denominated in local
+#: Every sell-out channel, one row each. `channel` carries `STORE_SUB_CHANNEL` verbatim —
+#: `MALL STORE`, `SHOP IN SHOP`, `STREET STORE`, `E-COMMERCE`, `MARKETPLACE`, `OUTLET`,
+#: `ROAD SHOW`, `CORNER` on the latest closed month, plus `SPA`, `MAIL ORDER`,
+#: `DIRECT SELLING` and `SPECIAL STORES` which exist in history and sold nothing this
+#: month. Not translated to `ecommerce`/`retail` here: which driver model applies is a
+#: decision, and it belongs to whoever maps these rows, not to a `CASE` buried in SQL.
+#:
+#: Only `E-COMMERCE` is joined to the web funnel. Physical channels leave with their euros
+#: and no levers, which the screen already knows how to show. They are never handed a
+#: conversion rate borrowed from the site that shares their market — retail conversion
+#: comes from footfall counters, and only where those exist.
+#:
+#: Money comes from the sell-out fact in euros; sessions and orders come from web
+#: analytics. `PRODUCT_REVENUE` is deliberately unused: it is denominated in local
 #: currency, so its levels are neither comparable between sites nor summable into a group
 #: total. Returns `sessions` and `orders` raw — conversion and AOV are derived by
 #: `model.ecommerce_drivers(sales, sessions, orders)`, which is what closes the identity.
@@ -158,6 +170,7 @@ from __future__ import annotations
 #: `funnel_status` names why a funnel is absent instead of leaving a blank, because the four
 #: cases are four different management problems and only one of them is about selling:
 #:
+#: - `not_a_web_channel` — a physical channel. Not a gap: there is no funnel to lose.
 #: - `measured` — sessions and orders both present.
 #: - `orders_not_tracked` — the site reports sessions, and `UNIQUE_TRANSACTION_ID` is null
 #:   on every row in both windows. Nine markets have never populated it (BR, PL, CZ, SK, HU,
@@ -196,6 +209,7 @@ sellout_day as (
         store_country_iso2 as iso2,
         store_country,
         store_business_area,
+        store_sub_channel,
         transaction_date,
         net_sales_eur
     from semantic_view(
@@ -204,28 +218,31 @@ sellout_day as (
             d_stores.store_country_iso2,
             d_stores.store_country,
             d_stores.store_business_area,
+            d_stores.store_sub_channel,
             f_sellout_sales_details.transaction_date
         metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
-        where d_stores.store_sub_channel = 'E-COMMERCE'
-          and d_stores.store_brand = 'L''OCCITANE'
+        where d_stores.store_brand = 'L''OCCITANE'
     )
 ),
 goals_day as (
     select
         store_country_iso2 as iso2,
+        store_sub_channel,
         goals_date,
         goals_eur
     from semantic_view(
         dwh.semantic_layer.v_sl_ai_sellout_analysis
-        dimensions d_stores.store_country_iso2, f_sales_goals.goals_date
+        dimensions d_stores.store_country_iso2,
+                   d_stores.store_sub_channel,
+                   f_sales_goals.goals_date
         metrics sum(f_sales_goals.goals_eur) as goals_eur
-        where d_stores.store_sub_channel = 'E-COMMERCE'
-          and d_stores.store_brand = 'L''OCCITANE'
+        where d_stores.store_brand = 'L''OCCITANE'
     )
 ),
 money as (
     select
         s.iso2,
+        s.store_sub_channel               as channel,
         any_value(s.store_country)       as market,
         any_value(s.store_business_area) as region,
         sum(iff(s.transaction_date between p.period_start and p.period_end,
@@ -235,13 +252,13 @@ money as (
                 s.net_sales_eur, 0))     as sales_last_year
     from sellout_day s cross join period p
     where s.transaction_date between add_months(p.period_start, -12) and p.period_end
-    group by s.iso2
+    group by s.iso2, s.store_sub_channel
 ),
 budget as (
-    select g.iso2, sum(g.goals_eur) as sales_budget
+    select g.iso2, g.store_sub_channel as channel, sum(g.goals_eur) as sales_budget
     from goals_day g cross join period p
     where g.goals_date between p.period_start and p.period_end
-    group by g.iso2
+    group by g.iso2, g.store_sub_channel
 ),
 web as (
     select
@@ -275,27 +292,38 @@ web_orders as (
     group by h.hostname_country_code_iso2
 ),
 joined as (
+    -- The web funnel joins e-commerce rows only. A mall store has no sessions to miss,
+    -- so anything physical leaves here with its euros and no levers at all — never with
+    -- a conversion rate borrowed from the site that happens to share its market.
     select
-        coalesce(m.market, w.site_country) as market,
-        m.region                           as region,
-        m.sales_actual                     as sales_actual,
-        b.sales_budget                     as sales_budget,
-        m.sales_last_year                  as sales_last_year,
-        w.iso2                             as web_iso2,
-        w.sessions                         as sessions,
-        w.sessions_last_year               as sessions_last_year,
-        o.orders                           as orders,
-        o.orders_last_year                 as orders_last_year,
-        p.period_start                     as period_start
+        coalesce(m.market, w.site_country)      as market,
+        coalesce(m.channel, 'E-COMMERCE')       as channel,
+        m.region                                as region,
+        m.sales_actual                          as sales_actual,
+        b.sales_budget                          as sales_budget,
+        m.sales_last_year                       as sales_last_year,
+        iff(m.channel is null or m.channel = 'E-COMMERCE', w.iso2, null) as web_iso2,
+        iff(m.channel is null or m.channel = 'E-COMMERCE', w.sessions, null)
+                                                as sessions,
+        iff(m.channel is null or m.channel = 'E-COMMERCE', w.sessions_last_year, null)
+                                                as sessions_last_year,
+        iff(m.channel is null or m.channel = 'E-COMMERCE', o.orders, null) as orders,
+        iff(m.channel is null or m.channel = 'E-COMMERCE', o.orders_last_year, null)
+                                                as orders_last_year,
+        m.channel is null or m.channel = 'E-COMMERCE' as is_web_channel,
+        p.period_start                          as period_start
     from money m
-    full outer join web w on w.iso2 = m.iso2
-    left join budget b     on b.iso2 = coalesce(m.iso2, w.iso2)
-    left join web_orders o on o.iso2 = coalesce(m.iso2, w.iso2)
+    full outer join web w
+        on w.iso2 = m.iso2 and m.channel = 'E-COMMERCE'
+    left join budget b
+        on b.iso2 = m.iso2 and b.channel = m.channel
+    left join web_orders o
+        on o.iso2 = coalesce(m.iso2, w.iso2) and (m.channel is null or m.channel = 'E-COMMERCE')
     cross join period p
 )
 select
     market                             as market,
-    'ecommerce'                        as channel,
+    channel                            as channel,
     region                             as region,
     cast(null as varchar)              as owner_name,
     sales_actual                       as sales_actual,
@@ -310,6 +338,7 @@ select
     iff(coalesce(orders, 0) = 0, null, orders)                       as orders,
     iff(coalesce(orders, 0) = 0, null, orders_last_year)             as orders_last_year,
     case
+        when not is_web_channel                   then 'not_a_web_channel'
         when web_iso2 is null                     then 'no_analytics_site'
         when coalesce(orders, 0) > 0              then 'measured'
         when coalesce(orders_last_year, 0) > 0    then 'order_tracking_lost'
