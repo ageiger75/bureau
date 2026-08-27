@@ -115,6 +115,15 @@ def cmd_check() -> int:
         print("Annuaire            absent — « Qui challenger » restera muet")
         print("                    déposer le fichier dans %s" % settings.owners_path)
 
+    from .perf import context
+
+    notes = context.current()
+    if len(notes):
+        print("Contexte            %d note(s), sur %s"
+              % (len(notes), ", ".join(notes.markets()) or "tous marchés"))
+    else:
+        print("Contexte            aucune note — modèle dans docs/context.example.csv")
+
     print("Écritures externes  aucune. Le cockpit prépare, signale et structure.")
     print("Appels externes     %s" % (
         "l'entrepôt Snowflake en lecture seule, et rien d'autre"

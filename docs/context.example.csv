@@ -1,0 +1,22 @@
+market,channel,since,kind,note,source
+# Ce que les chiffres ne peuvent pas dire.
+#
+# Copiez ce fichier vers var/context.csv et remplacez la ligne d'exemple. var/ est ignoré
+# par git : vos notes restent sur la machine.
+#
+# market   le marché tel que l'écran l'affiche (Japan, France, United States…)
+# channel  vide pour tout le marché ; sinon ecommerce, retail, marketplace
+# since    premier mois concerné, AAAA-MM. Un changement de juin n'explique pas avril.
+# kind     basis_change  le plan et le réalisé ne sont pas mesurés sur la même base :
+#                        un changement de taxes, de prix de transfert, de norme comptable.
+#                        Le chiffre est juste des deux côtés et l'écart ne dit rien du
+#                        commerce.
+#          one_off       un événement isolé est dans le chiffre : une fermeture, une
+#                        commande exceptionnelle. L'écart n'est pas le rythme.
+# note     une phrase — celle que vous diriez à quelqu'un qui découvre l'écart.
+# source   qui l'affirme. Une note que personne ne porte est une rumeur datée.
+#
+# Ces notes ne corrigent aucun chiffre. Elles changent la question, et retirent le marché
+# de « Qui challenger » : on ne demande pas à un directeur de pays de répondre d'une
+# décision fiscale.
+Exampleland,,2026-06,basis_change,"Une phrase disant ce qui a changé et pourquoi le plan ne s'y compare plus.",Qui l'affirme

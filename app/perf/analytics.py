@@ -561,7 +561,17 @@ class Fire:
         return bool(self.contributions)
 
     @property
+    def context_notes(self):
+        return self.unit.context_notes
+
+    @property
     def diagnosis(self) -> str:
+        # Context first. Everything below explains a gap; this says whether the gap means
+        # what it appears to mean, which has to be read before, not after.
+        leading = [n for n in self.unit.context_notes if n.meaning]
+        if leading:
+            note = leading[0]
+            return "%s %s" % (note.meaning, note.text)
         if not self.has_breakdown:
             if self.unit.no_breakdown_reason:
                 return "%s The gap is real; its cause is not measured." % (
@@ -613,10 +623,18 @@ class Fire:
     def question(self) -> str:
         """One sharp question, derived from the numbers rather than written in advance.
 
-        Order matters. A plan aimed at the wrong driver is the most valuable thing this
-        product can tell a CEO, so it outranks everything else — including a forecast that
-        keeps moving, which is a real issue but a slower one.
+        Order matters. Context comes first: a gap that is not measured on the same basis
+        as its plan does not need a better measurement, it needs a rebased plan. After
+        that, a plan aimed at the wrong driver is the most valuable thing this product can
+        tell a CEO, so it outranks everything else — including a forecast that keeps
+        moving, which is a real issue but a slower one.
         """
+        # Context outranks even the missing measurement. Asking how to measure a gap
+        # better is the right question only once the gap is known to mean what it looks
+        # like — and "why is Brazil down" has an answer nobody needs to go and find.
+        asked = [n for n in self.unit.context_notes if n.question]
+        if asked:
+            return asked[0].question
         if not self.has_breakdown:
             # The missing measurement is the finding. Asking what will move a driver
             # nobody measures would be asking for a guess.
@@ -824,6 +842,11 @@ def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
     for fire in items:
         owner = fire.unit.owner
         if owner.name in seen:
+            continue
+        if fire.unit.basis_changed:
+            # The gap is real in the accounts and is not this person's to answer for.
+            # Handing it to them would be the cockpit's most expensive kind of mistake:
+            # confidently wrong, about a named human being.
             continue
         seen.add(owner.name)
         reason = "%s is %s below plan. %s" % (

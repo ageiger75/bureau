@@ -214,6 +214,7 @@ class BusinessUnit:
         "orders",
         "budget_known",
         "funnel_status",
+        "context_notes",
     )
 
     def __init__(
@@ -242,6 +243,7 @@ class BusinessUnit:
         orders: Optional[float] = None,
         budget_known: bool = True,
         funnel_status: str = "",
+        context_notes=(),
     ) -> None:
         self.key = key
         self.label = label
@@ -291,6 +293,9 @@ class BusinessUnit:
         #: tracking lost, or no own site at all. Four states with four different remedies,
         #: which is why they are not collapsed into one word for "missing".
         self.funnel_status = funnel_status
+        #: What happened that the numbers cannot say — a tax change, a one-off. Never a
+        #: correction to a figure: what these change is the question, not the arithmetic.
+        self.context_notes = list(context_notes)
 
     # ------------------------------------------------------------------ sales
 
@@ -305,6 +310,18 @@ class BusinessUnit:
     @property
     def sales_last_year(self) -> float:
         return self.last_year.sales
+
+    @property
+    def basis_changed(self) -> bool:
+        """Whether the plan and the actual are measured on the same basis.
+
+        When they are not, the gap between them is real in the accounts and says nothing
+        about how the market is trading — so it must not be handed to whoever runs that
+        market as a performance question.
+        """
+        from .context import BASIS_CHANGE
+
+        return any(note.kind == BASIS_CHANGE for note in self.context_notes)
 
     def decomposition_baseline(self):
         """What the drivers can honestly be compared against, and its name.

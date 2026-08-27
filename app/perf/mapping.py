@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence
 
+from . import context as context_module
 from . import owners as owners_module
 from .budget import Budget, normalise_market
 from .model import (
@@ -372,6 +373,7 @@ def units_from_rows(
                 orders=orders,
                 no_breakdown_reason=reason,
                 funnel_status=funnel_status,
+                context_notes=context_module.notes_for(market, channel, period),
             )
         )
 

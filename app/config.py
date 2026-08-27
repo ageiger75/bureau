@@ -62,6 +62,10 @@ DEFAULT_BUDGET_FILE = "var/budget.xlsx"
 #: de vraies personnes et leur périmètre réel, ce qui n'a rien à faire dans un git.
 DEFAULT_OWNERS_FILE = "var/owners.xlsx"
 
+#: Ce que les chiffres ne peuvent pas dire : un changement de taxes, un événement isolé.
+#: Connaissance d'entreprise, pas mesure — donc hors du dépôt, comme le reste.
+DEFAULT_CONTEXT_FILE = "var/context.csv"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -72,6 +76,7 @@ class Settings:
     data_source: str = DEFAULT_DATA_SOURCE
     budget_file: str = DEFAULT_BUDGET_FILE
     owners_file: str = DEFAULT_OWNERS_FILE
+    context_file: str = DEFAULT_CONTEXT_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
     #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
@@ -94,6 +99,15 @@ class Settings:
     def owners_path(self) -> Path:
         path = Path(self.owners_file)
         return path if path.is_absolute() else ROOT / path
+
+    @property
+    def context_path(self) -> Path:
+        path = Path(self.context_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_context_file(self) -> bool:
+        return self.context_path.exists()
 
     @property
     def has_owners_file(self) -> bool:
@@ -163,6 +177,7 @@ def load_settings() -> Settings:
         data_source=data_source,
         budget_file=_env("CEOOS_BUDGET_FILE") or DEFAULT_BUDGET_FILE,
         owners_file=_env("CEOOS_OWNERS_FILE") or DEFAULT_OWNERS_FILE,
+        context_file=_env("CEOOS_CONTEXT_FILE") or DEFAULT_CONTEXT_FILE,
         snowflake_connection=snowflake_connection,
     )
 

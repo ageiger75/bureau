@@ -38,7 +38,7 @@ def fresh_warehouse_cache():
     enough to spare anyone the query — which means it outlives a test unless something
     clears it. Something does.
     """
-    from app.perf import owners, source
+    from app.perf import context, owners, source
 
     # Pointed at the test directory, not at the working `var/`: a test run must never
     # write into — or read from — the cache a real screen is using.
@@ -47,9 +47,11 @@ def fresh_warehouse_cache():
 
     source.cache_forget()
     owners.reset()
+    context.reset()
     yield
     source.cache_forget()
     owners.reset()
+    context.reset()
 
 
 @pytest.fixture(autouse=True)
