@@ -574,9 +574,11 @@ class Fire:
         and useless as a management signal unless the reader is told which half of the
         funnel moved because the yardstick moved.
         """
+        from .context import BASIS_CHANGE
         from .model import MONEY_DRIVERS
 
-        if not self.unit.basis_changed or not self.has_breakdown:
+        moved = any(n.kind == BASIS_CHANGE for n in self.unit.context_notes)
+        if not moved or not self.has_breakdown:
             return ""
         affected = [c.label for c in self.contributions if c.label in MONEY_DRIVERS]
         if not affected:
