@@ -15,3 +15,10 @@ __pycache__/
 
 # Systèmes de fichiers
 .DS_Store
+
+# Classeurs déposés à la racine par accident. Le budget et l'annuaire vivent dans var/ ;
+# un fichier de travail glissé ici contient des chiffres ou des noms réels, et un
+# `git add -A` distrait suffirait à le publier.
+/*.xlsx
+/*.xlsm
+/*.csv

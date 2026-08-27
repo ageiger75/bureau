@@ -144,7 +144,7 @@ def cmd_reconcile(argv: List[str]) -> int:
     import csv
 
     from .perf import budget as budget_module
-    from .perf.budget import normalise_market, perimeter_of
+    from .perf.budget import normalise_market, perimeter_of, previous_year
 
     if not argv or argv[0].startswith("--"):
         print("Usage : manage.py reconcile CANDIDAT.csv [--perimeter sell-in]",
@@ -167,7 +167,10 @@ def cmd_reconcile(argv: List[str]) -> int:
             continue
         if wanted != "all" and perimeter_of(line.segment) != wanted:
             continue
-        expected[(line.market, line.segment, line.period)] = line.last_year
+        # Keyed on the month the actual belongs to, matching what `--spec` writes. The
+        # two files have to describe the same months or nothing will ever agree.
+        key = (line.market, line.segment, previous_year(line.period))
+        expected[key] = expected.get(key, 0.0) + line.last_year
 
     if not expected:
         print("Aucun réalisé connu sur ce périmètre.", file=sys.stderr)
@@ -402,7 +405,7 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
     """
     import csv
 
-    from .perf.budget import perimeter_of
+    from .perf.budget import perimeter_of, previous_year
 
     wanted = perimeter.strip().lower()
     if wanted not in ("sell-in", "own", "other", "all"):
@@ -421,6 +424,7 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
         return 1
 
     rows.sort(key=lambda l: (l.market, l.segment, l.period))
+    periods = sorted({previous_year(l.period) for l in rows})
     path = Path(destination)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -433,7 +437,10 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
                 line.region,
                 line.segment,
                 perimeter_of(line.segment),
-                line.period,
+                # The month this figure belongs to, not the month whose plan it sits
+                # beside. A specification that misdates its own evidence sends whoever
+                # reads it looking for FY27 actuals in months that have not happened.
+                previous_year(line.period),
                 "%.2f" % line.last_year,
             ])
 
@@ -442,7 +449,8 @@ def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
     print("Périmètre           %s" % wanted)
     print("Contraintes         %d (marché × segment × mois)" % len(rows))
     print("Marchés             %d" % len({l.market for l in rows}))
-    print("Mois                %d" % len({l.period for l in rows}))
+    print("Mois                %d, de %s à %s" % (
+        len(periods), periods[0], periods[-1]))
     print("Total réalisé       %s" % _eur(total))
     print("")
     print("Ce sont des réalisés, pas un budget : une requête d'entrepôt se valide contre")

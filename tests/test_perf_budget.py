@@ -427,8 +427,8 @@ def test_a_candidate_that_reproduces_the_actuals_is_accepted(
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "400000"],
-        ["Japan", "DIS - Distributors", "2026-08", "300000"],
+        ["Japan", "DIS - Distributors", "2025-07", "400000"],
+        ["Japan", "DIS - Distributors", "2025-08", "300000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 0
@@ -439,8 +439,8 @@ def test_a_rounding_difference_still_counts_as_agreement(tmp_path, against_spec)
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "400100"],
-        ["Japan", "DIS - Distributors", "2026-08", "299500"],
+        ["Japan", "DIS - Distributors", "2025-07", "400100"],
+        ["Japan", "DIS - Distributors", "2025-08", "299500"],
     ])
 
     assert cmd_reconcile([str(path)]) == 0
@@ -452,14 +452,14 @@ def test_a_wrong_definition_is_refused_and_located(tmp_path, capsys, against_spe
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "400000"],
-        ["Japan", "DIS - Distributors", "2026-08", "180000"],
+        ["Japan", "DIS - Distributors", "2025-07", "400000"],
+        ["Japan", "DIS - Distributors", "2025-08", "180000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 1
 
     out = capsys.readouterr().out
-    assert "2026-08" in out
+    assert "2025-08" in out
     assert "En désaccord        1" in out
 
 
@@ -469,14 +469,14 @@ def test_the_biggest_gaps_come_first(tmp_path, capsys, against_spec):
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "399000"],
-        ["Japan", "DIS - Distributors", "2026-08", "10000"],
+        ["Japan", "DIS - Distributors", "2025-07", "399000"],
+        ["Japan", "DIS - Distributors", "2025-08", "10000"],
     ])
 
     cmd_reconcile([str(path)])
-    lines = [l for l in capsys.readouterr().out.splitlines() if "2026-0" in l]
+    lines = [l for l in capsys.readouterr().out.splitlines() if "2025-0" in l]
 
-    assert lines and "2026-08" in lines[0]
+    assert lines and "2025-08" in lines[0]
 
 
 def test_cells_the_candidate_never_produced_are_named(tmp_path, capsys, against_spec):
@@ -485,7 +485,7 @@ def test_cells_the_candidate_never_produced_are_named(tmp_path, capsys, against_
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "400000"],
+        ["Japan", "DIS - Distributors", "2025-07", "400000"],
     ])
 
     cmd_reconcile([str(path)])
@@ -499,9 +499,9 @@ def test_only_the_asked_perimeter_is_confronted(tmp_path, capsys, against_spec):
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["Japan", "DIS - Distributors", "2026-07", "400000"],
-        ["Japan", "DIS - Distributors", "2026-08", "300000"],
-        ["Japan", "RET - Retail", "2026-07", "1"],
+        ["Japan", "DIS - Distributors", "2025-07", "400000"],
+        ["Japan", "DIS - Distributors", "2025-08", "300000"],
+        ["Japan", "RET - Retail", "2025-07", "1"],
     ])
 
     cmd_reconcile([str(path)])
@@ -517,8 +517,8 @@ def test_market_names_are_normalised_before_confronting(tmp_path, against_spec):
     from app.cli import cmd_reconcile
 
     path = _candidate(tmp_path, [
-        ["JAPAN", "DIS - Distributors", "2026-07", "400000"],
-        ["japan", "DIS - Distributors", "2026-08", "300000"],
+        ["JAPAN", "DIS - Distributors", "2025-07", "400000"],
+        ["japan", "DIS - Distributors", "2025-08", "300000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 0
@@ -528,3 +528,116 @@ def test_a_missing_candidate_file_is_refused_clearly(tmp_path, against_spec):
     from app.cli import cmd_reconcile
 
     assert cmd_reconcile([str(tmp_path / "absent.csv")]) == 2
+
+
+# --------------------------------------------------- two bugs the spec file uncovered
+#
+# Both were found by someone writing a query against the exported specification, which is
+# the only way they could have been found: neither shows up when the file is only ever
+# written and never read back.
+
+
+def test_an_actual_is_dated_by_the_month_it_belongs_to():
+    """A budget line is labelled by the month it plans for and carries beside it the
+    actual of the same month a year earlier. Exporting that actual under the plan's label
+    dates April 2025 as April 2026 — a specification that misdates its own evidence, and
+    whose reader has no way to notice."""
+    assert budget_module.previous_year("2026-04") == "2025-04"
+    assert budget_module.previous_year("2027-01") == "2026-01"
+
+
+def test_a_malformed_period_is_left_alone_rather_than_mangled():
+    assert budget_module.previous_year("") == ""
+    assert budget_module.previous_year("nonsense") == "nonsense"
+
+
+def test_the_exported_spec_carries_the_real_months(tmp_path, capsys, monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget(
+        [BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                    "2026-07", 500_000.0, 430_000.0)]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    target = tmp_path / "spec.csv"
+    cmd_budget(["--spec", str(target)])
+
+    written = target.read_text()
+
+    assert "2025-07" in written
+    assert "2026-07" not in written
+
+
+def test_several_rows_for_one_cell_are_summed_not_overwritten():
+    """A market × segment × month can carry several planning rows — a discount line
+    beside a sales line. Keeping the last one made the workbook answer two different
+    numbers for the same question, depending on whether the total or the lookup was
+    asked."""
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", 3_000_000.0, 2_800_000.0),
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", -500_000.0, -400_000.0),
+        ]
+    )
+
+    assert plan.budget_for("Japan", "ecommerce", "2026-07") == pytest.approx(2_500_000.0)
+    assert plan.last_year_for("Japan", "ecommerce", "2026-07") == pytest.approx(2_400_000.0)
+
+
+def test_the_lookup_and_the_total_agree():
+    """The property the first version claimed and did not have. A workbook that answers
+    differently depending on how it is asked cannot be a reconciliation target."""
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", 3_000_000.0, None),
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", -500_000.0, None),
+        ]
+    )
+
+    assert plan.budget_for("Japan", "ecommerce", "2026-07") == pytest.approx(
+        plan.total_budget("2026-07")
+    )
+
+
+def test_summing_absences_keeps_an_absence():
+    """Absent plus absent is absent, not zero. A month nobody planned must not become a
+    month planned at nothing."""
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", None, None),
+            BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                       "2026-07", None, None),
+        ]
+    )
+
+    assert plan.budget_for("Japan", "ecommerce", "2026-07") is None
+
+
+def test_a_cell_split_across_rows_is_confronted_as_one(tmp_path, monkeypatch):
+    """The reconciliation had the mirror of the same bug: it expected one row and the
+    candidate summed several, so a split cell could never agree."""
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-07", 500_000.0, 300_000.0),
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-07", 100_000.0, 100_000.0),
+        ]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = _candidate(tmp_path, [["Japan", "DIS - Distributors", "2025-07", "400000"]])
+
+    assert cmd_reconcile([str(path)]) == 0

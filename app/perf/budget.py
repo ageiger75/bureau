@@ -125,6 +125,23 @@ def channel_of(segment: str) -> str:
     return SEGMENT_CHANNEL.get(segment_code(segment), segment_code(segment).lower())
 
 
+def previous_year(period: str) -> str:
+    """`2026-04` -> `2025-04`.
+
+    A budget line is labelled by the month it plans for, and carries beside it the actual
+    of the same month a year earlier. Exporting that actual under the plan's label says a
+    figure from April 2025 belongs to April 2026 — a specification that misdates its own
+    evidence, and the reader has no way to notice.
+    """
+    parts = (period or "").split("-")
+    if len(parts) != 2:
+        return period
+    try:
+        return "%d-%s" % (int(parts[0]) - 1, parts[1])
+    except ValueError:
+        return period
+
+
 def _period(year: str, month: str) -> Optional[str]:
     number = MONTHS.get(month)
     return None if number is None else "%s-%02d" % (year, number)
@@ -152,6 +169,19 @@ class BudgetLine:
         self.last_year = last_year
 
 
+def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
+    """Sum two figures, where absent plus absent stays absent.
+
+    Treating a missing figure as zero here would turn a month nobody planned into a month
+    planned at nothing, which the rest of the cockpit spends its time refusing to do.
+    """
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return first + second
+
+
 class Budget:
     """Every budget line of a fiscal year, addressable by market, channel and period."""
 
@@ -159,9 +189,27 @@ class Budget:
         self.lines = lines
         self._index: Dict[Tuple[str, str, str], BudgetLine] = {}
         for line in lines:
-            # One planning row per market × segment, so the key cannot collide. If it ever
-            # does, the later row wins and the totals below would reveal it.
-            self._index[(line.market, line.channel, line.period)] = line
+            # Collisions happen, and they are not duplicates: a market × segment × month
+            # can carry several planning rows — a discount line beside a sales line. The
+            # first version of this kept the last row and said the totals would reveal it.
+            # They did not: `total_budget` summed every row while `line()` returned one,
+            # so the same workbook answered two different numbers depending on which was
+            # asked. Summing is what the plan itself means.
+            key = (line.market, line.channel, line.period)
+            existing = self._index.get(key)
+            if existing is None:
+                self._index[key] = BudgetLine(
+                    market=line.market,
+                    region=line.region,
+                    segment=line.segment,
+                    channel=line.channel,
+                    period=line.period,
+                    budget=line.budget,
+                    last_year=line.last_year,
+                )
+                continue
+            existing.budget = _add(existing.budget, line.budget)
+            existing.last_year = _add(existing.last_year, line.last_year)
 
     def line(self, market: str, channel: str, period: str) -> Optional[BudgetLine]:
         return self._index.get((market, channel, period))
