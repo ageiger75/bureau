@@ -32,6 +32,13 @@ MATERIALITY_FLOOR_EUR = 100_000.0
 WIN_MIN_PCT = 0.05
 WIN_MIN_EUR = 200_000.0
 
+#: Traffic multiplied or divided by this much is no longer a campaign. A big launch can
+#: double a market's sessions; it does not put them at fifteen times last year's.
+SESSIONS_BREAK_FACTOR = 2.5
+#: …and what makes it a measurement break rather than a commercial event is that the money
+#: did not follow. Sales within this band of last year count as unmoved.
+FLAT_SALES_PCT = 0.15
+
 
 # --------------------------------------------------------------------------- variance
 
@@ -339,7 +346,43 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
             fix="Transaction tracking is missing here; the drivers cannot be read until "
             "it is fixed.",
         )
+
+    # Traffic that moves by a multiple while the money stays still. A campaign can double
+    # a market's sessions, but it moves the sales with it; measurement changes — a tag
+    # deployed, a domain merged, a bot filter switched off — move the traffic alone.
+    # Both signatures turned up in the real feed the first time last year's funnel was
+    # queried alongside this year's: sessions off by an order of magnitude in either
+    # direction, revenue unmoved. Without last year's drivers they were invisible.
+    sessions_before = unit.last_year.value_of("Sessions")
+    if (
+        sessions is not None
+        and sessions_before is not None
+        and sessions > 0
+        and sessions_before > 0
+        and unit.sales_last_year > 0
+    ):
+        factor = sessions / sessions_before
+        sales_move = (unit.sales_actual - unit.sales_last_year) / unit.sales_last_year
+        if (
+            factor >= SESSIONS_BREAK_FACTOR or factor <= 1.0 / SESSIONS_BREAK_FACTOR
+        ) and abs(sales_move) <= FLAT_SALES_PCT:
+            return Suspect(
+                unit,
+                code="traffic_discontinuity",
+                message="Sessions are %s last year's while sales moved %s. Traffic does "
+                "not move like that on its own."
+                % (_factor(factor), _pct(sales_move, digits=1)),
+                fix="Compare the two periods' tracking before reading any driver here: a "
+                "tag, a domain or a bot filter changed, not the audience.",
+            )
     return None
+
+
+def _factor(value: float) -> str:
+    """'15.9x' or 'a quarter of' — a multiple reads better than a percentage past 2x."""
+    if value >= 1.0:
+        return "%.1fx" % value
+    return "%.2fx" % value
 
 
 def suspects(dataset: Dataset) -> List[Suspect]:
@@ -600,8 +643,18 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
 
 
 def opportunities(dataset: Dataset, limit: int = 5) -> List[Opportunity]:
+    # A suspect unit is excluded here for the same reason it is excluded from the fire
+    # list, and more urgently: "recover last year's conversion and gain €4m" computed on a
+    # tracking break is a number the CEO would act on. A gap merely wastes attention; a
+    # phantom opportunity spends it.
     found = [
-        item for item in (opportunity_of(unit) for unit in dataset.units) if item
+        item
+        for item in (
+            opportunity_of(unit)
+            for unit in dataset.units
+            if not unit.is_aggregate and suspect_of(unit) is None
+        )
+        if item
     ]
     found.sort(key=lambda item: item.amount, reverse=True)
     return found[:limit]

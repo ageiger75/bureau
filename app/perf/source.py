@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import List
 
 from ..config import settings
+from ..util import now_iso
 from . import mock
 from .kpi import Kpi
 from .model import Dataset
@@ -24,6 +25,11 @@ _MONTHS = (
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
 )
+
+
+def read_at() -> str:
+    """When the warehouse was read, to the minute. UTC, like every other stamp here."""
+    return now_iso()[:16].replace("T", " ") + " UTC"
 
 
 def _period_label(period: str) -> str:
@@ -135,7 +141,12 @@ class SnowflakeSource:
         period = str(rows[0].get("period") or "")
         return Dataset(
             period_label=_period_label(period),
-            as_of=period,
+            # The moment of the read, not the period — and to the minute, because the
+            # warehouse is not yet stable within a day. Sell-out facts are still being
+            # reprocessed on recent months, so the same query run hours apart returns
+            # different figures for some markets. Two screens that disagree are a
+            # scandal; two screens stamped an hour apart are a fact about the pipeline.
+            as_of=read_at(),
             units=mapped.units,
         )
 

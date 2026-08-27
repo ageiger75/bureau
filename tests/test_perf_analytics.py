@@ -676,3 +676,99 @@ def test_the_contributions_still_add_up_to_the_measured_movement():
 
     assert total == pytest.approx(fire.movement)
     assert fire.movement != fire.gap
+
+
+# ------------------------------------------------- traffic that moves without the money
+#
+# The failure mode last year's funnel made visible. A market whose sessions arrive at a
+# multiple of last year's while revenue sits still has not found an audience — its
+# measurement changed. A tag deployed, a domain merged, a bot filter switched off.
+#
+# These are the most dangerous rows on the screen, because their sales gap is usually
+# small enough to pass unremarked while their decomposition is enormous.
+
+
+def sessions_of(sales, sessions, aov=60.0):
+    """Drivers pinned to a session count, so the break can be built explicitly."""
+    orders = sales / aov
+    return Drivers(("Sessions", "Conversion", "AOV"), (sessions, orders / sessions, aov))
+
+
+def test_traffic_at_a_multiple_of_last_year_with_flat_sales_is_a_data_break():
+    broken = unit(
+        key="hongkong",
+        actual=sessions_of(51_000, 687_000),
+        budget=Drivers.sales_only(50_000),
+        last_year=sessions_of(46_000, 43_000),
+    )
+
+    flag = analytics.suspect_of(broken)
+
+    assert flag is not None
+    assert flag.code == "traffic_discontinuity"
+
+
+def test_traffic_collapsing_to_a_quarter_with_flat_sales_is_the_same_break():
+    """The signature is symmetric: what matters is that revenue did not follow."""
+    broken = unit(
+        key="brazil",
+        actual=sessions_of(178_000, 206_000),
+        budget=Drivers.sales_only(180_000),
+        last_year=sessions_of(180_000, 905_000),
+    )
+
+    assert analytics.suspect_of(broken).code == "traffic_discontinuity"
+
+
+def test_traffic_growth_that_carries_the_money_is_a_real_result():
+    """A market whose sessions and sales rise together has found an audience. Flagging it
+    would turn the guard into noise, and a guard nobody trusts protects nothing."""
+    growing = unit(
+        key="france",
+        actual=sessions_of(1_200_000, 900_000),
+        budget=Drivers.sales_only(1_100_000),
+        last_year=sessions_of(1_000_000, 730_000),
+    )
+
+    assert analytics.suspect_of(growing) is None
+
+
+def test_a_conversion_collapse_on_stable_traffic_is_not_flagged():
+    """The case the cockpit exists to surface. It must reach the fire list untouched."""
+    real = unit(
+        key="uk",
+        actual=sessions_of(715_000, 950_000),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=sessions_of(1_000_000, 1_000_000),
+    )
+
+    assert analytics.suspect_of(real) is None
+
+
+def test_a_broken_market_never_becomes_an_opportunity():
+    """"Recover last year's conversion and gain €4m" computed on a tracking break is a
+    number the CEO would act on. A wasted glance is cheap; a wasted quarter is not."""
+    broken = unit(
+        key="hongkong",
+        actual=sessions_of(2_000_000, 9_000_000),
+        budget=Drivers.sales_only(2_000_000),
+        last_year=sessions_of(2_050_000, 500_000),
+    )
+
+    assert analytics.opportunity_of(broken) is not None  # the raw counterfactual exists
+    assert analytics.opportunities(dataset_of(broken)) == []  # and is refused
+
+
+def test_the_flag_says_who_to_ask():
+    """The data team, not the market director — the distinction the whole panel is for."""
+    broken = unit(
+        key="hongkong",
+        actual=sessions_of(51_000, 687_000),
+        budget=Drivers.sales_only(50_000),
+        last_year=sessions_of(46_000, 43_000),
+    )
+
+    flag = analytics.suspect_of(broken)
+
+    assert "tracking" in flag.fix
+    assert "audience" in flag.fix

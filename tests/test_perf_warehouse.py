@@ -309,6 +309,24 @@ def test_the_period_label_names_the_month_it_actually_shows(monkeypatch):
     assert dataset.period_label == "July 2026 sales"
 
 
+def test_the_screen_is_stamped_with_when_it_was_read(monkeypatch):
+    """The warehouse is not yet stable within a day: sell-out facts are reprocessed on
+    recent months, so the same query hours apart returns different figures for some
+    markets. Two screens that disagree are a scandal; two screens stamped an hour apart
+    are a fact about the pipeline."""
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    # A date alone would not distinguish two reads taken the same morning.
+    assert dataset.as_of.endswith("UTC")
+    assert ":" in dataset.as_of
+
+
 def test_a_query_that_returns_nothing_is_a_refusal_not_a_blank_screen(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
