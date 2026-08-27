@@ -145,6 +145,13 @@ from __future__ import annotations
 #: total. Returns `sessions` and `orders` raw — conversion and AOV are derived by
 #: `model.ecommerce_drivers(sales, sessions, orders)`, which is what closes the identity.
 #:
+#: The funnel is returned for both periods. `sessions_last_year` and `orders_last_year`
+#: are not symmetry for its own sake: without them the screen can show a gap and cannot
+#: say which stage moved, and a gap it refuses to explain is a gap nobody acts on.
+#:
+#: Everything reads from `semantic_layer`, never from a raw fact. Those views are the
+#: governed grain, and going around them costs both governance and scanned bytes.
+#:
 #: No channel split. `CHANNEL_GROUPING` in the warehouse is the default analytics grouping,
 #: not the local custom ones, so any per-channel figure would be unreliable.
 #:
@@ -221,22 +228,32 @@ web as (
     select
         h.hostname_country_code_iso2       as iso2,
         any_value(h.hostname_country_desc) as site_country,
-        sum(g.nb_sessions)                 as sessions
+        sum(iff(g.session_date between p.period_start and p.period_end,
+                g.nb_sessions, 0))         as sessions,
+        sum(iff(g.session_date between add_months(p.period_start, -12)
+                                   and add_months(p.period_end, -12),
+                g.nb_sessions, 0))         as sessions_last_year
     from dwh.semantic_layer.v_sl_f_grp_ga_sessions g
     join dwh.semantic_layer.v_sl_d_ga_hostname h on h.host_skey = g.host_skey
     cross join period p
     where h.brand_id = 'OC'
-      and g.session_date between p.period_start and p.period_end
+      and g.session_date between add_months(p.period_start, -12) and p.period_end
     group by h.hostname_country_code_iso2
 ),
 web_orders as (
     select
-        t.hostname_country_iso2                as iso2,
-        count(distinct t.unique_transaction_id) as orders
-    from dwh.public.f_grp_ga_transactions t cross join period p
-    where t.brand = 'OCC'
-      and t.transaction_date_day between p.period_start and p.period_end
-    group by t.hostname_country_iso2
+        h.hostname_country_code_iso2 as iso2,
+        count(distinct iff(t.session_date between p.period_start and p.period_end,
+                           t.unique_transaction_id, null)) as orders,
+        count(distinct iff(t.session_date between add_months(p.period_start, -12)
+                                              and add_months(p.period_end, -12),
+                           t.unique_transaction_id, null)) as orders_last_year
+    from dwh.semantic_layer.v_sl_f_grp_ga_transactions t
+    join dwh.semantic_layer.v_sl_d_ga_hostname h on h.host_skey = t.host_skey
+    cross join period p
+    where h.brand_id = 'OC'
+      and t.session_date between add_months(p.period_start, -12) and p.period_end
+    group by h.hostname_country_code_iso2
 )
 select
     coalesce(m.market, w.site_country) as market,
@@ -249,6 +266,8 @@ select
     cast(null as number(38, 4))        as sales_forecast,
     w.sessions                         as sessions,
     o.orders                           as orders,
+    w.sessions_last_year               as sessions_last_year,
+    o.orders_last_year                 as orders_last_year,
     to_char(p.period_start, 'YYYY-MM') as period
 from money m
 full outer join web w on w.iso2 = m.iso2
