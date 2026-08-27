@@ -238,10 +238,16 @@ with period as (
         date_trunc('month', add_months(anchor, -1)) as period_start,
         last_day(add_months(anchor, -1))            as period_end
     from (
+        -- Bounded, and it is the single largest saving in this query: unbounded,
+        -- one `max(date)` scanned 77 GB of the 173 GB the whole statement read.
+        -- The latest transaction is by definition recent, so three months of
+        -- slack finds it while leaving the history unread.
         select max(max_sales_date) as anchor
         from semantic_view(
             dwh.semantic_layer.v_sl_ai_sellout_analysis
             metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+            where f_sellout_sales_details.transaction_date
+                  >= dateadd(month, -3, current_date)
         )
     )
 ),
@@ -262,7 +268,17 @@ sellout_day as (
             d_stores.store_sub_channel,
             f_sellout_sales_details.transaction_date
         metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+        -- A bound the view can read on its own. The window below is expressed
+        -- against the `period` CTE, which the view cannot see, so that predicate
+        -- does not push down and the whole history gets aggregated at day grain
+        -- to yield thirteen months.
+        --
+        -- Twenty-six months is deliberately generous: fourteen would do, the
+        -- slack costs nothing, and a bound one month too tight would silently
+        -- empty the year-earlier column rather than fail.
         where d_stores.store_brand = 'L''OCCITANE'
+          and f_sellout_sales_details.transaction_date
+              >= dateadd(month, -26, current_date)
     )
 ),
 goals_day as (
@@ -278,6 +294,7 @@ goals_day as (
                    f_sales_goals.goals_date
         metrics sum(f_sales_goals.goals_eur) as goals_eur
         where d_stores.store_brand = 'L''OCCITANE'
+          and f_sales_goals.goals_date >= dateadd(month, -26, current_date)
     )
 ),
 money as (
