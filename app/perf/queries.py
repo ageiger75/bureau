@@ -352,6 +352,47 @@ order by sales_actual desc nulls last
 #: The same, for the previous periods that feed the acceleration factor.
 SALES_HISTORY = ""
 
+#: Sell-in: everything invoiced to a partner who then resells. Roughly two fifths of the
+#: plan, and invisible to every sell-out source by construction — the revenue is recognised
+#: when the Maison ships, not when a shopper buys.
+#:
+#: It comes from the management consolidation rather than from the sell-out warehouse,
+#: which is not a workaround: the consolidation *is* where the plan's own actuals come
+#: from, so the two reconcile by construction rather than by coincidence. The plan
+#: designates its markets by a consolidation entity — `M_024`, `M_098_TRA` — and that code
+#: is the join key. A company code or a customer hierarchy is someone else's answer to the
+#: same question, and the two do not agree: eleven markets are billed by a hub and vanish
+#: entirely under a company-based attribution.
+#:
+#: One row per entity, segment and month:
+#:
+#:     entity            text     -- 'M_024', 'M_098_TRA' — the plan's own key
+#:     market            text     -- for display; the entity is what joins
+#:     region            text
+#:     segment           text     -- the plan's segment label, e.g. 'DIS - Distributors'
+#:     period            text     -- 'YYYY-MM'
+#:     sales_actual      number   -- euros, at the plan's exchange year
+#:     sales_last_year   number   -- the same month one year earlier, same rates
+#:
+#: No drivers, and none invented: invoiced revenue has no funnel behind it. The cockpit
+#: shows the gap and says the cause is not measured, which is the truth.
+#:
+#: Three traps this cost a day to find, worth keeping written down:
+#:
+#: * amounts are in thousands, like the planning workbook;
+#: * the current-year column is cumulative from the start of the fiscal year, so one month
+#:   is a difference between snapshots — and a month whose snapshot is missing cannot be
+#:   separated from its neighbour. Emit those as `2025-04..2025-05` rather than splitting
+#:   them by a rule of thumb; `manage.py reconcile` confronts a range with the plan's own
+#:   months added together, and an invented figure would be worth less than none;
+#: * the exchange year is a fixed set of rates for the whole year, so converting a month
+#:   between two exchange years is the ratio of two constants — derivable from the annual
+#:   reconciliation and verifiable against it, which is what makes it a conversion rather
+#:   than an adjustment.
+#:
+#: Validate with `manage.py budget --spec` and `manage.py reconcile` before wiring it in.
+SELL_IN = ""
+
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
 KPI_READINGS = ""
@@ -371,6 +412,7 @@ FORECAST_HISTORY = ""
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
+    "SELL_IN": SELL_IN,
     "KPI_READINGS": KPI_READINGS,
     "MARKET_INDEX": MARKET_INDEX,
     "COMMITMENTS": COMMITMENTS,

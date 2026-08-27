@@ -292,6 +292,23 @@ class SnowflakeSource:
             )
         return budget_module.load(settings.budget_path)
 
+    def _sell_in_rows(self, mapping, queries, warehouse):
+        """Invoiced-to-a-reseller revenue, or nothing at all.
+
+        Nothing at all is a real answer here and not a failure: roughly two fifths of the
+        plan is simply not measured yet, the screen already says so, and refusing to render
+        the other three fifths over it would help nobody. What must not happen is the
+        absence passing unnoticed — hence the note, and hence the register entry that keeps
+        saying "not measured" until this returns something.
+        """
+        if not queries.SELL_IN.strip():
+            return []
+        try:
+            return mapping.sell_in_rows(warehouse.rows(queries.SELL_IN))
+        except Exception as exc:  # noqa: BLE001 — one source failing is not all of them
+            LOG.info("warehouse: sell-in unavailable (%s)", exc)
+            return []
+
     def dataset(self, refresh: bool = False) -> Dataset:
         global _cached
 
@@ -325,6 +342,10 @@ class SnowflakeSource:
                 "The query ran and returned nothing. An empty cockpit and a healthy "
                 "business look identical, so this refuses rather than renders."
             )
+
+        # Sell-in comes from a different source with a different cadence, so it is read
+        # separately and its absence costs its own lines rather than the whole screen.
+        rows = rows + self._sell_in_rows(mapping, queries, warehouse)
 
         mapped = mapping.units_from_rows(rows, budget=budget)
         # Kept on the source, not on the dataset: they describe the plumbing, not the
