@@ -8,6 +8,9 @@
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
+                                     --segments pour la vue par segment et par périmètre
+                                     --spec FICHIER.csv exporte les réalisés de l'an dernier
+                                     --perimeter sell-in|own|other|all (défaut sell-in)
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -15,6 +18,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import List, Tuple
 
 from .config import settings
@@ -131,6 +135,14 @@ def cmd_budget(argv: List[str]) -> int:
     print("Périodes            %d, de %s à %s" % (
         len(periods), periods[0] if periods else "?", periods[-1] if periods else "?"))
 
+    destination = _option(argv, "--spec")
+    if destination:
+        return _write_actuals_spec(plan, destination, _option(argv, "--perimeter") or "sell-in")
+
+    if "--segments" in argv:
+        _print_segments(plan)
+        return 0
+
     wanted = _option(argv, "--period")
     if wanted:
         if wanted not in periods:
@@ -149,6 +161,128 @@ def cmd_budget(argv: List[str]) -> int:
             _eur(plan.total_budget(period)),
             _eur(plan.total_last_year(period)),
         ))
+    return 0
+
+
+def _print_segments(plan) -> None:
+    """What the file plans, by segment and by perimeter.
+
+    The split matters more than it looks: the warehouse measures what the Maison sells to
+    the end customer, while nearly two fifths of the plan is invoiced to someone who then
+    resells it. No sell-out query will ever reproduce those lines, and reading their
+    absence as a shortfall would be a serious mistake.
+    """
+    from .perf.budget import AMBIGUOUS_SEGMENTS, perimeter_of, segment_code
+
+    # Every line, budgeted or not. Counting only budgeted ones would quietly drop last
+    # year's revenue in channels nobody planned for this year — which is precisely the
+    # kind of thing worth seeing, and it made two commands disagree by four million.
+    totals = {}
+    orphaned = 0.0
+    for line in plan.lines:
+        entry = totals.setdefault(line.segment, [0.0, 0.0, set()])
+        entry[0] += line.budget or 0.0
+        entry[1] += line.last_year or 0.0
+        if line.budget:
+            entry[2].add(line.market)
+        elif line.last_year:
+            orphaned += line.last_year
+
+    grand = sum(v[0] for v in totals.values()) or 1.0
+    print("")
+    print("%-28s %-9s %12s %6s %12s %8s" % (
+        "Segment", "Périmètre", "Budget", "Part", "FY-1 réalisé", "Marchés"))
+    for segment, (budget, actual, markets) in sorted(
+        totals.items(), key=lambda item: -item[1][0]
+    ):
+        print("%-28s %-9s %12s %5.1f%% %12s %8d" % (
+            segment[:28],
+            perimeter_of(segment),
+            _eur(budget),
+            100.0 * budget / grand,
+            _eur(actual),
+            len(markets),
+        ))
+
+    print("")
+    by_perimeter = {}
+    for segment, (budget, actual, _markets) in totals.items():
+        slot = by_perimeter.setdefault(perimeter_of(segment), [0.0, 0.0])
+        slot[0] += budget
+        slot[1] += actual
+    for name, (budget, actual) in sorted(by_perimeter.items(), key=lambda i: -i[1][0]):
+        print("%-28s %-9s %12s %5.1f%% %12s" % (
+            "", name, _eur(budget), 100.0 * budget / grand, _eur(actual)))
+
+    if orphaned:
+        print("")
+        print("Réalisé l'an dernier sans budget cette année : %s" % _eur(orphaned))
+        print("Un canal qui a facturé et que personne n'a planifié. Volontaire ou oublié,")
+        print("il ne sera comparé à rien.")
+
+    ambiguous = [s for s in totals if segment_code(s) in AMBIGUOUS_SEGMENTS]
+    if ambiguous:
+        print("")
+        print("Sur la frontière : %s" % ", ".join(sorted(ambiguous)))
+        print("Un marketplace en dépôt-vente ressemble plus à de l'e-commerce propre qu'à")
+        print("du gros. Le contrat tranche, pas le code segment.")
+
+
+def _write_actuals_spec(plan, destination: str, perimeter: str) -> int:
+    """Écrit les réalisés de l'an dernier, mois par mois, comme cible de réconciliation.
+
+    C'est le livrable pour l'IT, et sa nature compte : ce sont des **réalisés**, pas un
+    budget. On ne valide pas une requête d'entrepôt contre un plan — un plan a le droit
+    d'avoir tort. Contre douze mois de réalisés par marché et par segment, une définition
+    fausse ne survit pas.
+    """
+    import csv
+
+    from .perf.budget import perimeter_of
+
+    wanted = perimeter.strip().lower()
+    if wanted not in ("sell-in", "own", "other", "all"):
+        print("Périmètre inconnu : %s (sell-in, own, other, all)" % perimeter,
+              file=sys.stderr)
+        return 2
+
+    rows = [
+        line
+        for line in plan.lines
+        if line.last_year
+        and (wanted == "all" or perimeter_of(line.segment) == wanted)
+    ]
+    if not rows:
+        print("Aucun réalisé sur ce périmètre.", file=sys.stderr)
+        return 1
+
+    rows.sort(key=lambda l: (l.market, l.segment, l.period))
+    path = Path(destination)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(
+            ["market", "region", "segment", "perimeter", "period", "actual_eur"]
+        )
+        for line in rows:
+            writer.writerow([
+                line.market,
+                line.region,
+                line.segment,
+                perimeter_of(line.segment),
+                line.period,
+                "%.2f" % line.last_year,
+            ])
+
+    total = sum(l.last_year for l in rows)
+    print("Écrit               %s" % path)
+    print("Périmètre           %s" % wanted)
+    print("Contraintes         %d (marché × segment × mois)" % len(rows))
+    print("Marchés             %d" % len({l.market for l in rows}))
+    print("Mois                %d" % len({l.period for l in rows}))
+    print("Total réalisé       %s" % _eur(total))
+    print("")
+    print("Ce sont des réalisés, pas un budget : une requête d'entrepôt se valide contre")
+    print("ce que l'entreprise a facturé, pas contre ce qu'elle avait prévu de facturer.")
     return 0
 
 

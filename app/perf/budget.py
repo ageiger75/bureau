@@ -65,6 +65,33 @@ def normalise_market(name: str) -> str:
     return raw.title()
 
 
+#: Segments where the Maison invoices a third party who then resells to the end customer.
+#: This is the sell-in perimeter, and it exists nowhere in the warehouse yet — which is
+#: exactly why the planning file can specify it.
+SELL_IN_SEGMENTS = frozenset(
+    ("WEBP", "MKTP", "TRA", "DIS", "DPT", "WHOCH", "WHOIN", "TVC", "WHOSP")
+)
+
+#: Segments the Maison operates itself, where the invoice and the end customer coincide.
+OWN_SEGMENTS = frozenset(("RET", "EBU", "CAF", "SPA"))
+
+#: Marketplaces and web partners sit on the boundary: a consignment marketplace is closer
+#: to own e-commerce than to wholesale, and the contract decides, not the segment code.
+#: They are counted as sell-in here because that is how the planning file groups them, and
+#: any reconciliation against the warehouse has to be told which convention it is using.
+AMBIGUOUS_SEGMENTS = frozenset(("MKTP", "WEBP"))
+
+
+def perimeter_of(segment: str) -> str:
+    """`sell-in`, `own`, or `other`. Never a guess: unlisted codes fall to `other`."""
+    code = segment_code(segment)
+    if code in SELL_IN_SEGMENTS:
+        return "sell-in"
+    if code in OWN_SEGMENTS:
+        return "own"
+    return "other"
+
+
 def segment_code(segment: str) -> str:
     """`EBU - E-business` -> `EBU`."""
     return (segment or "").split("-", 1)[0].strip().upper()

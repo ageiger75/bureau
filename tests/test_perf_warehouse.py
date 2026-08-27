@@ -98,7 +98,22 @@ def test_only_the_written_queries_report_as_written():
     }
 
 
-def test_a_source_missing_a_piece_refuses_rather_than_returning_nothing():
+@pytest.fixture
+def without_planning_file(monkeypatch):
+    """No workbook on disk — stated, not inherited.
+
+    These tests used to pass because the developer's `var/` happened to be empty. Copying
+    a real planning file there to look at it broke three of them, which is the wrong way
+    to learn that a test depends on machine state.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: False))
+
+
+def test_a_source_missing_a_piece_refuses_rather_than_returning_nothing(
+    without_planning_file,
+):
     """An empty cockpit looks like a business with no problems. That is the most
     expensive lie this product could tell."""
     from app.perf.source import SnowflakeSource
@@ -107,7 +122,7 @@ def test_a_source_missing_a_piece_refuses_rather_than_returning_nothing():
         SnowflakeSource().dataset()
 
 
-def test_the_planning_file_is_checked_before_the_network():
+def test_the_planning_file_is_checked_before_the_network(without_planning_file):
     """A missing local file is not worth a round trip, and the refusal reads better when
     nothing has been read yet. Also: without budgets every market is unbudgeted, so the
     cockpit would render calm on a business it never compared to anything."""
@@ -215,7 +230,9 @@ def test_a_search_pattern_cannot_smuggle_sql():
 # ------------------------------------------------- pointing at an unready source
 
 
-def test_an_unready_source_explains_itself_instead_of_crashing(monkeypatch):
+def test_an_unready_source_explains_itself_instead_of_crashing(
+    monkeypatch, without_planning_file
+):
     """Pointing at a warehouse whose queries are unwritten is a normal state during
     connection, not a fault. A stack trace would say neither what is missing nor how to
     get back.

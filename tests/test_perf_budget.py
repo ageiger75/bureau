@@ -240,3 +240,112 @@ def test_an_unknown_period_is_refused_rather_than_shown_empty(monkeypatch):
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
 
     assert cmd_budget(["--period", "2026-12"]) == 2
+
+
+# ------------------------------------------------------- sell-in, and where it is not
+#
+# The warehouse measures what the Maison sells to the end customer. A large part of the
+# plan is invoiced to someone who then resells it, and no sell-out query will ever
+# reproduce those lines. Reading their absence as a shortfall would be a serious mistake,
+# so the perimeter has to be nameable before anything is compared to anything.
+
+
+def test_a_reseller_segment_is_sell_in():
+    assert budget_module.perimeter_of("WHOIN - Wholesale indep") == "sell-in"
+    assert budget_module.perimeter_of("DIS - Distributors") == "sell-in"
+
+
+def test_an_operated_segment_is_own():
+    assert budget_module.perimeter_of("RET - Retail") == "own"
+    assert budget_module.perimeter_of("EBU - E-business") == "own"
+
+
+def test_an_unlisted_segment_falls_to_other_rather_than_being_guessed():
+    """A new segment code appearing in next year's file must not be silently counted as
+    sell-in because it looks a bit like wholesale."""
+    assert budget_module.perimeter_of("XYZ - Something new") == "other"
+    assert budget_module.perimeter_of("") == "other"
+
+
+def test_the_exported_spec_is_last_year_not_the_plan(tmp_path, capsys, monkeypatch):
+    """A query is validated against what the business invoiced, not against what it
+    intended to invoice. A plan is allowed to be wrong; an actual is not."""
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "WHOIN - Wholesale indep", "whoin",
+                       "2026-07", 500_000.0, 430_000.0),
+            BudgetLine("Japan", "APAC", "RET - Retail", "retail",
+                       "2026-07", 900_000.0, 850_000.0),
+        ]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    target = tmp_path / "spec.csv"
+    assert cmd_budget(["--spec", str(target)]) == 0
+
+    written = target.read_text().strip().splitlines()
+
+    # One sell-in line only, carrying last year's figure — not the budget.
+    assert len(written) == 2
+    assert "430000.00" in written[1]
+    assert "500000.00" not in written[1]
+
+
+def test_the_spec_refuses_an_unknown_perimeter(tmp_path, monkeypatch):
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget(
+        [BudgetLine("Japan", "APAC", "RET - Retail", "retail", "2026-07", 1.0, 1.0)]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    assert cmd_budget(["--spec", str(tmp_path / "x.csv"), "--perimeter", "wholesale"]) == 2
+
+
+def test_revenue_with_no_plan_is_counted_and_named(capsys, monkeypatch):
+    """It made two commands disagree by four million before it was visible. A channel
+    that invoiced and that nobody planned for will be compared to nothing."""
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget(
+        [
+            BudgetLine("Japan", "APAC", "RET - Retail", "retail",
+                       "2026-07", 900_000.0, 850_000.0),
+            # Sold last year, planned for by nobody this year.
+            BudgetLine("Japan", "APAC", "DDS - Digital Direct Selling", "dds",
+                       "2026-07", None, 120_000.0),
+        ]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    assert cmd_budget(["--segments"]) == 0
+
+    out = capsys.readouterr().out
+    assert "sans budget cette année" in out
+    assert "120 000" in out
+
+
+def test_the_boundary_segments_are_declared_rather_than_settled(capsys, monkeypatch):
+    """A consignment marketplace is closer to own e-commerce than to wholesale. The code
+    cannot know which, so it says so instead of choosing quietly."""
+    from app.cli import cmd_budget
+    from app.config import settings
+
+    plan = Budget(
+        [BudgetLine("Japan", "APAC", "MKTP - Market place", "mktp",
+                    "2026-07", 500_000.0, 430_000.0)]
+    )
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    cmd_budget(["--segments"])
+
+    assert "Sur la frontière" in capsys.readouterr().out
