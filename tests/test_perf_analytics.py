@@ -1044,3 +1044,108 @@ def test_the_reason_says_there_was_nothing_to_discount():
 
     assert "no diagnosis possible" in reasons
     assert "confidence LOW" not in reasons
+
+
+# ------------------------------------------------------- sell-in is shipments, not sales
+#
+# A month of sell-in against a month of plan is mostly a statement about when an order was
+# placed. The first real screen ranked a distributor line at +232% versus plan as a
+# "playbook to replicate", and asked a country manager what it would take to measure a
+# €2.3m gap properly — a question with no answer, since invoiced revenue has no funnel.
+
+
+def _sell_in_unit(key="china-webp", actual=1_000_000.0, budget=3_300_000.0):
+    return unit(
+        key=key,
+        actual=Drivers.sales_only(actual),
+        budget=Drivers.sales_only(budget),
+        last_year=Drivers.sales_only(budget),
+        perimeter="sell-in",
+        channel="webp",
+    )
+
+
+def test_a_sell_in_gap_asks_about_shipments_not_measurement():
+    fire = analytics.fires(dataset_of(_sell_in_unit()))[0]
+
+    assert "shipment landing in another month" in fire.question
+    assert "measure this properly" not in fire.question
+
+
+def test_a_month_of_sell_in_is_never_called_a_win():
+    """A shipment that landed early beats its month by any margin, and beats it again in
+    reverse next month. Calling that a playbook would send someone to copy a calendar."""
+    early = _sell_in_unit(key="hk-dis", actual=1_800_000.0, budget=580_000.0)
+
+    assert analytics.wins(dataset_of(early)) == []
+
+
+def test_an_own_channel_win_still_counts():
+    """The exclusion is about shipments, not about caution."""
+    strong = unit(
+        key="us-retail",
+        actual=Drivers.sales_only(5_000_000.0),
+        budget=Drivers.sales_only(4_390_000.0),
+        last_year=Drivers.sales_only(4_240_000.0),
+        perimeter="own",
+        channel=RETAIL,
+    )
+
+    assert [w.unit.key for w in analytics.wins(dataset_of(strong))] == ["us-retail"]
+
+
+# -------------------------------------------------------- small breaks, counted not listed
+
+
+def test_a_tiny_break_is_not_worth_a_line():
+    """827 euros obscured is real, and has no place on a screen read in two minutes."""
+    tiny = unit(
+        key="hungary-whoch",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(1_000.0),
+        last_year=Drivers.sales_only(827.0),
+    )
+
+    found = analytics.suspects(dataset_of(tiny))
+
+    assert len(found) == 1
+    assert analytics.worth_listing(found) == []
+
+
+def test_a_tiny_break_still_counts_in_the_shape():
+    """Thirteen markets failing the same way is the finding, and it is thirteen whether or
+    not each one is individually worth printing. Dropping them to tidy the list would
+    weaken the only thing on the panel worth acting on."""
+    units = [
+        unit(
+            key="m%d" % i,
+            actual=Drivers.sales_only(0.0),
+            budget=Drivers.sales_only(1_000.0),
+            last_year=Drivers.sales_only(900.0),
+        )
+        for i in range(5)
+    ]
+
+    found = analytics.suspects(dataset_of(*units))
+
+    assert analytics.worth_listing(found) == []
+    assert "5 markets" in analytics.patterns(found)[0]
+
+
+def test_the_listed_breaks_come_largest_first():
+    small = unit(
+        key="small",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(30_000.0),
+        last_year=Drivers.sales_only(24_000.0),
+    )
+    large = unit(
+        key="large",
+        actual=Drivers.sales_only(0.0),
+        budget=Drivers.sales_only(400_000.0),
+        last_year=Drivers.sales_only(318_000.0),
+    )
+
+    listed = analytics.worth_listing(analytics.suspects(dataset_of(small, large)))
+
+    assert [item.unit.key for item in listed] == ["large", "small"]

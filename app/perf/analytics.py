@@ -320,6 +320,18 @@ class Suspect:
         self.message = message
         self.fix = fix
 
+    @property
+    def money(self) -> float:
+        """What this break obscures: last year's figure where nothing was recorded, and
+        today's where something was recorded but cannot be read."""
+        if self.code == "zero_against_history":
+            return self.unit.sales_last_year
+        return self.unit.sales_actual
+
+    @property
+    def is_material(self) -> bool:
+        return self.money >= SUSPECT_FLOOR_EUR
+
 
 def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     """Whether this unit's figures look like a break in the data rather than the business."""
@@ -435,6 +447,16 @@ def _factor(value: float) -> str:
 #: Beyond this many markets sharing one fault, it stops being a coincidence.
 PATTERN_THRESHOLD = 3
 
+#: A data break below this obscures too little money to be worth a line on this screen.
+#: Well under the materiality floor, deliberately: a broken feed is worth knowing about
+#: long before the gap it hides would matter on its own.
+#:
+#: Small breaks are still counted in the pattern above the list. That is the whole point —
+#: the shape is what says "one join, not thirteen incidents", and it is strongest with all
+#: thirteen. Dropping them from the count to tidy the list would weaken the only finding
+#: on the panel worth acting on.
+SUSPECT_FLOOR_EUR = 10_000.0
+
 #: What a repeated fault means, as opposed to a single occurrence of it. The distinction
 #: changes who is asked and what is asked of them.
 PATTERN_MEANING = {
@@ -486,8 +508,23 @@ def patterns(found: Sequence[Suspect]) -> List[str]:
 
 
 def suspects(dataset: Dataset) -> List[Suspect]:
+    """Every break, whatever its size — the pattern above the list is read from these."""
     found = [suspect_of(unit) for unit in dataset.units if not unit.is_aggregate]
     return [item for item in found if item is not None]
+
+
+def worth_listing(found: Sequence[Suspect]) -> List[Suspect]:
+    """The ones large enough to name, largest first.
+
+    A break worth 827 euros is real and is not worth a line on a screen a CEO reads in two
+    minutes. It still counts in the pattern above: thirteen markets failing the same way
+    is the finding, and it is thirteen whether or not each one is individually worth
+    printing.
+    """
+    return sorted(
+        (item for item in found if item.is_material),
+        key=lambda item: -item.money,
+    )
 
 
 # --------------------------------------------------------------------------- fires
@@ -660,6 +697,15 @@ class Fire:
         asked = [n for n in self.unit.context_notes if n.question]
         if asked:
             return asked[0].question
+        if self.unit.is_sell_in:
+            # Sell-in is shipments. A month of it against a month of plan is mostly a
+            # statement about when an order was placed, so "what would it take to measure
+            # this properly" is the wrong question twice over: nothing is mismeasured, and
+            # the answer nobody needs is a better funnel.
+            return (
+                "Is this a shipment landing in another month, or has the partner cut its "
+                "orders?"
+            )
         if not self.has_breakdown:
             # The missing measurement is the finding. Asking what will move a driver
             # nobody measures would be asking for a guess.
@@ -828,6 +874,12 @@ def wins(dataset: Dataset, limit: int = 3) -> List[Win]:
     for unit in dataset.units:
         if not unit.budget_known:
             # Beating a budget that does not exist is not an achievement.
+            continue
+        if unit.is_sell_in:
+            # A shipment that landed early beats its month by any margin you like, and
+            # beats it again in reverse next month. Calling that a playbook to replicate
+            # would send someone to copy a calendar. Until several months are in hand
+            # there is nothing here to praise or to learn from.
             continue
         var = variance(unit.sales_actual, unit.sales_budget)
         beats_last_year = unit.gap_vs_last_year > 0

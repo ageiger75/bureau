@@ -117,14 +117,33 @@ def read_at() -> str:
 LOG = logging.getLogger("ceoos.warehouse")
 
 
-#: How each channel is named in the sentence that says what the headline figure covers.
+#: How each channel is named in prose. Without an entry a channel reaches the screen as
+#: its bare code — "Dis", "Whoch", "Webp" — which is the vocabulary of a planning file,
+#: not of a sentence anyone reads.
 CHANNEL_WORDS = {
     "ecommerce": "e-commerce",
     "retail": "store sales",
     "marketplace": "marketplace sales",
     "spa": "spa",
     "cafe": "café",
+    "direct selling": "direct selling",
+    "webp": "e-retailers",
+    "mktp": "marketplace sales",
+    "tra": "travel retail",
+    "dis": "distributors",
+    "dpt": "department stores",
+    "whoch": "chain wholesale",
+    "whoin": "independent wholesale",
+    "whosp": "spa wholesale",
+    "tvc": "TV channels",
+    "b2b": "B2B",
+    "copg": "corporate gifts",
 }
+
+#: Above this share of the plan, listing what is covered stops informing anyone: eleven
+#: channel names read as noise, and the one fact worth having — what is still missing —
+#: is buried at the end. Past it, the sentence inverts and names only the gap.
+COVERAGE_INVERTS_ABOVE = 0.80
 
 #: And how the segments outside it are named, so the sentence stays specific rather than
 #: retreating into "everything else".
@@ -171,10 +190,6 @@ def _perimeter_note(budget, units=()) -> str:
     if not channels:
         return ""
 
-    covered = _listed([
-        CHANNEL_WORDS.get(channel, channel) for channel in sorted(channels)
-    ])
-
     measured = 0.0
     total = 0.0
     missing_codes = []
@@ -186,12 +201,28 @@ def _perimeter_note(budget, units=()) -> str:
         elif amount:
             missing_codes.append(segment_code(line.segment))
 
+    covered = _listed([
+        CHANNEL_WORDS.get(channel, channel) for channel in sorted(channels)
+    ])
     if total <= 0:
         return "%s only." % covered.capitalize()
 
+    share = measured / total
     left_out = _listed([
         word for code, word in LEFT_OUT_WORDS if code in set(missing_codes)
     ])
+
+    # Near-complete coverage: say what is missing, not what is present. Naming eleven
+    # channels to explain that almost everything is there tells the reader nothing they
+    # could act on, and buries the one fact that matters at the end of the list.
+    if share >= COVERAGE_INVERTS_ABOVE:
+        if not left_out:
+            return "Every channel the plan commits to."
+        return (
+            "Every channel except %s — about %.0f%% of the plan. Nothing here measures "
+            "the rest yet." % (left_out, 100.0 * share)
+        )
+
     tail = (
         " The rest is %s — invoiced to partners who resell, and no source measures it "
         "here yet." % left_out
@@ -199,7 +230,7 @@ def _perimeter_note(budget, units=()) -> str:
         else ""
     )
     return "%s only — about %.0f%% of the plan.%s" % (
-        covered.capitalize(), 100.0 * measured / total, tail
+        covered.capitalize(), 100.0 * share, tail
     )
 
 

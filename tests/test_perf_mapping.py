@@ -633,3 +633,37 @@ def test_sell_in_and_sell_out_live_side_by_side():
     assert len(dataset.units) == 2
     assert dataset.sales_actual == pytest.approx(1_739_700.0)
     assert dataset.sales_budget == pytest.approx(2_361_700.0)
+
+
+def test_a_planning_code_never_becomes_a_market_label():
+    """"China Webp" and "Hong Kong Dis" put a spreadsheet abbreviation where a reader
+    expects the name of a business."""
+    mapped = mapping.units_from_rows(
+        mapping.sell_in_rows([
+            {"entity": "M_007", "market": "China", "region": "CHINA",
+             "segment": "WEBP - Web Partners", "period": PERIOD,
+             "sales_actual": 1_000_000.0, "sales_last_year": 900_000.0},
+        ]),
+        budget=budget_of(line(market="China", channel="webp")),
+    )
+
+    assert mapped.units[0].label == "China E-retailers"
+
+
+def test_a_sell_in_unit_knows_it_is_sell_in():
+    mapped = mapping.units_from_rows(
+        mapping.sell_in_rows([
+            {"entity": "M_024", "market": "Japan", "region": "APAC",
+             "segment": "DIS - Distributors", "period": PERIOD,
+             "sales_actual": 480_000.0, "sales_last_year": 430_000.0},
+        ]),
+        budget=budget_of(line(market="Japan", channel="dis")),
+    )
+
+    assert mapped.units[0].is_sell_in is True
+
+
+def test_an_own_channel_is_not_sell_in():
+    mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
+
+    assert mapped.units[0].is_sell_in is False

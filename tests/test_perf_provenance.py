@@ -196,3 +196,52 @@ def test_no_plan_still_names_the_channels():
     from app.perf.source import _perimeter_note
 
     assert _perimeter_note(None, [_Unit("ecommerce")]) == "E-commerce only."
+
+
+def test_near_complete_coverage_names_the_gap_not_the_contents():
+    """Eleven channel names read as noise, and bury the one fact worth having. The first
+    screen with sell-in wired said "Dis, dpt, e-commerce, marketplace sales, store sales,
+    tra, tvc, webp, whoch, whoin and whosp only" — accurate, and unreadable."""
+    from app.perf.budget import Budget, BudgetLine
+    from app.perf.source import _perimeter_note
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "RET - Retail", "retail", "2026-07", 900.0, None),
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis", "2026-07", 70.0, None),
+        BudgetLine("Japan", "APAC", "B2B - B2B", "b2b", "2026-07", 30.0, None),
+    ])
+
+    note = _perimeter_note(plan, [_Unit("retail"), _Unit("dis")])
+
+    assert note.startswith("Every channel except B2B")
+    assert "97%" in note
+    assert "dis" not in note
+
+
+def test_a_planning_code_never_reaches_the_sentence():
+    """`Whoch` and `Webp` are abbreviations from a spreadsheet, printed where a reader
+    expects the name of a business."""
+    from app.perf.budget import Budget, BudgetLine
+    from app.perf.source import _perimeter_note
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "WHOCH - Chains Wholesale", "whoch",
+                   "2026-07", 300.0, None),
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis", "2026-07", 700.0, None),
+    ])
+
+    note = _perimeter_note(plan, [_Unit("whoch")])
+
+    assert "chain wholesale" in note.lower()
+    assert "whoch" not in note.lower()
+
+
+def test_full_coverage_says_so_plainly():
+    from app.perf.budget import Budget, BudgetLine
+    from app.perf.source import _perimeter_note
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "RET - Retail", "retail", "2026-07", 900.0, None),
+    ])
+
+    assert _perimeter_note(plan, [_Unit("retail")]) == "Every channel the plan commits to."

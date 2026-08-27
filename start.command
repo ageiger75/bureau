@@ -65,6 +65,14 @@ echo
 
 # --------------------------------------------------------------- serveur
 
+# Un double-clic veut dire « je regarde maintenant » : la lecture en cache est donc
+# oubliée avant de démarrer. Le cache garde son intérêt entre deux affichages dans la même
+# session — recharger une page ne doit pas coûter trois minutes — mais il n'a rien à faire
+# entre deux ouvertures délibérées.
+if [ -x .venv/bin/python ]; then
+  .venv/bin/python -m app.cli refresh 2>/dev/null | sed 's/^/   /' || true
+fi
+
 echo "→ Démarrage · ${URL}"
 echo
 echo "   Cette fenêtre devient le serveur : elle n'accepte plus de commandes."

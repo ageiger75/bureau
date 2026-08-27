@@ -175,11 +175,32 @@ class Mapped:
         self.markets_without_owner = markets_without_owner
 
 
+#: How each channel is written beside a market name. Without an entry a planning code
+#: reaches the screen as "China Webp" or "Hong Kong Dis" — an abbreviation from a
+#: spreadsheet, printed where a reader expects the name of a business.
+CHANNEL_NAMES = {
+    ECOMMERCE: "E-commerce",
+    RETAIL: "Retail",
+    MARKETPLACE: "Marketplace",
+    "webp": "E-retailers",
+    "tra": "Travel Retail",
+    "dis": "Distributors",
+    "dpt": "Department Stores",
+    "whoch": "Chain Wholesale",
+    "whoin": "Independent Wholesale",
+    "whosp": "Spa Wholesale",
+    "tvc": "TV Channels",
+    "b2b": "B2B",
+    "copg": "Corporate Gifts",
+    "dds": "Direct Selling",
+    "spa": "Spa",
+    "cafe": "Café",
+}
+
+
 def _channel_label(channel: str) -> str:
-    """How the channel is written on screen. Title case for anything not spelled out."""
-    if channel == ECOMMERCE:
-        return "E-commerce"
-    return channel.title()
+    """How the channel is written on screen."""
+    return CHANNEL_NAMES.get(channel, channel.title())
 
 
 def _drivers_for(
@@ -318,6 +339,8 @@ def units_from_rows(
     as a fallback and cross-checked, because a silent divergence between the two would be
     worth knowing about long before anyone noticed it on a screen.
     """
+    from .budget import perimeter_of
+
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
     seen_markets: List[tuple] = []
@@ -366,8 +389,6 @@ def units_from_rows(
         # warehouse, and a reason established beats a reason inferred.
         funnel_status = str(row.get("funnel_status") or "").strip().lower()
 
-        from .budget import perimeter_of
-
         reason = ""
         if str(row.get("segment") or "") and perimeter_of(str(row.get("segment"))) == "sell-in":
             reason = (
@@ -413,6 +434,9 @@ def units_from_rows(
                 no_breakdown_reason=reason,
                 funnel_status=funnel_status,
                 context_notes=context_module.notes_for(market, channel, period),
+                perimeter=perimeter_of(str(row.get("segment") or ""))
+                if row.get("segment")
+                else ("own" if channel in (ECOMMERCE, RETAIL) else ""),
             )
         )
 

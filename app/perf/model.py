@@ -223,6 +223,7 @@ class BusinessUnit:
         "budget_known",
         "funnel_status",
         "context_notes",
+        "perimeter",
     )
 
     def __init__(
@@ -252,6 +253,7 @@ class BusinessUnit:
         budget_known: bool = True,
         funnel_status: str = "",
         context_notes=(),
+        perimeter: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -304,6 +306,10 @@ class BusinessUnit:
         #: What happened that the numbers cannot say — a tax change, a one-off. Never a
         #: correction to a figure: what these change is the question, not the arithmetic.
         self.context_notes = list(context_notes)
+        #: `own`, `platform`, `sell-in` or `other`. What a gap means depends on it: a
+        #: shipment to a reseller lands in one month or the next, so a month of sell-in
+        #: measured against a month of plan is mostly a statement about timing.
+        self.perimeter = perimeter
 
     # ------------------------------------------------------------------ sales
 
@@ -318,6 +324,10 @@ class BusinessUnit:
     @property
     def sales_last_year(self) -> float:
         return self.last_year.sales
+
+    @property
+    def is_sell_in(self) -> bool:
+        return self.perimeter == "sell-in"
 
     @property
     def basis_changed(self) -> bool:

@@ -264,6 +264,14 @@
     to stop reading it.
   </p>
 
+  {% if suspects_held_back %}
+    <p class="lede">
+      {{ suspects_held_back }} smaller break{{ "s" if suspects_held_back > 1 }} are counted
+      in the shape below but not listed: each obscures too little to be worth reading, and
+      leaving them out of the count would weaken the only finding here worth acting on.
+    </p>
+  {% endif %}
+
   {% if suspect_patterns %}
     {# The shape, said once. Twelve identical incidents read as twelve problems and get
        triaged as none; naming the pattern sends the question to the right place. #}
