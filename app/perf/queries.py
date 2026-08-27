@@ -155,6 +155,25 @@ from __future__ import annotations
 #: No channel split. `CHANNEL_GROUPING` in the warehouse is the default analytics grouping,
 #: not the local custom ones, so any per-channel figure would be unreliable.
 #:
+#: `funnel_status` names why a funnel is absent instead of leaving a blank, because the four
+#: cases are four different management problems and only one of them is about selling:
+#:
+#: - `measured` — sessions and orders both present.
+#: - `orders_not_tracked` — the site reports sessions, and `UNIQUE_TRANSACTION_ID` is null
+#:   on every row in both windows. Nine markets have never populated it (BR, PL, CZ, SK, HU,
+#:   NO, SE, FI, IN); Malaysia and Thailand stopped in April and May 2025. The rows exist —
+#:   14 718 for Brazil in one month — so this is a tagging gap, not a missing feed.
+#: - `order_tracking_lost` — orders were recorded last year and none now. Taiwan stopped on
+#:   2025-07-09, Hong Kong on 2025-07-28.
+#: - `no_analytics_site` — no host in the governed dimension at all. China's brand.com feed
+#:   ended 2024-06-22 and its current business runs on Tmall, JD and Douyin, none of which
+#:   report to Google Analytics; Mexico ended 2023-07-28, Vietnam 2023-10-31, and Luxembourg
+#:   never had a site. All four still sell, so they keep their euros and lose only the
+#:   decomposition.
+#:
+#: The brand filter cannot be the cause of any of it: it is applied to the host dimension,
+#: which both funnel legs join through, so a wrong `BRAND_ID` would remove the sessions too.
+#:
 #: The join is on ISO2 country, and it is a full outer join on purpose: a market with euro
 #: sales but no analytics site (China, Mexico, Luxembourg, Vietnam) keeps its revenue in the
 #: group total, and a site with traffic but no sales would still appear. Dropping either
@@ -254,27 +273,51 @@ web_orders as (
     where h.brand_id = 'OC'
       and t.session_date between add_months(p.period_start, -12) and p.period_end
     group by h.hostname_country_code_iso2
+),
+joined as (
+    select
+        coalesce(m.market, w.site_country) as market,
+        m.region                           as region,
+        m.sales_actual                     as sales_actual,
+        b.sales_budget                     as sales_budget,
+        m.sales_last_year                  as sales_last_year,
+        w.iso2                             as web_iso2,
+        w.sessions                         as sessions,
+        w.sessions_last_year               as sessions_last_year,
+        o.orders                           as orders,
+        o.orders_last_year                 as orders_last_year,
+        p.period_start                     as period_start
+    from money m
+    full outer join web w on w.iso2 = m.iso2
+    left join budget b     on b.iso2 = coalesce(m.iso2, w.iso2)
+    left join web_orders o on o.iso2 = coalesce(m.iso2, w.iso2)
+    cross join period p
 )
 select
-    coalesce(m.market, w.site_country) as market,
+    market                             as market,
     'ecommerce'                        as channel,
-    m.region                           as region,
+    region                             as region,
     cast(null as varchar)              as owner_name,
-    m.sales_actual                     as sales_actual,
-    b.sales_budget                     as sales_budget,
-    m.sales_last_year                  as sales_last_year,
+    sales_actual                       as sales_actual,
+    sales_budget                       as sales_budget,
+    sales_last_year                    as sales_last_year,
     cast(null as number(38, 4))        as sales_forecast,
-    w.sessions                         as sessions,
-    o.orders                           as orders,
-    w.sessions_last_year               as sessions_last_year,
-    o.orders_last_year                 as orders_last_year,
-    to_char(p.period_start, 'YYYY-MM') as period
-from money m
-full outer join web w on w.iso2 = m.iso2
-left join budget b     on b.iso2 = coalesce(m.iso2, w.iso2)
-left join web_orders o on o.iso2 = coalesce(m.iso2, w.iso2)
-cross join period p
-order by m.sales_actual desc nulls last
+    sessions                           as sessions,
+    sessions_last_year                 as sessions_last_year,
+    -- Nulled rather than zeroed where no order identifier exists. A zero would read as
+    -- "nobody ordered" on a market that sells every day; null reads as "unknown", which
+    -- is what it is, and `funnel_status` says why.
+    iff(coalesce(orders, 0) = 0, null, orders)                       as orders,
+    iff(coalesce(orders, 0) = 0, null, orders_last_year)             as orders_last_year,
+    case
+        when web_iso2 is null                     then 'no_analytics_site'
+        when coalesce(orders, 0) > 0              then 'measured'
+        when coalesce(orders_last_year, 0) > 0    then 'order_tracking_lost'
+        else                                           'orders_not_tracked'
+    end                                as funnel_status,
+    to_char(period_start, 'YYYY-MM')   as period
+from joined
+order by sales_actual desc nulls last
 """
 
 #: The same, for the previous periods that feed the acceleration factor.
