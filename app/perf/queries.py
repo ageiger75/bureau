@@ -391,7 +391,117 @@ SALES_HISTORY = ""
 #:   than an adjustment.
 #:
 #: Validate with `manage.py budget --spec` and `manage.py reconcile` before wiring it in.
-SELL_IN = ""
+SELL_IN = """
+with usable as (
+    -- The freshest exchange year that actually carries figures. The newest
+    -- snapshot of all is the budget cut, whose current-year column is still
+    -- empty; anchoring on it would return a screen of blanks.
+    select
+        exchange_year,
+        snapshot_date,
+        row_number() over (order by exchange_year desc, snapshot_date desc) as freshness
+    from dwh.public.f_management_operating_profit_country
+    where brand_code = 'OC'
+      and account_code in ('PPL101', 'PPL102')
+    group by 1, 2
+    having sum(abs(coalesce(actual_ty, 0))) > 0
+),
+anchor as (
+    select exchange_year, snapshot_date as period_end from usable where freshness = 1
+),
+ytd as (
+    -- Net sales is gross less discounts and returns. Both columns are read from
+    -- the same rows of the same exchange year, so the current period and the
+    -- year-earlier one are stated at identical rates by construction — no
+    -- conversion, and nothing to reconcile between them.
+    select
+        f.entity_code,
+        f.country,
+        f.region,
+        case f.channel
+            when 'WEB PARTNERS'      then 'WEBP - Web Partners'
+            when 'TRAVEL RETAIL'     then 'TRA - Travel retail'
+            when 'DISTRIBUTORS'      then 'DIS - Distributors'
+            when 'DEPARTMENT STORES' then 'DPT - Department Stores'
+            when 'CHAINS WHOLESALE'  then 'WHOCH - Chains Wholesale'
+            when 'WHOLESALE INDEP'   then 'WHOIN - Wholesale indep'
+            when 'WHOLESALES SPA'    then 'WHOSP - Wholesales SPA'
+            when 'TV CHANNELS'       then 'TVC - TV Channels'
+        end as segment,
+        f.snapshot_date,
+        sum(iff(f.account_code in ('PPL101', 'PPL102'),
+                coalesce(f.actual_ty, 0), 0)) * 1000 as ytd_actual,
+        sum(iff(f.account_code in ('PPL101', 'PPL102'),
+                coalesce(f.actual_ly, 0), 0)) * 1000 as ytd_last_year
+    from dwh.public.f_management_operating_profit_country f
+    join anchor a on a.exchange_year = f.exchange_year
+    where f.brand_code = 'OC'
+      and f.snapshot_date <= a.period_end
+      and f.channel in ('WEB PARTNERS', 'TRAVEL RETAIL', 'DISTRIBUTORS',
+                        'DEPARTMENT STORES', 'CHAINS WHOLESALE', 'WHOLESALE INDEP',
+                        'WHOLESALES SPA', 'TV CHANNELS')
+    group by 1, 2, 3, 4, 5
+),
+stepped as (
+    -- Both amount columns are cumulative from the start of the fiscal year, so a
+    -- month is a difference between snapshots. The fiscal year opens in April,
+    -- hence the March anchor for the very first snapshot.
+    select
+        y.entity_code,
+        y.country,
+        y.region,
+        y.segment,
+        y.snapshot_date,
+        y.ytd_actual - coalesce(
+            lag(y.ytd_actual) over (partition by y.entity_code, y.segment
+                                    order by y.snapshot_date), 0) as sales_actual,
+        y.ytd_last_year - coalesce(
+            lag(y.ytd_last_year) over (partition by y.entity_code, y.segment
+                                       order by y.snapshot_date), 0) as sales_last_year,
+        datediff(
+            'month',
+            coalesce(
+                lag(y.snapshot_date) over (partition by y.entity_code, y.segment
+                                           order by y.snapshot_date),
+                -- No earlier snapshot for this pair: its year-to-date is the
+                -- whole year so far. The fiscal year opens on 1 April, and the
+                -- baseline sits one month before it so that the opening month
+                -- comes out as a span of one.
+                add_months(
+                    date_from_parts(
+                        year(y.snapshot_date) - iff(month(y.snapshot_date) >= 4, 0, 1),
+                        4, 1),
+                    -1)),
+            y.snapshot_date) as months_covered
+    from ytd y
+)
+select
+    s.entity_code as entity,
+    s.country     as market,
+    s.region      as region,
+    s.segment     as segment,
+    case
+        when s.months_covered <= 1 then to_char(s.snapshot_date, 'YYYY-MM')
+        -- A missing snapshot makes two months inseparable. Said plainly rather
+        -- than split by a rule of thumb: `reconcile` confronts a range with the
+        -- plan's own months added together, and an invented split would be worth
+        -- less than none.
+        else to_char(add_months(s.snapshot_date, 1 - s.months_covered), 'YYYY-MM')
+             || '..' || to_char(s.snapshot_date, 'YYYY-MM')
+    end                         as period,
+    s.sales_actual              as sales_actual,
+    s.sales_last_year           as sales_last_year,
+    cast(null as number(38, 4)) as sales_budget,
+    cast(null as number(38, 4)) as sales_forecast,
+    cast(null as varchar)       as owner_name
+from stepped s
+join anchor a on a.period_end = s.snapshot_date
+where s.segment is not null
+  -- A row that is zero on both periods is a channel the entity does not use.
+  -- Kept out so the screen is not padded with lines nobody can act on.
+  and (s.sales_actual <> 0 or s.sales_last_year <> 0)
+order by s.sales_actual desc nulls last
+"""
 
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.

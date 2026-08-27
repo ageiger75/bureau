@@ -334,6 +334,12 @@ class SnowflakeSource:
             LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
         else:
             rows = warehouse.rows(queries.SALES_AND_DRIVERS)
+            # Sell-in comes from a different source with a different cadence, so it is
+            # read separately and its absence costs its own lines rather than the whole
+            # screen. Read here and not after the cache branch: what gets written to
+            # disk below is this concatenation, so appending again on a cache hit would
+            # count every invoiced euro twice.
+            rows = rows + self._sell_in_rows(mapping, queries, warehouse)
             stamp = time.time()
             read_at_text = read_at()
 
@@ -342,10 +348,6 @@ class SnowflakeSource:
                 "The query ran and returned nothing. An empty cockpit and a healthy "
                 "business look identical, so this refuses rather than renders."
             )
-
-        # Sell-in comes from a different source with a different cadence, so it is read
-        # separately and its absence costs its own lines rather than the whole screen.
-        rows = rows + self._sell_in_rows(mapping, queries, warehouse)
 
         mapped = mapping.units_from_rows(rows, budget=budget)
         # Kept on the source, not on the dataset: they describe the plumbing, not the

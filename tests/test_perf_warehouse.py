@@ -91,7 +91,6 @@ def test_only_the_written_queries_report_as_written():
     """
     assert set(queries.missing()) == {
         "SALES_HISTORY",
-        "SELL_IN",
         "KPI_READINGS",
         "MARKET_INDEX",
         "COMMITMENTS",
@@ -420,9 +419,11 @@ def test_a_second_read_does_not_hit_the_warehouse_again(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     SnowflakeSource().dataset()
 
-    assert len(calls) == 1
+    assert one_read > 0
+    assert len(calls) == one_read
     source_module.cache_clear()
 
 
@@ -440,10 +441,12 @@ def test_the_cache_survives_a_new_source_object(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     first = SnowflakeSource().dataset()
+    one_read = len(calls)
     second = SnowflakeSource().dataset()
 
     assert first is second
-    assert len(calls) == 1
+    assert one_read > 0
+    assert len(calls) == one_read
     source_module.cache_clear()
 
 
@@ -460,9 +463,10 @@ def test_an_expired_cache_reads_again(monkeypatch):
     monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2
+    assert len(calls) == 2 * one_read
     source_module.cache_clear()
 
 
@@ -478,9 +482,10 @@ def test_a_refresh_is_not_refused_by_the_cache(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     SnowflakeSource().dataset(refresh=True)
 
-    assert len(calls) == 2
+    assert len(calls) == 2 * one_read
     source_module.cache_clear()
 
 
@@ -542,10 +547,12 @@ def test_a_restart_reuses_the_last_read(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     source_module.cache_clear()  # the process ends; the file does not
     SnowflakeSource().dataset()
 
-    assert len(calls) == 1
+    assert one_read > 0
+    assert len(calls) == one_read
 
 
 def test_a_restarted_screen_still_carries_the_original_read_time(monkeypatch):
@@ -576,13 +583,16 @@ def test_a_corrupt_cache_costs_one_query_and_nothing_else(monkeypatch):
 
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+        warehouse, "rows", lambda sql, params=None: calls.append(sql) or [_sales_row()]
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     dataset = SnowflakeSource().dataset()
 
-    assert len(calls) == 1
+    # One read and no retry. Counted per statement rather than in total, so the
+    # test says what it means whatever number of queries a read needs.
+    assert calls, "a corrupt cache must fall back to reading, not to nothing"
+    assert len(calls) == len(set(calls))
     assert dataset.sales_actual > 0
 
 
@@ -598,11 +608,12 @@ def test_an_expired_file_is_ignored(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     source_module.cache_clear()
     monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2
+    assert len(calls) == 2 * one_read
 
 
 def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
@@ -617,10 +628,11 @@ def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
+    one_read = len(calls)
     source_module.cache_forget()
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2
+    assert len(calls) == 2 * one_read
 
 
 def test_the_cached_rows_are_primitives(monkeypatch):
@@ -711,3 +723,40 @@ def test_an_unwritten_sell_in_query_is_not_reached_for(monkeypatch):
     SnowflakeSource().dataset()
 
     assert len(asked) == 1
+
+
+def test_a_cached_read_does_not_count_sell_in_twice(monkeypatch):
+    """The disk cache holds sell-out and sell-in together, because that is what was
+    concatenated before it was written. Reading it and then appending sell-in again
+    would inflate every invoiced euro on the second render — and a screen that grows
+    its own revenue by being looked at twice is the worst failure available here.
+    """
+    from app.perf import queries
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    sell_in = {
+        "entity": "M_024",
+        "market": "Japan",
+        "region": "JAPAN",
+        "segment": "DIS - Distributors",
+        "period": "2026-06",
+        "sales_actual": 500.0,
+        "sales_last_year": 400.0,
+    }
+
+    def counted(sql, params=None):
+        if "f_management_operating_profit_country" in sql:
+            return [dict(sell_in)]
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", counted)
+    monkeypatch.setattr(queries, "SELL_IN", "select 1 from f_management_operating_profit_country")
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    first = SnowflakeSource().dataset()
+    source_module.cache_clear()  # the process restarts; the file does not
+    cached = SnowflakeSource().dataset()
+
+    assert cached.sales_actual == first.sales_actual
