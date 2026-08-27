@@ -6,6 +6,9 @@
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
+    python -m app.cli note           consigne ce que les chiffres ne peuvent pas dire
+                                     note "Marché" "Ce qui s'est passé" [--kind one_off]
+                                     note --list · note --forget N
     python -m app.cli reconcile      confronte une extraction candidate aux réalisés connus
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
@@ -265,6 +268,148 @@ def _report_reconciliation(expected, found, unknown, perimeter) -> int:
     print("Le candidat ne reproduit pas encore les réalisés. Les écarts ci-dessus disent")
     print("où, ce qui vaut mieux à transmettre qu'une demande.")
     return 1
+
+
+NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source")
+
+
+def cmd_note(argv: List[str]) -> int:
+    """Consigne ce que les chiffres ne peuvent pas dire.
+
+    Une commande plutôt qu'un fichier à éditer : ces notes s'écrivent au moment où on
+    comprend quelque chose, souvent entre deux réunions, et une seule ligne de terminal
+    passe là où un tableur ne passe pas.
+
+        manage.py note "Brazil" "Les taxes ont changé en juin, le budget est antérieur."
+        manage.py note "Japan" "Fermeture d'un magasin phare." --kind one_off --since 2026-07
+        manage.py note --list
+        manage.py note --forget 2
+    """
+    import csv
+
+    from .perf import context
+    from .perf.budget import normalise_market
+    from .perf.mapping import normalise_channel
+
+    path = settings.context_path
+    existing = _read_notes(path)
+
+    if "--list" in argv:
+        return _print_notes(existing, path)
+
+    forget = _option(argv, "--forget")
+    if forget:
+        try:
+            index = int(forget)
+        except ValueError:
+            print("Numéro attendu : manage.py note --forget 2", file=sys.stderr)
+            return 2
+        if not 1 <= index <= len(existing):
+            print("Aucune note numéro %s. `manage.py note --list` pour les voir."
+                  % forget, file=sys.stderr)
+            return 2
+        dropped = existing.pop(index - 1)
+        _write_notes(path, existing)
+        print("Oubliée : %s — %s" % (dropped["market"] or "tous marchés", dropped["note"]))
+        return 0
+
+    positional = [a for a in argv if not a.startswith("--")]
+    # Les valeurs des options sont des positionnels aux yeux de ce découpage naïf ; on les
+    # retire, sinon un `--since 2026-06` se ferait passer pour le texte de la note.
+    for flag in ("--kind", "--since", "--channel", "--source", "--forget"):
+        value = _option(argv, flag)
+        if value in positional:
+            positional.remove(value)
+
+    if len(positional) < 2:
+        print(cmd_note.__doc__, file=sys.stderr)
+        return 2
+
+    market, text = positional[0], positional[1]
+    kind = (_option(argv, "--kind") or context.BASIS_CHANGE).strip().lower()
+    if kind not in context.KINDS:
+        print("Type inconnu : %s. Au choix : %s"
+              % (kind, ", ".join(context.KINDS)), file=sys.stderr)
+        print("  basis_change  le plan et le réalisé ne se comparent plus", file=sys.stderr)
+        print("  one_off       un événement isolé est dans le chiffre", file=sys.stderr)
+        return 2
+
+    channel = _option(argv, "--channel") or ""
+    row = {
+        "market": normalise_market(market),
+        "channel": normalise_channel(channel) if channel else "",
+        "since": (_option(argv, "--since") or "").strip(),
+        "kind": kind,
+        "note": text,
+        "source": _option(argv, "--source") or "CEO",
+    }
+    existing.append(row)
+    _write_notes(path, existing)
+    context.reset()
+
+    print("Notée               %s%s" % (
+        row["market"] or "tous marchés",
+        " · %s" % row["channel"] if row["channel"] else "",
+    ))
+    print("Depuis              %s" % (row["since"] or "toujours"))
+    print("Effet               %s" % context.KIND_MEANING[kind])
+    print("Nouvelle question   %s" % context.KIND_QUESTION[kind])
+    print("")
+    print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
+    return 0
+
+
+def _read_notes(path) -> List[dict]:
+    import csv
+
+    if not path.exists():
+        return []
+    try:
+        with path.open(encoding="utf-8-sig", newline="") as handle:
+            return [
+                {key: (record.get(key) or "") for key in NOTE_HEADER}
+                for record in csv.DictReader(handle)
+                if (record.get("note") or "").strip()
+                and not str(record.get("market") or "").startswith("#")
+            ]
+    except OSError:
+        return []
+
+
+def _write_notes(path, rows) -> None:
+    import csv
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(NOTE_HEADER))
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
+def _print_notes(rows, path) -> int:
+    from .perf import context
+
+    if not rows:
+        print("Aucune note. Pour en ajouter une :")
+        print('  manage.py note "Brazil" "Les taxes ont changé en juin."')
+        return 0
+    print("Fichier             %s" % path)
+    print("")
+    for index, row in enumerate(rows, start=1):
+        scope = row["market"] or "tous marchés"
+        if row["channel"]:
+            scope += " · " + row["channel"]
+        print("%d. %s%s" % (index, scope,
+                            "  (depuis %s)" % row["since"] if row["since"] else ""))
+        print("   %s" % row["note"])
+        print("   %s%s" % (
+            context.KIND_MEANING.get(row["kind"], row["kind"]),
+            "  — %s" % row["source"] if row["source"] else "",
+        ))
+        print("")
+    print("Pour en retirer une : manage.py note --forget N")
+    return 0
 
 
 def cmd_refresh() -> int:
@@ -641,6 +786,8 @@ def main(argv: List[str]) -> int:
         return cmd_budget(argv[1:])
     if command == "refresh":
         return cmd_refresh()
+    if command == "note":
+        return cmd_note(argv[1:])
     if command == "reconcile":
         return cmd_reconcile(argv[1:])
     if command == "serve":

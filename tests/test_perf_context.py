@@ -216,3 +216,112 @@ def test_a_malformed_file_does_not_take_the_cockpit_down(monkeypatch, tmp_path):
 
     assert context.notes_for("Brazil", RETAIL, "2026-07") == []
     context.reset()
+
+
+# ------------------------------------------------------------- writing a note by hand
+#
+# These get written the moment someone understands something, often between two meetings.
+# A command reaches that moment; a spreadsheet does not.
+
+
+@pytest.fixture
+def notes_at(tmp_path, monkeypatch):
+    from app.config import settings
+
+    path = tmp_path / "context.csv"
+    monkeypatch.setattr(type(settings), "context_path", property(lambda self: path))
+    context.reset()
+    yield path
+    context.reset()
+
+
+def test_a_note_is_written_from_the_command_line(notes_at, capsys):
+    from app.cli import cmd_note
+
+    assert cmd_note(["Brazil", "Sales tax changed in June."]) == 0
+
+    loaded = context.load(notes_at)
+
+    assert len(loaded) == 1
+    assert loaded.notes[0].market == "Brazil"
+    assert loaded.notes[0].kind == context.BASIS_CHANGE
+
+
+def test_the_command_says_what_the_note_will_do(notes_at, capsys):
+    """Writing a note that silently changes a screen is worse than editing a file: at
+    least the file shows what it holds."""
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed in June."])
+    out = capsys.readouterr().out
+
+    assert "not measured on the same basis" in out
+    assert "rebased" in out
+
+
+def test_an_option_value_is_never_mistaken_for_the_note(notes_at):
+    """`--since 2026-06` looks exactly like a positional argument to a naive split, and
+    would have been filed as the text of the note."""
+    from app.cli import cmd_note
+
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off", "--since", "2026-07"])
+
+    written = context.load(notes_at).notes[0]
+
+    assert written.text == "A flagship closed."
+    assert written.since == "2026-07"
+    assert written.kind == context.ONE_OFF
+
+
+def test_an_unknown_kind_is_refused_with_the_choices(notes_at, capsys):
+    from app.cli import cmd_note
+
+    assert cmd_note(["Brazil", "Something happened.", "--kind", "weather"]) == 2
+    assert "basis_change" in capsys.readouterr().err
+
+
+def test_notes_accumulate_rather_than_replace(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off"])
+
+    assert len(context.load(notes_at)) == 2
+
+
+def test_a_note_can_be_taken_back(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off"])
+
+    assert cmd_note(["--forget", "1"]) == 0
+
+    remaining = context.load(notes_at)
+
+    assert len(remaining) == 1
+    assert remaining.notes[0].market == "Japan"
+
+
+def test_forgetting_a_note_that_is_not_there_is_refused(notes_at, capsys):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+
+    assert cmd_note(["--forget", "7"]) == 2
+
+
+def test_listing_with_nothing_written_says_how_to_start(notes_at, capsys):
+    from app.cli import cmd_note
+
+    assert cmd_note(["--list"]) == 0
+    assert "Aucune note" in capsys.readouterr().out
+
+
+def test_a_market_name_is_normalised_on_the_way_in(notes_at):
+    """Typed by a person, matched against the warehouse's vocabulary."""
+    from app.cli import cmd_note
+
+    cmd_note(["USA", "Something changed."])
+
+    assert context.load(notes_at).notes[0].market == "United States"
