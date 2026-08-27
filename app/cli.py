@@ -78,7 +78,11 @@ def cmd_seed(argv: List[str]) -> int:
 
     from seed.demo import seed
 
-    print("Données de démonstration · %s" % seed(reset=reset))
+    # « Dossiers » et non « données de démonstration » : cette ligne parle des dossiers
+    # de Decision Room dans SQLite, jamais des chiffres de performance, qui viennent d'une
+    # tout autre source. Le mot précédent s'affichait à chaque lancement et laissait
+    # croire que l'écran entier tournait sur des chiffres inventés.
+    print("Dossiers Decision Room · %s" % seed(reset=reset))
     return 0
 
 

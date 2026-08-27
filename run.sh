@@ -18,22 +18,26 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
-# Le défaut est la démonstration, et c'est volontaire : l'entrepôt ne se joint jamais par
-# accident. Mais un écran de démonstration ressemble assez à l'écran réel pour qu'on le
-# lise sans s'en apercevoir — d'où cette ligne, dite au lancement plutôt que découverte en
-# bas de page.
-# La condition porte sur ce qui sera effectivement lu, pas sur la présence d'une ligne :
-# un .env créé avant que ces réglages existent n'en contient aucune, et un avertissement
-# qui exige la ligne resterait muet précisément dans ce cas-là.
+# Le lancement dit d'où viennent les chiffres, dans les deux cas. Le défaut est la
+# démonstration, et c'est volontaire — l'entrepôt ne se joint jamais par accident — mais
+# un écran de démonstration ressemble assez à l'écran réel pour se lire sans qu'on s'en
+# aperçoive, et le seul indice tenait jusqu'ici dans un bandeau qu'on ne relit pas.
+#
+# La condition porte sur ce qui sera effectivement lu, jamais sur la présence d'une ligne :
+# un .env antérieur à ces réglages n'en contient aucune, et une condition qui exige la
+# ligne resterait muette précisément là où le problème est.
 SOURCE_SET="${CEOOS_DATA_SOURCE:-}"
 if [ -z "$SOURCE_SET" ] && [ -f .env ]; then
   SOURCE_SET="$(sed -n 's/^CEOOS_DATA_SOURCE=//p' .env | tail -1)"
 fi
-if [ "$SOURCE_SET" != "snowflake" ]; then
-  echo "→ Données de démonstration. Pour les vrais chiffres, ajouter à .env :"
+if [ "$SOURCE_SET" = "snowflake" ]; then
+  echo "→ Chiffres de performance · entrepôt Snowflake"
+else
+  echo "→ Chiffres de performance · démonstration, chiffres inventés"
+  echo "   Pour les vrais chiffres, ajouter à .env puis relancer :"
   echo "     CEOOS_DATA_SOURCE=snowflake"
   echo "     CEOOS_SNOWFLAKE_CONNECTION=<le nom entre crochets de ~/.snowflake/connections.toml>"
-  echo "   puis relancer. Un .env plus ancien que ces réglages ne les contient pas encore."
+  echo "   Un .env antérieur à ces réglages ne les contient pas encore."
 fi
 
 # Un serveur déjà lancé donne « Address already in use », qui ne dit ni qui occupe le port
