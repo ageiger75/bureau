@@ -380,3 +380,151 @@ def test_an_unsettled_segment_would_still_be_declared(capsys, monkeypatch):
     cmd_budget(["--segments"])
 
     assert "Sur la frontière" in capsys.readouterr().out
+
+
+# ------------------------------------------------- turning a claim into a measurement
+#
+# "The sell-in data is not clean" is an assertion. Against twelve months of known actuals
+# per market and segment it becomes a measurement — and a query that reproduces them is
+# usable whatever the state of the semantic layer above it.
+
+
+def _spec_plan():
+    return Budget(
+        [
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-07", 500_000.0, 400_000.0),
+            BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                       "2026-08", 500_000.0, 300_000.0),
+            BudgetLine("Japan", "APAC", "RET - Retail", "retail",
+                       "2026-07", 900_000.0, 850_000.0),
+        ]
+    )
+
+
+def _candidate(tmp_path, rows):
+    import csv
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["market", "segment", "period", "value"])
+        writer.writerows(rows)
+    return path
+
+
+@pytest.fixture
+def against_spec(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _spec_plan())
+
+
+def test_a_candidate_that_reproduces_the_actuals_is_accepted(
+    tmp_path, capsys, against_spec
+):
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "400000"],
+        ["Japan", "DIS - Distributors", "2026-08", "300000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 0
+    assert "Utilisable" in capsys.readouterr().out
+
+
+def test_a_rounding_difference_still_counts_as_agreement(tmp_path, against_spec):
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "400100"],
+        ["Japan", "DIS - Distributors", "2026-08", "299500"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 0
+
+
+def test_a_wrong_definition_is_refused_and_located(tmp_path, capsys, against_spec):
+    """The point of the exercise. A total that lands by accident on one month cannot land
+    on twelve, and the report says which one broke."""
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "400000"],
+        ["Japan", "DIS - Distributors", "2026-08", "180000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 1
+
+    out = capsys.readouterr().out
+    assert "2026-08" in out
+    assert "En désaccord        1" in out
+
+
+def test_the_biggest_gaps_come_first(tmp_path, capsys, against_spec):
+    """A wrong definition shows up in money, not in cell counts: one large market off
+    matters more than thirty small ones."""
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "399000"],
+        ["Japan", "DIS - Distributors", "2026-08", "10000"],
+    ])
+
+    cmd_reconcile([str(path)])
+    lines = [l for l in capsys.readouterr().out.splitlines() if "2026-0" in l]
+
+    assert lines and "2026-08" in lines[0]
+
+
+def test_cells_the_candidate_never_produced_are_named(tmp_path, capsys, against_spec):
+    """Silence is the failure a percentage hides: a query covering two markets perfectly
+    and missing thirty scores 100%."""
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "400000"],
+    ])
+
+    cmd_reconcile([str(path)])
+
+    assert "Rien trouvé pour 1 cellules" in capsys.readouterr().out
+
+
+def test_only_the_asked_perimeter_is_confronted(tmp_path, capsys, against_spec):
+    """Retail is in the plan and is not sell-in. Counting it would flatter or damn the
+    candidate for something it was never asked to produce."""
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["Japan", "DIS - Distributors", "2026-07", "400000"],
+        ["Japan", "DIS - Distributors", "2026-08", "300000"],
+        ["Japan", "RET - Retail", "2026-07", "1"],
+    ])
+
+    cmd_reconcile([str(path)])
+    out = capsys.readouterr().out
+
+    assert "Cellules attendues  2" in out
+    assert "Hors périmètre      1" in out
+
+
+def test_market_names_are_normalised_before_confronting(tmp_path, against_spec):
+    """The warehouse says one thing, the planning file another. A name mismatch would
+    read as a missing market and send everyone after the wrong problem."""
+    from app.cli import cmd_reconcile
+
+    path = _candidate(tmp_path, [
+        ["JAPAN", "DIS - Distributors", "2026-07", "400000"],
+        ["japan", "DIS - Distributors", "2026-08", "300000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 0
+
+
+def test_a_missing_candidate_file_is_refused_clearly(tmp_path, against_spec):
+    from app.cli import cmd_reconcile
+
+    assert cmd_reconcile([str(tmp_path / "absent.csv")]) == 2

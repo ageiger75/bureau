@@ -6,6 +6,8 @@
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
+    python -m app.cli reconcile      confronte une extraction candidate aux réalisés connus
+                                     reconcile CANDIDAT.csv [--perimeter sell-in]
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
@@ -119,6 +121,138 @@ def cmd_check() -> int:
         if settings.reads_warehouse
         else "aucun (ni Microsoft 365, ni fournisseur IA)"))
     return 0
+
+
+#: Deux montants pour la même cellule sont d'accord en deçà de cet écart relatif. Assez
+#: large pour absorber un arrondi et une conversion de devise, assez serré pour qu'une
+#: définition fausse ne passe pas.
+RECONCILE_TOLERANCE = 0.01
+
+
+def cmd_reconcile(argv: List[str]) -> int:
+    """Confronte une extraction candidate aux réalisés connus.
+
+    « La donnée n'est pas propre » est une affirmation. Avec douze mois de réalisés par
+    marché et par segment, elle devient une mesure. Une requête qui reproduit ces
+    montants-là est utilisable, quel que soit l'état de la couche sémantique ; une requête
+    qui ne les reproduit pas dit exactement où elle se trompe — ce qui vaut mieux à
+    transmettre qu'une demande.
+
+    Le candidat est un CSV aux colonnes `market`, `segment`, `period`, `value`. C'est le
+    format qu'écrit `--spec`, pour que les deux fichiers se regardent en face.
+    """
+    import csv
+
+    from .perf import budget as budget_module
+    from .perf.budget import normalise_market, perimeter_of
+
+    if not argv or argv[0].startswith("--"):
+        print("Usage : manage.py reconcile CANDIDAT.csv [--perimeter sell-in]",
+              file=sys.stderr)
+        return 2
+    candidate_path = Path(argv[0])
+    if not candidate_path.exists():
+        print("Fichier introuvable : %s" % candidate_path, file=sys.stderr)
+        return 2
+    if not settings.has_budget_file:
+        print("Classeur de planification absent : rien à quoi confronter.", file=sys.stderr)
+        return 2
+
+    wanted = (_option(argv, "--perimeter") or "sell-in").strip().lower()
+    plan = budget_module.load(settings.budget_path)
+
+    expected = {}
+    for line in plan.lines:
+        if line.last_year is None:
+            continue
+        if wanted != "all" and perimeter_of(line.segment) != wanted:
+            continue
+        expected[(line.market, line.segment, line.period)] = line.last_year
+
+    if not expected:
+        print("Aucun réalisé connu sur ce périmètre.", file=sys.stderr)
+        return 2
+
+    found = {}
+    unknown = 0
+    with candidate_path.open(encoding="utf-8-sig", newline="") as handle:
+        for record in csv.DictReader(handle):
+            key = (
+                normalise_market(str(record.get("market") or "")),
+                str(record.get("segment") or "").strip(),
+                str(record.get("period") or "").strip(),
+            )
+            try:
+                value = float(str(record.get("value") or record.get("actual_eur") or ""))
+            except ValueError:
+                continue
+            if key not in expected:
+                unknown += 1
+                continue
+            found[key] = found.get(key, 0.0) + value
+
+    return _report_reconciliation(expected, found, unknown, wanted)
+
+
+def _report_reconciliation(expected, found, unknown, perimeter) -> int:
+    agree = []
+    differ = []
+    for key, target in expected.items():
+        if key not in found:
+            continue
+        candidate = found[key]
+        scale = abs(target) or 1.0
+        if abs(candidate - target) / scale <= RECONCILE_TOLERANCE:
+            agree.append(key)
+        else:
+            differ.append((key, target, candidate))
+
+    missing = [key for key in expected if key not in found]
+    covered = len(agree) + len(differ)
+
+    print("Périmètre           %s" % perimeter)
+    print("Cellules attendues  %d" % len(expected))
+    print("Cellules trouvées   %d" % covered)
+    print("D'accord            %d" % len(agree))
+    print("En désaccord        %d" % len(differ))
+    print("Absentes            %d" % len(missing))
+    if unknown:
+        print("Hors périmètre      %d lignes du candidat ne correspondent à rien d'attendu"
+              % unknown)
+
+    if covered:
+        rate = 100.0 * len(agree) / covered
+        print("")
+        print("Taux d'accord       %.1f%% des cellules confrontées" % rate)
+
+    # Ce que le taux ne dit pas : une définition fausse se voit à l'argent, pas au nombre
+    # de cellules. Un marché majeur en désaccord pèse plus que trente marchés minuscules.
+    if differ:
+        differ.sort(key=lambda item: -abs(item[1] - item[2]))
+        print("")
+        print("Les plus gros écarts :")
+        print("%-20s %-26s %-9s %14s %14s" % ("Marché", "Segment", "Mois", "Attendu", "Candidat"))
+        for (market, segment, period), target, candidate in differ[:15]:
+            print("%-20s %-26s %-9s %14s %14s" % (
+                market[:20], segment[:26], period, _eur(target), _eur(candidate)))
+        if len(differ) > 15:
+            print("… et %d autres." % (len(differ) - 15))
+
+    if missing:
+        markets = sorted({key[0] for key in missing})
+        print("")
+        print("Rien trouvé pour %d cellules, sur %d marchés : %s"
+              % (len(missing), len(markets), ", ".join(markets[:12])))
+        if len(markets) > 12:
+            print("… et %d autres marchés." % (len(markets) - 12))
+
+    print("")
+    if not differ and not missing:
+        print("Le candidat reproduit tous les réalisés connus. Utilisable.")
+        return 0
+    print("Le candidat ne reproduit pas encore les réalisés. Les écarts ci-dessus disent")
+    print("où, ce qui vaut mieux à transmettre qu'une demande.")
+    return 1
 
 
 def cmd_refresh() -> int:
@@ -477,6 +611,8 @@ def main(argv: List[str]) -> int:
         return cmd_budget(argv[1:])
     if command == "refresh":
         return cmd_refresh()
+    if command == "reconcile":
+        return cmd_reconcile(argv[1:])
     if command == "serve":
         return cmd_serve(argv[1:])
     print("Commande inconnue : %s" % command, file=sys.stderr)
