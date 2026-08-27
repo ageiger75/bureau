@@ -782,3 +782,143 @@ def test_an_unknown_entity_falls_back_rather_than_vanishing(tmp_path, capsys, mo
         writer.writerow(["M_999_UNKNOWN", "Japan", "DIS - Distributors", "2025-07", "430000"])
 
     assert cmd_reconcile([str(path)]) == 0
+
+
+# --------------------------------------------------- two months that cannot be separated
+#
+# A cumulative fact with a snapshot missing in the middle cannot say what April did as
+# opposed to May. Splitting them by a rule of thumb would be the one thing worth less than
+# not having them: a figure invented to fill a column. Saying so, and confronting the pair
+# with the plan's own two months added together, keeps the check honest and keeps the
+# months out of the "missing" pile they do not belong in.
+
+
+def _pair_plan():
+    return Budget([
+        BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
+                   "2026-04", 0.0, 300_000.0, entity="M_098_TRA"),
+        BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
+                   "2026-05", 0.0, 200_000.0, entity="M_098_TRA"),
+        BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
+                   "2026-06", 0.0, 250_000.0, entity="M_098_TRA"),
+    ])
+
+
+def _combined_candidate(tmp_path, rows):
+    import csv
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        writer.writerows(rows)
+    return path
+
+
+@pytest.fixture
+def pair(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
+
+
+def test_a_range_of_months_is_read_as_the_months_it_covers():
+    from app.cli import _months_in
+
+    assert _months_in("2025-04..2025-05") == ["2025-04", "2025-05"]
+    assert _months_in("2025-11..2026-01") == ["2025-11", "2025-12", "2026-01"]
+    assert _months_in("2025-04") == ["2025-04"]
+
+
+def test_a_malformed_range_is_left_alone(pair):
+    from app.cli import _months_in
+
+    assert _months_in("not..a..range") == ["not..a..range"]
+
+
+def test_two_inseparable_months_are_checked_against_their_sum(tmp_path, capsys, pair):
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 0
+
+    out = capsys.readouterr().out
+
+    assert "Mois groupés        1 figures couvrant 2 mois, dont 1 d'accord" in out
+
+
+def test_a_grouped_figure_that_disagrees_is_named(tmp_path, capsys, pair):
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
+        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 1
+
+    out = capsys.readouterr().out
+
+    assert "2025-04→2025-05" in out
+
+
+def test_grouped_months_are_not_also_counted_as_missing(tmp_path, capsys, pair):
+    """They were checked, jointly. Reporting them as absent as well would describe a gap
+    that has just been closed, and understate a candidate that did its job."""
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+    ])
+
+    cmd_reconcile([str(path)])
+
+    assert "Absentes            0" in capsys.readouterr().out
+
+
+def test_a_range_covering_nothing_expected_is_reported_not_silent(tmp_path, capsys, pair):
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2024-01..2024-02", "500000"],
+    ])
+
+    cmd_reconcile([str(path)])
+
+    assert "Groupes sans cible  1" in capsys.readouterr().out
+
+
+def test_a_grouped_disagreement_is_not_called_usable(tmp_path, capsys, pair):
+    """Caught by its own test: the verdict looked only at single months, so a candidate
+    whose grouped figure was five times off was still told it reproduced everything. A
+    check that passes what it just flagged is worse than no check."""
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
+        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+    ])
+
+    assert cmd_reconcile([str(path)]) == 1
+    assert "Utilisable" not in capsys.readouterr().out
+
+
+def test_grouped_months_count_towards_the_rate(tmp_path, capsys, pair):
+    """A rate that ignored them would flatter or damn a candidate for a limitation of the
+    source rather than for its own work."""
+    from app.cli import cmd_reconcile
+
+    path = _combined_candidate(tmp_path, [
+        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+    ])
+
+    cmd_reconcile([str(path)])
+
+    assert "Taux d'accord       100.0%" in capsys.readouterr().out

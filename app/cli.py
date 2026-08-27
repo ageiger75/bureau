@@ -25,7 +25,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .config import settings
 from .db import create_all, database_label
@@ -195,6 +195,7 @@ def cmd_reconcile(argv: List[str]) -> int:
         return 2
 
     found = {}
+    combined = []
     unknown = 0
     matched_on_entity = 0
     with candidate_path.open(encoding="utf-8-sig", newline="") as handle:
@@ -202,6 +203,16 @@ def cmd_reconcile(argv: List[str]) -> int:
             segment = str(record.get("segment") or "").strip()
             period = str(record.get("period") or "").strip()
             entity = str(record.get("entity") or "").strip().upper()
+
+            # A source may be unable to separate two months — a cumulative fact with a
+            # snapshot missing in the middle. Splitting them by a rule of thumb would be
+            # the one thing worth less than not having them: a figure invented to fill a
+            # column. `2025-04..2025-05` says so instead, and is confronted with the plan's
+            # own two months added together.
+            months = _months_in(period)
+            if len(months) > 1:
+                combined.append((entity, segment, months, _value_of(record)))
+                continue
 
             key = None
             if entity:
@@ -214,23 +225,29 @@ def cmd_reconcile(argv: List[str]) -> int:
                     segment,
                     period,
                 )
-            try:
-                value = float(str(record.get("value") or record.get("actual_eur") or ""))
-            except ValueError:
+            value = _value_of(record)
+            if value is None:
                 continue
             if key not in expected:
                 unknown += 1
                 continue
             found[key] = found.get(key, 0.0) + value
 
+    # Combined months are resolved after the single ones, so a range never shadows a month
+    # the candidate also produced on its own.
+    grouped = _resolve_combined(combined, expected, by_entity, found)
+
     return _report_reconciliation(
-        expected, found, unknown, wanted, matched_on_entity
+        expected, found, unknown, wanted, matched_on_entity, grouped
     )
 
 
 def _report_reconciliation(
-    expected, found, unknown, perimeter, matched_on_entity=0
+    expected, found, unknown, perimeter, matched_on_entity=0, grouped=()
 ) -> int:
+    checked = [c for c in grouped if c.resolved]
+    grouped_agree = [c for c in checked if c.agrees]
+
     agree = []
     differ = []
     for key, target in expected.items():
@@ -259,8 +276,31 @@ def _report_reconciliation(
         print("Jointes par entité  %d lignes — la clé du plan plutôt qu'un nom de marché"
               % matched_on_entity)
 
+    if checked:
+        months_covered = sum(len(c.months) for c in checked)
+        print("Mois groupés        %d figures couvrant %d mois, dont %d d'accord"
+              % (len(checked), months_covered, len(grouped_agree)))
+        print("                    inséparables à la source, confrontées à la somme du plan")
+        for item in checked:
+            if item.agrees:
+                continue
+            print("   %-30s %-22s %14s vs %s" % (
+                item.label[:30],
+                "%s→%s" % (item.months[0], item.months[-1]),
+                _eur(item.target),
+                _eur(item.value),
+            ))
+    orphaned = [c for c in grouped if not c.resolved]
+    if orphaned:
+        print("Groupes sans cible  %d — aucun des mois couverts n'est attendu ici"
+              % len(orphaned))
+
+    # Grouped figures count in the rate: a candidate that reproduces two inseparable
+    # months as one correct total has done its job on those months, and a rate that
+    # ignored them would flatter or damn it for a limitation of the source.
+    covered += len(checked)
     if covered:
-        rate = 100.0 * len(agree) / covered
+        rate = 100.0 * (len(agree) + len(grouped_agree)) / covered
         print("")
         print("Taux d'accord       %.1f%% des cellules confrontées" % rate)
 
@@ -285,8 +325,9 @@ def _report_reconciliation(
         if len(markets) > 12:
             print("… et %d autres marchés." % (len(markets) - 12))
 
+    grouped_differ = [c for c in grouped if not c.agrees]
     print("")
-    if not differ and not missing:
+    if not differ and not missing and not grouped_differ:
         print("Le candidat reproduit tous les réalisés connus. Utilisable.")
         return 0
     print("Le candidat ne reproduit pas encore les réalisés. Les écarts ci-dessus disent")
@@ -381,6 +422,82 @@ def cmd_note(argv: List[str]) -> int:
     print("")
     print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
     return 0
+
+
+def _value_of(record) -> Optional[float]:
+    try:
+        return float(str(record.get("value") or record.get("actual_eur") or ""))
+    except ValueError:
+        return None
+
+
+def _months_in(period: str) -> List[str]:
+    """`2025-04..2025-05` -> both months. A single month returns itself."""
+    text = (period or "").strip()
+    if ".." not in text:
+        return [text] if text else []
+    first, _, last = text.partition("..")
+    first, last = first.strip(), last.strip()
+    try:
+        year, month = (int(part) for part in first.split("-"))
+        end_year, end_month = (int(part) for part in last.split("-"))
+    except ValueError:
+        return [text]
+    months = []
+    while (year, month) <= (end_year, end_month) and len(months) < 24:
+        months.append("%04d-%02d" % (year, month))
+        month += 1
+        if month > 12:
+            year, month = year + 1, 1
+    return months
+
+
+class Combined:
+    """Several months the candidate could not separate, confronted as one figure."""
+
+    __slots__ = ("label", "months", "target", "value", "resolved")
+
+    def __init__(self, label, months, target, value) -> None:
+        self.label = label
+        self.months = months
+        self.target = target
+        self.value = value
+        self.resolved = target is not None
+
+    @property
+    def agrees(self) -> bool:
+        if self.target is None:
+            return False
+        scale = abs(self.target) or 1.0
+        return abs(self.value - self.target) / scale <= RECONCILE_TOLERANCE
+
+
+def _resolve_combined(entries, expected, by_entity, found) -> List["Combined"]:
+    """Confront each multi-month figure with the plan's own months added together.
+
+    The months it covers are then removed from `expected`: they were checked, jointly, and
+    counting them again as missing would report a gap that has just been closed.
+    """
+    resolved: List[Combined] = []
+    for entity, segment, months, value in entries:
+        if value is None:
+            continue
+        keys = []
+        for month in months:
+            key = by_entity.get((entity, segment, month))
+            if key is not None and key in expected:
+                keys.append(key)
+        if not keys:
+            resolved.append(Combined("%s %s" % (entity, segment), months, None, value))
+            continue
+        target = sum(expected[key] for key in keys)
+        resolved.append(Combined("%s %s" % (entity, segment), months, target, value))
+        for key in keys:
+            # Checked jointly, so no longer outstanding. Leaving them would report a gap
+            # that has just been closed, and understate a candidate that did its job.
+            expected.pop(key, None)
+            found.pop(key, None)
+    return resolved
 
 
 def _read_notes(path) -> List[dict]:
