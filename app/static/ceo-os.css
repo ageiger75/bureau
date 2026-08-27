@@ -817,3 +817,6 @@ input:focus, textarea:focus, select:focus {
   font-size: 15px; line-height: 1.55; max-width: 74ch;
   border-left: 2px solid var(--alert); padding-left: 14px; margin: 14px 0;
 }
+
+/* Whoever runs the market day to day, under whoever answers for its number. */
+.person-local { font-size: 13px; color: var(--ink-soft); margin: 2px 0 6px; }

@@ -295,3 +295,19 @@ def test_a_missing_forecast_is_a_dash_not_a_zero(monkeypatch):
         page = page_text(client.get("/"))
 
     assert "no forecast reported" in page
+
+
+def test_a_name_and_a_role_do_not_run_together_when_copied():
+    """The layout separates them with a flex gap, which exists only on screen. This page
+    gets copied into mails and notes, where a gap is not a character and the reader
+    receives "YAMAMOTOBU Leader Japan"."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    # The mock owner's name and role, adjacent in the markup.
+    assert "Naoki" in page
+    assert "NaokiManaging" not in page and "NaokiGeneral" not in page

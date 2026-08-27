@@ -63,7 +63,8 @@
       <li class="fire">
         <div class="fire-head">
           <h3>{{ fire.unit.label }}</h3>
-          <span class="fire-gap">{{ fire.gap | eur }}<span class="fire-gap-sub">vs plan</span></span>
+          <span class="fire-gap">{{ fire.gap | eur }}
+            <span class="fire-gap-sub">vs plan</span></span>
         </div>
 
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
@@ -198,7 +199,14 @@
   <ul class="people-list">
     {% for push in people %}
       <li class="person">
-        <p class="person-name">{{ push.owner.name }}<span class="person-role">{{ push.owner.role }} · {{ push.owner.market }}</span></p>
+        {# The separator is a real space, not just a flex gap: this screen gets copied into
+           mails and notes, and a copy is plain text where "YAMAMOTOBU Leader Japan" is
+           what a reader receives. #}
+        <p class="person-name">{{ push.owner.name }}
+          <span class="person-role">{{ push.owner.role }} · {{ push.owner.market }}</span></p>
+        {% if push.owner.local_lead %}
+          <p class="person-local">Runs it day to day: {{ push.owner.local_lead }}</p>
+        {% endif %}
         <p class="person-why">{{ push.reason }}</p>
         <p class="ask">{{ push.question }}</p>
       </li>
@@ -288,7 +296,8 @@
     {% for item in kpis %}
       <li class="kpi kpi-{{ item.status }}">
         <div class="kpi-head">
-          <span class="kpi-name">{{ item.label }}<span class="kpi-scope">{{ item.scope }}</span></span>
+          <span class="kpi-name">{{ item.label }}
+            <span class="kpi-scope">{{ item.scope }}</span></span>
           <span class="kpi-value">{{ kpi_rules.format_value(item, item.latest.value) }}</span>
         </div>
         <p class="kpi-meta">
