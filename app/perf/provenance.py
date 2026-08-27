@@ -104,15 +104,17 @@ REGISTER: Dict[str, Measure] = {
     "sell_in": Measure(
         key="sell_in",
         label="Sell-in",
-        maturity=ABSENT,
+        maturity=BETA,
         note="Everything invoiced to a partner who then resells: wholesale, distributors, "
-        "department stores, travel retail, e-retailers. No semantic layer covers it yet, "
-        "so it is missing from every figure on this screen. Marketplace stores are not "
-        "in this list — the Maison runs them, so they are sell-out with no funnel rather "
-        "than revenue invoiced away.",
-        to_confirm="A sell-in source reproducing last year's monthly actuals. One has "
-        "been built against the management consolidation and reproduces them to within "
-        "0.29 euros across the year — it is not yet wired in, and it is not governed.",
+        "department stores, travel retail, e-retailers. Read from the management "
+        "consolidation, which is where the plan's own actuals come from — so the two "
+        "reconcile by construction rather than by coincidence, and they do: across last "
+        "year, the whole perimeter agrees to within a euro, and 98% of its monthly cells "
+        "agree individually. What is not settled is that this is a query written here "
+        "rather than a source anyone else can use, and that a few months arrive as pairs "
+        "because the underlying figures are cumulative and one snapshot is missing.",
+        to_confirm="A governed sell-in view, so this stops depending on one query nobody "
+        "else maintains.",
     ),
     "commitments": Measure(
         key="commitments",

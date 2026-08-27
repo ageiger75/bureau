@@ -511,3 +511,54 @@ def test_a_segment_scoped_note_stays_on_its_segment(notes_at):
 
     assert book.notes_for("United States", "webp", "2025-09")
     assert book.notes_for("United States", "whoch", "2025-09") == []
+
+
+def test_a_note_can_carry_its_own_question(notes_at):
+    """The kind's default question is a good guess at what to do next. Whoever writes the
+    note sometimes knows better — and sometimes knows the default has been answered.
+    Showing someone a question they have settled teaches them to skip the panel."""
+    from app.cli import cmd_note
+
+    cmd_note([
+        "United States", "Filed under chains in the accounts; the plan is the reference.",
+        "--kind", "reclassified",
+        "--ask", "Ask finance to move it, not the market to explain it.",
+    ])
+
+    written = context.load(notes_at).notes[0]
+
+    assert written.question == "Ask finance to move it, not the market to explain it."
+
+
+def test_a_note_without_a_question_keeps_the_default(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+
+    assert context.load(notes_at).notes[0].question == (
+        context.KIND_QUESTION[context.BASIS_CHANGE]
+    )
+
+
+def test_the_custom_question_reaches_the_screen():
+    reclassified = unit(
+        key="us-webp",
+        market="United States",
+        channel="webp",
+        notes=[context.Note("United States", "webp", "", context.RECLASSIFIED,
+                            "Filed under chains in the accounts.", "CEO",
+                            asked="Ask finance to move it.")],
+    )
+
+    assert analytics.fires(dataset_of(reclassified))[0].question == "Ask finance to move it."
+
+
+def test_the_ask_value_is_not_mistaken_for_the_note(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed.", "--ask", "Rebase the plan?"])
+
+    written = context.load(notes_at).notes[0]
+
+    assert written.text == "Sales tax changed."
+    assert written.question == "Rebase the plan?"

@@ -41,9 +41,23 @@ def test_the_plan_is_the_one_thing_that_reconciles():
     assert provenance.REGISTER["sales_budget"].maturity == provenance.VALIDATED
 
 
-def test_sell_in_is_declared_absent_rather_than_left_out():
-    """The whole point of the register. A missing measure is invisible by nature."""
-    assert provenance.REGISTER["sell_in"].maturity == provenance.ABSENT
+def test_a_measure_is_promoted_only_when_something_attests_to_it():
+    """Sell-in stopped being absent the day it reconciled with the plan's own actuals, and
+    not a day earlier. Promotion is edited by hand for exactly this reason: a query being
+    written is not evidence that it is right."""
+    sell_in = provenance.REGISTER["sell_in"]
+
+    assert sell_in.maturity == provenance.BETA
+    assert "reconcile" in sell_in.note
+    assert sell_in.to_confirm.strip()
+
+
+def test_nothing_is_validated_on_the_strength_of_working():
+    """Only the plan carries that standing, because it is checked against a pack the
+    organisation publishes. Everything else is at best beta."""
+    validated = [m.key for m in provenance.REGISTER.values() if m.is_settled]
+
+    assert validated == ["sales_budget"]
 
 
 # ------------------------------------------------------- the caveat on the big number

@@ -101,9 +101,9 @@ def resolve_channel(name: str) -> str:
 class Note:
     """One piece of context, scoped to a market, a channel and a starting month."""
 
-    __slots__ = ("market", "channel", "since", "kind", "text", "source")
+    __slots__ = ("market", "channel", "since", "kind", "text", "source", "asked")
 
-    def __init__(self, market, channel, since, kind, text, source="") -> None:
+    def __init__(self, market, channel, since, kind, text, source="", asked="") -> None:
         self.market = market
         self.channel = channel
         #: The first period the note applies to. Everything before it is unaffected, which
@@ -113,6 +113,12 @@ class Note:
         self.text = text
         #: Who said so. A note nobody owns is a rumour with a date on it.
         self.source = source
+        #: The question to ask instead of the kind's default. The default is a good guess
+        #: at what a reader should do next; the person writing the note often knows better,
+        #: and sometimes knows the default question has already been answered. Showing
+        #: someone a question they have settled is a fast way to teach them to skip the
+        #: panel.
+        self.asked = asked
 
     @property
     def meaning(self) -> str:
@@ -120,7 +126,7 @@ class Note:
 
     @property
     def question(self) -> str:
-        return KIND_QUESTION.get(self.kind, "")
+        return self.asked or KIND_QUESTION.get(self.kind, "")
 
     def applies_to(self, market: str, channel: str, period: str) -> bool:
         if self.market and self.market != market:
@@ -185,6 +191,7 @@ def load(path) -> Context:
                     kind=kind,
                     text=text,
                     source=str(record.get("source") or "").strip(),
+                    asked=str(record.get("question") or "").strip(),
                 )
             )
     return Context(notes)

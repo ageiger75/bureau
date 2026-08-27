@@ -335,7 +335,7 @@ def _report_reconciliation(
     return 1
 
 
-NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source")
+NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source", "question")
 
 
 def cmd_note(argv: List[str]) -> int:
@@ -351,6 +351,8 @@ def cmd_note(argv: List[str]) -> int:
             --kind reclassified --channel "WEBP - Web Partners"
         manage.py note --list
         manage.py note --forget 2
+
+    `--ask "…"` remplace la question que la note substitue, quand elle est déjà tranchée.
     """
     import csv
 
@@ -382,7 +384,7 @@ def cmd_note(argv: List[str]) -> int:
     positional = [a for a in argv if not a.startswith("--")]
     # Les valeurs des options sont des positionnels aux yeux de ce découpage naïf ; on les
     # retire, sinon un `--since 2026-06` se ferait passer pour le texte de la note.
-    for flag in ("--kind", "--since", "--channel", "--source", "--forget"):
+    for flag in ("--kind", "--since", "--channel", "--source", "--forget", "--ask"):
         value = _option(argv, flag)
         if value in positional:
             positional.remove(value)
@@ -408,6 +410,10 @@ def cmd_note(argv: List[str]) -> int:
         "kind": kind,
         "note": text,
         "source": _option(argv, "--source") or "CEO",
+        # Replaces the kind's default question. Worth having: the default is a guess at
+        # what a reader should do next, and the person writing the note sometimes knows
+        # that question has already been settled.
+        "question": _option(argv, "--ask") or "",
     }
     existing.append(row)
     _write_notes(path, existing)
@@ -419,7 +425,7 @@ def cmd_note(argv: List[str]) -> int:
     ))
     print("Depuis              %s" % (row["since"] or "toujours"))
     print("Effet               %s" % context.KIND_MEANING[kind])
-    print("Nouvelle question   %s" % context.KIND_QUESTION[kind])
+    print("Nouvelle question   %s" % (row["question"] or context.KIND_QUESTION[kind]))
     print("")
     print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
     return 0
@@ -549,6 +555,8 @@ def _print_notes(rows, path) -> int:
             context.KIND_MEANING.get(row["kind"], row["kind"]),
             "  — %s" % row["source"] if row["source"] else "",
         ))
+        if row.get("question"):
+            print("   Question : %s" % row["question"])
         print("")
     print("Pour en retirer une : manage.py note --forget N")
     return 0
