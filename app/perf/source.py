@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import List
 
+import time
+
 from ..config import settings
 from ..util import now_iso
 from . import mock
@@ -27,37 +29,78 @@ _MONTHS = (
 )
 
 
+#: How long a warehouse read stays good for. The underlying facts move once a day at
+#: most, while the query takes minutes — so re-running it on every page load costs the
+#: reader everything and buys nothing. The screen still carries the moment of the read, so
+#: a cached figure is never passed off as a fresh one.
+CACHE_SECONDS = 900
+
+#: (dataset, read at). Module level rather than on the instance: `current_source()` builds
+#: a new source per request, and a cache that dies with the request is not a cache.
+_cached = None
+
+
+def cache_clear() -> None:
+    global _cached
+    _cached = None
+
+
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"
 
 
-def _perimeter_note(budget) -> str:
-    """What share of the plan this screen cannot see, and why.
+def _perimeter_note(budget, units=()) -> str:
+    """What the headline figure leaves out, in the plan's own proportions.
 
-    The warehouse measures what the Maison sells to the end customer. Everything invoiced
-    to a partner who then resells is outside it, and on this plan that is not a rounding
-    error. A market with a large wholesale business would otherwise appear far below a
-    budget that was never comparable to what is being measured.
+    Two holes, and they compound. The warehouse only measures what the Maison sells to the
+    end customer, so everything invoiced to a partner who resells is outside it. And the
+    query itself may cover fewer channels than that — today it reads e-commerce and
+    nothing else.
 
-    The share is read from the file, never written here: it changes every year, and a
-    number hard-coded into a caveat is a caveat that quietly stops being true.
+    The second hole is the one that misleads. A figure labelled as covering own retail and
+    e-commerce, showing e-commerce alone, reads as a collapse rather than a subset. So the
+    sentence is built from the channels actually present in the data, never from what the
+    screen is one day meant to cover.
+
+    Shares come from the file rather than from a constant: the mix changes every year, and
+    a number written into a caveat is a caveat that quietly stops being true.
     """
     from .budget import perimeter_of
+    from .model import ECOMMERCE, RETAIL
+
+    channels = {unit.channel for unit in units}
+    if channels == {ECOMMERCE}:
+        covers = "E-commerce only"
+    elif channels == {RETAIL}:
+        covers = "Own retail only"
+    elif channels:
+        covers = "Own retail and e-commerce only"
+    else:
+        covers = ""
 
     total = 0.0
-    outside = 0.0
+    measured = 0.0
     for line in budget.lines if budget else []:
         amount = line.budget or 0.0
         total += amount
         if perimeter_of(line.segment) != "own":
-            outside += amount
-    if total <= 0 or outside <= 0:
+            continue
+        if channels and line.channel not in channels:
+            continue
+        measured += amount
+
+    if not covers:
         return ""
+    if total <= 0:
+        return covers + "."
+
+    share = 100.0 * measured / total
     return (
-        "Own retail and e-commerce only. About %.0f%% of the plan is invoiced to partners "
-        "who resell — wholesale, distributors, travel retail, marketplaces — and no "
-        "source measures it yet." % (100.0 * outside / total)
+        "%s — about %.0f%% of the plan. The rest is store sales and everything invoiced "
+        "to partners who resell: wholesale, distributors, travel retail, marketplaces. "
+        "No source measures it here yet."
+        % (covers, share)
     )
 
 
@@ -72,7 +115,9 @@ def _period_label(period: str) -> str:
         return "Sales"
     if not 1 <= month <= 12:
         return "Sales"
-    return "%s %s sales" % (_MONTHS[month - 1], parts[0])
+    # "Last complete month" is not decoration: read on the 27th, a screen headed "July"
+    # looks like a month-old screen unless it says why July is the freshest month there is.
+    return "%s %s sales · last complete month" % (_MONTHS[month - 1], parts[0])
 
 
 class MockSource:
@@ -87,7 +132,7 @@ class MockSource:
         "person or product appears here."
     )
 
-    def dataset(self) -> Dataset:
+    def dataset(self, refresh: bool = False) -> Dataset:
         return mock.dataset()
 
     def commitments(self) -> List["mock.MockCommitment"]:
@@ -148,7 +193,17 @@ class SnowflakeSource:
             )
         return budget_module.load(settings.budget_path)
 
-    def dataset(self) -> Dataset:
+    def dataset(self, refresh: bool = False) -> Dataset:
+        global _cached
+
+        if not refresh and _cached is not None:
+            dataset, stored_at, conflicts, unnamed, note = _cached
+            if time.time() - stored_at < CACHE_SECONDS:
+                self.conflicts = conflicts
+                self.markets_without_owner = unnamed
+                self.perimeter_note = note
+                return dataset
+
         self._refuse_if_unwritten("SALES_AND_DRIVERS")
 
         from . import mapping, queries, warehouse
@@ -169,10 +224,10 @@ class SnowflakeSource:
         # business, and the screen shows them where it shows the caveat.
         self.conflicts = mapped.conflicts
         self.markets_without_owner = mapped.markets_without_owner
-        self.perimeter_note = _perimeter_note(budget)
+        self.perimeter_note = _perimeter_note(budget, mapped.units)
 
         period = str(rows[0].get("period") or "")
-        return Dataset(
+        built = Dataset(
             period_label=_period_label(period),
             # The moment of the read, not the period — and to the minute, because the
             # warehouse is not yet stable within a day. Sell-out facts are still being
@@ -182,6 +237,14 @@ class SnowflakeSource:
             as_of=read_at(),
             units=mapped.units,
         )
+        _cached = (
+            built,
+            time.time(),
+            self.conflicts,
+            self.markets_without_owner,
+            self.perimeter_note,
+        )
+        return built
 
     def commitments(self) -> List["mock.MockCommitment"]:
         self._refuse_if_unwritten("COMMITMENTS")

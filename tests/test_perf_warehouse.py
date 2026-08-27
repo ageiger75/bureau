@@ -323,7 +323,10 @@ def test_the_period_label_names_the_month_it_actually_shows(monkeypatch):
 
     dataset = SnowflakeSource().dataset()
 
-    assert dataset.period_label == "July 2026 sales"
+    assert dataset.period_label.startswith("July 2026 sales")
+    # Read on the 27th, "July" alone looks like a stale screen rather than the freshest
+    # month that has actually closed.
+    assert "last complete month" in dataset.period_label
 
 
 def test_the_screen_is_stamped_with_when_it_was_read(monkeypatch):
@@ -392,3 +395,126 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
     assert "Japan" in response.text
     # And says so, rather than showing an empty board that reads as "nothing outstanding".
     assert "Not connected to this source yet" in response.text
+
+
+# ------------------------------------------------------------- not querying every time
+#
+# The warehouse read takes minutes; the facts behind it move once a day. Re-running the
+# query on every page load costs the reader everything and buys nothing — and a CEO who
+# waits two minutes to refresh a screen stops refreshing it.
+
+
+def test_a_second_read_does_not_hit_the_warehouse_again(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+
+    def counted(sql, params=None):
+        calls.append(sql)
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", counted)
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    SnowflakeSource().dataset()
+
+    assert len(calls) == 1
+    source_module.cache_clear()
+
+
+def test_the_cache_survives_a_new_source_object(monkeypatch):
+    """`current_source()` builds one per request. A cache that dies with the request is
+    not a cache."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    first = SnowflakeSource().dataset()
+    second = SnowflakeSource().dataset()
+
+    assert first is second
+    assert len(calls) == 1
+    source_module.cache_clear()
+
+
+def test_an_expired_cache_reads_again(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+    monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
+
+    SnowflakeSource().dataset()
+    SnowflakeSource().dataset()
+
+    assert len(calls) == 2
+    source_module.cache_clear()
+
+
+def test_a_refresh_is_not_refused_by_the_cache(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: calls.append(1) or [_sales_row()]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    SnowflakeSource().dataset(refresh=True)
+
+    assert len(calls) == 2
+    source_module.cache_clear()
+
+
+def test_a_cached_screen_still_says_when_it_was_read(monkeypatch):
+    """The cache must never make a stale figure look fresh. The stamp is the read, not
+    the render, so a cached screen carries the older time and says so."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None: [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    first = SnowflakeSource().dataset()
+    second = SnowflakeSource().dataset()
+
+    assert second.as_of == first.as_of
+    source_module.cache_clear()
+
+
+def test_the_conflicts_survive_a_cached_read(monkeypatch):
+    """They are computed during the read, so a cached screen would otherwise lose them
+    and quietly stop reporting that the two sources disagree."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    monkeypatch.setattr(
+        warehouse, "rows", lambda sql, params=None: [_sales_row(sales_budget=1_000_000.0)]
+    )
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    later = SnowflakeSource()
+    later.dataset()
+
+    assert len(later.conflicts) == 1
+    source_module.cache_clear()

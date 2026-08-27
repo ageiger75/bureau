@@ -22,7 +22,9 @@ possible failure.
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..config import settings
@@ -86,6 +88,18 @@ def assert_read_only(sql: str) -> str:
     return sql
 
 
+#: A warehouse that has not answered in this long is not going to. Generous, because a
+#: suspended warehouse genuinely takes time to resume and a cold month of sell-out is a
+#: real scan — but finite, because an unbounded wait is indistinguishable from a hang.
+QUERY_TIMEOUT_SECONDS = 300
+
+#: Authentication goes through an external browser, so this waits on a person, not a
+#: machine. Long enough to find the tab; short enough to give up on one nobody opened.
+LOGIN_TIMEOUT_SECONDS = 180
+
+LOG = logging.getLogger("ceoos.warehouse")
+
+
 def _connect():
     """Open a connection from the named entry in ~/.snowflake/connections.toml.
 
@@ -104,7 +118,16 @@ def _connect():
     if not settings.snowflake_connection:
         raise RuntimeError("No connection name configured (CEOOS_SNOWFLAKE_CONNECTION).")
 
-    return snowflake.connector.connect(connection_name=settings.snowflake_connection)
+    return snowflake.connector.connect(
+        connection_name=settings.snowflake_connection,
+        # Without these, a warehouse that never answers hangs the page forever, and the
+        # reader has no way to tell a slow query from a broken one. A refusal after a
+        # known delay is a fact; a spinner is not.
+        login_timeout=LOGIN_TIMEOUT_SECONDS,
+        network_timeout=QUERY_TIMEOUT_SECONDS,
+        client_session_keep_alive=False,
+        session_parameters={"STATEMENT_TIMEOUT_IN_SECONDS": QUERY_TIMEOUT_SECONDS},
+    )
 
 
 def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any]]:
@@ -115,17 +138,29 @@ def rows(sql: str, params: Optional[Sequence[Any]] = None) -> List[Dict[str, Any
     """
     assert_read_only(sql)
 
+    started = time.time()
     connection = _connect()
+    connected_at = time.time()
     try:
         cursor = connection.cursor()
         try:
             cursor.execute(sql, params or ())
             columns = [column[0].lower() for column in cursor.description]
-            return [dict(zip(columns, record)) for record in cursor.fetchall()]
+            records = [dict(zip(columns, record)) for record in cursor.fetchall()]
         finally:
             cursor.close()
     finally:
         connection.close()
+
+    # Logged, not silent: the first question anyone asks about a slow screen is where the
+    # time went, and "connecting" and "querying" have entirely different remedies.
+    LOG.info(
+        "warehouse: %d rows · connect %.1fs · query %.1fs",
+        len(records),
+        connected_at - started,
+        time.time() - connected_at,
+    )
+    return records
 
 
 #: Session facts, no business data. Everything here is about who you are connected as,

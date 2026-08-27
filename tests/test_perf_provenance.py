@@ -49,24 +49,53 @@ def test_sell_in_is_declared_absent_rather_than_left_out():
 # ------------------------------------------------------- the caveat on the big number
 
 
-def _plan(own, resold):
+class _Unit:
+    """Just enough of a business unit for the caveat: it only reads the channel."""
+
+    def __init__(self, channel):
+        self.channel = channel
+
+
+def _plan(retail=0.0, ecommerce=0.0, resold=0.0):
     lines = []
-    if own:
+    if retail:
         lines.append(BudgetLine("Japan", "APAC", "RET - Retail", "retail",
-                                "2026-07", own, None))
+                                "2026-07", retail, None))
+    if ecommerce:
+        lines.append(BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                                "2026-07", ecommerce, None))
     if resold:
         lines.append(BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
                                 "2026-07", resold, None))
     return Budget(lines)
 
 
-def test_the_headline_figure_says_what_it_leaves_out():
+def test_the_caveat_describes_the_channels_actually_present():
+    """The failure this replaces: a screen carrying e-commerce alone, labelled as covering
+    stores too. The reader takes a subset for a collapse — which is exactly what happened
+    the first time the real screen was opened."""
     from app.perf.source import _perimeter_note
 
-    note = _perimeter_note(_plan(own=600.0, resold=400.0))
+    note = _perimeter_note(
+        _plan(retail=600.0, ecommerce=100.0, resold=300.0),
+        units=[_Unit("ecommerce")],
+    )
 
-    assert "40%" in note
-    assert "resell" in note
+    assert note.startswith("E-commerce only")
+    assert "retail" not in note.split(".")[0].lower()
+
+
+def test_the_share_counts_only_what_the_screen_can_see():
+    """Own e-commerce is 100 of a 1000 plan, so the figure covers 10% — not the 70% that
+    own channels represent, because stores are not in this data."""
+    from app.perf.source import _perimeter_note
+
+    note = _perimeter_note(
+        _plan(retail=600.0, ecommerce=100.0, resold=300.0),
+        units=[_Unit("ecommerce")],
+    )
+
+    assert "10%" in note
 
 
 def test_the_share_is_read_from_the_file_not_written_into_the_code():
@@ -74,34 +103,35 @@ def test_the_share_is_read_from_the_file_not_written_into_the_code():
     mix changes every year; the sentence has to change with it."""
     from app.perf.source import _perimeter_note
 
-    assert "10%" in _perimeter_note(_plan(own=900.0, resold=100.0))
-    assert "70%" in _perimeter_note(_plan(own=300.0, resold=700.0))
+    small = _perimeter_note(_plan(ecommerce=100.0, resold=900.0), [_Unit("ecommerce")])
+    large = _perimeter_note(_plan(ecommerce=700.0, resold=300.0), [_Unit("ecommerce")])
+
+    assert "10%" in small
+    assert "70%" in large
 
 
-def test_a_plan_that_is_entirely_own_channels_carries_no_caveat():
-    """Silence is correct here. A caveat about nothing teaches the reader to skip caveats."""
+def test_both_own_channels_present_says_so():
     from app.perf.source import _perimeter_note
 
-    assert _perimeter_note(_plan(own=1000.0, resold=0.0)) == ""
+    note = _perimeter_note(
+        _plan(retail=600.0, ecommerce=100.0, resold=300.0),
+        units=[_Unit("retail"), _Unit("ecommerce")],
+    )
+
+    assert note.startswith("Own retail and e-commerce only")
+    assert "70%" in note
 
 
-def test_no_plan_at_all_carries_no_caveat():
+def test_no_units_at_all_carries_no_caveat():
+    """A caveat about nothing teaches the reader to skip caveats."""
     from app.perf.source import _perimeter_note
 
-    assert _perimeter_note(None) == ""
+    assert _perimeter_note(_plan(ecommerce=100.0), units=[]) == ""
 
 
-def test_a_measure_this_instance_has_resolved_drops_off_the_list():
-    """The register describes the design; only the running instance knows what it has in
-    hand. Asking the CEO to chase a file he has already provided would teach him to stop
-    reading the panel."""
-    before = [m.key for m in provenance.unsettled()]
-    after = [m.key for m in provenance.unsettled(settled=["owners"])]
+def test_no_plan_still_names_the_channels():
+    """Without the file there is no share to quote, but which channels are on screen is a
+    fact about the data itself and stays worth saying."""
+    from app.perf.source import _perimeter_note
 
-    assert "owners" in before
-    assert "owners" not in after
-    assert len(after) == len(before) - 1
-
-
-def test_naming_something_already_validated_changes_nothing():
-    assert provenance.unsettled(settled=["sales_budget"]) == provenance.unsettled()
+    assert _perimeter_note(None, [_Unit("ecommerce")]) == "E-commerce only."

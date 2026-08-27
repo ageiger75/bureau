@@ -31,6 +31,23 @@ from app.models import User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
+def fresh_warehouse_cache():
+    """No test inherits another's cached dataset.
+
+    The cache is module-level by design — a per-request cache would never survive long
+    enough to spare anyone the query — which means it outlives a test unless something
+    clears it. Something does.
+    """
+    from app.perf import owners, source
+
+    source.cache_clear()
+    owners.reset()
+    yield
+    source.cache_clear()
+    owners.reset()
+
+
+@pytest.fixture(autouse=True)
 def fresh_database():
     """Schéma vierge avant chaque test : aucun test ne dépend de l'ordre d'exécution."""
     drop_all()
