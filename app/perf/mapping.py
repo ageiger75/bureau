@@ -63,6 +63,33 @@ FUNNEL_REASONS = {
 BROKEN_FUNNELS = frozenset({ORDERS_NOT_TRACKED, ORDER_TRACKING_LOST})
 
 
+#: Warehouse channel names to the cockpit's own vocabulary. The warehouse shouts and
+#: hyphenates; the planning file abbreviates; the model has two words for the channels it
+#: can decompose. This is where the three meet, and it has to be exhaustive rather than
+#: clever: a channel that lands on the wrong name joins to the wrong budget line.
+CHANNEL_ALIASES = {
+    "e-commerce": ECOMMERCE,
+    "ecommerce": ECOMMERCE,
+    "e commerce": ECOMMERCE,
+    "web": ECOMMERCE,
+    "retail": RETAIL,
+    "boutique": RETAIL,
+    "stores": RETAIL,
+    "store": RETAIL,
+}
+
+
+def normalise_channel(name: str) -> str:
+    """`E-COMMERCE` -> `ecommerce`. An unknown channel keeps its own name, lowercased.
+
+    Never guessed into a known channel by resemblance: a channel this module does not
+    recognise gets sales without drivers, which is honest, whereas one mistaken for retail
+    would be handed a footfall funnel it never had.
+    """
+    cleaned = (name or "").strip().lower()
+    return CHANNEL_ALIASES.get(cleaned, cleaned)
+
+
 def _number(value) -> Optional[float]:
     if value is None:
         return None
@@ -99,6 +126,13 @@ class Mapped:
         self.units = units
         self.conflicts = conflicts
         self.markets_without_owner = markets_without_owner
+
+
+def _channel_label(channel: str) -> str:
+    """How the channel is written on screen. Title case for anything not spelled out."""
+    if channel == ECOMMERCE:
+        return "E-commerce"
+    return channel.title()
 
 
 def _drivers_for(
@@ -141,7 +175,7 @@ def units_from_rows(
         if not raw_market:
             continue
         market = normalise_market(raw_market)
-        channel = str(row.get("channel") or ECOMMERCE).strip().lower()
+        channel = normalise_channel(str(row.get("channel") or ECOMMERCE))
         period = str(row.get("period") or "")
         seen_markets.append((market, str(row.get("region") or "").strip()))
 
@@ -196,7 +230,7 @@ def units_from_rows(
         units.append(
             BusinessUnit(
                 key="%s-%s" % (market.lower().replace(" ", "-"), channel),
-                label="%s %s" % (market, "E-commerce" if channel == ECOMMERCE else channel.title()),
+                label="%s %s" % (market, _channel_label(channel)),
                 market=market,
                 region=str(row.get("region") or "").strip(),
                 channel=channel,

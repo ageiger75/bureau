@@ -340,3 +340,84 @@ def test_a_row_without_a_status_still_maps():
 
     assert mapped.units[0].funnel_status == ""
     assert mapped.units[0].actual.has_breakdown is True
+
+
+# ---------------------------------------------------------------- more than one channel
+#
+# The query filtered to e-commerce with a single line. Lifting that filter turns one row
+# per market into one per market and channel, and everything downstream has to survive it.
+
+
+def test_a_warehouse_channel_name_lands_on_the_cockpit_vocabulary():
+    """The warehouse shouts and hyphenates, the planning file abbreviates, the model has
+    its own two words. A channel landing on the wrong name joins to the wrong budget."""
+    assert mapping.normalise_channel("E-COMMERCE") == ECOMMERCE
+    assert mapping.normalise_channel("Retail") == RETAIL
+
+
+def test_an_unknown_channel_keeps_its_own_name():
+    """Never guessed into a known one by resemblance: a channel mistaken for retail would
+    be handed a footfall funnel it never had."""
+    assert mapping.normalise_channel("TRAVEL RETAIL") == "travel retail"
+    assert mapping.normalise_channel("Wholesale") == "wholesale"
+
+
+def test_both_channels_of_one_market_become_two_units():
+    mapped = mapping.units_from_rows(
+        [
+            row(market="France", channel="E-COMMERCE"),
+            row(market="France", channel="RETAIL"),
+        ],
+        budget=budget_of(
+            line(market="France", channel=ECOMMERCE),
+            line(market="France", channel=RETAIL, budget=4_000_000.0),
+        ),
+    )
+
+    assert len(mapped.units) == 2
+    assert {u.key for u in mapped.units} == {"france-ecommerce", "france-retail"}
+
+
+def test_each_channel_joins_to_its_own_budget_line():
+    """The failure this guards is silent: a retail unit measured against the e-commerce
+    plan looks like a catastrophe and is arithmetic."""
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel="RETAIL", sales_actual=3_800_000.0)],
+        budget=budget_of(
+            line(market="France", channel=ECOMMERCE, budget=1_000_000.0),
+            line(market="France", channel=RETAIL, budget=4_000_000.0),
+        ),
+    )
+
+    assert mapped.units[0].sales_budget == pytest.approx(4_000_000.0)
+
+
+def test_a_channel_the_plan_does_not_cover_is_unbudgeted_rather_than_zeroed():
+    """An unmatched channel must degrade the way a missing market does — excluded from
+    the ranking, and named in what the screen says it left out."""
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel="TRAVEL RETAIL")],
+        budget=budget_of(line(market="France", channel=ECOMMERCE)),
+    )
+
+    assert mapped.units[0].budget_known is False
+
+
+def test_a_retail_unit_carries_no_invented_funnel():
+    """Sessions and orders belong to the web. Until footfall arrives, a store unit has a
+    real gap and no measured cause — which the screen already knows how to say."""
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel="RETAIL")],
+        budget=budget_of(line(market="France", channel=RETAIL)),
+    )
+
+    assert mapped.units[0].actual.has_breakdown is False
+
+
+def test_the_channel_reaches_the_label():
+    mapped = mapping.units_from_rows(
+        [row(market="France", channel="RETAIL")],
+        budget=budget_of(line(market="France", channel=RETAIL)),
+    )
+
+    assert mapped.units[0].label == "France Retail"
