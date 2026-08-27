@@ -18,6 +18,22 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
+# Un serveur déjà lancé donne « Address already in use », qui ne dit ni qui occupe le port
+# ni quoi faire. Le cas est fréquent — on relance dans une seconde fenêtre en oubliant la
+# première — et le message par défaut envoie chercher au mauvais endroit.
+PORT_USED="${PORT:-8000}"
+if command -v lsof >/dev/null 2>&1; then
+  BUSY="$(lsof -ti ":$PORT_USED" 2>/dev/null || true)"
+  if [ -n "$BUSY" ]; then
+    echo "Le port $PORT_USED est déjà occupé (processus $BUSY)."
+    echo "C'est presque toujours un CEO OS lancé dans une autre fenêtre."
+    echo
+    echo "  Arrêter l'autre :  lsof -ti :$PORT_USED | xargs kill"
+    echo "  Ou en ouvrir un second ailleurs :  PORT=8001 ./run.sh"
+    exit 1
+  fi
+fi
+
 echo "→ Migrations"
 $PY -m app.cli migrate
 
