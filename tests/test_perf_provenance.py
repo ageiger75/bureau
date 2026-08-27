@@ -118,8 +118,55 @@ def test_both_own_channels_present_says_so():
         units=[_Unit("retail"), _Unit("ecommerce")],
     )
 
-    assert note.startswith("Own retail and e-commerce only")
+    assert note.startswith("E-commerce and store sales only")
     assert "70%" in note
+
+
+def test_a_channel_on_screen_is_never_listed_among_the_things_not_measured():
+    """The contradiction this replaces: the sentence named its covered channels from what
+    was on screen and its excluded ones from a fixed list, so the day stores arrived it
+    announced "own retail and e-commerce only" and then put "store sales" among the things
+    no source measures. A caveat that contradicts itself costs more than no caveat."""
+    from app.perf.source import _perimeter_note
+
+    note = _perimeter_note(
+        _plan(retail=600.0, ecommerce=100.0, resold=300.0),
+        units=[_Unit("retail"), _Unit("ecommerce")],
+    )
+
+    head, _, tail = note.partition("The rest is")
+
+    assert "store sales" in head
+    assert "store sales" not in tail
+
+
+def test_the_share_counts_every_channel_on_screen():
+    """Marketplace revenue was on screen and outside the counted share, because the share
+    asked whether a segment was "own" rather than whether it was visible."""
+    from app.perf.budget import Budget, BudgetLine
+    from app.perf.source import _perimeter_note
+
+    plan = Budget([
+        BudgetLine("Japan", "APAC", "EBU - E-business", "ecommerce",
+                   "2026-07", 100.0, None),
+        BudgetLine("Japan", "APAC", "MKTP - Market place", "marketplace",
+                   "2026-07", 100.0, None),
+        BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
+                   "2026-07", 800.0, None),
+    ])
+
+    note = _perimeter_note(plan, [_Unit("ecommerce"), _Unit("marketplace")])
+
+    assert "20%" in note
+
+
+def test_what_is_left_out_is_named_rather_than_gestured_at():
+    """"Everything else" tells the reader nothing they can act on."""
+    from app.perf.source import _perimeter_note
+
+    note = _perimeter_note(_plan(ecommerce=100.0, resold=900.0), [_Unit("ecommerce")])
+
+    assert "distributors" in note
 
 
 def test_no_units_at_all_carries_no_caveat():

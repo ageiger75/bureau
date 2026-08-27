@@ -117,57 +117,89 @@ def read_at() -> str:
 LOG = logging.getLogger("ceoos.warehouse")
 
 
+#: How each channel is named in the sentence that says what the headline figure covers.
+CHANNEL_WORDS = {
+    "ecommerce": "e-commerce",
+    "retail": "store sales",
+    "marketplace": "marketplace sales",
+    "spa": "spa",
+    "cafe": "café",
+}
+
+#: And how the segments outside it are named, so the sentence stays specific rather than
+#: retreating into "everything else".
+LEFT_OUT_WORDS = (
+    ("WEBP", "e-retailers"),
+    ("TRA", "travel retail"),
+    ("DIS", "distributors"),
+    ("DPT", "department stores"),
+    ("WHOCH", "wholesale"),
+    ("WHOIN", "wholesale"),
+    ("WHOSP", "wholesale"),
+    ("TVC", "TV channels"),
+    ("B2B", "B2B"),
+    ("COPG", "corporate gifts"),
+    ("DDS", "direct selling"),
+)
+
+
+def _listed(words) -> str:
+    unique = []
+    for word in words:
+        if word not in unique:
+            unique.append(word)
+    if len(unique) < 2:
+        return "".join(unique)
+    return "%s and %s" % (", ".join(unique[:-1]), unique[-1])
+
+
 def _perimeter_note(budget, units=()) -> str:
-    """What the headline figure leaves out, in the plan's own proportions.
+    """What the headline figure covers, and what it leaves out.
 
-    Two holes, and they compound. The warehouse only measures what the Maison sells to the
-    end customer, so everything invoiced to a partner who resells is outside it. And the
-    query itself may cover fewer channels than that — today it reads e-commerce and
-    nothing else.
+    Both halves are read from the data rather than written down. The sentence used to name
+    the covered channels from what was on screen and the excluded ones from a fixed list —
+    so the day stores arrived it announced "own retail and e-commerce only" and then put
+    "store sales" among the things no source measures. A caveat that contradicts itself in
+    one sentence costs more trust than no caveat.
 
-    The second hole is the one that misleads. A figure labelled as covering own retail and
-    e-commerce, showing e-commerce alone, reads as a collapse rather than a subset. So the
-    sentence is built from the channels actually present in the data, never from what the
-    screen is one day meant to cover.
-
-    Shares come from the file rather than from a constant: the mix changes every year, and
-    a number written into a caveat is a caveat that quietly stops being true.
+    The share is read from the plan for the same reason: the mix changes every year, and a
+    number written into a caveat is a caveat that quietly stops being true.
     """
-    from .budget import perimeter_of
-    from .model import ECOMMERCE, RETAIL
+    from .budget import segment_code
 
     channels = {unit.channel for unit in units}
-    if channels == {ECOMMERCE}:
-        covers = "E-commerce only"
-    elif channels == {RETAIL}:
-        covers = "Own retail only"
-    elif channels:
-        covers = "Own retail and e-commerce only"
-    else:
-        covers = ""
+    if not channels:
+        return ""
 
-    total = 0.0
+    covered = _listed([
+        CHANNEL_WORDS.get(channel, channel) for channel in sorted(channels)
+    ])
+
     measured = 0.0
+    total = 0.0
+    missing_codes = []
     for line in budget.lines if budget else []:
         amount = line.budget or 0.0
         total += amount
-        if perimeter_of(line.segment) != "own":
-            continue
-        if channels and line.channel not in channels:
-            continue
-        measured += amount
+        if line.channel in channels:
+            measured += amount
+        elif amount:
+            missing_codes.append(segment_code(line.segment))
 
-    if not covers:
-        return ""
     if total <= 0:
-        return covers + "."
+        return "%s only." % covered.capitalize()
 
-    share = 100.0 * measured / total
-    return (
-        "%s — about %.0f%% of the plan. The rest is store sales, marketplace sales, and "
-        "everything invoiced to partners who resell: wholesale, distributors, travel "
-        "retail, e-retailers. No source measures it here yet."
-        % (covers, share)
+    left_out = _listed([
+        word for code, word in LEFT_OUT_WORDS if code in set(missing_codes)
+    ])
+    tail = (
+        " The rest is %s — invoiced to partners who resell, and no source measures it "
+        "here yet." % left_out
+        if left_out
+        else ""
+    )
+    return "%s only — about %.0f%% of the plan.%s" % (
+        covered.capitalize(), 100.0 * measured / total, tail
     )
 
 

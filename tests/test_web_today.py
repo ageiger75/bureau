@@ -326,3 +326,17 @@ def test_the_confidence_and_the_owner_do_not_glue_together_when_copied():
 
     assert "HIGHNaoki" not in page
     assert "MEDIUMNaoki" not in page
+
+
+def test_the_reason_a_gap_cannot_be_explained_is_given_once():
+    """It was printed twice in a row, in near-identical words. A screen that repeats
+    itself reads as a screen that is padding."""
+    from starlette.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as client:
+        page = page_text(client.get("/"))
+
+    assert page.count("its cause is not measured") <= page.count("below plan")
+    assert "The gap is real and visible" not in page

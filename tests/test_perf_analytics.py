@@ -973,3 +973,74 @@ def test_a_platform_market_with_no_sales_is_still_not_flagged():
     )
 
     assert analytics.suspect_of(quiet) is None
+
+
+# ------------------------------------------------- not discounting a diagnosis nobody made
+#
+# The confidence factor exists to discount a *named* cause we are unsure of. Applied to a
+# unit with no drivers at all it discounted nothing in particular, and pushed every
+# unmeasured market down the list — so the blinder the market, the lower it ranked, and
+# blind spots buried themselves. Stores arrived at nearly half the plan and ranked below
+# smaller online gaps for no reason but that nobody counts their door.
+
+
+def test_a_gap_nobody_can_explain_is_not_discounted():
+    blind = unit(
+        key="japan-retail",
+        actual=Drivers.sales_only(3_000_000.0),
+        budget=Drivers.sales_only(3_422_000.0),
+        last_year=Drivers.sales_only(3_100_000.0),
+    )
+
+    assert analytics.priority_of(blind).score == pytest.approx(422_000.0)
+
+
+def test_a_larger_blind_gap_outranks_a_smaller_explained_one():
+    """The ordering the first real screen got wrong: -€183k in stores ranked below -€152k
+    online, because the stores could not say why."""
+    blind = unit(
+        key="australia-retail",
+        actual=Drivers.sales_only(1_000_000.0),
+        budget=Drivers.sales_only(1_183_000.0),
+        last_year=Drivers.sales_only(1_050_000.0),
+    )
+    explained = unit(
+        key="australia-ecommerce",
+        actual=ecom(848_000, conversion=0.0166),
+        budget=Drivers.sales_only(1_000_000.0),
+        last_year=ecom(900_000, conversion=0.02),
+    )
+
+    ranked = [f.unit.key for f in analytics.fires(dataset_of(blind, explained))]
+
+    assert ranked[0] == "australia-retail"
+
+
+def test_an_uncertain_diagnosis_is_still_discounted():
+    """The factor keeps its job where a cause *is* named and spread thin."""
+    spread = unit(
+        key="spread",
+        actual=Drivers(("Sessions", "Conversion", "AOV"), (900_000.0, 0.019, 58.0)),
+        budget=Drivers.sales_only(1_200_000.0),
+        last_year=Drivers(("Sessions", "Conversion", "AOV"), (950_000.0, 0.020, 60.0)),
+    )
+
+    priority = analytics.priority_of(spread)
+
+    assert priority.score < abs(spread.gap_vs_budget)
+
+
+def test_the_reason_says_there_was_nothing_to_discount():
+    """The ranking has to be checkable by hand, so a factor of 1.00 needs a sentence
+    saying why it is 1.00 rather than looking like a default nobody set."""
+    blind = unit(
+        key="japan-retail",
+        actual=Drivers.sales_only(3_000_000.0),
+        budget=Drivers.sales_only(3_422_000.0),
+        last_year=Drivers.sales_only(3_100_000.0),
+    )
+
+    reasons = " ".join(analytics.priority_of(blind).reasons)
+
+    assert "no diagnosis possible" in reasons
+    assert "confidence LOW" not in reasons

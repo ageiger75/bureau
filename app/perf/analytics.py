@@ -202,7 +202,13 @@ def priority_of(unit: BusinessUnit) -> Priority:
 
     persistence, persistence_reason = persistence_factor(unit.months_below_budget)
     acceleration, acceleration_reason = acceleration_factor(unit.gap_history)
-    confidence = CONFIDENCE_FACTOR[level]
+
+    # The factor discounts a *named* cause we are unsure of. Where no cause is named there
+    # is no claim to discount, and applying it anyway pushed every unmeasured market down
+    # the list — so the blinder the market, the lower it ranked, and blind spots buried
+    # themselves. Stores arrived at 48% of the plan and ranked below smaller online gaps
+    # for no reason but that nobody counts their door.
+    confidence = 1.0 if baseline is None else CONFIDENCE_FACTOR[level]
 
     score = gap * persistence * acceleration * unit.strategic_weight * confidence
 
@@ -213,7 +219,10 @@ def priority_of(unit: BusinessUnit) -> Priority:
     ]
     if unit.strategic_weight != 1.0:
         reasons.append("strategic weight %.2f" % unit.strategic_weight)
-    reasons.append("diagnosis confidence %s" % level.upper())
+    if baseline is None:
+        reasons.append("no diagnosis possible, so nothing is discounted")
+    else:
+        reasons.append("diagnosis confidence %s" % level.upper())
 
     return Priority(
         score=score,

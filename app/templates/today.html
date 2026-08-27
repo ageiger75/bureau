@@ -60,8 +60,10 @@
   <h2>Where to push</h2>
   <p class="lede">
     The five business areas where attention is worth the most money today. Ranked by
-    euros at stake, not by percentage — a -3% miss on a large market outweighs -30% on a
-    small one.
+    euros at stake rather than by percentage — a -3% miss on a large market outweighs -30%
+    on a small one — then weighted by how long the gap has lasted, whether it is widening,
+    and how sure the diagnosis is. Each entry shows its own arithmetic, so an order that
+    looks wrong can be checked rather than argued with.
   </p>
 
   {% if not fires %}
@@ -79,15 +81,9 @@
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
 
         {% if not fire.has_breakdown %}
-          {# Better an explicit absence than a table of blanks that reads as stability. #}
-          <p class="no-breakdown">
-            {% if fire.unit.no_breakdown_reason %}
-              {{ fire.unit.no_breakdown_reason }}
-            {% else %}
-              No traffic or conversion is reported here.
-            {% endif %}
-            The gap is real and visible; its cause is not measured.
-          </p>
+          {# The diagnosis above already carries the reason and says the gap is real. This
+             block used to repeat both, word for word, directly underneath. Better an
+             explicit absence than a table of blanks — but once is enough. #}
         {% else %}
         <ul class="evidence">
           {% for item in fire.contributions %}
