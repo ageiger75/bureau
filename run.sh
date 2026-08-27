@@ -18,6 +18,16 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
+# Le défaut est la démonstration, et c'est volontaire : l'entrepôt ne se joint jamais par
+# accident. Mais un écran de démonstration ressemble assez à l'écran réel pour qu'on le
+# lise sans s'en apercevoir — d'où cette ligne, dite au lancement plutôt que découverte en
+# bas de page.
+if grep -qE '^CEOOS_DATA_SOURCE=mock' .env 2>/dev/null && [ -z "${CEOOS_DATA_SOURCE:-}" ]; then
+  echo "→ Données de démonstration. Pour les vrais chiffres, dans .env :"
+  echo "     CEOOS_DATA_SOURCE=snowflake"
+  echo "     CEOOS_SNOWFLAKE_CONNECTION=<le nom entre crochets de ~/.snowflake/connections.toml>"
+fi
+
 # Un serveur déjà lancé donne « Address already in use », qui ne dit ni qui occupe le port
 # ni quoi faire. Le cas est fréquent — on relance dans une seconde fenêtre en oubliant la
 # première — et le message par défaut envoie chercher au mauvais endroit.
