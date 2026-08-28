@@ -44,6 +44,11 @@ CHRONIC_SPREAD = 0.12
 #: two thirds of what it promised, and calling that a planning error would excuse it.
 CHRONIC_FLOOR = 0.70
 
+#: How far a second plan may differ from the one a verdict was computed on, month by
+#: month, and still be read as the same plan. Matches the tolerance the mapping already
+#: uses when the workbook and the warehouse disagree about a commitment.
+PLAN_AGREEMENT = 0.02
+
 #: How many monthly gaps to carry forward. Acceleration reads the last two; more than this
 #: is never used and would only make the object heavier to cache.
 GAP_HISTORY_MONTHS = 6
@@ -205,6 +210,32 @@ class Track:
         return Chronic(
             months=len(run), low=low, high=high, mean=sum(ratios) / len(ratios)
         )
+
+    def chronic_for(self, budget=None) -> Optional[Chronic]:
+        """The verdict, withheld when a second plan disagrees with the one behind it.
+
+        The ratio is computed on the warehouse's goals fact. The workbook is a different
+        plan, and on the months both cover they should say the same thing. Where they do,
+        a ratio measured on one is a fair statement about the other. Where they diverge, a
+        "steady shortfall" may be nothing but the distance between two spreadsheets — and
+        "your plan is 7% too high", said on that basis, sends someone to renegotiate a
+        plan that is not the one being missed.
+
+        Every shared month is checked, not just the latest: one month agreeing is a
+        coincidence, twelve is the same plan.
+        """
+        verdict = self.chronic
+        if verdict is None or budget is None:
+            return verdict
+        for month in self.months:
+            if not month.budget:
+                continue
+            other = budget.budget_for(self.market, self.channel, month.period)
+            if not other:
+                continue
+            if abs(other - month.budget) / other > PLAN_AGREEMENT:
+                return None
+        return verdict
 
 
 class Ytd:

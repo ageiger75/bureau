@@ -327,18 +327,13 @@ def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
     return translated
 
 
-def _history_for(history, market, channel, period, from_file_budget):
+def _history_for(history, market, channel, budget):
     """What the last twenty-four months say about this market and channel.
 
     Returns the run of months below plan, the monthly gaps behind it, and — only when it
-    is earned — the sentence that says the plan itself is the problem.
-
-    The verdict is withheld when the two plans disagree. The history compares against the
-    warehouse's goals fact; the screen compares against the planning workbook. Where both
-    cover the same month and give the same figure, a ratio computed on one is a fair
-    statement about the other. Where they diverge, a "steady shortfall" may be nothing but
-    the distance between two spreadsheets, and saying "the plan is set 5% high" on that
-    basis would send someone to renegotiate a plan that is not the one being missed.
+    is earned and the workbook does not contradict it — the sentence that says the plan
+    itself is the problem. The cross-check lives on the track rather than here, so the
+    screen and the terminal cannot reach different verdicts from the same two files.
     """
     if history is None:
         return 0, (), ""
@@ -346,16 +341,7 @@ def _history_for(history, market, channel, period, from_file_budget):
     if track is None:
         return 0, (), ""
 
-    chronic = track.chronic
-    if chronic is not None and from_file_budget:
-        anchor = track.month_for(period)
-        planned = anchor.budget if anchor is not None else None
-        if (
-            planned
-            and abs(from_file_budget - planned) / from_file_budget > BUDGET_DISAGREEMENT
-        ):
-            chronic = None
-
+    chronic = track.chronic_for(budget)
     return (
         track.months_below_budget,
         track.gap_history,
@@ -446,7 +432,7 @@ def units_from_rows(
             )
 
         months_below, gap_history, chronic = _history_for(
-            history, market, channel, period, from_file_budget
+            history, market, channel, budget
         )
 
         units.append(

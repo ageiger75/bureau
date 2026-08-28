@@ -137,6 +137,18 @@ def test_a_run_shorter_than_a_year_is_not_yet_chronic():
     assert built.track_for("Japan", ECOMMERCE).chronic is None
 
 
+def _plan_at(amount):
+    """A workbook that says `amount` for Japan e-commerce, every month of the fixture."""
+    from app.perf.budget import Budget, BudgetLine
+
+    return Budget([
+        BudgetLine(market="Japan", region="Japan", segment="EBU - E-Business",
+                   channel=ECOMMERCE, period=month["period"], budget=amount,
+                   last_year=None)
+        for month in months(15, actual=1.0, budget=1.0)
+    ])
+
+
 def test_the_verdict_is_withheld_when_the_two_plans_disagree():
     """The history compares against the warehouse's goals; the screen compares against
     the planning workbook. Where they diverge, a "steady shortfall" may be nothing but the
@@ -147,8 +159,8 @@ def test_the_verdict_is_withheld_when_the_two_plans_disagree():
             row(period="2026-06", actual=940.0, budget=1000.0)
         ]
     )
-    agreeing = mapping._history_for(built, "Japan", ECOMMERCE, "2026-06", 1000.0)
-    diverging = mapping._history_for(built, "Japan", ECOMMERCE, "2026-06", 1400.0)
+    agreeing = mapping._history_for(built, "Japan", ECOMMERCE, _plan_at(1000.0))
+    diverging = mapping._history_for(built, "Japan", ECOMMERCE, _plan_at(1400.0))
 
     assert agreeing[2]
     assert not diverging[2]
@@ -416,3 +428,32 @@ def test_the_two_plan_sources_are_never_mixed():
     assert ytd.budget == 900_000.0
     # Korea has a goals figure and no workbook line. It is reported, not borrowed.
     assert ytd.unbudgeted_actual == 500_000.0
+
+
+def test_the_verdict_checks_every_shared_month_not_just_the_latest():
+    """One month agreeing is a coincidence; twelve is the same plan. Checking only the
+    anchor would clear a workbook that matches the goals fact in July and diverges from
+    it all year."""
+    rows = months(14, actual=940.0, budget=1000.0)
+    built = history.from_rows(rows)
+    track = built.track_for("Japan", ECOMMERCE)
+
+    from app.perf.budget import Budget, BudgetLine
+
+    def plan(amount_by_period):
+        return Budget([
+            BudgetLine(market="Japan", region="Japan", segment="EBU - E-Business",
+                       channel=ECOMMERCE, period=period, budget=amount,
+                       last_year=None)
+            for period, amount in amount_by_period.items()
+        ])
+
+    periods = [r["period"] for r in rows]
+    agreeing = plan({p: 1000.0 for p in periods})
+    # Matches on the last month, diverges on every earlier one.
+    latest_only = plan(
+        {p: (1000.0 if p == periods[-1] else 1400.0) for p in periods}
+    )
+
+    assert track.chronic_for(agreeing) is not None
+    assert track.chronic_for(latest_only) is None

@@ -751,7 +751,7 @@ def cmd_history(argv: List[str]) -> int:
 
     market = _option(argv, "--market")
     if market:
-        return _print_one_market(built, market)
+        return _print_one_market(built, market, plan)
     if "--plans" in argv:
         return _print_unmatched(built)
 
@@ -781,12 +781,20 @@ def cmd_history(argv: List[str]) -> int:
               % (_eur(ytd.zero_goal_actual), ytd.zero_goal_lines))
         print("  sans vente       %15s  (%d cellules, hors total)"
               % (_eur(ytd.unsold_budget), ytd.unsold_lines))
+        # Dit ici et pas en note de bas de page : ce chiffre n'est pas la Maison, c'est
+        # la moitié de la Maison que l'entrepôt sait mesurer. Le sell-in n'a pas encore
+        # d'historique, donc il n'est ni au réalisé ni au budget de cette ligne.
+        print("")
+        print("  Sell-out uniquement — les canaux que l'entrepôt mesure. Ce qui est")
+        print("  facturé à des partenaires n'a pas encore d'historique ici.")
 
     chronic = sorted(
         (
-            (track, track.chronic)
-            for track in built.tracks.values()
-            if track.chronic is not None
+            (track, verdict)
+            for track, verdict in (
+                (t, t.chronic_for(plan)) for t in built.tracks.values()
+            )
+            if verdict is not None
         ),
         key=lambda pair: pair[1].months,
         reverse=True,
@@ -795,7 +803,9 @@ def cmd_history(argv: List[str]) -> int:
     if not chronic:
         print("Aucun plan raté douze mois de suite au même écart.")
         return 0
-    print("Plans à recaler — sous le plan tous les mois, au même écart :")
+    print("Plans à recaler — sous le plan tous les mois, au même écart.")
+    print("Le ratio est calculé sur le fait `goals` de l'entrepôt, pas sur le classeur ;")
+    print("un couple dont les deux plans divergent ne reçoit aucun verdict.")
     for track, verdict in chronic:
         print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
               % ("%s %s" % (track.market, track.channel), verdict.months,
@@ -803,7 +813,7 @@ def cmd_history(argv: List[str]) -> int:
     return 0
 
 
-def _print_one_market(built, market: str) -> int:
+def _print_one_market(built, market: str, plan=None) -> int:
     """Un marché, mois par mois. Ce que l'écran ne montre jamais."""
     tracks = [t for t in built.tracks.values() if t.market.lower() == market.lower()]
     if not tracks:
@@ -821,8 +831,9 @@ def _print_one_market(built, market: str) -> int:
                 _eur(month.budget),
                 _eur(month.gap),
             ))
-        if track.chronic is not None:
-            print("  → %s" % track.chronic.sentence)
+        verdict = track.chronic_for(plan)
+        if verdict is not None:
+            print("  → %s" % verdict.sentence)
     return 0
 
 
