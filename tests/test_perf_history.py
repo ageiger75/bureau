@@ -935,3 +935,49 @@ def test_the_caveat_is_silent_when_both_close_together():
 
     assert ytd.shipped_through == "2026-07"
     assert ytd.basis_caveat == ""
+
+
+def test_the_year_to_date_joins_sell_in_on_the_plan_s_own_key():
+    """The entity code is what the consolidation itself uses, and what the plan uses to
+    say which market a line belongs to. A country name is weaker by some distance — names
+    are typed by people and translated twice on the way here, and eleven markets are
+    billed by a hub and vanish entirely under a name-based join. The year to date used to
+    join on the name while the trajectory beside it joined on the entity: two keys for one
+    job, and the weaker one where the money is."""
+    from app.perf.budget import Budget, BudgetLine
+
+    built = history.from_rows([row(period="2026-04", actual=0.0)])
+    workbook = Budget([
+        BudgetLine(market="Korea", region="APAC", segment="DIS - Distributors",
+                   channel="dis", period="2026-04", budget=500_000.0, last_year=None,
+                   entity="M_017"),
+        BudgetLine(market="Japan", region="APAC", segment="EBU - E-Business",
+                   channel=ECOMMERCE, period="2026-04", budget=0.0, last_year=None),
+    ])
+    # The consolidation bills this through a hub and names the market differently. Only
+    # the entity — with the suffix the workbook does not write — connects the two.
+    sold_in = [{"entity": "M_017_UNLOC", "market": "Asia Hub",
+                "segment": "DIS - Distributors", "period": "2026-04",
+                "sales_actual": 450_000.0}]
+
+    ytd = built.ytd("2026-04", budget=workbook, sell_in=sold_in)
+
+    assert ytd.actual == 450_000.0
+    assert ytd.budget == 500_000.0
+    assert ytd.unbudgeted_actual == 0.0
+
+
+def test_a_row_with_no_entity_still_joins_on_its_name():
+    """The fallback stays: a consolidation that stops sending the code should cost the
+    stronger join, not the whole perimeter."""
+    built = history.from_rows([row(period="2026-04", actual=0.0)])
+    workbook = merged(
+        plan(("2026-04", 0.0)),
+        plan(("2026-04", 500_000.0), market="Japan", channel="dis"),
+    )
+    sold_in = [{"market": "Japan", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 450_000.0}]
+
+    ytd = built.ytd("2026-04", budget=workbook, sell_in=sold_in)
+
+    assert ytd.actual == 450_000.0

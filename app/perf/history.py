@@ -686,7 +686,7 @@ class History:
         # workbook carries their plan — which is everything a year-to-date needs. Without
         # this the headline covers the two thirds of the Maison the warehouse measures and
         # says so, which is honest and is not the question anyone asked.
-        for market, channel, period, sold in _sell_in_months(sell_in):
+        for market, channel, period, sold in _sell_in_months(sell_in, budget):
             months_of = _months_in(period)
             if not months_of or not (first <= months_of[-1] <= last):
                 continue
@@ -762,19 +762,54 @@ def _plan_across(budget, market: str, channel: str, months: Sequence[str]):
     return sum(found) if found else None
 
 
-def _sell_in_months(rows) -> List[Tuple[str, str, str, float]]:
-    """`(market, channel, period, sold)` from consolidation rows, folded per period."""
+def plan_places(budget) -> Dict[Tuple[str, str], Tuple[str, str]]:
+    """`(entity, segment)` -> `(market, channel)`, from the plan's own key.
+
+    The entity code is what the consolidation itself uses, and it is what the plan uses to
+    say which market a line belongs to. A country name is the weaker key by some distance:
+    names are typed by people and translated twice on the way here, while eleven markets
+    are billed by a hub and would vanish entirely under a name-based join.
+
+    The suffixed spelling is registered as an alias because the workbook writes the same
+    entity two ways — bare for most, `_UNLOC` for a few — while the consolidation always
+    writes the suffix.
+    """
     from .budget import channel_of, normalise_market
 
+    places: Dict[Tuple[str, str], Tuple[str, str]] = {}
+    for line in budget.lines if budget else []:
+        if not line.entity:
+            continue
+        where = (normalise_market(line.market), channel_of(line.segment))
+        places.setdefault((line.entity, line.segment), where)
+        places.setdefault((line.entity + "_UNLOC", line.segment), where)
+    return places
+
+
+def _sell_in_months(rows, budget=None) -> List[Tuple[str, str, str, float]]:
+    """`(market, channel, period, sold)` from consolidation rows, folded per period.
+
+    Resolved through the plan's entity code where it can be, and by market name only when
+    it cannot. The year to date used to join on the name alone while the trajectory beside
+    it joined on the entity — two keys for one job, and the weaker one where the money is.
+    """
+    from .budget import channel_of, normalise_market
+
+    places = plan_places(budget)
     collected: Dict[Tuple[str, str, str], float] = {}
     for row in rows or []:
         segment = str(row.get("segment") or "").strip()
-        market = normalise_market(str(row.get("market") or "").strip())
         period = str(row.get("period") or "").strip()
         sold = _number(row.get("sales_actual"))
-        if not segment or not market or not period or sold is None:
+        if not segment or not period or sold is None:
             continue
-        key = (market, channel_of(segment), period)
+        where = places.get((str(row.get("entity") or "").strip(), segment))
+        if where is None:
+            market = normalise_market(str(row.get("market") or "").strip())
+            if not market:
+                continue
+            where = (market, channel_of(segment))
+        key = (where[0], where[1], period)
         collected[key] = collected.get(key, 0.0) + sold
     return [(k[0], k[1], k[2], v) for k, v in sorted(collected.items())]
 
@@ -885,14 +920,12 @@ def sell_in_trajectories(closed_year, current, budget, explained=()) -> List[Tra
     #: (entity, segment) -> market and channel, from the plan. The suffixed spelling is
     #: registered as an alias, because the workbook types the same entity two ways while
     #: the consolidation always writes the suffix.
-    named: Dict[Tuple[str, str], Tuple[str, str]] = {}
+    named = plan_places(budget)
     planned: Dict[Tuple[str, str], float] = {}
     for line in budget.lines if budget else []:
         if not line.entity or not line.budget:
             continue
         where = (normalise_market(line.market), channel_of(line.segment))
-        named.setdefault((line.entity, line.segment), where)
-        named.setdefault((line.entity + "_UNLOC", line.segment), where)
         planned[where] = planned.get(where, 0.0) + line.budget
 
     last_year: Dict[Tuple[str, str], float] = {}
