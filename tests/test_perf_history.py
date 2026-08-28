@@ -708,3 +708,48 @@ def test_the_finding_is_stated_in_euros():
     # Four planned months at 1.5m against four record months at 1.0m.
     assert moved.money_at_stake == 2_000_000.0
     assert "€2.0m of revenue the record does not account for" in moved.sentence
+
+
+def test_a_reclassified_pair_is_not_reported_as_a_mis_set_plan():
+    """A boundary someone has written down is not a plan to renegotiate. Without this the
+    American wholesale line reports its reclassification twice — once as the note that
+    explains it, and once as a plan asking for +525% that nobody got wrong."""
+    from app.perf import context
+
+    context.reset()
+    closed = [{"entity": "M_024", "segment": "WHOCH - Chains Wholesale",
+               "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
+    current = [{"entity": "M_024", "segment": "WHOCH - Chains Wholesale",
+                "period": "2026-04", "sales_actual": 900_000.0,
+                "sales_last_year": 1_000_000.0}]
+    workbook = _sell_in_plan(
+        "M_024", "United States", "WHOCH - Chains Wholesale", 6_000_000.0
+    )
+
+    loud, = history.sell_in_trajectories(closed, current, workbook)
+    assert loud.is_ahead_of_record
+
+    quiet = history.sell_in_trajectories(
+        closed, current, workbook, explained={("United States", "whoch")}
+    )
+    assert quiet == []
+
+
+def test_a_sell_in_finding_says_it_is_reading_shipments():
+    """A partner that ordered early shows +200% four months in and nothing has happened.
+    The reading is real and weak, and it strengthens as the year fills — so it is labelled
+    rather than hidden."""
+    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+               "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
+    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 900_000.0,
+                "sales_last_year": 1_000_000.0}]
+
+    moved, = history.sell_in_trajectories(
+        closed, current,
+        _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
+    )
+
+    assert moved.is_shipment_timed
+    assert "Sell-in is shipments" in moved.sentence
+    assert "hardens as the year fills" in moved.sentence

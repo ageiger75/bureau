@@ -440,6 +440,12 @@ def units_from_rows(
         months_below, gap_history, chronic, vs_record = _history_for(
             history, market, channel, budget
         )
+        # A boundary someone has written down is not a plan to renegotiate. Without this,
+        # the American wholesale line reports its reclassification twice: once as the note
+        # that explains it, and once as a plan asking for growth nobody planned.
+        if any(note.kind in context_module.NOT_TRADING for note in
+               context_module.notes_for(market, channel, period)):
+            vs_record = ""
 
         units.append(
             BusinessUnit(

@@ -859,7 +859,14 @@ def _print_sell_in(plan) -> int:
         print("Échec : %s" % exc, file=sys.stderr)
         return 1
 
-    found = history_module.sell_in_trajectories(closed, current, plan)
+    from .perf import context as context_module
+
+    explained = history_module.explained_pairs()
+    found = history_module.sell_in_trajectories(closed, current, plan, explained)
+    if explained:
+        print("%d couple%s écarté%s : une note en explique déjà la divergence."
+              % (len(explained), "s" if len(explained) > 1 else "",
+                 "s" if len(explained) > 1 else ""))
     print("%d couples marché × canal appariés au plan." % len(found))
     if not found:
         print("Aucun. La jointure se fait sur le code entité du plan : si elle ne prend")
@@ -899,8 +906,13 @@ def _print_trajectories(built, plan) -> None:
     l'endroit où le plan s'éloigne le plus du réel est l'endroit où quelqu'un devra
     répondre d'un chiffre que personne n'aurait dû signer.
     """
+    from .perf import history as history_module
+
+    explained = history_module.explained_pairs()
     found = []
     for track in built.tracks.values():
+        if (track.market, track.channel) in explained:
+            continue
         moved = track.trajectory(plan)
         if moved.sentence:
             found.append(moved)

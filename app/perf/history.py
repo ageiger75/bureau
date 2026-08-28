@@ -421,6 +421,17 @@ class Trajectory:
         return "steady"
 
     @property
+    def is_shipment_timed(self) -> bool:
+        """True when the record is sell-in read over part of a year.
+
+        Sell-in is shipments. A partner that ordered early shows +200% four months in and
+        nothing has happened; the same partner ordering late shows -80%. The reading is
+        real and it is weak, and it strengthens as the year fills — so it is labelled
+        rather than hidden, and the label goes on the sentence a reader takes away.
+        """
+        return self.recent_label == "the fiscal year to date"
+
+    @property
     def sentence(self) -> str:
         """The finding in one line, or empty when the plan and the record agree.
 
@@ -446,11 +457,17 @@ class Trajectory:
         where = " and ".join(said)
         side = "above" if self.is_ahead_of_record else "below"
         widest = max(abs(self.plan_growth - r) for r in self.records)
+        caveat = (
+            " Sell-in is shipments: a partner that ordered early reads as growth and one "
+            "that ordered late reads as collapse, so this hardens as the year fills."
+            if self.is_shipment_timed
+            else ""
+        )
         return (
             "The plan asks for %s, where %s — the plan is %s every reading of the record, "
-            "by up to %s. That is %s of revenue the record does not account for.%s"
+            "by up to %s. That is %s of revenue the record does not account for.%s%s"
             % (_pct(self.plan_growth), where, side, _points(widest),
-               _eur(abs(self.money_at_stake)), turning)
+               _eur(abs(self.money_at_stake)), turning, caveat)
         )
 
 
@@ -705,7 +722,25 @@ def _fiscal_label(period: str) -> str:
     return "%s to date" % fiscal.year_label(day)
 
 
-def sell_in_trajectories(closed_year, current, budget) -> List[Trajectory]:
+def explained_pairs(period: str = "") -> set:
+    """Market and channel pairs whose divergence a note already accounts for.
+
+    A boundary written down is not a plan to renegotiate. The American wholesale line
+    carries a note saying the accounts file Sephora on the other side of it; without this,
+    the same fact comes back a second time as "the plan asks for +525%" and sends someone
+    to argue with a plan that is not wrong.
+    """
+    from . import context as context_module
+
+    return {
+        (note.market, note.channel)
+        for note in context_module.current().notes
+        if note.kind in context_module.NOT_TRADING and note.market and note.channel
+        and (not note.since or not period or period >= note.since)
+    }
+
+
+def sell_in_trajectories(closed_year, current, budget, explained=()) -> List[Trajectory]:
     """What the sell-in plan asks, against what the partners have actually been buying.
 
     Built from the two queries that already exist rather than a third nobody has run.
@@ -761,8 +796,11 @@ def sell_in_trajectories(closed_year, current, budget) -> List[Trajectory]:
         running[0] += now
         running[1] += before
 
+    skip = set(explained)
     found = []
     for where in sorted(set(planned) & set(last_year)):
+        if where in skip:
+            continue
         base = last_year[where]
         now, before = to_date.get(where, [None, None])
         found.append(
