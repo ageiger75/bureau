@@ -759,6 +759,48 @@ def test_a_broken_market_never_becomes_an_opportunity():
     assert analytics.opportunities(dataset_of(broken)) == []  # and is refused
 
 
+def test_the_drivers_sum_to_the_movement_they_decompose_not_the_plan_gap():
+    """A budget is one committed number, not a funnel: nothing was planned for sessions
+    or conversion, so the decomposition runs against last year and sums to the movement
+    against last year. The screen used to caption it with the gap against plan — a claim
+    a reader adding the three impacts in front of them would find does not hold.
+    """
+    japan = unit(
+        key="japan",
+        actual=sessions_of(900_000, 750_000),
+        budget=Drivers.sales_only(1_200_000),
+        last_year=sessions_of(1_100_000, 800_000),
+    )
+
+    fire = analytics.Fire(japan)
+
+    assert fire.baseline_label == "last year"
+    assert fire.gap == -300_000.0
+    assert fire.movement == -200_000.0
+    assert round(sum(c.impact for c in fire.contributions), 2) == fire.movement
+    assert fire.movement != fire.gap  # the caption cannot use one for the other
+
+
+def test_a_rate_is_never_printed_with_the_sign_of_a_movement():
+    """"Conversion +4.3%" in a driver table is a change of 4.3 points; "conversion
+    +2.30%" in an opportunity is a rate that stands at 2.30%. Printed identically, the
+    reader has no way to tell which of the two they are looking at."""
+    recoverable = unit(
+        key="usa",
+        actual=sessions_of(900_000, 854_000),
+        budget=Drivers.sales_only(1_000_000),
+        last_year=sessions_of(1_000_000, 800_000),
+    )
+
+    found = analytics.opportunity_of(recoverable)
+
+    assert found is not None
+    assert "+" not in found.assumption
+    assert "+" not in found.calculation
+    # And a movement keeps its sign, which is the distinction being drawn.
+    assert analytics.format_pct(0.043) == "+4.3%"
+
+
 def test_the_flag_says_who_to_ask():
     """The data team, not the market director — the distinction the whole panel is for."""
     broken = unit(

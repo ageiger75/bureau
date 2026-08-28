@@ -1152,11 +1152,12 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
         assumption=(
             "Assumes %s returns to last year's %s while %s and the other drivers hold at "
             "today's level."
-            % (_driver_word(label), _pct(before, digits=2), volume_label.lower())
+            % (_driver_word(label), _level_pct(before, digits=2), volume_label.lower())
         ),
         calculation=(
             "%s %s × %s %s (LY) vs actual sales"
-            % (volume_label, _num(volume_now), _driver_word(label), _pct(before, digits=2))
+            % (volume_label, _num(volume_now), _driver_word(label),
+               _level_pct(before, digits=2))
         ),
         confidence=level,
     )
@@ -1295,6 +1296,20 @@ def _pct(value: Optional[float], digits: int = 1) -> str:
     if value is None:
         return "n/a"
     return "%+.*f%%" % (digits, value * 100) if digits else "%+.0f%%" % (value * 100)
+
+
+def _level_pct(value: Optional[float], digits: int = 1) -> str:
+    """A rate as it stands, with no sign.
+
+    `_pct` always signs, which is right for a movement and wrong for a level: printed
+    the same way, last year's conversion rate of 2.30% reads as a rise of 2.30 points —
+    and the driver tables two cards above print exactly that kind of number in exactly
+    that form. Same notation, two different quantities, is how a reader stops being able
+    to tell which one they are looking at.
+    """
+    if value is None:
+        return "n/a"
+    return "%.*f%%" % (digits, value * 100)
 
 
 #: Driver labels that are initialisms, not words. Lower-casing them mid-sentence turns

@@ -90,7 +90,7 @@
            the share comes first, because a total with no denominator cannot be judged. #}
         <p class="cockpit-caveat">
           {% if dataset.ytd.covered %}
-            A plan covers {{ (dataset.ytd.covered * 100) | round | int }}% of what was
+            A plan covers {{ dataset.ytd.covered_label }} of what was
             sold over this period. The rest is left out of both totals rather than summed
             against nothing:
           {% else %}
@@ -190,9 +190,20 @@
             </li>
           {% endfor %}
         </ul>
+        {# What they sum to is the movement against the baseline, and the baseline is
+           almost never the plan: nothing was planned for sessions or conversion, so a
+           gap against plan is the one thing a funnel cannot be taken apart against.
+           This line used to claim the plan gap, which a reader adding three numbers
+           would find does not hold — and a table that fails its own arithmetic in
+           public costs more than it explains. #}
         <p class="estimate-note">
-          Driver impacts are estimates from a chained decomposition of the gap, not
-          measured causes. They sum to {{ fire.gap | eur }} exactly.
+          Driver impacts are estimates from a chained decomposition, not measured causes.
+          They sum to {{ fire.movement | eur }} exactly — the movement versus
+          {{ fire.baseline_label }}.
+          {%- if fire.baseline_label != "plan" %}
+          The gap against plan is {{ fire.gap | eur }}, and cannot be taken apart:
+          no plan was set for sessions or conversion.
+          {%- endif %}
         </p>
         {% if fire.basis_caveat %}
           {# Without this the table reads as a finding about the market. It is exact, and

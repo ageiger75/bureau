@@ -24,6 +24,8 @@ are checked against each other, and a series whose two plans disagree carries no
 
 from __future__ import annotations
 
+import math
+
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import fiscal
@@ -581,6 +583,22 @@ class Ytd:
         if total <= 0:
             return None
         return self.actual / total
+
+    @property
+    def covered_label(self) -> str:
+        """Coverage as text, never rounded up.
+
+        This share is printed only when something is *not* covered, so a rounding that
+        reaches 100% makes the sentence contradict the clause that follows it — "a plan
+        covers 100% of what was sold" directly above "€432k carrying no plan at all".
+        Rounding down is also the only safe direction for a completeness figure: it can
+        understate what the screen reads, never overstate it.
+        """
+        covered = self.covered
+        if covered is None:
+            return ""
+        floored = math.floor(covered * 1000) / 10.0
+        return "%g%%" % floored
 
     @property
     def basis_caveat(self) -> str:
