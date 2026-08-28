@@ -198,6 +198,11 @@ def cmd_reconcile(argv: List[str]) -> int:
         # here, exactly as the screen folds them. A disagreement that survives this is a
         # disagreement about a country's revenue, not about which of its legal entities
         # booked it — the second would be invisible to a reader and is not worth a line.
+        #
+        # This held for single months and not for grouped ones, which is worse than not
+        # holding at all: the property was written down here as though it were general,
+        # and a reader — including its author — stopped checking the other path. See
+        # `_resolve_combined`, where it had to be made true.
         key = (line.market, line.segment, previous_year(line.period))
         expected[key] = expected.get(key, 0.0) + line.last_year
         # A second way in, for a candidate that joins on the plan's own entity code. It is
