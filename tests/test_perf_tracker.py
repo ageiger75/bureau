@@ -636,3 +636,58 @@ def test_a_ranking_is_a_level_and_stays_scorable():
     assert not entry.is_amount and entry.scorable == ""
     built = entry.to_kpi([rules.Reading("2026-07", 12.0)])
     assert built.status == rules.ALERT
+
+
+# ---------------------------------------------------- what the real join actually printed
+#
+# Both of these reached the terminal saying "On track", which is the direction that costs
+# the most: a panel built to show only what is off, showing something wrong as fine.
+
+
+def test_an_amount_is_never_scored_against_a_growth_target():
+    """`Brand.com` carries a target of 10.2% — a growth rate. The warehouse returns the
+    euros sold. Matched on the name they look like one measure; they are two, and the
+    join printed "6 847 662% — on track".
+    """
+    registry = tracker.tracker_from_rows([REAL, real_row(
+        KPI="Brand.com", **{"Cible (num)": 10.2, "Unité": "%"})])
+
+    report = kpi_registry.join_report(
+        registry, [{"scope": "LOEP", "kpi_key": "brand_com_sales",
+                    "period": "2026-07", "value": 6_847_662.1}])
+
+    assert report.kpis == []
+    assert "not the same measure" in report.without_target[0]
+
+
+def test_the_same_key_is_scored_when_the_units_do_agree():
+    """The refusal is about the pair, not about the key: an amount against an amount is
+    exactly what this should judge, once a year's readings exist to judge."""
+    registry = tracker.tracker_from_rows([REAL, real_row(
+        KPI="Brand.com", **{"Cible (num)": 27.2, "Unité": "M€"})])
+
+    entry = registry.entries[0]
+    assert kpi_registry._units_agree("brand_com_sales", entry) == ""
+    # And it is still held back, for the other reason: a year's target, one month's reading.
+    assert "year's total" in entry.scorable
+
+
+def test_a_group_reading_is_refused_when_the_group_has_no_row():
+    """`Brand.com` exists for EMEA and not for the Maison. Falling back to it scored a
+    group reading against one region's commitment — the precise error the perimeter was
+    introduced to stop, arriving through the back door of an empty group list.
+    """
+    registry = tracker.tracker_from_rows([REAL,
+        real_row(KPI="Brand.com", **{"Niveau": "BU", "Périmètre": "EMEA",
+                                     "Cible (num)": 10.2, "Unité": "%"}),
+        real_row(KPI="Brand.com", **{"Niveau": "BU", "Périmètre": "APAC",
+                                     "Cible (num)": 8.0, "Unité": "%"})])
+
+    matched, unmatched, _ = kpi_registry.match(registry, ["brand_com_sales"])
+
+    assert matched == {}
+    assert unmatched == ["brand_com_sales"]
+
+    # And EMEA's own reading still finds EMEA's row.
+    scoped, _, _ = kpi_registry.match(registry, ["brand_com_sales"], scope="EMEA")
+    assert scoped["brand_com_sales"].scope == "EMEA"

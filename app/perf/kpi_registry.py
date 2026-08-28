@@ -25,7 +25,7 @@ import unicodedata
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import kpi as rules
-from .tracker import Entry, Tracker
+from .tracker import Entry, Tracker, _plain
 
 #: The whole-group scope, as the warehouse writes it. Readings at market scope exist too;
 #: the panel reads the group and the market rows feed the per-market signals.
@@ -75,6 +75,31 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
 #: carries `Heroes WOB` twice, at 30 and at 25, and picking the wrong one silently turns a
 #: KPI that holds into a KPI that misses.
 GROUP_NAMES = frozenset(("loep", "groupe", "group", "monde", "total", "comex"))
+
+
+#: Keys whose value is an amount of money, from the query's own contract rather than from
+#: a guess about magnitudes. It matters because the tracker states some of these against a
+#: *growth rate*: `Brand.com` carries a target of 10.2%, and the warehouse returns the
+#: euros sold. Matched on the name they look like one measure; they are two, and scoring
+#: one against the other produced "6 847 662% — on track".
+AMOUNT_KEYS = frozenset(("net_sales", "same_store_sales", "brand_com_sales"))
+
+#: Units that describe a quantity rather than a level. A reading in euros can only be
+#: judged against a target in the same kind of unit.
+AMOUNT_UNITS = frozenset(("m€", "k€", "€", "eur", "meur", "keur", "k clients", "clients"))
+
+
+def _units_agree(key: str, entry: Entry) -> str:
+    """Empty when reading and target measure the same kind of thing; else why not."""
+    if key not in AMOUNT_KEYS:
+        return ""
+    if _plain(entry.unit) in AMOUNT_UNITS:
+        return ""
+    return (
+        "the warehouse returns an amount here and the tracker's target is stated in %s: "
+        "they are not the same measure, and one cannot be scored against the other"
+        % (entry.unit or "another unit")
+    )
 
 
 class Join:
@@ -147,16 +172,23 @@ def match(registry: Tracker, keys: Sequence[str], scope: str = GROUP_SCOPE
         if not fitting:
             unmatched.append(key)
             continue
+        # The perimeter decides, and never the sheet's order: preferring the first row
+        # would make the answer depend on how somebody sorted the spreadsheet.
+        if wants_group:
+            scoped = [entry for entry in fitting if _is_group(entry)]
+        else:
+            scoped = [entry for entry in fitting if _words(entry.scope) == _words(scope)]
+        if not scoped:
+            # No row at the perimeter asked for. Falling back to another one is the very
+            # error the perimeter was introduced to stop: `Brand.com` exists for EMEA and
+            # not for the group, and a group reading scored against EMEA's target reads
+            # as a verdict about the Maison drawn from one region's commitment.
+            unmatched.append(key)
+            continue
         if len(fitting) > 1:
             ambiguous.append(key)
-        # The perimeter decides, and only then the sheet's order. Preferring the first row
-        # would make the answer depend on how somebody sorted the spreadsheet.
-        scoped = [entry for entry in fitting
-                  if _words(entry.scope) == _words(scope)] if not wants_group else []
-        chosen = (scoped or [entry for entry in fitting if _is_group(entry)] or fitting)[0] \
-            if wants_group else (scoped or fitting)[0]
-        taken.add(id(chosen))
-        found[key] = chosen
+        taken.add(id(scoped[0]))
+        found[key] = scoped[0]
     return found, unmatched, ambiguous
 
 
@@ -214,7 +246,7 @@ def join_report(registry: Tracker, rows: Sequence[Sequence],
 
     kpis, no_target = [], []
     for key, entry in sorted(matched.items()):
-        refusal = entry.scorable
+        refusal = _units_agree(key, entry) or entry.scorable
         if refusal:
             # Kept out of the list rather than scored against something it cannot be
             # compared with. Still a fact worth one line each: the business measures this
