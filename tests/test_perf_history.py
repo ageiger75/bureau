@@ -432,7 +432,7 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
     assert moved.plan_growth == 0.25
     assert moved.stretch == 0.25
     assert moved.is_ahead_of_record
-    assert "growth this business has not shown" in moved.sentence
+    assert "the plan is above both" in moved.sentence
 
 
 def test_a_plan_that_merely_continues_the_trend_says_nothing():
@@ -455,7 +455,7 @@ def test_a_plan_below_what_the_business_already_delivers():
     moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
 
     assert moved.is_behind_record
-    assert "less than the business is already doing" in moved.sentence
+    assert "the plan is below both" in moved.sentence
 
 
 def test_the_record_says_whether_the_business_is_speeding_up():
@@ -525,9 +525,52 @@ def test_the_record_reaches_the_units_and_the_question():
     )
 
     unit = mapped.units[0]
-    assert "growth this business has not shown" in unit.plan_vs_record
+    assert "the plan is above both" in unit.plan_vs_record
     assert unit.chronic_plan == ""
 
     fire = analytics.Fire(unit)
     assert "Was this plan ever reachable" in fire.question
     assert fire.plan_vs_record == unit.plan_vs_record
+
+
+def test_a_business_that_has_already_turned_is_not_flagged():
+    """The correctness fix that mattered. Measured against the trailing year alone, China
+    e-commerce came back as planned for "growth it has not shown" while its last three
+    months ran at +63%. It had just shown it. Four findings in five were positive that
+    way — not a signal, a habit."""
+    # Falling for a year, then recovering hard: trailing growth is deeply negative while
+    # the recent quarter is far above the plan's ask.
+    def shape(i):
+        return 1000.0 if i < 12 else (500.0 if i < 21 else 1600.0)
+
+    rows = _record(shape)
+    built = history.from_rows(rows)
+    # 550 against the 500 of the same months a year earlier: +10%, well above the
+    # trailing year and well below what the last quarter is already running at.
+    ahead_of_the_year = plan(
+        *[(_later(rows[-1]["period"], n), 550.0) for n in range(1, 5)]
+    )
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead_of_the_year)
+
+    assert moved.growth < 0                 # the year is still negative
+    assert moved.recent > moved.plan_growth  # the quarter already beats the plan
+    assert not moved.is_ahead_of_record
+    assert moved.sentence == ""
+
+
+def test_a_plan_in_line_with_the_recent_quarter_is_not_called_timid():
+    """A plan below the trailing year but level with the recent quarter has taken the
+    turn into account, which is what a plan is supposed to do."""
+    def shape(i):
+        return 1000.0 if i < 12 else (1000.0 if i < 21 else 700.0)
+
+    rows = _record(shape)
+    built = history.from_rows(rows)
+    matching = plan(*[(_later(rows[-1]["period"], n), 700.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(matching)
+
+    assert moved.stretch < 0
+    assert not moved.is_behind_record
+    assert moved.sentence == ""

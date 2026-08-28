@@ -311,14 +311,43 @@ class Trajectory:
         return self.plan_growth - self.growth
 
     @property
+    def recent_stretch(self) -> Optional[float]:
+        """What the plan asks beyond what the last three months have been running at."""
+        if self.recent is None or self.plan_growth is None:
+            return None
+        return self.plan_growth - self.recent
+
+    @property
     def is_ahead_of_record(self) -> bool:
-        """The plan assumes a break with the trend rather than a continuation of it."""
-        return self.stretch is not None and self.stretch > STRETCH_THRESHOLD
+        """The plan assumes a break with the record, on both readings of it.
+
+        Both, because the twelve-month figure goes stale on a business that has turned.
+        The first version of this compared the plan with the trailing year alone and
+        announced that China e-commerce was planned for "growth it has not shown" — while
+        its last three months ran at +63%. It had just shown it. Four findings in five
+        came back positive that way, which is not a signal, it is a habit.
+        """
+        return (
+            self.stretch is not None
+            and self.stretch > STRETCH_THRESHOLD
+            and self.recent_stretch is not None
+            and self.recent_stretch > STRETCH_THRESHOLD
+        )
 
     @property
     def is_behind_record(self) -> bool:
-        """The plan asks for less than the business is already delivering."""
-        return self.stretch is not None and self.stretch < -STRETCH_THRESHOLD
+        """The plan asks for less than the business delivers, on both readings.
+
+        Symmetric, and for the same reason. A plan set below the trailing year but in line
+        with the recent quarter is not timid — it is a plan that has taken the turn into
+        account, which is what a plan is supposed to do.
+        """
+        return (
+            self.stretch is not None
+            and self.stretch < -STRETCH_THRESHOLD
+            and self.recent_stretch is not None
+            and self.recent_stretch < -STRETCH_THRESHOLD
+        )
 
     @property
     def direction(self) -> str:
@@ -346,17 +375,19 @@ class Trajectory:
             "slowing": " The business is slowing down, which argues against it.",
             "steady": " The trend is steady, so nothing in the record supports the change.",
         }.get(self.direction, "")
+        # Both records are named, because a reader shown only the twelve-month figure
+        # cannot tell a business that is still falling from one that has already turned.
         if self.is_ahead_of_record:
             return (
-                "The plan asks for %s where the last twelve months delivered %s — %s of "
-                "growth this business has not shown.%s"
-                % (_pct(self.plan_growth), _pct(self.growth),
+                "The plan asks for %s. The last twelve months delivered %s and the last "
+                "three ran at %s — the plan is above both, by %s against the year.%s"
+                % (_pct(self.plan_growth), _pct(self.growth), _pct(self.recent),
                    _points(self.stretch), turning)
             )
         return (
-            "The plan asks for %s where the last twelve months delivered %s — %s less "
-            "than the business is already doing.%s"
-            % (_pct(self.plan_growth), _pct(self.growth),
+            "The plan asks for %s. The last twelve months delivered %s and the last three "
+            "ran at %s — the plan is below both, by %s against the year.%s"
+            % (_pct(self.plan_growth), _pct(self.growth), _pct(self.recent),
                _points(-self.stretch), turning)
         )
 
