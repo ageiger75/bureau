@@ -874,3 +874,21 @@ def test_a_note_about_a_gap_does_not_bury_a_measurement_fault():
 
     assert found is not None
     assert found.code == "traffic_without_orders"
+
+
+def test_a_note_can_say_the_action_is_not_the_market_s():
+    """The screen printed "Yann TANINI · Managing Director North America" and, two lines
+    below it, "le marché n'est pas à interroger". Both were right and the pair was wrong:
+    a note could already change the question and could not change who it was addressed
+    to. Naming a real person beside a question they do not own is the most expensive thing
+    this product can do."""
+    reclassified = unit(notes=[
+        context.Note(market="United States", channel="whoch", since="", kind=context.RECLASSIFIED,
+                     text="Filed on the other side.", source="CEO",
+                     action_owner="Consolidation — referential 999SEPHOWP")
+    ])
+    ordinary = unit(notes=[note(kind=context.RECLASSIFIED)])
+
+    assert analytics.Fire(reclassified).action_owner.startswith("Consolidation")
+    # Silent where nobody else was named: the market keeps its own question.
+    assert analytics.Fire(ordinary).action_owner == ""

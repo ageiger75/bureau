@@ -121,9 +121,11 @@ def resolve_channel(name: str) -> str:
 class Note:
     """One piece of context, scoped to a market, a channel and a starting month."""
 
-    __slots__ = ("market", "channel", "since", "kind", "text", "source", "asked")
+    __slots__ = ("market", "channel", "since", "kind", "text", "source", "asked",
+                 "action_owner")
 
-    def __init__(self, market, channel, since, kind, text, source="", asked="") -> None:
+    def __init__(self, market, channel, since, kind, text, source="", asked="",
+                 action_owner="") -> None:
         self.market = market
         self.channel = channel
         #: The first period the note applies to. Everything before it is unaffected, which
@@ -139,6 +141,12 @@ class Note:
         #: someone a question they have settled is a fast way to teach them to skip the
         #: panel.
         self.asked = asked
+        #: Who the action belongs to, when it is not the market's lead. A note can already
+        #: change the question; without this it cannot change who is being asked, and the
+        #: screen prints a country manager's name directly above a sentence saying the
+        #: market is not the one to question. Naming the wrong person beside a real number
+        #: is the most expensive thing this product can do.
+        self.action_owner = action_owner
 
     @property
     def meaning(self) -> str:
@@ -215,6 +223,7 @@ def load(path) -> Context:
                     text=text,
                     source=str(record.get("source") or "").strip(),
                     asked=str(record.get("question") or "").strip(),
+                    action_owner=str(record.get("action_owner") or "").strip(),
                 )
             )
     return Context(notes)

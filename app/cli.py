@@ -380,7 +380,10 @@ def _report_reconciliation(
     return 1
 
 
-NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source", "question")
+#: `action_owner` last, so a file written before it existed still reads: a missing
+#: column is an empty string, and an empty owner means the market keeps the question.
+NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source", "question",
+               "action_owner")
 
 
 def cmd_note(argv: List[str]) -> int:
@@ -399,6 +402,7 @@ def cmd_note(argv: List[str]) -> int:
         manage.py note --forget 1,2,3     plusieurs d'un coup, sans recompter
 
     `--ask "…"` remplace la question que la note substitue, quand elle est déjà tranchée.
+    `--for "…"` dit à qui revient l'action quand ce n'est pas le responsable du marché.
     """
     import csv
 
@@ -444,7 +448,8 @@ def cmd_note(argv: List[str]) -> int:
     positional = [a for a in argv if not a.startswith("--")]
     # Les valeurs des options sont des positionnels aux yeux de ce découpage naïf ; on les
     # retire, sinon un `--since 2026-06` se ferait passer pour le texte de la note.
-    for flag in ("--kind", "--since", "--channel", "--source", "--forget", "--ask"):
+    for flag in ("--kind", "--since", "--channel", "--source", "--forget", "--ask",
+                 "--for"):
         value = _option(argv, flag)
         if value in positional:
             positional.remove(value)
@@ -474,6 +479,11 @@ def cmd_note(argv: List[str]) -> int:
         # what a reader should do next, and the person writing the note sometimes knows
         # that question has already been settled.
         "question": _option(argv, "--ask") or "",
+        # Who has to act, when it is not the market's lead. Without it the screen prints
+        # a country manager's name directly above a sentence saying the market is not the
+        # one to question — and naming the wrong person beside a real number is the most
+        # expensive thing this product can do.
+        "action_owner": _option(argv, "--for") or "",
     }
     existing.append(row)
     _write_notes(path, existing)
@@ -486,6 +496,8 @@ def cmd_note(argv: List[str]) -> int:
     print("Depuis              %s" % (row["since"] or "toujours"))
     print("Effet               %s" % context.KIND_MEANING[kind])
     print("Nouvelle question   %s" % (row["question"] or context.KIND_QUESTION[kind]))
+    if row["action_owner"]:
+        print("Action pour         %s (pas le responsable du marché)" % row["action_owner"])
     print("")
     # Le message dépend du type, sinon il ment : une note « hors trading » retire le
     # marché de la liste des gens à challenger, une mise en attente non — l'argent

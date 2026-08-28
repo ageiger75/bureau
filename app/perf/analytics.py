@@ -882,6 +882,20 @@ class Fire:
         return self.unit.context_notes
 
     @property
+    def action_owner(self) -> str:
+        """Who has to act, when a note says it is not the market's lead.
+
+        The screen was printing a country manager's name and, two lines below it, a
+        sentence saying the market was not the one to question. Both were right and the
+        pair was wrong: a note could already change the question and could not change who
+        it was addressed to.
+        """
+        for note in self.unit.context_notes:
+            if note.action_owner:
+                return note.action_owner
+        return ""
+
+    @property
     def basis_caveat(self) -> str:
         """Which drivers moved for a reason that is not the market.
 

@@ -215,7 +215,15 @@
 
         <p class="fire-meta">
           <span class="confidence confidence-{{ fire.confidence }}">Confidence {{ fire.confidence | upper }}</span>
-          <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
+          {% if fire.action_owner %}
+            {# A note has said this is not the market's to answer. Printing the market's
+               lead here and a sentence two lines below saying the market is not the one
+               to question puts a real person's name against a question they do not own —
+               the most expensive thing this screen can do. #}
+            <span class="owner">· {{ fire.action_owner }} — not {{ fire.unit.owner.name }}'s to answer</span>
+          {% else %}
+            <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
+          {% endif %}
         </p>
 
         <p class="ask">{{ fire.question }}</p>
