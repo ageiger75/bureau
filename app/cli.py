@@ -698,6 +698,12 @@ def _print_notes(rows, path) -> int:
         ))
         if row.get("question"):
             print("   Question : %s" % row["question"])
+        if row.get("action_owner"):
+            # La liste est l'endroit où l'on relit ce qu'on a écrit ; taire ici le
+            # destinataire de l'action laisserait croire qu'elle revient au marché,
+            # ce que la note dit précisément le contraire.
+            print("   Action pour : %s (pas le responsable du marché)"
+                  % row["action_owner"])
         print("")
     print("Pour en retirer une : manage.py note --forget N")
     return 0
