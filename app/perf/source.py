@@ -184,6 +184,18 @@ def _sell_in_month(rows, sold_in, period: str):
     ]
 
 
+def last_read() -> str:
+    """When the figures now in memory were read, or empty before the first read.
+
+    Deliberately cheap and deliberately incapable of causing one: it reports what the
+    cache holds and never fetches. A freshness check that could trigger a three-minute
+    query would be a worse problem than the one it solves.
+    """
+    if _cached is None:
+        return ""
+    return _cached[0].as_of
+
+
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"

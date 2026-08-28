@@ -102,7 +102,57 @@
     });
   }
 
+  /* --- La page attend ses chiffres frais toute seule ---------------------
+     L'écran s'ouvre sur la dernière lecture et la nouvelle arrive derrière, quelques
+     minutes plus tard. Le seul signe en était une ligne dans la fenêtre du serveur,
+     donc la consigne était « surveiller le journal et recharger » : une habitude de
+     développeur transmise à un lecteur, et elle n'était pas suivie parce qu'elle n'a
+     pas à l'être.
+
+     On interroge un point d'entrée qui ne lit que le cache — il ne peut pas déclencher
+     de requête vers l'entrepôt, une vérification de fraîcheur qui coûterait trois
+     minutes serait pire que le problème qu'elle règle. On s'arrête au bout de dix
+     minutes : passé ce délai, la lecture a échoué et recharger n'y changera rien. */
+
+  var FRESHNESS_EVERY_MS = 5000;
+  var FRESHNESS_FOR_MS = 600000;
+
+  function watchForFreshFigures() {
+    var header = document.querySelector("[data-read-at]");
+    var line = document.getElementById("freshness-line");
+    if (!header || !window.fetch) {
+      return;
+    }
+    var shown = header.getAttribute("data-read-at");
+    if (!shown) {
+      return;
+    }
+    var startedAt = Date.now();
+
+    var timer = window.setInterval(function () {
+      if (Date.now() - startedAt > FRESHNESS_FOR_MS) {
+        window.clearInterval(timer);
+        return;
+      }
+      window.fetch("/freshness", { headers: { Accept: "application/json" } })
+        .then(function (response) { return response.json(); })
+        .then(function (body) {
+          if (body && body.as_of && body.as_of !== shown) {
+            window.clearInterval(timer);
+            /* Dit avant de recharger : une page qui se remplace sans prévenir pendant
+               qu'on la lit est déroutante, même quand elle a raison de le faire. */
+            if (line) {
+              line.textContent = "Chiffres plus récents disponibles — rechargement…";
+            }
+            window.setTimeout(function () { window.location.reload(); }, 1200);
+          }
+        })
+        .catch(function () { /* Le serveur s'arrête : rien à signaler, rien à faire. */ });
+    }, FRESHNESS_EVERY_MS);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
+    watchForFreshFigures();
     wireConfirmations();
     openTargetSection();
     wireClaimForms();

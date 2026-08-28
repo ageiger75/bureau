@@ -67,8 +67,10 @@ echo
   for _ in $(seq 1 60); do
     if curl -s -o /dev/null "${URL}/health" 2>/dev/null; then
       open "$URL" 2>/dev/null || true
-      # Relecture derrière l'écran déjà affiché. Recharger la page dans quelques minutes
-      # donne les chiffres du jour ; l'horodatage en haut dit lesquels sont à l'écran.
+      # Relecture derrière l'écran déjà affiché. La page surveille elle-même l'arrivée
+      # des chiffres du jour et se recharge : rien à faire, rien à guetter dans ce
+      # journal — une consigne qui demande de lire une trace de serveur est une consigne
+      # qui ne sera pas suivie, et qui n'a pas à l'être.
       curl -s -o /dev/null --max-time 900 "${URL}/?refresh=1" 2>/dev/null || true
       exit 0
     fi
@@ -85,8 +87,8 @@ echo "   Pour taper autre chose, ouvrir une nouvelle fenêtre avec ⌘T, puis :"
 echo "       cd $(pwd)"
 echo
 echo "   L'écran s'ouvre sur la dernière lecture, puis se rafraîchit en arrière-plan."
-echo "   Recharger la page dans quelques minutes pour les chiffres du jour ;"
-echo "   l'horodatage en haut de l'écran dit toujours lesquels sont affichés."
+echo "   Rien à surveiller ici : la page se recharge d'elle-même quand les chiffres"
+echo "   du jour arrivent, et l'horodatage en haut dit toujours lesquels sont affichés."
 echo
 echo "   Pour arrêter le serveur : Ctrl-C ici, ou fermer la fenêtre."
 echo

@@ -6,8 +6,8 @@
 {# The brief's wireframe uses emoji section markers. §28 asks for very limited visual
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
 
-<section class="cockpit-header">
-  <p class="cockpit-eyebrow">
+<section class="cockpit-header" data-read-at="{{ read_at }}">
+  <p class="cockpit-eyebrow" id="freshness-line">
     {{ dataset.period_label }} · as of {{ dataset.as_of }}
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>

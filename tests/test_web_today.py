@@ -436,3 +436,27 @@ def test_the_plan_finding_carries_its_euros(client):
     page = page_text(client.get("/"))
 
     assert "across the year's plan" in page
+
+
+def test_the_page_can_tell_when_a_fresher_read_has_landed(client):
+    """The screen opens on the last read and a fresh one lands behind it minutes later.
+    The only sign of that used to be a line in the server window, so the instruction was
+    "watch the log and reload" — a developer's habit handed to a reader, and not followed
+    because it should not have to be."""
+    page = page_text(client.get("/"))
+
+    assert "data-read-at=" in page
+
+    stamp = client.get("/freshness")
+    assert stamp.status_code == 200
+    assert "as_of" in stamp.json()
+
+
+def test_the_freshness_check_can_never_cause_a_warehouse_read(monkeypatch):
+    """A check that could trigger a three-minute query would be a worse problem than the
+    one it solves. It reports what the cache holds and nothing else."""
+    from app.perf import source
+
+    source.cache_clear()
+
+    assert source.last_read() == ""

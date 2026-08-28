@@ -52,6 +52,20 @@ def settled_now(unavailable: Sequence[str] = ()) -> List[str]:
     return settled
 
 
+@router.get("/freshness")
+def freshness():
+    """When the figures in memory were read. Polled by the page, never by a person.
+
+    The screen opens on the last read and a fresh one lands behind it minutes later. Until
+    now the only sign of that was a line in the server window, so the instruction was
+    "watch the log and reload" — which is a developer's habit handed to a reader, and it
+    was not followed because it should not have to be. The page now watches for itself.
+    """
+    from ..perf import source
+
+    return {"as_of": source.last_read()}
+
+
 @router.get("/")
 def today(request: Request):
     source = current_source()
@@ -123,6 +137,8 @@ def today(request: Request):
             "user": None,
             "source": source,
             "dataset": dataset,
+            # Handed to the page so it can tell a fresh read from the one it is showing.
+            "read_at": getattr(dataset, "as_of", ""),
             "header": {
                 "actual": dataset.sales_actual,
                 "budget": dataset.sales_budget,
