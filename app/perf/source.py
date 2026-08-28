@@ -550,7 +550,9 @@ class SnowflakeSource:
             # restamps: the whole point of saying when is that it stays said.
             as_of=read_at_text,
             units=mapped.units,
-            ytd=history.ytd(period, budget=budget) if history is not None else None,
+            ytd=history.ytd(period, budget=budget, sell_in=sold_in)
+            if history is not None
+            else None,
         )
         if stored is None:
             _write_disk_cache(rows, stamp, read_at_text)

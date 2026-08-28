@@ -406,8 +406,14 @@ def test_the_year_to_date_says_what_it_could_not_compare(client):
 
     assert "carrying no plan" in page
     assert "no sales recorded against it" in page
-    # And what the history does not cover at all, said in the same breath as the figure.
-    assert "Sell-out only" in page
+    # And the basis of the total, said in the same breath as the figure. Two bases are
+    # added together here — shoppers at the till, partners at the invoice — which is how
+    # the accounts recognise revenue and why it must never be swapped for a sell-through
+    # figure without saying so.
+    assert "Sold and shipped together" in page
+    # A fragment that survives the template's own line wrapping: asserting a phrase
+    # that spans two source lines tests the indentation, not the sentence.
+    assert "Hospitality and corporate gifts" in page
 
 
 def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):

@@ -523,7 +523,11 @@ def dataset_from_rows(
         units=mapped.units,
         # Built here as well as in the source, so the two ways of assembling a dataset
         # cannot drift into showing different screens from the same rows.
-        ytd=history.ytd(str(rows[0].get("period") or ""), budget=budget)
+        ytd=history.ytd(
+            str(rows[0].get("period") or ""),
+            budget=budget,
+            sell_in=[r for r in rows if r.get("segment")],
+        )
         if history and rows
         else None,
     )

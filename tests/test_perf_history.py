@@ -840,3 +840,59 @@ def test_a_note_still_silences_a_sell_in_trajectory():
         context.reset()
 
     assert silent.plan_vs_record == ""
+
+
+# ----------------------------------------------- the year to date covers both perimeters
+
+
+def test_the_year_to_date_absorbs_sell_in():
+    """Sell-in arrives as rows rather than a track — the consolidation publishes a
+    cumulative column, not a series. What it does have is the months of the current year,
+    and the workbook carries their plan, which is everything a year to date needs. Without
+    this the headline covered the two thirds the warehouse measures and said so: honest,
+    and not the question anyone asked."""
+    built = history.from_rows([row(period="2026-04", actual=1_000_000.0)])
+    workbook = merged(
+        plan(("2026-04", 1_100_000.0)),
+        plan(("2026-04", 500_000.0), market="Japan", channel="dis"),
+    )
+    sold_in = [{"market": "Japan", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 400_000.0}]
+
+    ytd = built.ytd("2026-04", budget=workbook, sell_in=sold_in)
+
+    assert ytd.actual == 1_400_000.0
+    assert ytd.budget == 1_600_000.0
+    assert ytd.gap == -200_000.0
+
+
+def test_a_pair_of_months_the_source_cannot_separate_meets_a_pair_of_plans():
+    """A snapshot missing from a cumulative series makes two months inseparable. The range
+    is confronted with the plan's own months added together, never with one of them: the
+    two sides have to describe the same span or the comparison is a coincidence."""
+    built = history.from_rows([row(period="2026-04", actual=0.0)])
+    workbook = merged(
+        plan(("2026-04", 0.0)),
+        plan(("2026-04", 300_000.0), market="Japan", channel="dis"),
+        plan(("2026-05", 400_000.0), market="Japan", channel="dis"),
+    )
+    sold_in = [{"market": "Japan", "segment": "DIS - Distributors",
+                "period": "2026-04..2026-05", "sales_actual": 650_000.0}]
+
+    ytd = built.ytd("2026-05", budget=workbook, sell_in=sold_in)
+
+    assert ytd.actual == 650_000.0
+    assert ytd.budget == 700_000.0
+
+
+def test_sell_in_with_no_plan_is_reported_not_absorbed():
+    """The same rule as everywhere else: what cannot be compared is counted apart and
+    named, never folded into a total against nothing."""
+    built = history.from_rows([row(period="2026-04", actual=1_000_000.0)])
+    sold_in = [{"market": "Korea", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 400_000.0}]
+
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 1_100_000.0)), sell_in=sold_in)
+
+    assert ytd.actual == 1_000_000.0
+    assert ytd.unbudgeted_actual == 400_000.0

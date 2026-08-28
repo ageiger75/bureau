@@ -601,7 +601,7 @@ class History:
     def latest_period(self) -> str:
         return self.periods[-1] if self.periods else ""
 
-    def ytd(self, anchor: str = "", budget=None) -> Optional[Ytd]:
+    def ytd(self, anchor: str = "", budget=None, sell_in=()) -> Optional[Ytd]:
         """The fiscal year to date, ending at `anchor` (the last complete month).
 
         Measured against the planning workbook when one is given, and that is not a
@@ -655,6 +655,28 @@ class History:
                     unsold += planned
                     unsold_lines += 1
 
+        # Sell-in arrives as rows rather than as a track: the consolidation publishes a
+        # cumulative column, not a series, so it has no twenty-four-month history to fold
+        # into `tracks`. What it does have is the months of the current year, and the
+        # workbook carries their plan — which is everything a year-to-date needs. Without
+        # this the headline covers the two thirds of the Maison the warehouse measures and
+        # says so, which is honest and is not the question anyone asked.
+        for market, channel, period, sold in _sell_in_months(sell_in):
+            months_of = _months_in(period)
+            if not months_of or not (first <= months_of[-1] <= last):
+                continue
+            periods.update(m for m in months_of if first <= m <= last)
+            planned = _plan_across(budget, market, channel, months_of)
+            if planned:
+                actual += sold
+                budget_total += planned
+            elif planned == 0:
+                zero_goal += sold
+                zero_goal_lines += 1
+            else:
+                unbudgeted += sold
+                unbudgeted_lines += 1
+
         if not periods:
             return None
         return Ytd(
@@ -672,6 +694,59 @@ class History:
             zero_goal_lines=zero_goal_lines,
             plan_source="the planning workbook",
         )
+
+
+def _months_in(period: str) -> List[str]:
+    """`2025-04..2025-05` -> both months. A single month returns itself.
+
+    The consolidation cannot always separate two months: a snapshot missing from a
+    cumulative series makes the pair inseparable. Said as a pair rather than split by a
+    rule of thumb, here as everywhere else — a figure invented to fill a column is worth
+    less than an honest range.
+    """
+    text = (period or "").strip()
+    if ".." not in text:
+        return [text] if text else []
+    first, _, last = text.partition("..")
+    months, guard = [], 0
+    current = first.strip()
+    while current and guard < 24:
+        months.append(current)
+        if current == last.strip():
+            break
+        current = _shift(current, 1)
+        guard += 1
+    return months
+
+
+def _plan_across(budget, market: str, channel: str, months: Sequence[str]):
+    """The plan for these months added together, or None when it covers none of them.
+
+    A range is confronted with the plan's own months summed, never with one of them: the
+    two sides have to describe the same span or the comparison is a coincidence.
+    """
+    if budget is None:
+        return None
+    figures = [budget.budget_for(market, channel, m) for m in months]
+    found = [f for f in figures if f is not None]
+    return sum(found) if found else None
+
+
+def _sell_in_months(rows) -> List[Tuple[str, str, str, float]]:
+    """`(market, channel, period, sold)` from consolidation rows, folded per period."""
+    from .budget import channel_of, normalise_market
+
+    collected: Dict[Tuple[str, str, str], float] = {}
+    for row in rows or []:
+        segment = str(row.get("segment") or "").strip()
+        market = normalise_market(str(row.get("market") or "").strip())
+        period = str(row.get("period") or "").strip()
+        sold = _number(row.get("sales_actual"))
+        if not segment or not market or not period or sold is None:
+            continue
+        key = (market, channel_of(segment), period)
+        collected[key] = collected.get(key, 0.0) + sold
+    return [(k[0], k[1], k[2], v) for k, v in sorted(collected.items())]
 
 
 def _shift(period: str, months: int) -> str:
