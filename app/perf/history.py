@@ -508,6 +508,7 @@ class Ytd:
         "zero_goal_lines",
         "months",
         "plan_source",
+        "shipped_through",
     )
 
     def __init__(
@@ -525,6 +526,7 @@ class Ytd:
         zero_goal_actual: float = 0.0,
         zero_goal_lines: int = 0,
         plan_source: str = "",
+        shipped_through: str = "",
     ) -> None:
         self.label = label
         self.first_period = first_period
@@ -545,6 +547,11 @@ class Ytd:
         #: different standing sit behind this figure, and a reader who cannot tell them
         #: apart cannot judge the number.
         self.plan_source = plan_source
+        #: The last month of sell-in inside this total. The two perimeters close on
+        #: different dates — the consolidation on a snapshot, the warehouse on a
+        #: transaction — so a year to date can legitimately hold four months of one and
+        #: three of the other. Legitimate, and invisible unless it is named.
+        self.shipped_through = shipped_through
 
     @property
     def gap(self) -> float:
@@ -574,6 +581,24 @@ class Ytd:
         if total <= 0:
             return None
         return self.actual / total
+
+    @property
+    def basis_caveat(self) -> str:
+        """Said only when the two perimeters do not end on the same month.
+
+        Most months they do, and a line printed every time is a line read none of the
+        time. When they diverge it has to be said: a total labelled to July that carries
+        June's shipments is the kind of quiet inaccuracy that costs a screen its standing
+        the first time someone checks it against the accounts.
+        """
+        if not self.shipped_through or self.shipped_through == self.last_period:
+            return ""
+        return (
+            "Sold to %s, shipped to %s: the two sources close on different dates — the "
+            "warehouse on a transaction, the consolidation on a snapshot — so this total "
+            "holds one more month of shop sales than of partner invoices."
+            % (_month_label(self.last_period), _month_label(self.shipped_through))
+        )
 
     @property
     def has_unmatched(self) -> bool:
@@ -679,6 +704,10 @@ class History:
 
         if not periods:
             return None
+        shipped = [
+            m for _, _, period, _ in _sell_in_months(sell_in)
+            for m in _months_in(period) if first <= m <= last
+        ]
         return Ytd(
             label=_fiscal_label(last),
             first_period=first,
@@ -693,6 +722,7 @@ class History:
             zero_goal_actual=zero_goal,
             zero_goal_lines=zero_goal_lines,
             plan_source="the planning workbook",
+            shipped_through=max(shipped) if shipped else "",
         )
 
 
@@ -788,6 +818,23 @@ def _fiscal_start(period: str) -> str:
     if day is None:
         return ""
     return "%04d-%02d" % (fiscal.fiscal_year(day) - 1, fiscal.FISCAL_START_MONTH)
+
+
+#: Month names, for the one place a period is written out in prose rather than printed
+#: as a code. Duplicating the list in `source` would be worse than importing it: two
+#: spellings of July is exactly the kind of drift nobody notices until it is on a screen.
+def _month_label(period: str) -> str:
+    """'2026-07' -> 'July'."""
+    from .source import _MONTHS
+
+    parts = (period or "").split("-")
+    if len(parts) != 2:
+        return period
+    try:
+        month = int(parts[1])
+    except ValueError:
+        return period
+    return _MONTHS[month - 1] if 1 <= month <= 12 else period
 
 
 def _fiscal_label(period: str) -> str:

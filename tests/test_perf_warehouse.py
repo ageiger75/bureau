@@ -975,3 +975,14 @@ def test_two_sources_that_close_on_different_months_do_not_empty_the_screen():
     # The sell-out row and the sell-in's own latest month, not an empty perimeter.
     assert len(current) == 2
     assert any(r.get("segment") and r["period"] == "2026-06" for r in current)
+
+
+def test_the_headline_month_names_the_other_one_when_they_differ():
+    """On real data the two sources diverged — sell-out closed on July, the consolidation
+    on June — and the headline still said "July 2026 sales" over a figure holding June's
+    shipments."""
+    from app.perf.source import _period_label
+
+    assert _period_label("2026-07") == "July 2026 sales · last complete month"
+    assert _period_label("2026-07", "2026-07") == "July 2026 sales · last complete month"
+    assert _period_label("2026-07", "2026-06").endswith("· partner invoices to June")

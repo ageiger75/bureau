@@ -896,3 +896,42 @@ def test_sell_in_with_no_plan_is_reported_not_absorbed():
 
     assert ytd.actual == 1_000_000.0
     assert ytd.unbudgeted_actual == 400_000.0
+
+
+def test_a_total_says_when_its_two_halves_close_on_different_months():
+    """The consolidation closes on a snapshot date and the warehouse on a transaction
+    date, and on real data they diverged: sell-out through July, sell-in through June. A
+    total labelled to July that carries June's shipments is the kind of quiet inaccuracy
+    that costs a screen its standing the first time anyone checks it against the accounts.
+    """
+    built = history.from_rows([
+        row(period="2026-06", actual=1_000_000.0),
+        row(period="2026-07", actual=1_000_000.0),
+    ])
+    workbook = merged(
+        plan(("2026-06", 1_000_000.0), ("2026-07", 1_000_000.0)),
+        plan(("2026-06", 500_000.0), market="Japan", channel="dis"),
+    )
+    sold_in = [{"market": "Japan", "segment": "DIS - Distributors",
+                "period": "2026-06", "sales_actual": 500_000.0}]
+
+    ytd = built.ytd("2026-07", budget=workbook, sell_in=sold_in)
+
+    assert ytd.shipped_through == "2026-06"
+    assert "Sold to July, shipped to June" in ytd.basis_caveat
+
+
+def test_the_caveat_is_silent_when_both_close_together():
+    """Most months they do, and a line printed every time is a line read none of them."""
+    built = history.from_rows([row(period="2026-07", actual=1_000_000.0)])
+    workbook = merged(
+        plan(("2026-07", 1_000_000.0)),
+        plan(("2026-07", 500_000.0), market="Japan", channel="dis"),
+    )
+    sold_in = [{"market": "Japan", "segment": "DIS - Distributors",
+                "period": "2026-07", "sales_actual": 500_000.0}]
+
+    ytd = built.ytd("2026-07", budget=workbook, sell_in=sold_in)
+
+    assert ytd.shipped_through == "2026-07"
+    assert ytd.basis_caveat == ""

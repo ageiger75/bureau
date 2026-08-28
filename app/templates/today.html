@@ -79,6 +79,11 @@
           </span>
         </li>
       </ul>
+      {% if dataset.ytd.basis_caveat %}
+        {# Only printed when the two perimeters close on different months, which is not
+           most of them. Said every time, it would be read none of the time. #}
+        <p class="cockpit-caveat">{{ dataset.ytd.basis_caveat }}</p>
+      {% endif %}
       {% if dataset.ytd.has_unmatched %}
         {# The reason this figure is trustworthy is the reason it looks smaller than the
            warehouse total. Saying so here is not a disclaimer; it is the finding — and

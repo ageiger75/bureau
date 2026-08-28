@@ -309,7 +309,7 @@ def _perimeter_note(budget, units=()) -> str:
     )
 
 
-def _period_label(period: str) -> str:
+def _period_label(period: str, shipped: str = "") -> str:
     """'2026-07' -> 'July 2026 sales'. Falls back to the raw value rather than guessing."""
     parts = period.split("-")
     if len(parts) != 2:
@@ -322,7 +322,14 @@ def _period_label(period: str) -> str:
         return "Sales"
     # "Last complete month" is not decoration: read on the 27th, a screen headed "July"
     # looks like a month-old screen unless it says why July is the freshest month there is.
-    return "%s %s sales · last complete month" % (_MONTHS[month - 1], parts[0])
+    label = "%s %s sales · last complete month" % (_MONTHS[month - 1], parts[0])
+    if shipped and shipped != period:
+        # Only when they differ, which is not most months. A caveat printed every time is
+        # a caveat read none of the time.
+        other = shipped.split("-")
+        if len(other) == 2 and other[1].isdigit() and 1 <= int(other[1]) <= 12:
+            label += " · partner invoices to %s" % _MONTHS[int(other[1]) - 1]
+    return label
 
 
 class MockSource:
@@ -568,8 +575,14 @@ class SnowflakeSource:
         self.markets_without_owner = mapped.markets_without_owner
         self.perimeter_note = _perimeter_note(budget, mapped.units)
 
+        # The month on the headline is the sell-out month. When the consolidation closes
+        # earlier, the figure beside it holds a different month of sell-in, and saying
+        # "July 2026 sales" over a total that carries June's shipments is the kind of
+        # quiet inaccuracy that costs a screen its standing the first time anyone checks
+        # it against the accounts.
+        shipped = {str(r.get("period") or "") for r in current if r.get("segment")}
         built = Dataset(
-            period_label=_period_label(period),
+            period_label=_period_label(period, max(shipped) if shipped else ""),
             # The moment of the read, not the period — and to the minute, because the
             # warehouse is not yet stable within a day. Sell-out facts are still being
             # reprocessed on recent months, so the same query run hours apart returns
