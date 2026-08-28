@@ -421,3 +421,12 @@ def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
     assert "Was this plan ever reachable" in page
     # And the other one is still there. Neither hides the other.
     assert "Why is the plan focused on sessions" in page
+
+
+def test_the_plan_finding_carries_its_euros(client):
+    """A percentage says how far the plan is from the record; the euros say whether it is
+    worth an hour. The screen ranks everything else by money and this must not be the
+    exception."""
+    page = page_text(client.get("/"))
+
+    assert "of revenue the record does not account for" in page

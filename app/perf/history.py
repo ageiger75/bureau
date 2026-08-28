@@ -58,6 +58,12 @@ STRETCH_THRESHOLD = 0.10
 #: is called accelerating or slowing rather than steady.
 MOMENTUM_THRESHOLD = 0.05
 
+#: Below this, a plan that diverges from the record is not worth a line. The finding is
+#: measured in euros and not in points on purpose: a small line can move 400% and matter
+#: to nobody, while a large one moving 12% is a conversation. Percentages rank noise to
+#: the top, which is exactly what the first sell-in run did.
+MATERIAL_EUR = 1_000_000.0
+
 #: The recent window, in months. Three is the shortest run that survives one bad month;
 #: compared against the same three of the previous year, so the season cancels.
 RECENT_MONTHS = 3
@@ -205,6 +211,9 @@ class Track:
             return None
         base = sum(before)
         if base <= 0:
+            # Not merely non-zero: positive. Sell-in carries returns and credit notes, so
+            # a base can be nothing or less than nothing, and a ratio taken on it produces
+            # a confident number with no meaning — -1379% on an Austrian rounding error.
             return None
         return sum(now) / base - 1.0
 
@@ -221,8 +230,8 @@ class Track:
         recent = sold[-RECENT_MONTHS:] if len(sold) >= 12 + RECENT_MONTHS else []
 
         plan_growth = None
+        planned, before = [], []
         if budget is not None:
-            planned, before = [], []
             for period in _plan_periods(budget, self.market, self.channel):
                 figure = budget.budget_for(self.market, self.channel, period)
                 previous = self._actual_at(_shift(period, -12))
@@ -238,6 +247,9 @@ class Track:
             growth=self._year_on_year(trailing),
             recent=self._year_on_year(recent),
             plan_growth=plan_growth,
+            # The euros behind the percentages, so the finding can be ranked by money.
+            plan_amount=sum(planned) if planned else None,
+            base_amount=sum(before) if before else None,
         )
 
     def chronic_for(self, budget) -> Optional[Chronic]:
@@ -283,11 +295,19 @@ class Trajectory:
     the season cancels out. A December compared with a November says nothing.
     """
 
-    __slots__ = ("market", "channel", "growth", "recent", "plan_growth", "recent_label")
+    __slots__ = ("market", "channel", "growth", "recent", "plan_growth", "recent_label",
+                 "plan_amount", "base_amount")
 
     def __init__(self, market: str, channel: str, growth: Optional[float],
                  recent: Optional[float], plan_growth: Optional[float],
-                 recent_label: str = "the last three months") -> None:
+                 recent_label: str = "the last three months",
+                 plan_amount: Optional[float] = None,
+                 base_amount: Optional[float] = None) -> None:
+        #: The euros behind the percentages: what the plan commits to, and what the same
+        #: months delivered a year earlier. Without them a finding can only be ranked by
+        #: points, and points put the smallest lines at the top.
+        self.plan_amount = plan_amount
+        self.base_amount = base_amount
         self.market = market
         self.channel = channel
         #: How to name the shorter window in prose. Sell-out reads three months against
@@ -323,6 +343,32 @@ class Trajectory:
         if self.recent is None or self.plan_growth is None:
             return None
         return self.plan_growth - self.recent
+
+    @property
+    def money_at_stake(self) -> Optional[float]:
+        """Euros between the plan and what the record's own rate would deliver.
+
+        Measured against the record reading *nearest* the plan — the most favourable one —
+        so the figure is what the plan asks for beyond the best case the history supports,
+        not a number picked to look large.
+        """
+        if self.plan_amount is None or not self.base_amount or self.plan_growth is None:
+            return None
+        if not self.records:
+            return None
+        nearest = min(self.records, key=lambda r: abs(self.plan_growth - r))
+        return self.plan_amount - self.base_amount * (1.0 + nearest)
+
+    @property
+    def is_material(self) -> bool:
+        """Worth a line at all.
+
+        On euros, never on points. The first sell-in run ranked by percentage and put
+        Austria department stores at the top of the list at -1379% — a rounding error on a
+        base of nothing, printed above every real finding on the page.
+        """
+        money = self.money_at_stake
+        return money is not None and abs(money) >= MATERIAL_EUR
 
     @property
     def records(self) -> List[float]:
@@ -383,6 +429,8 @@ class Trajectory:
         """
         if not (self.is_ahead_of_record or self.is_behind_record):
             return ""
+        if not self.is_material:
+            return ""
         turning = {
             "accelerating": " The business is speeding up, which argues for the plan.",
             "slowing": " The business is slowing down, which argues against it.",
@@ -399,10 +447,10 @@ class Trajectory:
         side = "above" if self.is_ahead_of_record else "below"
         widest = max(abs(self.plan_growth - r) for r in self.records)
         return (
-            "The plan asks for %s, where %s — %s %s every reading of the record, by up "
-            "to %s.%s"
-            % (_pct(self.plan_growth), where, "the plan is", side, _points(widest),
-               turning)
+            "The plan asks for %s, where %s — the plan is %s every reading of the record, "
+            "by up to %s. That is %s of revenue the record does not account for.%s"
+            % (_pct(self.plan_growth), where, side, _points(widest),
+               _eur(abs(self.money_at_stake)), turning)
         )
 
 
@@ -412,6 +460,13 @@ def _pct(value: Optional[float]) -> str:
 
 def _points(value: float) -> str:
     return "%.0f points" % (100.0 * abs(value))
+
+
+def _eur(amount: float) -> str:
+    """Readable euros. The cockpit's own formatter, imported late to avoid a cycle."""
+    from .analytics import format_eur
+
+    return format_eur(amount)
 
 
 class Ytd:
@@ -717,9 +772,11 @@ def sell_in_trajectories(closed_year, current, budget) -> List[Trajectory]:
                 # Absent, and stated as absent: the consolidation publishes a comparison,
                 # not a series, so a trailing twelve-month growth cannot be read from it.
                 growth=None,
-                recent=(now / before - 1.0) if before else None,
-                plan_growth=(planned[where] / base - 1.0) if base else None,
+                recent=(now / before - 1.0) if before and before > 0 else None,
+                plan_growth=(planned[where] / base - 1.0) if base > 0 else None,
                 recent_label="the fiscal year to date",
+                plan_amount=planned[where],
+                base_amount=base,
             )
         )
     return found

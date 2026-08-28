@@ -869,14 +869,16 @@ def _print_sell_in(plan) -> int:
     flagged = [m for m in found if m.sentence]
     print("")
     if not flagged:
-        print("Aucun plan sell-in ne s'écarte du réel de plus de dix points.")
+        print("Aucun plan sell-in ne s'écarte du réel de plus de dix points sur un")
+        print("enjeu supérieur à un million d'euros.")
     else:
         print("Plans sell-in qui s'écartent du réel :")
-    for moved in sorted(flagged, key=lambda m: -abs(m.plan_growth - m.recent))[:20]:
+    for moved in sorted(flagged, key=lambda m: -abs(m.money_at_stake or 0.0))[:20]:
         print("")
         print("  %s %s" % (moved.market, moved.channel))
-        print("    plan année %s · exercice à date %s"
-              % (_growth(moved.plan_growth), _growth(moved.recent)))
+        print("    plan année %s · exercice à date %s · en jeu %s"
+              % (_growth(moved.plan_growth), _growth(moved.recent),
+                 _eur(abs(moved.money_at_stake or 0.0))))
         for line in _wrapped(moved.sentence, 74):
             print("    %s" % line)
 
@@ -904,10 +906,14 @@ def _print_trajectories(built, plan) -> None:
             found.append(moved)
     if not found:
         print("")
-        print("Aucun plan ne s'écarte du réel de plus de dix points de croissance.")
+        print("Aucun plan ne s'écarte du réel de plus de dix points sur un enjeu")
+        print("supérieur à un million d'euros.")
         return
 
-    found.sort(key=lambda m: -abs(m.stretch))
+    # Trié par l'argent en jeu et non par les points : une petite ligne peut bouger
+    # de 400 % sans intéresser personne, quand une grosse qui bouge de 12 % est une
+    # conversation. Le tri par pourcentage remonte le bruit en tête.
+    found.sort(key=lambda m: -abs(m.money_at_stake or 0.0))
     print("")
     print("Plans qui s'écartent du réel — ce que le plan demande, contre ce que les")
     print("douze derniers mois ont livré. Aucun plan de l'an dernier n'est nécessaire :")
@@ -915,9 +921,10 @@ def _print_trajectories(built, plan) -> None:
     for moved in found[:20]:
         print("")
         print("  %s %s" % (moved.market, moved.channel))
-        print("    plan %s · réel 12 mois %s · 3 derniers mois %s · %s"
+        print("    plan %s · réel 12 mois %s · 3 derniers mois %s · %s · en jeu %s"
               % (_growth(moved.plan_growth), _growth(moved.growth),
-                 _growth(moved.recent), _direction(moved.direction)))
+                 _growth(moved.recent), _direction(moved.direction),
+                 _eur(abs(moved.money_at_stake or 0.0))))
         # La phrase et pas seulement les chiffres : quatre pourcentages alignés se lisent
         # comme un tableau, et un tableau ne dit pas ce qu'il faut en faire.
         for line in _wrapped(moved.sentence, 74):

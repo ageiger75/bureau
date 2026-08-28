@@ -422,9 +422,9 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
     ahead. Waiting for a year of plan to accumulate would answer in March 2027 a question
     that is on the table now."""
     # Flat for two years, then a plan asking for a quarter more.
-    rows = _record(lambda i: 1000.0)
+    rows = _record(lambda i: 1_000_000.0)
     built = history.from_rows(rows)
-    ahead = plan(*[("%s" % _later(rows[-1]["period"], n), 1250.0) for n in range(1, 5)])
+    ahead = plan(*[("%s" % _later(rows[-1]["period"], n), 1_250_000.0) for n in range(1, 5)])
 
     moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
 
@@ -437,9 +437,9 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
 
 def test_a_plan_that_merely_continues_the_trend_says_nothing():
     """Most plans do, and a line printed for every market is a line read for none."""
-    rows = _record(lambda i: 1000.0)
+    rows = _record(lambda i: 1_000_000.0)
     built = history.from_rows(rows)
-    steady = plan(*[("%s" % _later(rows[-1]["period"], n), 1020.0) for n in range(1, 5)])
+    steady = plan(*[("%s" % _later(rows[-1]["period"], n), 1_020_000.0) for n in range(1, 5)])
 
     moved = built.track_for("Japan", ECOMMERCE).trajectory(steady)
 
@@ -448,9 +448,9 @@ def test_a_plan_that_merely_continues_the_trend_says_nothing():
 
 
 def test_a_plan_below_what_the_business_already_delivers():
-    rows = _record(lambda i: 1000.0 + i * 40)
+    rows = _record(lambda i: 1_000_000.0 + i * 40_000)
     built = history.from_rows(rows)
-    timid = plan(*[("%s" % _later(rows[-1]["period"], n), 1000.0) for n in range(1, 5)])
+    timid = plan(*[("%s" % _later(rows[-1]["period"], n), 1_000_000.0) for n in range(1, 5)])
 
     moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
 
@@ -481,12 +481,14 @@ def test_a_shrinking_business_asked_to_grow_is_the_sharpest_case():
     # not slowing — it is steady at a lower level, and the code is right to say so.
     def shape(i):
         if i < 12:
-            return 1000.0
-        return 950.0 if i < 21 else 800.0
+            return 1_000_000.0
+        return 950_000.0 if i < 21 else 800_000.0
 
     rows = _record(shape)
     built = history.from_rows(rows)
-    ahead = plan(*[("%s" % _later(rows[-1]["period"], n), 1200.0) for n in range(1, 5)])
+    ahead = plan(
+        *[("%s" % _later(rows[-1]["period"], n), 1_200_000.0) for n in range(1, 5)]
+    )
 
     moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
 
@@ -515,8 +517,8 @@ def _later(period, months_ahead):
 def test_the_record_reaches_the_units_and_the_question():
     """The half that works today. `chronic_plan` needs a year of plan the workbook does
     not yet cover; this needs a year of sales, which exists and is trusted."""
-    rows = _record(lambda i: 1000.0)
-    workbook = plan(*[(_later(rows[-1]["period"], n), 1300.0) for n in range(1, 5)])
+    rows = _record(lambda i: 1_000_000.0)
+    workbook = plan(*[(_later(rows[-1]["period"], n), 1_300_000.0) for n in range(1, 5)])
     mapped = mapping.units_from_rows(
         [{"market": "Japan", "channel": "E-COMMERCE", "period": "2026-07",
           "sales_actual": 700.0}],
@@ -594,13 +596,14 @@ def test_the_sell_in_plan_is_confronted_with_what_partners_actually_bought():
     Both sides are stated at the plan's own rates, which is the property that makes the
     sell-in reconciliation exact and is worth carrying over."""
     closed = [{"entity": "M_024", "segment": "DIS - Distributors",
-               "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
+               "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
     current = [{"entity": "M_024", "segment": "DIS - Distributors",
-                "period": "2026-%02d" % n, "sales_actual": 950.0,
-                "sales_last_year": 1000.0} for n in range(4, 8)]
+                "period": "2026-%02d" % n, "sales_actual": 950_000.0,
+                "sales_last_year": 1_000_000.0} for n in range(4, 8)]
 
     moved, = history.sell_in_trajectories(
-        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+        closed, current,
+        _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
     )
 
     assert moved.market == "Japan"
@@ -655,3 +658,53 @@ def test_a_sell_in_pair_the_plan_does_not_name_is_left_out():
     assert history.sell_in_trajectories(
         closed, [], _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
     ) == []
+
+
+# --------------------------------------------------- money, never percentage points
+
+
+def test_a_base_of_nothing_produces_no_growth_rate():
+    """Sell-in carries returns and credit notes, so a base can be nothing or less than
+    nothing. The first real run put Austria department stores at the top of the list at
+    -1379% — a rounding error on a base of nothing, printed above every real finding."""
+    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+               "period": "2025-01", "value": -500.0}]
+    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 900.0, "sales_last_year": -500.0}]
+
+    moved, = history.sell_in_trajectories(
+        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
+    )
+
+    assert moved.plan_growth is None
+    assert moved.recent is None
+    assert moved.sentence == ""
+
+
+def test_a_small_line_moving_hugely_is_not_a_finding():
+    """400% on a line worth nothing matters to nobody; 12% on a large one is a
+    conversation. Ranking by points puts the noise at the top, which is exactly what the
+    first sell-in run did."""
+    rows = _record(lambda i: 20_000.0)
+    built = history.from_rows(rows)
+    ahead = plan(*[(_later(rows[-1]["period"], n), 100_000.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
+
+    assert moved.is_ahead_of_record        # the shape is real
+    assert not moved.is_material           # the money is not
+    assert moved.sentence == ""
+
+
+def test_the_finding_is_stated_in_euros():
+    """A CEO acts on money. The percentage says how far the plan is from the record; the
+    euros say whether it is worth an hour."""
+    rows = _record(lambda i: 1_000_000.0)
+    built = history.from_rows(rows)
+    ahead = plan(*[(_later(rows[-1]["period"], n), 1_500_000.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
+
+    # Four planned months at 1.5m against four record months at 1.0m.
+    assert moved.money_at_stake == 2_000_000.0
+    assert "€2.0m of revenue the record does not account for" in moved.sentence
