@@ -810,16 +810,22 @@ order by s.entity_code, s.segment, s.snapshot_date
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
 #:
-#: Fourteen keys, twenty-four months, at market scope and rolled up to `LOEP`. Every
+#: Eleven keys, twenty-four months, at market scope and rolled up to `LOEP`. Every
 #: percentage is a ratio of two sums, never an average of ratios, so the group figure is
 #: the group's own and not the mean of its markets.
 #:
-#: Three of the tracker's monthly KPIs are deliberately absent, and their absence is the
+#: Five of the tracker's monthly KPIs are deliberately absent, and their absence is the
 #: reading:
 #:
 #: * **Niveau de discount** — `EXPLICIT_DISCOUNT_EUR` and `IMPLICIT_DISCOUNT_EUR` exist in
 #:   the raw fact and are not exposed by the semantic view. Reading round the governed
 #:   layer to fill a column is the trade this repository has already refused once.
+#: * **ATV** and **UPT** — `NB_TICKETS` counts sales *lines*, not tickets: 54.9m against
+#:   roughly 17.9m transactions over FY26. Any ratio built on it is wrong by a factor of
+#:   three — 15.23 € against a governed ATV of 46.63 €, and 1.39 units against a target of
+#:   three. The governed `ATV_EUR` divides by `COUNT(DISTINCT TRANSACTION_NUMBER)`, which
+#:   the view computes correctly only at the grain it is asked for, and it exposes no month
+#:   dimension. Twenty-four monthly reads would be needed; one statement cannot do it.
 #: * **ARC** and **Acquisition NTB nette** — the tracker states them as "sur croissance
 #:   sell-out totale" and "nouveaux clients nets", neither of which names a computable
 #:   quantity. A number invented from a plausible reading would be indistinguishable from
@@ -890,22 +896,26 @@ sellout_window as (
 ),
 sales_keys as (
     select
-        coalesce(store_country, 'LOEP')                as scope,
+        -- `grouping()` distinguishes the roll-up from a member whose country is null.
+        -- Labelling both 'LOEP' made two different rows share one key, and whichever
+        -- arrived last won — the same query returned a different NPS on two runs.
+        iff(grouping(store_country) = 1, 'LOEP',
+            coalesce(store_country, '(sans pays)'))    as scope,
         to_char(month, 'YYYY-MM')                      as period,
         sum(net_sales_eur)                             as net_sales,
         sum(iff(is_hero = 1, net_sales_eur, 0))        as hero_sales,
         sum(iff(is_refill = 1, net_sales_eur, 0))      as refill_sales,
         sum(iff(store_samestore_ty = 'yes', net_sales_eur, 0)) as same_store_sales,
         sum(iff(store_sub_channel = 'E-COMMERCE', net_sales_eur, 0)) as brand_com_sales,
-        sum(quantity)                                  as quantity,
-        sum(nb_tickets)                                as tickets,
+
         sum(new_clients)                               as new_clients
     from sellout_window
     group by grouping sets ((store_country, month), (month))
 ),
 traffic as (
     select
-        coalesce(store_country, 'LOEP')          as scope,
+        iff(grouping(store_country) = 1, 'LOEP',
+            coalesce(store_country, '(sans pays)')) as scope,
         to_char(month, 'YYYY-MM')                as period,
         sum(retail_traffic)                      as traffic
     from (
@@ -925,7 +935,8 @@ traffic as (
 ),
 surveys as (
     select
-        coalesce(country, 'LOEP')                as scope,
+        iff(grouping(country) = 1, 'LOEP',
+            coalesce(country, '(sans pays)'))     as scope,
         to_char(month, 'YYYY-MM')                as period,
         nps_type,
         sum(iff(nps_score_desc = 'Promoter', responses, 0))  as promoters,
@@ -948,7 +959,8 @@ surveys as (
 ),
 reviews as (
     select
-        coalesce(review_country, 'LOEP')  as scope,
+        iff(grouping(review_country) = 1, 'LOEP',
+            coalesce(review_country, '(sans pays)')) as scope,
         to_char(month, 'YYYY-MM')         as period,
         sum(rating_total) / nullif(sum(nb_reviews), 0) as review_rating
     from (
@@ -977,23 +989,13 @@ select scope, 'heroes_wob', period,
 union all
 select scope, 'refills_wob', period,
        100.0 * refill_sales / nullif(net_sales, 0) from sales_keys
--- ATV and UPT as ratios of additive facts. This is the decomposition definition, not
--- the organisation's governed ATV_EUR, which divides by distinct non-zero transactions
--- and cannot be re-aggregated from a daily grain. Two numbers, two places, never
--- substituted for one another.
-union all
-select scope, 'atv_decomposition', period,
-       net_sales / nullif(tickets, 0) from sales_keys
-union all
-select scope, 'upt_decomposition', period,
-       quantity / nullif(tickets, 0) from sales_keys
 union all
 select scope, 'new_clients', period, new_clients from sales_keys
 union all
 select scope, 'retail_traffic', period, traffic from traffic
 union all
--- Sales per door, on comparable doors only. Store count comes from the same rows as
--- the sales, so the two can never describe different estates.
+-- Survey families are returned separately. Which one the board's "NPS Global" means
+-- is a decision, and blending them would answer it by arithmetic.
 select scope, 'nps_retail', period,
        100.0 * (promoters - detractors) / nullif(responses, 0)
 from surveys where nps_type = 'NPS_RE'
