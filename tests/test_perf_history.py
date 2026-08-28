@@ -282,6 +282,34 @@ def test_the_year_to_date_says_what_share_of_sales_a_plan_covers():
     assert ytd.covered == 0.25
 
 
+def test_coverage_never_rounds_up_to_the_whole():
+    """The share is printed only in the sentence that then names what is left out.
+
+    Rounded to the nearest integer, 99.86% reaches the screen as "a plan covers 100% of
+    what was sold" one clause above "€432k carrying no plan at all" — a sentence that
+    contradicts itself, on the one figure whose job is to say how much of the business
+    the screen can see.
+    """
+    built = history.from_rows([
+        row(period="2026-04", actual=999_000.0),
+        row(market="Korea", period="2026-04", actual=1_000.0),
+    ])
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 999_000.0)))
+
+    assert ytd.has_unmatched
+    assert round(ytd.covered * 100, 2) == 99.9
+    assert ytd.covered_label == "99.9%"
+
+    # And it stays a whole number when it is one.
+    whole = history.from_rows([
+        row(period="2026-04", actual=750_000.0),
+        row(market="Korea", period="2026-04", actual=250_000.0),
+    ])
+    assert whole.ytd(
+        "2026-04", budget=plan(("2026-04", 750_000.0))
+    ).covered_label == "75%"
+
+
 def test_the_year_to_date_percentage_is_a_fraction():
     """The same units as every other percentage in the cockpit. The template's filter
     multiplies by a hundred, so a figure already in percent would reach the screen a

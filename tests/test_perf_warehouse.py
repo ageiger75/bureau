@@ -82,7 +82,7 @@ def test_comments_do_not_hide_the_real_first_word():
 
 
 def test_only_the_written_queries_report_as_written():
-    """Five queries are written against the real schema; the rest are not.
+    """Some queries are written against the real schema; the rest are not.
 
     Kept as an inventory rather than deleted: `missing()` is what the 503 page lists, so a
     query that silently stopped counting as written would produce a screen claiming a
@@ -94,6 +94,20 @@ def test_only_the_written_queries_report_as_written():
         "COMMITMENTS",
         "FORECAST_HISTORY",
     }
+
+
+def test_a_written_query_without_a_mapping_still_refuses():
+    """Written SQL is not a connected panel.
+
+    `KPI_READINGS` exists now, so it has left the 503 page's list — but nothing reads its
+    rows into KPIs yet. The refusal has to survive the query being written, otherwise the
+    customer panel would render empty and an empty panel reads as "nothing to report".
+    """
+    from app.perf.source import SnowflakeSource
+
+    assert "KPI_READINGS" not in queries.missing()
+    with pytest.raises(NotImplementedError):
+        SnowflakeSource().client_kpis()
 
 
 @pytest.fixture
