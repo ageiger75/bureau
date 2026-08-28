@@ -238,6 +238,14 @@
           <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
         </p>
 
+        {% if fire.routed and fire.routed.move != 'challenge' %}
+          {# Rank comes from the money and never from the evidence: a gap nothing
+             explains stays exactly where its size puts it. What the evidence changes is
+             the move — and saying so here is what stops the reader pressing a market
+             about a number this screen cannot take apart. #}
+          <p class="fire-move">{{ fire.routed.move_label }} — {{ fire.routed.reason }}</p>
+        {% endif %}
+
         {% if fire.action_owner %}
           {# Between the name and the question, which is the only place it works. Folded
              into the line above it produced "· Consolidation — centre de profit X — not
@@ -319,6 +327,62 @@
           {% endfor %}
         </ul>
         <p class="ask">{{ item.question }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# ------------------------------------------------- routed off the CEO surface #}
+
+{% if plan_reviews %}
+<section class="panel">
+  <h2>For the plan review</h2>
+  <p class="lede">
+    Plans asking for growth the record has never delivered. Not the month's miss — what
+    the rest of the year still embeds, which is a different amount and a different
+    conversation. A market's lead cannot correct a number they did not set: this is
+    Finance and the BU.
+  </p>
+  <ul class="routed-list">
+    {% for item in plan_reviews %}
+      <li class="routed">
+        <p class="routed-head">
+          <span class="routed-name">{{ item.unit.label }}</span>
+          {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} sur l'année</span>{% endif %}
+        </p>
+        <p class="routed-why">{{ item.sentence }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if elsewhere %}
+<section class="panel">
+  <h2>Not a commercial conversation</h2>
+  <p class="lede">
+    Real money whose question belongs to somebody other than the market: a boundary in the
+    accounts, a yardstick that changed, deliveries stopped on purpose. They keep their card
+    and their figure. What they do not keep is a slot in the week's five — which is what
+    they were taking, on size alone, from markets genuinely trading badly.
+  </p>
+  <ul class="routed-list">
+    {% for fire in elsewhere %}
+      <li class="routed">
+        <p class="routed-head">
+          <span class="routed-name">{{ fire.unit.label }}</span>
+          <span class="routed-amount">{{ fire.gap | eur }} vs plan</span>
+          <span class="badge badge-class">{{ fire.routed.class_label }}</span>
+        </p>
+        <p class="routed-why">{{ fire.routed.reason }}.</p>
+        {% if fire.boundary_standing %}
+          <p class="routed-why">{{ fire.boundary_standing }}</p>
+        {% endif %}
+        <p class="routed-who">
+          {{ fire.routed.move_label }}{% if fire.routed.destination %} · {{ fire.routed.destination }}{% endif %}
+        </p>
+        {% if fire.question %}<p class="ask">{{ fire.question }}</p>{% endif %}
       </li>
     {% endfor %}
   </ul>

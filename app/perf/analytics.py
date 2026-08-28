@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from . import routing
 from .model import RATE_DRIVERS, BusinessUnit, Dataset, Drivers
 
 HIGH = "high"
@@ -828,6 +829,7 @@ class Fire:
         "forecast_flag",
         "baseline_label",
         "boundary_standing",
+        "routed",
     )
 
     def __init__(self, unit: BusinessUnit) -> None:
@@ -880,6 +882,10 @@ class Fire:
         #: when the screen's own check could not run. It said so two panels below and
         #: nowhere on the card the claim was doing its work.
         self.boundary_standing = ""
+        #: What kind of problem this is, and therefore what to do about it. Carried on
+        #: the card rather than left implicit: a gap with no measurable cause and a gap
+        #: with a diagnosis deserve the same rank and different sentences.
+        self.routed = routing.classify(unit)
 
     @property
     def has_breakdown(self) -> bool:
@@ -1085,15 +1091,18 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
     # as a triumph. Both are listed as one reallocation instead.
     moved = reallocating_markets(dataset)
 
+    # The class decides the surface, and only the business surface is ranked here. A
+    # boundary in the accounts, a feed that stopped and a definition still being argued
+    # are all real work — none of them is a question for a market's lead, and each cost a
+    # slot in a list of five that is supposed to be the week's five most valuable
+    # conversations.
     candidates = [
         Fire(unit)
         for unit in dataset.units
         if unit.budget_known
         and unit.is_below_budget
         and not unit.is_aggregate
-        # A broken feed is not a fire. It is listed separately, as a question for the
-        # data team rather than for the market.
-        and suspect_of(unit) is None
+        and routing.classify(unit, is_suspect=suspect_of(unit) is not None).is_business
         and unit.market not in moved
         and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
     ]
@@ -1101,6 +1110,31 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
     ranked = candidates[:limit]
     _attach_boundary_standing(ranked, dataset)
     return ranked
+
+
+def routed_elsewhere(dataset: Dataset) -> List["Fire"]:
+    """Material gaps that are somebody else's to answer, worst first.
+
+    Not dropped — routed. Each is a real amount of money filed under the wrong segment, or
+    measured against a plan that no longer compares, or sitting in a market that stopped
+    trading on purpose. They keep their whole card: the diagnosis, the boundary check, the
+    question. What they lose is the slot: a list of five that is meant to be the week's
+    five most valuable conversations cannot spend one of them on a question the reader
+    would have to forward.
+    """
+    found = [
+        Fire(unit)
+        for unit in dataset.units
+        if unit.budget_known
+        and unit.is_below_budget
+        and not unit.is_aggregate
+        and suspect_of(unit) is None
+        and not routing.classify(unit).is_business
+        and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
+    ]
+    found.sort(key=lambda fire: fire.gap)
+    _attach_boundary_standing(found, dataset)
+    return found
 
 
 def _attach_boundary_standing(found: Sequence["Fire"], dataset: Dataset) -> None:

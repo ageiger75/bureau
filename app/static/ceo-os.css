@@ -829,6 +829,18 @@ input:focus, textarea:focus, select:focus {
 .unsettled > summary:hover { color: var(--ink); }
 .unsettled[open] > summary { margin-bottom: 14px; }
 
+/* Les surfaces où l'on route ce qui n'est pas une conversation commerciale. Volontairement
+   plus sobres que les cartes de priorité : elles sont vraies, elles ne sont pas urgentes. */
+.routed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.routed { border-left: 2px solid var(--rule); padding-left: 14px; }
+.routed-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0; }
+.routed-name { font-weight: 600; font-size: 15px; }
+.routed-amount { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.routed-why { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch; line-height: 1.55; }
+.routed-who { font-size: 13px; margin: 6px 0 0; font-weight: 600; }
+.badge-class { background: var(--paper-warm); color: var(--ink-soft); }
+.fire-move { font-size: 13.5px; margin: 6px 0 0; max-width: 74ch; line-height: 1.55; font-weight: 600; }
+
 .provenance-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
 .provenance { border-left: 2px solid var(--rule); padding-left: 14px; }
 .provenance-beta { border-left-color: var(--warn); }

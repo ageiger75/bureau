@@ -14,7 +14,7 @@ from typing import Dict, List, Sequence
 
 from fastapi import APIRouter, Request
 
-from ..perf import analytics
+from ..perf import analytics, routing
 from ..perf import kpi as kpi_rules
 from ..perf import provenance
 from ..perf.commitments import board
@@ -110,6 +110,11 @@ def today(request: Request):
         unavailable.append("kpis")
 
     fires = analytics.fires(dataset)
+    # Routed out of the week's five, not out of the screen. Each is real money whose
+    # question belongs to consolidation, to finance or to the data team — and a reader who
+    # simply stopped seeing them would have no way to tell a routed item from a lost one.
+    elsewhere = analytics.routed_elsewhere(dataset)
+    plan_reviews = routing.plan_reviews(dataset)
     suspects = analytics.suspects(dataset)
     by_market = _commitments_by_market(commitments.items)
 
@@ -166,6 +171,8 @@ def today(request: Request):
             "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
             "reclassifications": analytics.reclassification_checks(dataset),
+            "elsewhere": elsewhere,
+            "plan_reviews": plan_reviews,
             "suspects": analytics.worth_listing(suspects),
             "suspect_patterns": analytics.patterns(suspects),
             "suspects_held_back": len(suspects) - len(analytics.worth_listing(suspects)),

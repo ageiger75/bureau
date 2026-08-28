@@ -1,0 +1,229 @@
+"""What kind of problem this is, before any question of how big it is.
+
+The cockpit used to rank everything material together: a market trading badly, a plan that
+was never reachable, a feed that stopped, and a revenue line filed on the wrong side of an
+accounting boundary all competed for the same five slots, sorted by euros. Sorting them
+together is the mistake. They are answered by different people, in different rooms, on
+different weeks — and three of the four are not questions for a commercial lead at all.
+
+So the class is decided first, and it decides the surface:
+
+* **business** — what deserves the CEO's attention this week: trading, and the risks that
+  lead it. This is the only surface where a market's own leader is the person addressed.
+* **plan** — plans that ask for growth the record has never delivered. A Finance and BU
+  review, measured in the year's embedded gap rather than in this month's miss.
+* **data** — broken feeds, accounting boundaries and unsettled definitions. Real work,
+  owned by people who are not the market, and never worth a slot of CEO attention.
+
+The rule the whole module exists to enforce: evidence never changes the class, and it never
+demotes a material problem. A €2.3m gap nobody can explain stays exactly where its money
+puts it — what changes is the move, from "challenge the market" to "find out why".
+"""
+
+from __future__ import annotations
+
+from typing import List, Optional, Sequence, Tuple
+
+from . import context
+from .model import BusinessUnit, Dataset
+
+# --------------------------------------------------------------------------- classes
+
+PERFORMANCE = "performance"
+PLAN = "plan"
+EXECUTION = "execution"
+RISK = "risk"
+OPPORTUNITY = "opportunity"
+DATA = "data"
+ACCOUNTING = "accounting"
+DEFINITION = "definition"
+
+#: Which surface each class is answered on. Three, not eight: the reader has three kinds
+#: of week — their own, Finance's, and the data team's — and a class that cannot be placed
+#: on one of them is a class that has not been thought through.
+SURFACES = {
+    PERFORMANCE: "business",
+    RISK: "business",
+    OPPORTUNITY: "business",
+    EXECUTION: "business",
+    PLAN: "plan",
+    DATA: "data",
+    ACCOUNTING: "data",
+    DEFINITION: "data",
+}
+
+#: Shown on screen, so in the screen's language — which is English until the whole surface
+#: is turned over at once. A panel translated on its own leaves the reader on a page in two
+#: languages, which is the defect this cockpit keeps finding elsewhere.
+CLASS_LABELS = {
+    PERFORMANCE: "Performance",
+    PLAN: "Plan",
+    EXECUTION: "Execution",
+    RISK: "Risk",
+    OPPORTUNITY: "Opportunity",
+    DATA: "Data",
+    ACCOUNTING: "Accounting",
+    DEFINITION: "Definition",
+}
+
+# ----------------------------------------------------------------------------- moves
+
+CHALLENGE = "challenge"
+INVESTIGATE = "investigate"
+REQUEST_DATA = "request_data"
+REQUEST_PLAN = "request_plan"
+NO_CEO_ACTION = "no_ceo_action"
+
+MOVE_LABELS = {
+    CHALLENGE: "Challenge",
+    INVESTIGATE: "Investigate",
+    REQUEST_DATA: "Request the data",
+    REQUEST_PLAN: "Request a plan",
+    NO_CEO_ACTION: "No CEO action",
+}
+
+
+class Routed:
+    """One item, placed: its class, where it is answered, and by whom."""
+
+    __slots__ = ("klass", "move", "destination", "reason")
+
+    def __init__(self, klass: str, move: str, destination: str = "",
+                 reason: str = "") -> None:
+        self.klass = klass
+        self.move = move
+        #: Who answers. Empty means the market's own owner, which is the only case where
+        #: naming a person beside a number is fair.
+        self.destination = destination
+        #: Why this class and not another, in one clause. Printed, because a routing
+        #: decision the reader cannot check is a routing decision they have to trust.
+        self.reason = reason
+
+    @property
+    def surface(self) -> str:
+        return SURFACES.get(self.klass, "business")
+
+    @property
+    def is_business(self) -> bool:
+        return self.surface == "business"
+
+    @property
+    def class_label(self) -> str:
+        return CLASS_LABELS.get(self.klass, self.klass)
+
+    @property
+    def move_label(self) -> str:
+        return MOVE_LABELS.get(self.move, self.move)
+
+
+def _note_of(unit: BusinessUnit, kind: str):
+    return next((n for n in unit.context_notes if n.kind == kind), None)
+
+
+def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
+    """The class of one business unit's gap.
+
+    Order matters, and it runs from "this is not a result" to "this is a result". A broken
+    feed that also carries a reclassification note is a broken feed first: nothing can be
+    said about the boundary until the numbers arrive.
+    """
+    if is_suspect:
+        return Routed(
+            DATA, NO_CEO_ACTION, "Data team",
+            "the figures behind this line look like a break in the feed rather than an "
+            "event in the business",
+        )
+
+    reclassified = _note_of(unit, context.RECLASSIFIED)
+    if reclassified is not None:
+        return Routed(
+            ACCOUNTING, NO_CEO_ACTION,
+            reclassified.action_owner or "Consolidation",
+            "the plan and the accounts file this revenue under different segments, so "
+            "the gap is a boundary and not a result",
+        )
+
+    basis_change = _note_of(unit, context.BASIS_CHANGE)
+    if basis_change is not None:
+        return Routed(
+            DEFINITION, NO_CEO_ACTION,
+            basis_change.action_owner or "Finance",
+            "the plan and the actual are no longer measured the same way here, so the "
+            "distance between them is not a measure of trading",
+        )
+
+    on_hold = _note_of(unit, context.ON_HOLD)
+    if on_hold is not None:
+        return Routed(
+            RISK, NO_CEO_ACTION, on_hold.action_owner,
+            "trading is deliberately stopped until a condition is met; the revenue is "
+            "genuinely missing and the reason is known",
+        )
+
+    # A result, then. What separates the moves is not how large it is — that decides the
+    # rank — but whether anything here can say why.
+    if unit.has_driver_breakdown:
+        return Routed(
+            PERFORMANCE, CHALLENGE, "",
+            "the drivers behind this gap are measured, so it can be taken apart and put "
+            "to the market",
+        )
+    if unit.basis == "shipped":
+        return Routed(
+            PERFORMANCE, INVESTIGATE, "",
+            "shipments carry no funnel, and a month of them can be a partner's ordering "
+            "rhythm as easily as a loss of demand",
+        )
+    return Routed(
+        PERFORMANCE, REQUEST_DATA, "",
+        "the gap is real and nothing connected here measures its cause",
+    )
+
+
+class PlanReview:
+    """A plan that asks for what this business has never delivered.
+
+    A separate item from the month's miss, and separately measured: the month's gap is
+    what was lost in July, this is what the rest of the year still embeds. Finance and the
+    BU answer it; the market's lead cannot fix a number they did not set.
+    """
+
+    __slots__ = ("unit", "sentence", "amount")
+
+    def __init__(self, unit: BusinessUnit, sentence: str, amount: float) -> None:
+        self.unit = unit
+        self.sentence = sentence
+        #: The year's embedded gap, not the month's.
+        self.amount = amount
+
+
+def plan_reviews(dataset: Dataset) -> List[PlanReview]:
+    """Every unit whose plan the record does not support, largest first."""
+    found = []
+    for unit in dataset.units:
+        if unit.is_aggregate:
+            continue
+        sentence = unit.plan_vs_record or unit.chronic_plan
+        if not sentence:
+            continue
+        found.append(PlanReview(unit, sentence, _embedded_amount(unit)))
+    return sorted(found, key=lambda item: -item.amount)
+
+
+def _embedded_amount(unit: BusinessUnit) -> float:
+    """The year's money named in the plan sentence, when it names one.
+
+    Read from the sentence rather than recomputed, so the figure on the plan surface and
+    the figure in the sentence can never disagree — two numbers for the same fact is how
+    a screen loses its reader.
+    """
+    import re
+
+    match = re.search(r"€([\d.,]+)\s*(m|k)\b", unit.plan_vs_record or unit.chronic_plan or "")
+    if not match:
+        return 0.0
+    try:
+        value = float(match.group(1).replace(",", ""))
+    except ValueError:
+        return 0.0
+    return value * (1_000_000.0 if match.group(2) == "m" else 1_000.0)
