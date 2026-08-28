@@ -428,3 +428,124 @@ def test_an_operator_settles_the_direction_and_nothing_is_assumed():
     assert entry.direction == rules.DOWN
     assert not entry.direction_assumed
     assert entry.to_kpi([rules.Reading("2026-07", 25.0)]).can_be_challenged
+
+
+# ------------------------------------------------- the sheet as it is actually written
+#
+# Column for column, arrows included. Everything above tests the rules; this tests that
+# they are pointed at the right cells — which is the half that was wrong on the first run
+# against the real file, with the suite green.
+
+REAL = ["ID", "Niveau", "Propriétaire", "Périmètre", "Pilier", "KPI", "Définition / base",
+        "Réel FY26", "Cible FY27", "Cible (num)", "Unité", "Sens", "Fréquence", "Source",
+        "Déf.", "avr-26", "mai-26", "juin-26", "juil-26", "août-26", "sept-26", "oct-26",
+        "nov-26", "déc-26", "janv-27", "févr-27", "mars-27", "Dernier réel",
+        "Écart vs cible", "Statut"]
+
+
+def real_row(**over):
+    row = {
+        "ID": 2.0, "Niveau": "Maison", "Propriétaire": "Julie", "Périmètre": "LOEP",
+        "Pilier": "3P Profit", "KPI": "Net sales hors cleaning",
+        "Définition / base": "Périmètre healthy", "Réel FY26": "1 209",
+        "Cible FY27": "1 259 (+4%)", "Cible (num)": 1259.0, "Unité": "M€", "Sens": "↑",
+        "Fréquence": "Mensuel", "Source": "Finance / Revenue", "Déf.": "Verrouillé",
+    }
+    row.update(over)
+    return [row.get(name) for name in REAL]
+
+
+def test_the_numeric_target_column_wins_over_the_sentence_beside_it():
+    """"1 259 (+4%)" is a sentence about a target. `Cible (num)` is the target."""
+    registry = tracker.tracker_from_rows([REAL, real_row()])
+
+    entry = registry.entries[0]
+    assert entry.target == 1259.0
+    assert entry.unit == "M€"
+    assert entry.priority == rules.P1  # "Maison" is a board-level KPI
+    assert entry.last_year == 1209.0  # read through the thin space
+
+
+def test_the_arrow_column_settles_the_direction():
+    """The sheet writes ↑ and ↓. A reader that does not understand the arrow is worse than
+    one with no column at all: the cell is not empty, so nothing falls back to caution."""
+    up = tracker.tracker_from_rows([REAL, real_row()]).entries[0]
+    down = tracker.tracker_from_rows([REAL, real_row(
+        KPI="Discount", **{"Sens": "↓", "Cible (num)": 15.0, "Unité": "%"})
+    ]).entries[0]
+
+    assert up.direction == rules.UP and not up.direction_assumed
+    assert down.direction == rules.DOWN and not down.direction_assumed
+    # And nothing is withheld: the sheet said which way it goes, so the verdict stands.
+    assert down.to_kpi([rules.Reading("2026-07", 22.0)]).can_be_challenged
+    assert down.to_kpi([rules.Reading("2026-07", 22.0)]).status == rules.ALERT
+
+
+def test_the_sheets_own_months_are_read_where_the_warehouse_gives_nothing():
+    """Two thirds of this tracker is KPIs no query can compute. The twelve columns beside
+    the target are the only readings they have — and they are named as reported rather
+    than measured, because a figure typed into a sheet is a different claim."""
+    registry = tracker.tracker_from_rows([REAL, real_row(
+        KPI="Engagement People", **{"Cible (num)": 80.0, "Unité": "score",
+                                    "avr-26": 74.0, "mai-26": 76.0, "juin-26": None})])
+
+    built = registry.entries[0].to_kpi()
+
+    assert [(r.period, r.value) for r in built.readings] == [
+        ("2026-04", 74.0), ("2026-05", 76.0)]
+    assert "not measured" in built.source
+
+
+def test_a_warehouse_reading_beats_the_sheets_own():
+    """Measured beats typed, and the two are never merged."""
+    registry = tracker.tracker_from_rows([REAL, real_row(**{"avr-26": 1000.0})])
+
+    built = registry.entries[0].to_kpi([rules.Reading("2026-07", 1240.0)])
+
+    assert [r.value for r in built.readings] == [1240.0]
+    assert built.source == "Finance / Revenue"
+
+
+def test_a_target_stated_in_words_is_no_target():
+    """"> marché" is a real commitment and not a computable one. Counted, never scored:
+    the alternative is inventing the market's growth rate and scoring against it."""
+    registry = tracker.tracker_from_rows([REAL, real_row(
+        KPI="Nouveaux clients", **{"Cible FY27": "> marché", "Cible (num)": None,
+                                   "Réel FY26": "base"})])
+
+    entry = registry.entries[0]
+    assert not entry.has_target
+    assert entry.last_year is None
+    assert registry.without_target == [entry]
+
+
+def test_the_definition_column_decides_whether_a_challenge_is_raised():
+    settled = tracker.tracker_from_rows([REAL, real_row()]).entries[0]
+    open_still = tracker.tracker_from_rows([REAL, real_row(**{"Déf.": "Provisoire"})
+                                            ]).entries[0]
+
+    assert settled.to_kpi([rules.Reading("2026-07", 1.0)]).can_be_challenged
+    withheld = open_still.to_kpi([rules.Reading("2026-07", 1.0)])
+    assert not withheld.can_be_challenged
+    assert "not mark this definition as settled" in withheld.withheld_reason
+
+
+def test_the_perimeter_column_separates_five_rows_of_the_same_name():
+    """`Nouveaux clients` appears at LOEP, EMEA, NA and twice for China, with different
+    targets and different units. The group reading must take the group's row."""
+    rows = [REAL,
+            real_row(KPI="Nouveaux clients", **{"Périmètre": "LOEP", "Niveau": "Maison",
+                                                "Cible (num)": None,
+                                                "Cible FY27": "> marché"}),
+            real_row(KPI="Nouveaux clients", **{"Périmètre": "EMEA", "Niveau": "BU",
+                                                "Cible (num)": 4.0, "Unité": "%"}),
+            real_row(KPI="Nouveaux clients", **{"Périmètre": "NA", "Niveau": "BU",
+                                                "Cible (num)": 722.0,
+                                                "Unité": "k clients"})]
+    registry = tracker.tracker_from_rows(rows)
+
+    group, _, _ = kpi_registry.match(registry, ["new_clients"])
+    assert group["new_clients"].scope == "LOEP"
+
+    america, _, _ = kpi_registry.match(registry, ["new_clients"], scope="NA")
+    assert america["new_clients"].target == 722.0

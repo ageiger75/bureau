@@ -768,9 +768,17 @@ def cmd_kpi(argv: List[str]) -> int:
           % len(registry.without_target))
     if registry.columns_missing:
         print("Colonnes absentes   %s" % ", ".join(registry.columns_missing))
-    if registry.open_points:
-        print("Points ouverts      %d KPI marqués provisoires"
-              % len(registry.open_points))
+    reported = [e for e in registry.entries if e.readings]
+    if reported:
+        print("Réels dans la feuille %d lignes portent leurs propres relevés mensuels"
+              % len(reported))
+    unsettled = [e for e in registry.entries if e.unsettled_reason]
+    if unsettled:
+        print("Non arrêtés         %d  (l'écart s'affiche, la question est retenue)"
+              % len(unsettled))
+    ceilings = [e for e in registry.entries if e.reads_as_ceiling]
+    if ceilings:
+        print("Sens non dit        %s" % ", ".join(e.label for e in ceilings[:6]))
     print("")
 
     for entry in registry.with_target[:20]:

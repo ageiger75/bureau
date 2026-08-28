@@ -66,6 +66,8 @@ COLUMNS = {
     "kpi": "label",
     "indicateur": "label",
     "definition": "definition",
+    "definition base": "definition",
+    "def base": "definition",
     "reel fy26": "last_year",
     "realise fy26": "last_year",
     "fy26": "last_year",
@@ -73,6 +75,16 @@ COLUMNS = {
     "cible fy27": "target_text",
     "objectif": "target_text",
     "objectif fy27": "target_text",
+    # A column the sheet has already reduced to a number. Preferred over the prose one
+    # beside it: "1 259 (+4%)" is a sentence about a target, and reading a commitment out
+    # of a sentence is the guessing this module exists to avoid.
+    "cible num": "target_number",
+    "cible numerique": "target_number",
+    "unite": "unit_text",
+    "unit": "unit_text",
+    "def": "status_text",
+    "definition status": "status_text",
+    "statut definition": "status_text",
     "frequence": "frequency_text",
     "cadence": "frequency_text",
     "priorite": "priority_text",
@@ -102,6 +114,7 @@ CEILING_WORDS = frozenset((
 LEVELS = {
     "groupe": rules.P1,
     "group": rules.P1,
+    "maison": rules.P1,
     "comex": rules.P1,
     "board": rules.P1,
     "bu": rules.P2,
@@ -111,6 +124,54 @@ LEVELS = {
     "function": rules.P3,
     "equipe": rules.P3,
 }
+
+#: How the sheet writes a direction. Arrows first, because that is what it actually uses —
+#: and an arrow this reader does not understand is worse than no column at all: it looks
+#: answered, so nothing falls back to the caution that protects an unmarked row.
+DIRECTIONS = {
+    "\u2191": rules.UP, "\u2193": rules.DOWN,
+    "\u2b06": rules.UP, "\u2b07": rules.DOWN,
+    "+": rules.UP, "-": rules.DOWN,
+    "hausse": rules.UP, "baisse": rules.DOWN,
+    "up": rules.UP, "down": rules.DOWN,
+    "plus": rules.UP, "moins": rules.DOWN,
+    "higher": rules.UP, "lower": rules.DOWN,
+    "croissant": rules.UP, "decroissant": rules.DOWN,
+    "max": rules.UP, "min": rules.DOWN,
+}
+
+#: The tracker states this itself, in a column of its own. Read rather than inferred: the
+#: business knows which of its definitions are settled, and this cockpit's whole rule about
+#: provisional KPIs was written waiting for exactly this column.
+LOCKED_WORDS = frozenset(("verrouille", "verrouillee", "locked", "arrete", "arretee",
+                          "valide", "validee", "ok"))
+
+#: Month headers as the sheet writes them: `avr-26`, `juil-26`, `janv-27`.
+MONTHS = {
+    "janv": 1, "jan": 1, "fevr": 2, "fev": 2, "mars": 3, "mar": 3, "avr": 4, "avril": 4,
+    "mai": 5, "juin": 6, "jun": 6, "juil": 7, "jul": 7, "aout": 8, "sept": 9, "sep": 9,
+    "oct": 10, "nov": 11, "dec": 12,
+}
+
+
+def read_month_header(text) -> str:
+    """`avr-26` -> `2026-04`. Empty when the header is not a month.
+
+    The tracker keeps twelve columns of its own actuals beside the target. For the KPIs
+    the warehouse cannot compute — a discount level, an engagement score, a B-Corp
+    milestone — they are the only readings that exist, and a panel that ignored them would
+    say nothing about two thirds of what the business tracks.
+    """
+    plain = _plain(text).replace(".", "")
+    match = re.fullmatch(r"([a-z]+)[\s\-/]*(\d{2}|\d{4})", plain)
+    if not match:
+        return ""
+    month = MONTHS.get(match.group(1))
+    if month is None:
+        return ""
+    year = int(match.group(2))
+    return "%d-%02d" % (year + 2000 if year < 100 else year, month)
+
 
 FREQUENCIES = {
     "mensuel": rules.MONTHLY,
@@ -212,12 +273,13 @@ class Entry:
 
     __slots__ = ("id", "label", "definition", "scope", "owner", "pillar", "level",
                  "target", "direction", "unit", "frequency", "priority", "last_year",
-                 "open_question", "source", "direction_assumed")
+                 "open_question", "source", "direction_assumed", "readings", "locked")
 
     def __init__(self, id="", label="", definition="", scope="", owner="", pillar="",
                  level="", target=None, direction=rules.UP, unit="",
                  frequency=rules.MONTHLY, priority=rules.P2, last_year=None,
-                 open_question="", source="", direction_assumed=False) -> None:
+                 open_question="", source="", direction_assumed=False, readings=(),
+                 locked=True) -> None:
         self.id = id
         self.label = label
         self.definition = definition
@@ -237,6 +299,13 @@ class Entry:
         #: reader fell back to "higher is better". Harmless on most rows; on a ceiling it
         #: inverts the verdict, so it is stated rather than assumed away.
         self.direction_assumed = direction_assumed
+        #: The tracker's own twelve months, where somebody has filled them in. Oldest
+        #: first. Used only where the warehouse supplies nothing — never merged with it,
+        #: because a figure typed into a sheet and a figure measured by a query are two
+        #: different claims and the panel names which one it is showing.
+        self.readings = list(readings)
+        #: What the sheet's own definition-status column says.
+        self.locked = locked
 
     @property
     def reads_as_ceiling(self) -> bool:
@@ -260,6 +329,8 @@ class Entry:
     def unsettled_reason(self) -> str:
         if self.open_question:
             return self.open_question
+        if not self.locked:
+            return "the tracker does not mark this definition as settled"
         if self.reads_as_ceiling:
             return (
                 "the sheet gives \u201c%g\u201d with no sign, and this name reads as a "
@@ -269,7 +340,19 @@ class Entry:
         return ""
 
     def to_kpi(self, readings: Sequence["rules.Reading"] = ()) -> "rules.Kpi":
+        """The KPI as the cockpit judges it.
+
+        `readings` are the warehouse's, and they win: measured beats typed. Where there
+        are none, the tracker's own columns are used and the source says so, because a
+        figure somebody typed into a sheet and one a query measured are different claims
+        and a reader who cannot tell them apart cannot weigh either.
+        """
         unsettled = self.unsettled_reason
+        measured = list(readings)
+        source = self.source or "KPI tracker"
+        if not measured and self.readings:
+            measured = self.readings
+            source = "KPI tracker (reported, not measured)"
         return rules.Kpi(
             key=self.id or _plain(self.label),
             label=self.label,
@@ -281,11 +364,11 @@ class Entry:
             target=self.target,
             direction=self.direction,
             frequency=self.frequency,
-            source=self.source or "KPI tracker",
+            source=source,
             definition_status=rules.PROVISIONAL if unsettled else rules.LOCKED,
             priority=self.priority,
             last_year=self.last_year,
-            readings=readings,
+            readings=measured,
             open_question=unsettled,
         )
 
@@ -336,10 +419,21 @@ class Tracker:
         return None
 
 
+def _header_key(text) -> str:
+    """A header reduced to its words: `Cible (num)` -> `cible num`, `Déf.` -> `def`.
+
+    `_plain` keeps punctuation, which is right for a market name and wrong here: a column
+    matched on its exact punctuation stops matching the day somebody drops a full stop,
+    and the failure is silent — the field goes empty, and an empty field looks like a
+    workbook that says nothing.
+    """
+    return " ".join(part for part in re.split(r"[^a-z0-9]+", _plain(text)) if part)
+
+
 def _header_map(row: Sequence[object]) -> Dict[str, int]:
     found = {}
     for index, cell in enumerate(row):
-        field = COLUMNS.get(_plain(cell))
+        field = COLUMNS.get(_header_key(cell))
         if field and field not in found:
             found[field] = index
     return found
@@ -379,7 +473,16 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
             "No header row found: no column named KPI or Indicateur on this sheet."
         ], columns_missing=["kpi"])
 
-    missing = [name for name in ("label", "definition") if name not in columns]
+    missing = [name for name in ("label",) if name not in columns]
+    # The sheet's own twelve months of actuals. For every KPI the warehouse cannot compute
+    # — a discount level, an engagement score, a milestone — these are the only readings
+    # there are, and they carry the tracker's name as their source so nobody confuses a
+    # figure somebody typed with one the warehouse measured.
+    month_columns = {}
+    for index, cell in enumerate(rows[header_at]):
+        period = read_month_header(cell)
+        if period and index not in columns.values():
+            month_columns[index] = period
     points = dict(open_points or {})
     entries, refused = [], []
 
@@ -388,30 +491,39 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
         if not label:
             continue
         identifier = _text(row, columns.get("id"))
-        # A target column when the sheet has one; otherwise whatever the definition
-        # states as a comparison. The two are read under different rules on purpose —
-        # see `read_plain_target`.
-        if "target_text" in columns:
+        # A number the sheet has already reduced, before any prose beside it. "1 259
+        # (+4%)" is a sentence about a target; a column called `Cible (num)` is the target.
+        target, direction, unit = None, rules.UP, ""
+        if "target_number" in columns:
+            target = _number(_text(row, columns["target_number"]))
+        if target is None and "target_text" in columns:
             target, direction, unit = read_plain_target(_cell(row, columns["target_text"]))
-        else:
+        if target is None and "target_text" not in columns:
             target, direction, unit = read_target(_cell(row, columns.get("definition")))
-        direction_text = _plain(_text(row, columns.get("direction_text")))
-        if direction_text in ("baisse", "down", "inverse", "moins", "lower", "descendant"):
-            direction = rules.DOWN
-        elif direction_text in ("hausse", "up", "plus", "higher", "ascendant"):
-            direction = rules.UP
-        # Assumed only when nothing anywhere stated it: no operator in the target, and no
-        # column saying which way the KPI is supposed to move.
-        assumed = not direction_text and not _COMPARISON.search(
-            str(_cell(row, columns.get("target_text")) or "")
-            or str(_cell(row, columns.get("definition")) or "")
+
+        stated = _text(row, columns.get("direction_text")).strip()
+        from_column = DIRECTIONS.get(stated) or DIRECTIONS.get(_plain(stated))
+        if from_column is not None:
+            direction = from_column
+        # A written operator settles it too; an unreadable arrow settles nothing, and must
+        # fall back to the caution that protects an unmarked row rather than pass for an
+        # answer because the cell was not empty.
+        written = _COMPARISON.search(
+            "%s %s" % (_text(row, columns.get("target_text")),
+                       _text(row, columns.get("definition")))
         )
+        if written and from_column is None:
+            _value, direction, _unit = read_target(written.group(0))
+        assumed = from_column is None and written is None
+
+        if "unit_text" in columns:
+            unit = _text(row, columns["unit_text"]) or unit
         if target is None:
             refused.append(
                 "%s: no target this reader can stand behind, so it is counted and not "
                 "scored." % label
             )
-        last_year = _cell(row, columns.get("last_year"))
+        last_year = _number(_text(row, columns.get("last_year")))
         entries.append(Entry(
             id=identifier,
             label=label,
@@ -426,10 +538,23 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
             frequency=FREQUENCIES.get(
                 _plain(_text(row, columns.get("frequency_text"))), rules.MONTHLY),
             priority=LEVELS.get(_plain(_text(row, columns.get("level"))), rules.P2),
-            last_year=last_year if isinstance(last_year, float) else None,
+            last_year=last_year,
+            readings=[
+                rules.Reading(period, value)
+                for period, value in sorted(
+                    (period, _number(_text(row, at)))
+                    for at, period in month_columns.items()
+                )
+                if value is not None
+            ],
             open_question=points.get(_plain(label), "") or points.get(_plain(identifier), ""),
             source=_text(row, columns.get("source")),
             direction_assumed=assumed,
+            # The tracker says which of its definitions are settled. Read rather than
+            # inferred: the rule about withholding a challenge on a provisional KPI was
+            # written waiting for a column exactly like this one.
+            locked=(not columns.get("status_text")
+                    or _plain(_text(row, columns["status_text"])) in LOCKED_WORDS),
         ))
     return Tracker(entries, refused=refused, columns_missing=missing, open_points=points)
 
