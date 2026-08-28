@@ -96,16 +96,20 @@ def test_only_the_written_queries_report_as_written():
     }
 
 
-def test_a_written_query_without_a_mapping_still_refuses():
-    """Written SQL is not a connected panel.
+def test_readings_without_a_tracker_refuse_rather_than_score_nothing():
+    """Written SQL is not a connected panel, and neither are values without targets.
 
-    `KPI_READINGS` exists now, so it has left the 503 page's list — but nothing reads its
-    rows into KPIs yet. The refusal has to survive the query being written, otherwise the
-    customer panel would render empty and an empty panel reads as "nothing to report".
+    `KPI_READINGS` exists and its mapping is written, so both have left the list of what
+    is missing. What remains required is the tracker: 25.1% is neither good nor bad until
+    something says what was asked for. Without it this refuses — and the panel then says
+    it is not connected, which is true — rather than rendering an empty list, which reads
+    as "nothing to report".
     """
+    from app.config import settings
     from app.perf.source import SnowflakeSource
 
     assert "KPI_READINGS" not in queries.missing()
+    assert not settings.has_kpi_file, "the suite must not read a real tracker"
     with pytest.raises(NotImplementedError):
         SnowflakeSource().client_kpis()
 

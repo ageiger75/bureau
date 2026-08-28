@@ -66,6 +66,17 @@ def fresh_warehouse_cache(monkeypatch):
         property(lambda self: TEST_DIR / "context.csv"),
     )
 
+    # And the KPI tracker, for a reason the notes made obvious and this one proved again:
+    # `client_kpis` refuses when the workbook is absent and reads the warehouse when it is
+    # present. So the suite passed on a machine with no tracker in `var/` and, on a machine
+    # with one, opened a Snowflake session in the middle of a test run. A suite whose
+    # behaviour depends on which files happen to sit in the working directory attests to
+    # nothing — least of all on the one machine where it matters.
+    monkeypatch.setattr(
+        type(settings), "kpi_path",
+        property(lambda self: TEST_DIR / "kpi-tracker.xlsx"),
+    )
+
     source.cache_forget()
     owners.reset()
     context.reset()
