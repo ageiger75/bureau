@@ -818,6 +818,17 @@ input:focus, textarea:focus, select:focus {
   line-height: 1.55; font-style: italic;
 }
 
+/* Folded shut by default. The block is read once — when someone asks how far a figure
+   can be trusted — and left open it competed with the five findings that need attention
+   this week. The count stays in the summary, because "some figures are unsettled" and
+   "seven are" are different facts. */
+.unsettled > summary {
+  cursor: pointer; font-size: 14px; color: var(--ink-soft);
+  max-width: 74ch; line-height: 1.55; padding: 4px 0;
+}
+.unsettled > summary:hover { color: var(--ink); }
+.unsettled[open] > summary { margin-bottom: 14px; }
+
 .provenance-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
 .provenance { border-left: 2px solid var(--rule); padding-left: 14px; }
 .provenance-beta { border-left-color: var(--warn); }

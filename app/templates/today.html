@@ -456,10 +456,15 @@
   </p>
 
   {% if suspects_held_back %}
+    {# Counted, not listed — and the count says so rather than the list growing to hold
+       them. The finding in this panel is the shape, not the roll call: ten markets
+       failing the same way in one month is one incident, and a list long enough to
+       scroll is where that sentence goes to die. #}
     <p class="lede">
-      {{ suspects_held_back }} smaller break{{ "s" if suspects_held_back > 1 }} are counted
-      in the shape below but not listed: each obscures too little to be worth reading, and
-      leaving them out of the count would weaken the only finding here worth acting on.
+      {{ suspects_held_back }} further break{{ "s" if suspects_held_back > 1 }}
+      {{ "is" if suspects_held_back == 1 else "are" }} counted
+      in the shape below but not listed — smaller, or past the fifth. The shape is what
+      is worth acting on here; leaving them out of the count would weaken it.
     </p>
   {% endif %}
 
@@ -592,7 +597,19 @@
 
 {% if unsettled %}
 <section class="panel panel-quiet">
+  {# Folded shut. It is the longest block on the screen and none of it is a decision to
+     take this week — it is read once, when someone asks how far a figure can be trusted.
+     Left open it competed for attention with the five findings that do need it. The
+     summary keeps the count in view, because "some figures are unsettled" and "seven
+     are" are different facts, and the beta badges upstairs already mark which. #}
   <h2>Not settled yet</h2>
+  <details class="unsettled">
+    <summary>
+      {{ unsettled | length }} figure{{ '' if unsettled | length == 1 else 's' }} on this
+      screen {{ 'is' if unsettled | length == 1 else 'are' }} not fully checked —
+      {{ unsettled | selectattr("maturity", "equalto", "absent") | list | length }} not
+      measured at all, the rest in beta. Open to see which, and what would settle each.
+    </summary>
   <p class="lede">
     This screen is being read before the data behind it is finished, which is the right
     call — but it means a checked figure and an unchecked one would otherwise look
@@ -612,6 +629,7 @@
       </li>
     {% endfor %}
   </ul>
+  </details>
 </section>
 {% endif %}
 

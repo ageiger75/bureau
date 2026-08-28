@@ -783,18 +783,28 @@ def suspects(dataset: Dataset) -> List[Suspect]:
     return [item for item in found if item is not None]
 
 
-def worth_listing(found: Sequence[Suspect]) -> List[Suspect]:
-    """The ones large enough to name, largest first.
+#: How many broken feeds are named individually. The same cap, and the same reason, as
+#: the fire list: a sixth would not be read, and pretending otherwise makes the first five
+#: worth less. It bites harder here, because the finding in this panel is the *shape* —
+#: one join failing across ten markets is one incident — and a list long enough to scroll
+#: buries the two lines that say so.
+SUSPECT_LIST_LIMIT = 5
+
+
+def worth_listing(found: Sequence[Suspect], limit: int = SUSPECT_LIST_LIMIT
+                  ) -> List[Suspect]:
+    """The ones large enough to name, largest first, capped.
 
     A break worth 827 euros is real and is not worth a line on a screen a CEO reads in two
     minutes. It still counts in the pattern above: thirteen markets failing the same way
     is the finding, and it is thirteen whether or not each one is individually worth
     printing.
     """
-    return sorted(
+    ranked = sorted(
         (item for item in found if item.is_material),
         key=lambda item: -item.money,
     )
+    return ranked[:limit]
 
 
 # --------------------------------------------------------------------------- fires

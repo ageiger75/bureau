@@ -745,6 +745,34 @@ def test_a_conversion_collapse_on_stable_traffic_is_not_flagged():
     assert analytics.suspect_of(real) is None
 
 
+def test_the_broken_feed_list_is_capped_like_the_fire_list():
+    """The finding in that panel is the shape — one join failing across ten markets is
+    one incident, not ten — and it is printed above the list. Sixteen named markets
+    below it is a page of roll call that buries the two lines worth acting on. The ones
+    left out stay in the count, which is what keeps the shape honest.
+    """
+    broken = [
+        unit(
+            key="m%d" % n,
+            actual=sessions_of(500_000 - n * 1_000, 400_000),
+            budget=Drivers.sales_only(500_000),
+            last_year=sessions_of(500_000, 380_000),
+        )
+        for n in range(9)
+    ]
+    for item in broken:
+        item.actual = Drivers(("Sessions", "Conversion", "AOV"),
+                              (400_000.0, 0.0, 60.0))
+
+    found = analytics.suspects(dataset_of(*broken))
+
+    assert len(found) == 9  # every break counts towards the shape
+    assert len(analytics.worth_listing(found)) == analytics.SUSPECT_LIST_LIMIT
+    # Largest first, so the cap keeps the ones worth chasing individually.
+    listed = analytics.worth_listing(found)
+    assert listed == sorted(listed, key=lambda item: -item.money)
+
+
 def test_a_broken_market_never_becomes_an_opportunity():
     """"Recover last year's conversion and gain €4m" computed on a tracking break is a
     number the CEO would act on. A wasted glance is cheap; a wasted quarter is not."""
