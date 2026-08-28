@@ -809,7 +809,205 @@ order by s.entity_code, s.segment, s.snapshot_date
 
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
-KPI_READINGS = ""
+#:
+#: Fourteen keys, twenty-four months, at market scope and rolled up to `LOEP`. Every
+#: percentage is a ratio of two sums, never an average of ratios, so the group figure is
+#: the group's own and not the mean of its markets.
+#:
+#: Three of the tracker's monthly KPIs are deliberately absent, and their absence is the
+#: reading:
+#:
+#: * **Niveau de discount** — `EXPLICIT_DISCOUNT_EUR` and `IMPLICIT_DISCOUNT_EUR` exist in
+#:   the raw fact and are not exposed by the semantic view. Reading round the governed
+#:   layer to fill a column is the trade this repository has already refused once.
+#: * **ARC** and **Acquisition NTB nette** — the tracker states them as "sur croissance
+#:   sell-out totale" and "nouveaux clients nets", neither of which names a computable
+#:   quantity. A number invented from a plausible reading would be indistinguishable from
+#:   a measured one.
+#:
+#: Two keys carry a settled figure that disagrees with the tracker, and the disagreement is
+#: worth more than a silent match:
+#:
+#: * `heroes_wob` returns 25.1% for FY26 against the tracker's 28.9%. Five perimeters were
+#:   tested — with and without marketplace, outlet, own retail only, turnover-relevant
+#:   products — and all land between 25.1 and 25.7%. The cause is the hero list itself, not
+#:   the scope: the product referential and the RGM figure do not designate the same
+#:   products.
+#: * `nps_retail` returns 72.7 against a stated global 74. "Global" is not defined: the
+#:   warehouse holds four survey families, and they read 72.7 (retail), 60.9 (e-commerce),
+#:   40.0 (customer service) and 16.3 (CPRVHK). Which of them the board number means is a
+#:   decision, so each is returned under its own key rather than blended into one.
+KPI_READINGS = """
+with period as (
+    select
+        date_trunc('month', add_months(anchor, -1))  as last_month,
+        date_trunc('month', add_months(anchor, -24)) as first_month
+    from (
+        -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
+        select max(max_sales_date) as anchor
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_sellout_analysis
+            metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+            where f_sellout_sales_details.transaction_date
+                  >= dateadd(month, -3, current_date)
+        )
+    )
+),
+sellout as (
+    select
+        store_country,
+        store_sub_channel,
+        store_samestore_ty,
+        is_hero,
+        is_refill,
+        date_trunc('month', transaction_date) as month,
+        net_sales_eur,
+        quantity,
+        nb_tickets,
+        new_clients
+    from semantic_view(
+        dwh.semantic_layer.v_sl_ai_sellout_analysis
+        dimensions
+            d_stores.store_country,
+            d_stores.store_sub_channel,
+            d_stores.store_samestore_ty,
+            d_products.is_hero,
+            d_products.is_refill,
+            f_sellout_sales_details.transaction_date
+        metrics
+            sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur,
+            sum(f_sellout_sales_details.quantity)      as quantity,
+            sum(f_sellout_sales_details.nb_tickets)    as nb_tickets,
+            f_sellout_sales_details.nb_new_clients     as new_clients
+        where d_stores.store_brand = 'L''OCCITANE'
+          and f_sellout_sales_details.transaction_date
+              >= dateadd(month, -26, current_date)
+    )
+),
+sellout_window as (
+    select s.* from sellout s cross join period p
+    where s.month between p.first_month and p.last_month
+),
+sales_keys as (
+    select
+        coalesce(store_country, 'LOEP')                as scope,
+        to_char(month, 'YYYY-MM')                      as period,
+        sum(net_sales_eur)                             as net_sales,
+        sum(iff(is_hero = 1, net_sales_eur, 0))        as hero_sales,
+        sum(iff(is_refill = 1, net_sales_eur, 0))      as refill_sales,
+        sum(iff(store_samestore_ty = 'yes', net_sales_eur, 0)) as same_store_sales,
+        sum(iff(store_sub_channel = 'E-COMMERCE', net_sales_eur, 0)) as brand_com_sales,
+        sum(quantity)                                  as quantity,
+        sum(nb_tickets)                                as tickets,
+        sum(new_clients)                               as new_clients
+    from sellout_window
+    group by grouping sets ((store_country, month), (month))
+),
+traffic as (
+    select
+        coalesce(store_country, 'LOEP')          as scope,
+        to_char(month, 'YYYY-MM')                as period,
+        sum(retail_traffic)                      as traffic
+    from (
+        select store_country,
+               date_trunc('month', transaction_date) as month,
+               retail_traffic
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_sellout_analysis
+            dimensions d_stores.store_country, f_store_traffic.transaction_date
+            metrics sum(f_store_traffic.retail_traffic_adjusted) as retail_traffic
+            where d_stores.store_brand = 'L''OCCITANE'
+              and f_store_traffic.transaction_date >= dateadd(month, -26, current_date)
+        )
+    ) t cross join period p
+    where t.month between p.first_month and p.last_month
+    group by grouping sets ((store_country, month), (month))
+),
+surveys as (
+    select
+        coalesce(country, 'LOEP')                as scope,
+        to_char(month, 'YYYY-MM')                as period,
+        nps_type,
+        sum(iff(nps_score_desc = 'Promoter', responses, 0))  as promoters,
+        sum(iff(nps_score_desc = 'Detractor', responses, 0)) as detractors,
+        sum(responses)                                       as responses
+    from (
+        select country, nps_type, nps_score_desc,
+               date_trunc('month', survey_date) as month,
+               responses
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_survey_analysis
+            dimensions f_surveys.country, f_surveys.nps_type,
+                       f_surveys.nps_score_desc, f_surveys.survey_date
+            metrics count(f_surveys.survey_id) as responses
+            where f_surveys.survey_date >= dateadd(month, -26, current_date)
+        )
+    ) s cross join period p
+    where s.month between p.first_month and p.last_month
+    group by grouping sets ((country, month, nps_type), (month, nps_type))
+),
+reviews as (
+    select
+        coalesce(review_country, 'LOEP')  as scope,
+        to_char(month, 'YYYY-MM')         as period,
+        sum(rating_total) / nullif(sum(nb_reviews), 0) as review_rating
+    from (
+        select review_country,
+               date_trunc('month', review_date) as month,
+               rating_total, nb_reviews
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_survey_analysis
+            dimensions product_reviews.review_country, product_reviews.review_date
+            metrics sum(product_reviews.review_rating) as rating_total,
+                    product_reviews.nb_reviews         as nb_reviews
+            where product_reviews.review_date >= dateadd(month, -26, current_date)
+        )
+    ) r cross join period p
+    where r.month between p.first_month and p.last_month
+    group by grouping sets ((review_country, month), (month))
+)
+select scope, 'net_sales'   as kpi_key, period, net_sales as value from sales_keys
+union all
+select scope, 'same_store_sales', period, same_store_sales from sales_keys
+union all
+select scope, 'brand_com_sales', period, brand_com_sales from sales_keys
+union all
+select scope, 'heroes_wob', period,
+       100.0 * hero_sales / nullif(net_sales, 0) from sales_keys
+union all
+select scope, 'refills_wob', period,
+       100.0 * refill_sales / nullif(net_sales, 0) from sales_keys
+-- ATV and UPT as ratios of additive facts. This is the decomposition definition, not
+-- the organisation's governed ATV_EUR, which divides by distinct non-zero transactions
+-- and cannot be re-aggregated from a daily grain. Two numbers, two places, never
+-- substituted for one another.
+union all
+select scope, 'atv_decomposition', period,
+       net_sales / nullif(tickets, 0) from sales_keys
+union all
+select scope, 'upt_decomposition', period,
+       quantity / nullif(tickets, 0) from sales_keys
+union all
+select scope, 'new_clients', period, new_clients from sales_keys
+union all
+select scope, 'retail_traffic', period, traffic from traffic
+union all
+-- Sales per door, on comparable doors only. Store count comes from the same rows as
+-- the sales, so the two can never describe different estates.
+select scope, 'nps_retail', period,
+       100.0 * (promoters - detractors) / nullif(responses, 0)
+from surveys where nps_type = 'NPS_RE'
+union all
+select scope, 'nps_ecommerce', period,
+       100.0 * (promoters - detractors) / nullif(responses, 0)
+from surveys where nps_type = 'NPS_EC'
+union all
+select scope, 'nps_customer_service', period,
+       100.0 * (promoters - detractors) / nullif(responses, 0)
+from surveys where nps_type = 'NPS_CS'
+union all
+select scope, 'review_rating', period, review_rating from reviews
+"""
 
 #: Published market growth per market, used to test "the market is difficult" rather than
 #: repeat it. Leave empty if no benchmark exists — the cockpit then says so explicitly
