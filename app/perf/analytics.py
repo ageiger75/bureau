@@ -1079,11 +1079,13 @@ class Fire:
         )
 
 
-def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
+def fires(dataset: Dataset, limit: Optional[int] = 5) -> List[Fire]:
     """The units that most deserve attention, worst first.
 
     Capped on purpose: the brief optimises for CEO attention, not completeness. A sixth
     fire would not be read, and pretending otherwise would make the first five worth less.
+    `limit=None` returns every candidate, which is what clustering needs — the cap belongs
+    on the subjects a reader ends up with, not on the channels that feed them.
     """
     # A market that moved between its channels and still holds its plan has not lost
     # anything. Ranking the channel it left would be a confident finding about a decision
@@ -1107,9 +1109,69 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
         and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
     ]
     candidates.sort(key=lambda fire: fire.priority.score, reverse=True)
-    ranked = candidates[:limit]
+    ranked = candidates if limit is None else candidates[:limit]
     _attach_boundary_standing(ranked, dataset)
     return ranked
+
+
+class Issue:
+    """One subject, not one channel.
+
+    A market losing ground in two channels is one conversation with one person, and the
+    screen used to make it two — Japan taking two of the week's five slots and its lead
+    named twice on the same page. Ranking channels also quietly ranks by how finely a
+    market happens to be cut: a business split across three channels outranks an identical
+    one reported as a single line, on nothing but its reporting shape.
+
+    The money still decides. An issue's weight is the sum of its members' — each member
+    keeps its own arithmetic, so an order that looks wrong can still be checked line by
+    line rather than argued with.
+    """
+
+    __slots__ = ("market", "owner", "fires", "gap", "score")
+
+    def __init__(self, market: str, fires: Sequence[Fire]) -> None:
+        self.market = market
+        self.fires = list(fires)
+        self.owner = self.fires[0].unit.owner
+        self.gap = sum(fire.gap for fire in self.fires)
+        self.score = sum(fire.priority.score for fire in self.fires)
+
+    @property
+    def label(self) -> str:
+        return self.market
+
+    @property
+    def channels(self) -> str:
+        """The channels behind the subject, named — a total nobody can locate is a total
+        nobody acts on."""
+        return _listed_labels([fire.unit.channel_label for fire in self.fires])
+
+    @property
+    def is_single(self) -> bool:
+        return len(self.fires) == 1
+
+    @property
+    def question(self) -> str:
+        """The sharpest question in the subject, asked once."""
+        return self.fires[0].question
+
+
+def issues(dataset: Dataset, limit: int = 5) -> List[Issue]:
+    """The subjects that most deserve attention, worst first.
+
+    Clustered by market and owner: the two things that decide who is in the room. A
+    finer grouping — by outcome, by KPI family — is the right end state and needs
+    metadata the tracker does not carry yet; grouping by market already removes the
+    duplicate that a reader sees first.
+    """
+    by_market: Dict[str, List[Fire]] = {}
+    for fire in fires(dataset, limit=None):
+        by_market.setdefault(fire.unit.market, []).append(fire)
+
+    found = [Issue(market, group) for market, group in by_market.items()]
+    found.sort(key=lambda issue: issue.score, reverse=True)
+    return found[:limit]
 
 
 def routed_elsewhere(dataset: Dataset) -> List["Fire"]:
@@ -1348,6 +1410,13 @@ class Push:
 
 
 def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
+    """One line per person, and never two for the same one.
+
+    Fed from the subjects rather than the channels: the deduplication below caught the
+    repeat, but only after the ranking had already spent two of its five slots on the
+    same market — so the name appeared once and the market twice, which is the same
+    failure wearing a different hat.
+    """
     pushes: List[Push] = []
     seen = set()
     for fire in items:

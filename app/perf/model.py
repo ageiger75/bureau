@@ -453,6 +453,19 @@ class BusinessUnit:
         return self.sales_actual - self.sales_last_year
 
     @property
+    def channel_label(self) -> str:
+        """The channel as the screen writes it: `webp` -> `E-retailers`.
+
+        Read from the one table that names channels, imported here rather than copied:
+        two places spelling a channel differently is how a reader stops being able to
+        match a total to the lines under it. Lazily, because that table lives in the
+        module that builds these units.
+        """
+        from .mapping import CHANNEL_NAMES
+
+        return CHANNEL_NAMES.get(self.channel, self.channel.title())
+
+    @property
     def is_below_budget(self) -> bool:
         return self.gap_vs_budget < 0
 

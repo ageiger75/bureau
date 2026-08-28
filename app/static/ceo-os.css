@@ -831,6 +831,14 @@ input:focus, textarea:focus, select:focus {
 
 /* Les surfaces où l'on route ce qui n'est pas une conversation commerciale. Volontairement
    plus sobres que les cartes de priorité : elles sont vraies, elles ne sont pas urgentes. */
+/* Un sujet, puis ses canaux. Le total du marché est au-dessus parce que c'est le chiffre
+   dont on parle en réunion ; les canaux dessous gardent chacun son arithmétique. */
+.issue { list-style: none; }
+.issue-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.issue-owner { font-size: 13.5px; color: var(--ink-soft); margin: 2px 0 0; }
+.issue-members { list-style: none; margin: 12px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule-soft); display: grid; gap: 20px; }
+.issue-members > .fire h3 { font-size: 15px; }
+
 .routed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .routed { border-left: 2px solid var(--rule); padding-left: 14px; }
 .routed-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0; }

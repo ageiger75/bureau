@@ -110,6 +110,9 @@ def today(request: Request):
         unavailable.append("kpis")
 
     fires = analytics.fires(dataset)
+    # The subjects, which is what the reader ends up with: a market losing ground in two
+    # channels is one conversation with one person, and the screen used to make it two.
+    issues = analytics.issues(dataset)
     # Routed out of the week's five, not out of the screen. Each is real money whose
     # question belongs to consolidation, to finance or to the data team — and a reader who
     # simply stopped seeing them would have no way to tell a routed item from a lost one.
@@ -121,8 +124,7 @@ def today(request: Request):
     # A fire is worth more with two things attached: the promise already made about it,
     # and what the customer base is doing. A conversion gap with recruitment holding up is
     # a different conversation from one where both are falling.
-    linked = []
-    for fire in fires:
+    def attach(fire):
         open_items = [
             item
             for item in by_market.get(fire.unit.market, [])
@@ -133,7 +135,9 @@ def today(request: Request):
             for item in kpi_rules.by_scope(kpis, fire.unit.market)
             if item.status in (kpi_rules.WATCH, kpi_rules.ALERT)
         ]
-        linked.append((fire, open_items[0] if open_items else None, signals))
+        return (fire, open_items[0] if open_items else None, signals)
+
+    linked = [(issue, [attach(fire) for fire in issue.fires]) for issue in issues]
 
     return render(
         request,
@@ -154,10 +158,14 @@ def today(request: Request):
                     dataset.sales_actual, dataset.sales_last_year
                 ),
             },
-            "fires": linked,
+            "issues": linked,
+            "fires": [attach(fire) for fire in fires],
             "opportunities": analytics.opportunities(dataset),
             "reallocations": analytics.reallocations(dataset),
-            "people": analytics.people_to_push(fires),
+            # Fed from the subjects: the top of each one, so a market that lost ground
+            # in two channels puts its lead on this list once, for the larger of the two,
+            # rather than competing with itself for a place.
+            "people": analytics.people_to_push([issue.fires[0] for issue in issues]),
             "wins": analytics.wins(dataset),
             "commitments": commitments,
             "kpis": kpi_rules.needing_attention(kpis),

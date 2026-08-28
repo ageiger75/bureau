@@ -217,3 +217,69 @@ def test_the_screen_shows_where_a_routed_item_went(monkeypatch):
     where_to_push = page.split("Not a commercial conversation")[0]
     assert "Japan E-commerce" in where_to_push
     assert "United States Chain Wholesale" not in where_to_push
+
+
+# ------------------------------------------------------------------ one subject
+
+
+def test_a_market_losing_ground_in_two_channels_is_one_subject():
+    """The duplicate a reader sees first. Japan took two of the week's five slots and had
+    its lead named twice on the same page — while a fifth market, materially below plan,
+    was pushed off the list by a market already on it."""
+    japan_ec = unit(key="jp-ec", label="Japan E-commerce", market="Japan",
+                    channel="ecommerce", actual=funnel(900_000, 100_000),
+                    budget=funnel(1_000_000, 100_000))
+    japan_retail = unit(key="jp-rt", label="Japan Retail", market="Japan",
+                        channel="retail", actual=8_500_000.0, budget=9_000_000.0)
+    korea = unit(key="kr", label="Korea Retail", market="Korea", channel="retail",
+                 actual=8_800_000.0, budget=9_000_000.0)
+    dataset = dataset_of(japan_ec, japan_retail, korea)
+
+    found = analytics.issues(dataset)
+
+    assert [issue.market for issue in found] == ["Japan", "Korea"]
+    japan = found[0]
+    assert len(japan.fires) == 2
+    assert japan.gap == pytest.approx(-600_000.0)  # 100k + 500k, summed once
+    assert "E-commerce" in japan.channels and "Retail" in japan.channels
+
+
+def test_the_subject_is_ranked_on_what_the_market_loses_altogether():
+    """Two channels each below the line can outweigh one larger channel — and used to
+    lose to it, because they were ranked apart. Ranking channels also ranks by how finely
+    a market happens to be cut, which is a fact about reporting and not about the
+    business."""
+    split_a = unit(key="a1", label="Split A", market="Split", channel="retail",
+                   actual=8_400_000.0, budget=9_000_000.0)
+    split_b = unit(key="a2", label="Split B", market="Split", channel="whoch",
+                   actual=8_400_000.0, budget=9_000_000.0)
+    whole = unit(key="b", label="Whole", market="Whole", channel="retail",
+                 actual=8_200_000.0, budget=9_000_000.0)
+
+    found = analytics.issues(dataset_of(split_a, split_b, whole))
+
+    assert [issue.market for issue in found] == ["Split", "Whole"]
+    assert found[0].gap == pytest.approx(-1_200_000.0)
+
+
+def test_an_owner_is_named_once_for_their_market():
+    japan_ec = unit(key="jp-ec", label="Japan E-commerce", market="Japan",
+                    channel="ecommerce", actual=8_000_000.0, budget=9_000_000.0)
+    japan_retail = unit(key="jp-rt", label="Japan Retail", market="Japan",
+                        channel="retail", actual=8_500_000.0, budget=9_000_000.0)
+
+    found = analytics.issues(dataset_of(japan_ec, japan_retail))
+    pushes = analytics.people_to_push([issue.fires[0] for issue in found])
+
+    assert [push.owner.name for push in pushes] == ["Marie"]
+
+
+def test_a_single_channel_market_is_still_a_subject():
+    """No special case below: one channel is a subject of one, and the screen prints it
+    the way it always did rather than wrapping it in a heading that repeats itself."""
+    alone = unit(key="solo", label="Korea Retail", market="Korea", channel="retail")
+
+    found = analytics.issues(dataset_of(alone))
+
+    assert found[0].is_single
+    assert found[0].gap == found[0].fires[0].gap

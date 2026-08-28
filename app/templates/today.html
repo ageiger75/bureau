@@ -132,18 +132,33 @@
 <section class="panel">
   <h2>Where to push</h2>
   <p class="lede">
-    The five business areas where attention is worth the most money today. Ranked by
-    euros at stake rather than by percentage — a -3% miss on a large market outweighs -30%
-    on a small one — then weighted by how long the gap has lasted, whether it is widening,
-    and how sure the diagnosis is. Each entry shows its own arithmetic, so an order that
-    looks wrong can be checked rather than argued with.
+    The five subjects where attention is worth the most money today — subjects, not
+    channels: a market losing ground in two of them is one conversation with one person.
+    Ranked by euros at stake rather than by percentage — a -3% miss on a large market
+    outweighs -30% on a small one — then weighted by how long the gap has lasted, whether
+    it is widening, and how sure the diagnosis is. Each entry shows its own arithmetic, so
+    an order that looks wrong can be checked rather than argued with.
   </p>
 
-  {% if not fires %}
+  {% if not issues %}
     <p class="empty">No market is materially below plan. Nothing here needs you today.</p>
   {% else %}
   <ol class="fire-list">
-    {% for fire, commitment, signals in fires %}
+    {% for issue, members in issues %}
+      <li class="issue">
+        {% if not issue.is_single %}
+          {# The subject's own line, above its channels. Without it the reader adds two
+             cards in their head to find what the market is actually losing — and the
+             two used to sit in different places in the ranking, so they rarely did. #}
+          <div class="issue-head">
+            <h3>{{ issue.market }}</h3>
+            <span class="fire-gap">{{ issue.gap | eur }}
+              <span class="fire-gap-sub">vs plan · {{ issue.channels }}</span></span>
+          </div>
+          <p class="issue-owner">{{ issue.owner.name }} · {{ issue.owner.role }}</p>
+        {% endif %}
+      <ol class="issue-members">
+    {% for fire, commitment, signals in members %}
       <li class="fire">
         <div class="fire-head">
           <h3>{{ fire.unit.label }}</h3>
@@ -296,6 +311,9 @@
             {% endfor %}
           </ul>
         </details>
+      </li>
+    {% endfor %}
+      </ol>
       </li>
     {% endfor %}
   </ol>
