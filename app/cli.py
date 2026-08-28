@@ -792,6 +792,9 @@ def cmd_history(argv: List[str]) -> int:
     # deux ans de profondeur au lieu de quelques mois, mais l'entreprise a tranché qu'il
     # n'est pas fiable — et classer l'attention du dirigeant sur des chiffres que personne
     # ne défend coûte plus cher que d'attendre.
+    if plan is not None:
+        _print_trajectories(built, plan)
+
     covered = _months_of_plan(built, plan)
     print("")
     if plan is None:
@@ -825,6 +828,71 @@ def cmd_history(argv: List[str]) -> int:
               % ("%s %s" % (track.market, track.channel), verdict.months,
                  verdict.low, verdict.high, verdict.shortfall_pct))
     return 0
+
+
+def _print_trajectories(built, plan) -> None:
+    """Ce que le plan demande, confronté à ce que les ventes ont fait.
+
+    C'est la lecture qui n'attend rien. Savoir si un plan est mal calé ne demande pas
+    douze mois de plan : il demande douze mois de ventes — qu'on a, et auxquels on se fie
+    — et un plan sur les mois à venir. Trié par l'écart entre les deux, parce que
+    l'endroit où le plan s'éloigne le plus du réel est l'endroit où quelqu'un devra
+    répondre d'un chiffre que personne n'aurait dû signer.
+    """
+    found = []
+    for track in built.tracks.values():
+        moved = track.trajectory(plan)
+        if moved.sentence:
+            found.append(moved)
+    if not found:
+        print("")
+        print("Aucun plan ne s'écarte du réel de plus de dix points de croissance.")
+        return
+
+    found.sort(key=lambda m: -abs(m.stretch))
+    print("")
+    print("Plans qui s'écartent du réel — ce que le plan demande, contre ce que les")
+    print("douze derniers mois ont livré. Aucun plan de l'an dernier n'est nécessaire :")
+    print("la question se règle sur l'historique des ventes.")
+    for moved in found[:20]:
+        print("")
+        print("  %s %s" % (moved.market, moved.channel))
+        print("    plan %s · réel 12 mois %s · 3 derniers mois %s · %s"
+              % (_growth(moved.plan_growth), _growth(moved.growth),
+                 _growth(moved.recent), _direction(moved.direction)))
+        # La phrase et pas seulement les chiffres : quatre pourcentages alignés se lisent
+        # comme un tableau, et un tableau ne dit pas ce qu'il faut en faire.
+        for line in _wrapped(moved.sentence, 74):
+            print("    %s" % line)
+
+
+DIRECTIONS = {
+    "accelerating": "accélère",
+    "slowing": "ralentit",
+    "steady": "tendance stable",
+}
+
+
+def _direction(word: str) -> str:
+    return DIRECTIONS.get(word, "tendance illisible")
+
+
+def _wrapped(text: str, width: int) -> List[str]:
+    """Coupe une phrase à la largeur d'un terminal, sans dépendance."""
+    lines, current = [], ""
+    for word in text.split():
+        if current and len(current) + 1 + len(word) > width:
+            lines.append(current)
+            current = word
+        else:
+            current = "%s %s" % (current, word) if current else word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _growth(value) -> str:
+    return "n/a" if value is None else "%+.0f %%" % (100.0 * value)
 
 
 def _months_of_plan(built, plan) -> int:

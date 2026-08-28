@@ -817,6 +817,11 @@ class Fire:
         return self.unit.chronic_plan
 
     @property
+    def plan_vs_record(self) -> str:
+        """What the plan asks of this business against what it has been delivering."""
+        return self.unit.plan_vs_record
+
+    @property
     def context_notes(self):
         return self.unit.context_notes
 
@@ -916,6 +921,17 @@ class Fire:
         asked = [n for n in self.unit.context_notes if n.question]
         if asked:
             return asked[0].question
+        if self.unit.plan_vs_record and not self.unit.chronic_plan:
+            # A plan asking for growth the record has never shown will be missed every
+            # month of the year, and asking what moves a driver in thirty days sends
+            # someone after a cause that is not there. The question belongs to whoever
+            # signed the number, and it is worth asking in month four rather than in
+            # month twelve.
+            return (
+                "Was this plan ever reachable? What it asks for is not what this business "
+                "has been delivering — is the number wrong, or is there a change behind "
+                "it that has not happened yet?"
+            )
         if self.unit.chronic_plan:
             # Before every question about this month, because none of them has an answer
             # here. "What will move conversion in 30 days" asked of a business that has

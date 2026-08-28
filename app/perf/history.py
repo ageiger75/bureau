@@ -49,6 +49,19 @@ CHRONIC_FLOOR = 0.70
 #: uses when the workbook and the warehouse disagree about a commitment.
 PLAN_AGREEMENT = 0.02
 
+#: Beyond this many points of growth, a plan is not stretching the trend — it is
+#: assuming a break with it. Ten points is wide enough that an ambitious plan on a healthy
+#: market passes, and narrow enough that a plan asking a shrinking market to grow does not.
+STRETCH_THRESHOLD = 0.10
+
+#: And how far the recent months must diverge from the trailing year before the business
+#: is called accelerating or slowing rather than steady.
+MOMENTUM_THRESHOLD = 0.05
+
+#: The recent window, in months. Three is the shortest run that survives one bad month;
+#: compared against the same three of the previous year, so the season cancels.
+RECENT_MONTHS = 3
+
 #: How many monthly gaps to carry forward. Acceleration reads the last two; more than this
 #: is never used and would only make the object heavier to cache.
 GAP_HISTORY_MONTHS = 6
@@ -176,6 +189,57 @@ class Track:
             run += 1
         return run
 
+    def _actual_at(self, period: str) -> Optional[float]:
+        month = self.month_for(period)
+        return month.actual if month is not None else None
+
+    def _year_on_year(self, periods: Sequence[str]) -> Optional[float]:
+        """Growth of these months against the same months twelve earlier.
+
+        None unless every month on both sides is present. A partial window would compare
+        five months with four and call the difference growth.
+        """
+        now = [self._actual_at(p) for p in periods]
+        before = [self._actual_at(_shift(p, -12)) for p in periods]
+        if not periods or any(v is None for v in now + before):
+            return None
+        base = sum(before)
+        if base <= 0:
+            return None
+        return sum(now) / base - 1.0
+
+    def trajectory(self, budget) -> Trajectory:
+        """What the record has been doing, and what the plan asks of it next.
+
+        The reading that works today. Whether a plan is mis-set is answered by the sales
+        history — trusted, two years deep — against a plan that need only cover the months
+        ahead. It does not wait for a year of plan to accumulate, and it does not care
+        that the plan and the record come from different files.
+        """
+        sold = [m.period for m in self.months if m.actual is not None]
+        trailing = sold[-12:] if len(sold) >= 24 else []
+        recent = sold[-RECENT_MONTHS:] if len(sold) >= 12 + RECENT_MONTHS else []
+
+        plan_growth = None
+        if budget is not None:
+            planned, before = [], []
+            for period in _plan_periods(budget, self.market, self.channel):
+                figure = budget.budget_for(self.market, self.channel, period)
+                previous = self._actual_at(_shift(period, -12))
+                if figure and previous is not None:
+                    planned.append(figure)
+                    before.append(previous)
+            if planned and sum(before) > 0:
+                plan_growth = sum(planned) / sum(before) - 1.0
+
+        return Trajectory(
+            market=self.market,
+            channel=self.channel,
+            growth=self._year_on_year(trailing),
+            recent=self._year_on_year(recent),
+            plan_growth=plan_growth,
+        )
+
     def chronic_for(self, budget) -> Optional[Chronic]:
         """A mis-set plan, or None.
 
@@ -205,6 +269,104 @@ class Track:
         if high - low > CHRONIC_SPREAD or low < CHRONIC_FLOOR:
             return None
         return Chronic(months=len(run), low=low, high=high, mean=sum(run) / len(run))
+
+
+class Trajectory:
+    """What the sales record says, and what the plan asks of it.
+
+    This is the reading that does not need a long plan. Whether a plan is mis-set, and
+    whether the business is speeding up or slowing down, are both answered by the sales
+    history — which is trusted and reaches back two years — measured against a plan that
+    need only cover the months ahead.
+
+    Every comparison here is year on year, month against the same month twelve earlier, so
+    the season cancels out. A December compared with a November says nothing.
+    """
+
+    __slots__ = ("market", "channel", "growth", "recent", "plan_growth")
+
+    def __init__(self, market: str, channel: str, growth: Optional[float],
+                 recent: Optional[float], plan_growth: Optional[float]) -> None:
+        self.market = market
+        self.channel = channel
+        #: The last twelve months against the twelve before them.
+        self.growth = growth
+        #: The last three months against the same three a year earlier.
+        self.recent = recent
+        #: What the plan asks for, against the same months one year earlier.
+        self.plan_growth = plan_growth
+
+    @property
+    def momentum(self) -> Optional[float]:
+        """Recent growth minus trailing growth. Positive is speeding up."""
+        if self.growth is None or self.recent is None:
+            return None
+        return self.recent - self.growth
+
+    @property
+    def stretch(self) -> Optional[float]:
+        """How much more growth the plan asks for than the record has been delivering."""
+        if self.growth is None or self.plan_growth is None:
+            return None
+        return self.plan_growth - self.growth
+
+    @property
+    def is_ahead_of_record(self) -> bool:
+        """The plan assumes a break with the trend rather than a continuation of it."""
+        return self.stretch is not None and self.stretch > STRETCH_THRESHOLD
+
+    @property
+    def is_behind_record(self) -> bool:
+        """The plan asks for less than the business is already delivering."""
+        return self.stretch is not None and self.stretch < -STRETCH_THRESHOLD
+
+    @property
+    def direction(self) -> str:
+        """`accelerating`, `slowing`, `steady`, or empty when it cannot be read."""
+        moved = self.momentum
+        if moved is None:
+            return ""
+        if moved > MOMENTUM_THRESHOLD:
+            return "accelerating"
+        if moved < -MOMENTUM_THRESHOLD:
+            return "slowing"
+        return "steady"
+
+    @property
+    def sentence(self) -> str:
+        """The finding in one line, or empty when the plan and the record agree.
+
+        Deliberately silent on a plan that merely continues the trend: that is most of
+        them, and a line printed for every market is a line read for none.
+        """
+        if not (self.is_ahead_of_record or self.is_behind_record):
+            return ""
+        turning = {
+            "accelerating": " The business is speeding up, which argues for the plan.",
+            "slowing": " The business is slowing down, which argues against it.",
+            "steady": " The trend is steady, so nothing in the record supports the change.",
+        }.get(self.direction, "")
+        if self.is_ahead_of_record:
+            return (
+                "The plan asks for %s where the last twelve months delivered %s — %s of "
+                "growth this business has not shown.%s"
+                % (_pct(self.plan_growth), _pct(self.growth),
+                   _points(self.stretch), turning)
+            )
+        return (
+            "The plan asks for %s where the last twelve months delivered %s — %s less "
+            "than the business is already doing.%s"
+            % (_pct(self.plan_growth), _pct(self.growth),
+               _points(-self.stretch), turning)
+        )
+
+
+def _pct(value: Optional[float]) -> str:
+    return "n/a" if value is None else "%+.0f%%" % (100.0 * value)
+
+
+def _points(value: float) -> str:
+    return "%.0f points" % (100.0 * abs(value))
 
 
 class Ytd:
@@ -393,6 +555,25 @@ class History:
             zero_goal_lines=zero_goal_lines,
             plan_source="the planning workbook",
         )
+
+
+def _shift(period: str, months: int) -> str:
+    """'2026-07' shifted by whole months. The only date arithmetic here."""
+    try:
+        year, month = (int(part) for part in period.split("-"))
+    except ValueError:
+        return ""
+    total = year * 12 + (month - 1) + months
+    return "%04d-%02d" % (total // 12, total % 12 + 1)
+
+
+def _plan_periods(budget, market: str, channel: str) -> List[str]:
+    """Every month the workbook commits to for this market and channel, in order."""
+    return sorted({
+        line.period
+        for line in budget.lines
+        if line.market == market and line.channel == channel and line.budget
+    })
 
 
 def _month_start(period: str):

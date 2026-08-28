@@ -341,16 +341,17 @@ def _history_for(history, market, channel, budget):
     months of a number nobody stands behind.
     """
     if history is None or budget is None:
-        return 0, (), ""
+        return 0, (), "", ""
     track = history.track_for(market, channel)
     if track is None:
-        return 0, (), ""
+        return 0, (), "", ""
 
     chronic = track.chronic_for(budget)
     return (
         track.months_below_for(budget),
         track.gap_history_for(budget),
         chronic.sentence if chronic is not None else "",
+        track.trajectory(budget).sentence,
     )
 
 
@@ -436,7 +437,7 @@ def units_from_rows(
                 "cannot be attributed to a driver."
             )
 
-        months_below, gap_history, chronic = _history_for(
+        months_below, gap_history, chronic, vs_record = _history_for(
             history, market, channel, budget
         )
 
@@ -472,6 +473,7 @@ def units_from_rows(
                 months_below_budget=months_below,
                 gap_history=gap_history,
                 chronic_plan=chronic,
+                plan_vs_record=vs_record,
             )
         )
 

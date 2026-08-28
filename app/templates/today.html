@@ -141,6 +141,13 @@
             <span class="fire-gap-sub">vs plan</span></span>
         </div>
 
+        {% if fire.plan_vs_record %}
+          {# Above the diagnosis, like the chronic verdict and for the same reason: it
+             changes what the diagnosis is about. A market whose plan asks for growth its
+             record has never shown will miss every month of the year, and a driver table
+             read first sends the reader hunting for what went wrong in July. #}
+          <p class="estimate-note is-warning">{{ fire.plan_vs_record }}</p>
+        {% endif %}
         {% if fire.chronic_plan %}
           {# Placed above the diagnosis rather than below it, because it changes what the
              diagnosis is about. Read afterwards, the driver table has already sent the

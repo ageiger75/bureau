@@ -140,6 +140,14 @@ def units() -> List[BusinessUnit]:
             forecast_sales=9_100_000,
             months_below_budget=2,
             gap_history=(-450_000, -700_000),
+            # A plan asking for growth the record has never shown. Kept on a unit with no
+            # action focus of its own, so the demonstration screen carries both kinds of
+            # question — one about where the plan aims, one about whether it was reachable.
+            plan_vs_record=(
+                "The plan asks for +18% where the last twelve months delivered +2% — 16 "
+                "points of growth this business has not shown. The business is slowing "
+                "down, which argues against it."
+            ),
             no_breakdown_reason=NO_COUNTER_REASON,
         ),
         # -- China: the traffic problem (brief §24). Conversion is steady; the sessions

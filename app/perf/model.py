@@ -225,6 +225,7 @@ class BusinessUnit:
         "context_notes",
         "perimeter",
         "chronic_plan",
+        "plan_vs_record",
     )
 
     def __init__(
@@ -256,6 +257,7 @@ class BusinessUnit:
         context_notes=(),
         perimeter: str = "",
         chronic_plan: str = "",
+        plan_vs_record: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -317,6 +319,12 @@ class BusinessUnit:
         #: and the two need different conversations: one is about the plan, the other is
         #: about the month. Blank unless the history earns it.
         self.chronic_plan = chronic_plan
+        #: What the plan asks of this business against what its sales record has been
+        #: doing. Answerable today, where `chronic_plan` needs a year of plan that does
+        #: not exist yet: the record is two years deep and trusted, and a plan asking for
+        #: growth a market has never shown is a plan someone will be asked to explain in
+        #: October. Blank when the plan merely continues the trend, which is most of them.
+        self.plan_vs_record = plan_vs_record
 
     # ------------------------------------------------------------------ sales
 

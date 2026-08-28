@@ -408,3 +408,16 @@ def test_the_year_to_date_says_what_it_could_not_compare(client):
     assert "no sales recorded against it" in page
     # And what the history does not cover at all, said in the same breath as the figure.
     assert "Sell-out only" in page
+
+
+def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
+    """Two kinds of question about a plan, and both belong on the screen. One asks where
+    the plan aims; this one asks whether it was ever reachable. It is answerable today
+    where the twelve-month verdict is not: the sales record is two years deep and
+    trusted, while the workbook covers the current year only."""
+    page = page_text(client.get("/"))
+
+    assert "growth this business has not shown" in page
+    assert "Was this plan ever reachable" in page
+    # And the other one is still there. Neither hides the other.
+    assert "Why is the plan focused on sessions" in page

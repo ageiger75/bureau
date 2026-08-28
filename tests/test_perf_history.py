@@ -406,3 +406,128 @@ def test_no_history_costs_the_units_nothing_but_the_history():
     assert mapped.units[0].months_below_budget == 0
     assert mapped.units[0].gap_history == ()
     assert mapped.units[0].chronic_plan == ""
+
+
+# ------------------------------------------- the record answers what the plan cannot
+
+
+def _record(monthly, start=(2024, 8), count=24, market="Japan", channel="E-COMMERCE"):
+    """`count` months of actuals, `monthly(index)` euros each."""
+    return months(count, start=start, actual=monthly, market=market, channel=channel)
+
+
+def test_a_plan_asking_for_growth_the_record_has_never_shown():
+    """The reading that works today. Whether a plan is mis-set is answered by the sales
+    history — trusted and two years deep — against a plan that need only cover the months
+    ahead. Waiting for a year of plan to accumulate would answer in March 2027 a question
+    that is on the table now."""
+    # Flat for two years, then a plan asking for a quarter more.
+    rows = _record(lambda i: 1000.0)
+    built = history.from_rows(rows)
+    ahead = plan(*[("%s" % _later(rows[-1]["period"], n), 1250.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
+
+    assert moved.growth == 0.0
+    assert moved.plan_growth == 0.25
+    assert moved.stretch == 0.25
+    assert moved.is_ahead_of_record
+    assert "growth this business has not shown" in moved.sentence
+
+
+def test_a_plan_that_merely_continues_the_trend_says_nothing():
+    """Most plans do, and a line printed for every market is a line read for none."""
+    rows = _record(lambda i: 1000.0)
+    built = history.from_rows(rows)
+    steady = plan(*[("%s" % _later(rows[-1]["period"], n), 1020.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(steady)
+
+    assert not moved.is_ahead_of_record and not moved.is_behind_record
+    assert moved.sentence == ""
+
+
+def test_a_plan_below_what_the_business_already_delivers():
+    rows = _record(lambda i: 1000.0 + i * 40)
+    built = history.from_rows(rows)
+    timid = plan(*[("%s" % _later(rows[-1]["period"], n), 1000.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
+
+    assert moved.is_behind_record
+    assert "less than the business is already doing" in moved.sentence
+
+
+def test_the_record_says_whether_the_business_is_speeding_up():
+    """Three months against the same three a year earlier, compared with twelve against
+    twelve. Both year on year, so the season cancels — a December read against a November
+    says nothing."""
+    # Flat for a year, then rising hard in the last quarter.
+    def shape(i):
+        return 1000.0 if i < 21 else 1600.0
+
+    built = history.from_rows(_record(shape))
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(None)
+
+    assert moved.direction == "accelerating"
+    assert moved.momentum > 0
+
+
+def test_a_shrinking_business_asked_to_grow_is_the_sharpest_case():
+    """Slowing down and planned to accelerate. The record contradicts the plan twice, and
+    the sentence has to say so — otherwise the market is asked in October why it missed a
+    number nobody should have signed."""
+    # A decline that is itself worsening. A single step down followed by a plateau is
+    # not slowing — it is steady at a lower level, and the code is right to say so.
+    def shape(i):
+        if i < 12:
+            return 1000.0
+        return 950.0 if i < 21 else 800.0
+
+    rows = _record(shape)
+    built = history.from_rows(rows)
+    ahead = plan(*[("%s" % _later(rows[-1]["period"], n), 1200.0) for n in range(1, 5)])
+
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(ahead)
+
+    assert moved.growth < 0
+    assert moved.is_ahead_of_record
+    assert "argues against it" in moved.sentence
+
+
+def test_growth_is_absent_rather_than_guessed_on_a_short_history():
+    """A market that started nine months ago has no year to compare with. Dividing by the
+    months that exist would call a launch a growth rate."""
+    built = history.from_rows(_record(lambda i: 1000.0, count=9))
+    moved = built.track_for("Japan", ECOMMERCE).trajectory(None)
+
+    assert moved.growth is None
+    assert moved.direction == ""
+    assert moved.sentence == ""
+
+
+def _later(period, months_ahead):
+    from app.perf.history import _shift
+
+    return _shift(period, months_ahead)
+
+
+def test_the_record_reaches_the_units_and_the_question():
+    """The half that works today. `chronic_plan` needs a year of plan the workbook does
+    not yet cover; this needs a year of sales, which exists and is trusted."""
+    rows = _record(lambda i: 1000.0)
+    workbook = plan(*[(_later(rows[-1]["period"], n), 1300.0) for n in range(1, 5)])
+    mapped = mapping.units_from_rows(
+        [{"market": "Japan", "channel": "E-COMMERCE", "period": "2026-07",
+          "sales_actual": 700.0}],
+        budget=workbook,
+        history=history.from_rows(rows),
+    )
+
+    unit = mapped.units[0]
+    assert "growth this business has not shown" in unit.plan_vs_record
+    assert unit.chronic_plan == ""
+
+    fire = analytics.Fire(unit)
+    assert "Was this plan ever reachable" in fire.question
+    assert fire.plan_vs_record == unit.plan_vs_record
