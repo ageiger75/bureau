@@ -213,7 +213,12 @@ def test_near_complete_coverage_names_the_gap_not_the_contents():
 
     note = _perimeter_note(plan, [_Unit("retail"), _Unit("dis")])
 
-    assert note.startswith("Every channel except B2B")
+    # Named for what it is rather than by its planning code: "B2B" is a spreadsheet
+    # heading, "hospitality" is the business — hotels, 39 M€ of the group plan, and the
+    # one channel no source here reads.
+    assert note.startswith("Every channel except hospitality and B2B")
+    # The shape is the finding: what is missing, not a roll-call of what is present.
+    assert "retail" not in note and "distributors" not in note
     assert "97%" in note
     assert "dis" not in note
 

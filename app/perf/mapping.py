@@ -190,7 +190,7 @@ CHANNEL_NAMES = {
     "whoin": "Independent Wholesale",
     "whosp": "Spa Wholesale",
     "tvc": "TV Channels",
-    "b2b": "B2B",
+    "b2b": "Hospitality & B2B",
     "copg": "Corporate Gifts",
     "dds": "Direct Selling",
     "spa": "Spa",

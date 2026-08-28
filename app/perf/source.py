@@ -181,7 +181,7 @@ CHANNEL_WORDS = {
     "whoin": "independent wholesale",
     "whosp": "spa wholesale",
     "tvc": "TV channels",
-    "b2b": "B2B",
+    "b2b": "hospitality and B2B",
     "copg": "corporate gifts",
 }
 
@@ -201,7 +201,7 @@ LEFT_OUT_WORDS = (
     ("WHOIN", "wholesale"),
     ("WHOSP", "wholesale"),
     ("TVC", "TV channels"),
-    ("B2B", "B2B"),
+    ("B2B", "hospitality and B2B"),
     ("COPG", "corporate gifts"),
     ("DDS", "direct selling"),
 )

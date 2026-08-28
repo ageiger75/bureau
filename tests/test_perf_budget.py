@@ -1131,3 +1131,19 @@ def test_a_single_entity_figure_is_not_labelled_as_shared(tmp_path, capsys, monk
     out = capsys.readouterr().out
     assert "dont 1 d'accord" in out
     assert "+1" not in out
+
+
+def test_hospitality_is_a_third_block_not_a_corner_of_sell_in():
+    """The group budget closes on three blocks — sell-out, sell-in, and this. A hotel does
+    not resell: it puts the product in the room. Recognition follows the invoice as it does
+    for sell-in, but no partner carries a margin downstream, so the questions differ — room
+    counts and contract renewals, not sell-through and stock cover. Folded into sell-in it
+    would be asked the wrong question; left in `other` it is not asked at all."""
+    from app.perf.budget import perimeter_of
+
+    assert perimeter_of("B2B - Hospitality") == "b2b"
+    assert perimeter_of("COPG - Corporate Gifts") == "b2b"
+    assert perimeter_of("DIS - Distributors") == "sell-in"
+    assert perimeter_of("RET - Retail") == "own"
+    # QVC is genuinely sell-in and already covered: a TV channel buys to resell.
+    assert perimeter_of("TVC - TV Channels") == "sell-in"

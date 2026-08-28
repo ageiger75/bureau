@@ -93,6 +93,14 @@ SELL_IN_SEGMENTS = frozenset(
     ("WEBP", "TRA", "DIS", "DPT", "WHOCH", "WHOIN", "TVC", "WHOSP")
 )
 
+#: Sold to a business that does not resell it: hotels put the product in the room, a
+#: company gives it away. A third block, not a corner of sell-in — the plan itself reads
+#: the business that way, and the group budget closes on the three: sell-out, sell-in,
+#: and this. Recognition follows the invoice, as with sell-in, but nothing downstream is
+#: a resale and no partner has a margin on it, so the questions differ: room counts and
+#: contract renewals rather than sell-through and stock cover.
+B2B_SEGMENTS = frozenset(("B2B", "COPG"))
+
 #: Segments whose model the code cannot read off the segment name, and which nobody has
 #: settled yet. Empty today: marketplaces were confirmed as stores the Maison operates,
 #: and Web Partners as e-retailers who buy to resell.
@@ -107,8 +115,8 @@ SELL_OUT_SEGMENTS = OWN_SEGMENTS | PLATFORM_SEGMENTS
 
 
 def perimeter_of(segment: str) -> str:
-    """`own`, `platform`, `sell-in`, or `other`. Never a guess: unlisted codes fall to
-    `other` rather than being placed by resemblance."""
+    """`own`, `platform`, `sell-in`, `b2b`, or `other`. Never a guess: unlisted codes fall
+    to `other` rather than being placed by resemblance."""
     code = segment_code(segment)
     if code in OWN_SEGMENTS:
         return "own"
@@ -116,6 +124,8 @@ def perimeter_of(segment: str) -> str:
         return "platform"
     if code in SELL_IN_SEGMENTS:
         return "sell-in"
+    if code in B2B_SEGMENTS:
+        return "b2b"
     return "other"
 
 
