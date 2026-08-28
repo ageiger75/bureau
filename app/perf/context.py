@@ -158,6 +158,9 @@ EMPTY = Context()
 
 _loaded: Optional[Context] = None
 
+#: The timestamp the notes were read at, so a file that changed is noticed.
+_stamp: Optional[float] = None
+
 
 def load(path) -> Context:
     """Read the context file: market, channel, since, kind, note, source.
@@ -197,24 +200,56 @@ def load(path) -> Context:
     return Context(notes)
 
 
-def current() -> Context:
-    global _loaded
-    if _loaded is None:
-        from ..config import settings
+def _stamp_of(path) -> float:
+    """When the file last changed, or 0.0 if there is no file."""
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
 
-        path = settings.context_path
+
+def current() -> Context:
+    """The notes as they are on disk right now.
+
+    Re-read when the file changes, and not only once per process. Notes are written from a
+    terminal while the server is running — that is the whole point of a command rather than
+    a file to edit — so a context loaded once and kept would mean writing a note, reloading
+    the screen, and seeing nothing. The natural conclusion is that notes do not work.
+
+    The check is a `stat` per call, which costs nothing next to reading the file, and the
+    file is read again only when its timestamp has actually moved.
+    """
+    global _loaded, _stamp
+    from ..config import settings
+
+    path = settings.context_path
+    stamp = _stamp_of(path)
+    if _loaded is None or stamp != _stamp:
         try:
             _loaded = load(path) if path.exists() else EMPTY
         except Exception:  # noqa: BLE001
             # A malformed context file must not take the cockpit down. The screen simply
             # loses its explanations, which it already knows how to do without.
             _loaded = EMPTY
+        _stamp = stamp
     return _loaded
 
 
+def generation() -> float:
+    """A value that changes whenever the notes do.
+
+    Anything holding units built with these notes baked in can compare it and know to
+    rebuild. Without it the notes would be current and the screen would still be showing
+    the units it assembled before they changed.
+    """
+    current()
+    return _stamp
+
+
 def reset() -> None:
-    global _loaded
+    global _loaded, _stamp
     _loaded = None
+    _stamp = None
 
 
 def notes_for(market: str, channel: str, period: str) -> List[Note]:

@@ -54,9 +54,14 @@ HISTORY_CACHE_FILE = "warehouse-history.json"
 #: that can actually mislead anyone.
 HISTORY_CACHE_SECONDS = 24 * 3600
 
-#: (dataset, read at, conflicts, unnamed markets, perimeter note). Module level rather
-#: than on the instance: `current_source()` builds a new source per request, and a cache
-#: that dies with the request is not a cache.
+#: (dataset, read at, conflicts, unnamed markets, perimeter note, context generation).
+#: Module level rather than on the instance: `current_source()` builds a new source per
+#: request, and a cache that dies with the request is not a cache.
+#:
+#: The context generation is in the key because the notes are baked into the units when
+#: they are built. Notes are written from a terminal against a running server, so without
+#: it the file would be current, the units would not, and writing a note would appear to
+#: do nothing.
 _cached = None
 
 
@@ -410,9 +415,14 @@ class SnowflakeSource:
     def dataset(self, refresh: bool = False) -> Dataset:
         global _cached
 
+        from . import context as context_module
+
         if not refresh and _cached is not None:
-            dataset, stored_at, conflicts, unnamed, note = _cached
-            if time.time() - stored_at < CACHE_SECONDS:
+            dataset, stored_at, conflicts, unnamed, note, generation = _cached
+            if (
+                time.time() - stored_at < CACHE_SECONDS
+                and generation == context_module.generation()
+            ):
                 self.conflicts = conflicts
                 self.markets_without_owner = unnamed
                 self.perimeter_note = note
@@ -480,6 +490,7 @@ class SnowflakeSource:
             self.conflicts,
             self.markets_without_owner,
             self.perimeter_note,
+            context_module.generation(),
         )
         return built
 

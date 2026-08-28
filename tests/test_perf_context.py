@@ -727,3 +727,52 @@ def test_the_note_is_carried_to_the_check():
     # printing it twice would read as two independent findings.
     assert len(check.notes) == 1
     assert check.notes[0].kind == context.RECLASSIFIED
+
+
+# ------------------------------------------------- a note written against a running server
+
+
+def test_a_note_written_while_the_server_runs_is_picked_up(notes_at):
+    """Notes are written from a terminal against a server that is already running — that
+    is the entire reason the command exists instead of a file to edit. Loaded once per
+    process, the screen would keep showing the units it built before the note, and the
+    only available conclusion would be that notes do not work.
+    """
+    from app.cli import cmd_note
+
+    assert len(context.current()) == 0
+
+    cmd_note(["Brazil", "Sales tax changed."])
+    context.reset()  # the writing process is not the reading one
+    first = context.generation()
+
+    assert len(context.current()) == 1
+
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off"])
+
+    assert len(context.current()) == 2
+    assert context.generation() != first
+
+
+def test_the_units_are_rebuilt_when_the_notes_change(monkeypatch, notes_at):
+    """The notes are baked into the units when they are built, so a fresh context is not
+    enough on its own: the cached screen would be current about the file and stale about
+    everything made from it."""
+    from app.cli import cmd_note
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+    from tests.test_perf_warehouse import _budget_for, _sales_row
+
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label='': [_sales_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    before = SnowflakeSource().dataset()
+    assert before.units[0].context_notes == []
+
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off", "--since", "2026-01"])
+
+    after = SnowflakeSource().dataset()
+
+    assert [n.text for n in after.units[0].context_notes] == ["A flagship closed."]
+    source_module.cache_clear()
