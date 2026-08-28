@@ -297,6 +297,8 @@ def dataset() -> Dataset:
             unbudgeted_lines=14,
             unsold_lines=6,
             months=4,
+            zero_goal_actual=780_000.0,
+            zero_goal_lines=5,
         ),
     )
 

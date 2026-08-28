@@ -76,7 +76,23 @@ class Month:
 
     @property
     def is_paired(self) -> bool:
-        return self.actual is not None and self.budget is not None
+        """Both sides present, and the plan side is an actual plan.
+
+        A goal of exactly zero is excluded, and that is not a rounding decision. The goals
+        fact carries explicit zeros — whole channels sit at 0 for months on end. Paired
+        with real sales, a zero goal reads as "beat the plan by everything we sold", which
+        is the single most flattering sentence this cockpit could produce and the least
+        true. Nobody committed to nothing; nobody committed at all.
+
+        Zero against zero is left out too: it is not a plan met, it is a channel that is
+        not trading, and counting it would put a row nobody looks at into a total.
+        """
+        return self.actual is not None and self.budget is not None and self.budget != 0
+
+    @property
+    def is_zero_goal(self) -> bool:
+        """Real sales against a goal of exactly zero — an absent plan written as a number."""
+        return self.budget == 0 and bool(self.actual)
 
     @property
     def gap(self) -> Optional[float]:
@@ -207,8 +223,10 @@ class Ytd:
         "budget",
         "unbudgeted_actual",
         "unsold_budget",
+        "zero_goal_actual",
         "unbudgeted_lines",
         "unsold_lines",
+        "zero_goal_lines",
         "months",
     )
 
@@ -224,6 +242,8 @@ class Ytd:
         unbudgeted_lines: int,
         unsold_lines: int,
         months: int,
+        zero_goal_actual: float = 0.0,
+        zero_goal_lines: int = 0,
     ) -> None:
         self.label = label
         self.first_period = first_period
@@ -235,6 +255,11 @@ class Ytd:
         self.unbudgeted_lines = unbudgeted_lines
         self.unsold_lines = unsold_lines
         self.months = months
+        #: Sold against a goal of exactly zero. Kept apart from the plainly unbudgeted
+        #: because the two need different conversations: one is a target nobody set, the
+        #: other is a target someone set to nothing.
+        self.zero_goal_actual = zero_goal_actual
+        self.zero_goal_lines = zero_goal_lines
 
     @property
     def gap(self) -> float:
@@ -253,8 +278,21 @@ class Ytd:
         return self.gap / self.budget
 
     @property
+    def outside(self) -> float:
+        """Everything sold that no plan covers, however the absence is written."""
+        return self.unbudgeted_actual + self.zero_goal_actual
+
+    @property
+    def covered(self) -> Optional[float]:
+        """Share of measured sales that a real plan actually covers."""
+        total = self.actual + self.outside
+        if total <= 0:
+            return None
+        return self.actual / total
+
+    @property
     def has_unmatched(self) -> bool:
-        return bool(self.unbudgeted_actual or self.unsold_budget)
+        return bool(self.unbudgeted_actual or self.unsold_budget or self.zero_goal_actual)
 
 
 class History:
@@ -290,8 +328,8 @@ class History:
         if not first:
             return None
 
-        actual = budget = unbudgeted = unsold = 0.0
-        unbudgeted_lines = unsold_lines = 0
+        actual = budget = unbudgeted = unsold = zero_goal = 0.0
+        unbudgeted_lines = unsold_lines = zero_goal_lines = 0
         periods = set()
 
         for track in self.tracks.values():
@@ -302,10 +340,13 @@ class History:
                 if month.is_paired:
                     actual += month.actual
                     budget += month.budget
-                elif month.actual is not None:
+                elif month.is_zero_goal:
+                    zero_goal += month.actual
+                    zero_goal_lines += 1
+                elif month.budget is None and month.actual is not None:
                     unbudgeted += month.actual
                     unbudgeted_lines += 1
-                elif month.budget is not None:
+                elif month.actual is None and month.budget:
                     unsold += month.budget
                     unsold_lines += 1
 
@@ -322,6 +363,8 @@ class History:
             unbudgeted_lines=unbudgeted_lines,
             unsold_lines=unsold_lines,
             months=len(periods),
+            zero_goal_actual=zero_goal,
+            zero_goal_lines=zero_goal_lines,
         )
 
 

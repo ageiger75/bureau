@@ -129,8 +129,9 @@ REGISTER: Dict[str, Measure] = {
         "disagree carries no verdict. And it is sell-out only: sell-in has no history "
         "query yet, so the year to date here covers the channels the warehouse measures "
         "and not the ones invoiced to partners.",
-        to_confirm="Whether the goals fact is maintained to the same standard as the "
-        "planning workbook, market by market.",
+        to_confirm="Which markets and channels the goals fact is actually maintained "
+        "for. It is not a plan of record: whole markets carry none, and some carry a "
+        "goal of exactly zero against real sales.",
     ),
     "commitments": Measure(
         key="commitments",

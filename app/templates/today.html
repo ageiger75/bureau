@@ -75,16 +75,30 @@
       </ul>
       {% if dataset.ytd.has_unmatched %}
         {# The reason this figure is trustworthy is the reason it looks smaller than the
-           warehouse total. Saying so here is not a disclaimer; it is the finding. #}
+           warehouse total. Saying so here is not a disclaimer; it is the finding — and
+           the share comes first, because a total with no denominator cannot be judged. #}
         <p class="cockpit-caveat">
-          Months where one side is missing are left out of both totals rather than summed
-          against nothing.
+          {% if dataset.ytd.covered %}
+            A plan covers {{ (dataset.ytd.covered * 100) | round | int }}% of what was
+            sold over this period. The rest is left out of both totals rather than summed
+            against nothing:
+          {% else %}
+            Months where one side is missing are left out of both totals rather than
+            summed against nothing.
+          {% endif %}
           {% if dataset.ytd.unbudgeted_actual %}
-            {{ dataset.ytd.unbudgeted_actual | eur }} was sold across
-            {{ dataset.ytd.unbudgeted_lines }} market-months carrying no plan.
+            {{ dataset.ytd.unbudgeted_actual | eur }} sold across
+            {{ dataset.ytd.unbudgeted_lines }} market-months carrying no plan at all.
+          {% endif %}
+          {% if dataset.ytd.zero_goal_actual %}
+            {# A different conversation from the line above: a target nobody set, versus
+               a target someone set to nothing. Folded into the total, the second would
+               read as beating the plan by everything sold. #}
+            {{ dataset.ytd.zero_goal_actual | eur }} sold across
+            {{ dataset.ytd.zero_goal_lines }} market-months whose plan is exactly zero.
           {% endif %}
           {% if dataset.ytd.unsold_budget %}
-            {{ dataset.ytd.unsold_budget | eur }} was planned across
+            {{ dataset.ytd.unsold_budget | eur }} planned across
             {{ dataset.ytd.unsold_lines }} market-months with no sales recorded against it.
           {% endif %}
         </p>

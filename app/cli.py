@@ -812,28 +812,84 @@ def _print_one_market(built, market: str) -> int:
 
 
 def _print_unmatched(built) -> int:
-    """Ce qui n'a pas de vis-à-vis, marché par marché, du plus gros au plus petit."""
-    without_plan: Dict[str, float] = {}
+    """Ce que le plan ne couvre pas — avec, cette fois, un dénominateur.
+
+    Un total seul ne dit rien. « 245 M€ de vente chinoise sans objectif » se lit tout
+    autrement selon que le marché a des objectifs onze mois sur vingt-quatre ou aucun :
+    dans un cas quelqu'un a oublié des mois, dans l'autre le fait `goals` ne couvre pas ce
+    marché du tout. La commande imprime donc, pour chaque couple, la part de son chiffre
+    qui n'a pas de cible et le nombre de mois concernés.
+    """
+    rows = []
+    total_actual = paired = unbudgeted = zero_goal = 0.0
     without_sales: Dict[str, float] = {}
+
     for track in built.tracks.values():
         name = "%s %s" % (track.market, track.channel)
+        sold = missing = zeroed = 0.0
+        months_sold = months_missing = 0
         for month in track.months:
-            if month.actual is not None and month.budget is None:
-                without_plan[name] = without_plan.get(name, 0.0) + month.actual
-            elif month.budget is not None and month.actual is None:
+            if month.actual is not None:
+                sold += month.actual
+                months_sold += 1
+            if month.is_paired:
+                paired += month.actual
+            elif month.is_zero_goal:
+                zeroed += month.actual
+                months_missing += 1
+            elif month.budget is None and month.actual is not None:
+                missing += month.actual
+                months_missing += 1
+            elif month.actual is None and month.budget:
                 without_sales[name] = without_sales.get(name, 0.0) + month.budget
+        total_actual += sold
+        unbudgeted += missing
+        zero_goal += zeroed
+        if missing or zeroed:
+            rows.append((name, missing + zeroed, zeroed, months_missing, months_sold, sold))
 
-    for title, found in (("Vendu sans budget en face", without_plan),
-                         ("Budgété sans vente en face", without_sales)):
-        print("")
-        print("%s :" % title)
-        if not found:
-            print("  rien.")
-            continue
-        for name, amount in sorted(found.items(), key=lambda p: -p[1])[:20]:
-            print("  %-38s %15s" % (name, _eur(amount)))
-        print("  %-38s %15s" % ("total", _eur(sum(found.values()))))
+    outside = unbudgeted + zero_goal
+    print("")
+    print("Couverture du fait `goals` sur %d mois :" % len(built.periods))
+    print("  vendu au total          %15s" % _eur(total_actual))
+    print("  dont couvert par un objectif %10s   %s" % (
+        _eur(paired), _share(paired, total_actual)))
+    print("  dont aucune ligne d'objectif %10s   %s" % (
+        _eur(unbudgeted), _share(unbudgeted, total_actual)))
+    # Séparé, parce que ce sont deux conversations : une cible que personne n'a saisie,
+    # et une cible que quelqu'un a mise à zéro. La seconde se lit sinon comme un exploit.
+    print("  dont objectif à zéro         %10s   %s" % (
+        _eur(zero_goal), _share(zero_goal, total_actual)))
+
+    print("")
+    print("Vendu sans objectif, du plus gros au plus petit :")
+    if not rows:
+        print("  rien.")
+    for name, amount, zeroed, missing_months, sold_months, sold in sorted(
+        rows, key=lambda r: -r[1]
+    )[:25]:
+        note = "  dont %s à objectif zéro" % _eur(zeroed) if zeroed else ""
+        print("  %-34s %14s  %5s de son chiffre  %2d/%2d mois%s"
+              % (name, _eur(amount), _share(amount, sold),
+                 missing_months, sold_months, note))
+    print("  %-34s %14s" % ("total", _eur(outside)))
+
+    print("")
+    print("Budgété sans vente en face :")
+    if not without_sales:
+        print("  rien.")
+    for name, amount in sorted(without_sales.items(), key=lambda p: -p[1])[:20]:
+        print("  %-34s %14s" % (name, _eur(amount)))
+    if without_sales:
+        print("  %-34s %14s" % ("total", _eur(sum(without_sales.values()))))
     return 0
+
+
+def _share(part: float, whole: float) -> str:
+    """Un pourcentage, ou un tiret quand il n'y a rien à diviser."""
+    if not whole:
+        return "—"
+    return "%.0f %%" % (100.0 * part / whole)
 
 
 def cmd_budget(argv: List[str]) -> int:

@@ -304,3 +304,63 @@ def test_the_year_to_date_percentage_is_a_fraction():
 
     assert ytd.pct == -0.1
     assert analytics.format_pct(ytd.pct) == "-10.0%"
+
+
+# ------------------------------------------------------- a plan of zero is not a plan
+
+
+def test_a_goal_of_zero_is_not_a_plan_that_was_beaten():
+    """The goals fact carries explicit zeros. Paired with real sales, a zero goal reads
+    as "beat the plan by everything we sold" — the most flattering sentence this cockpit
+    could produce and the least true. Nobody committed to nothing; nobody committed."""
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0, budget=0.0),
+        row(period="2026-05", actual=1_000_000.0, budget=1_200_000.0),
+    ])
+    ytd = built.ytd("2026-05")
+
+    assert ytd.actual == 1_000_000.0
+    assert ytd.budget == 1_200_000.0
+    assert ytd.gap == -200_000.0
+    # Named apart from a plainly missing line: a target nobody set and a target someone
+    # set to nothing need different conversations.
+    assert ytd.zero_goal_actual == 1_000_000.0
+    assert ytd.unbudgeted_actual == 0.0
+
+
+def test_a_zero_goal_does_not_enter_the_trend():
+    """It is not a month the business was above or below — there was nothing to be
+    above or below of."""
+    built = history.from_rows([
+        row(period="2026-04", actual=800.0, budget=1000.0),
+        row(period="2026-05", actual=900.0, budget=0.0),
+        row(period="2026-06", actual=700.0, budget=1000.0),
+    ])
+    track = built.track_for("Japan", ECOMMERCE)
+
+    assert track.gap_history == (-200.0, -300.0)
+    assert track.months_below_budget == 2
+
+
+def test_a_closed_channel_planned_at_zero_is_counted_nowhere():
+    """Zero planned, zero sold. Not a plan met and not a plan missing — a channel that
+    is not trading, and a row nobody should have to read."""
+    built = history.from_rows([row(period="2026-04", actual=0.0, budget=0.0)])
+    ytd = built.ytd("2026-04")
+
+    assert ytd.actual == 0.0
+    assert ytd.zero_goal_lines == 0
+    assert ytd.unbudgeted_lines == 0
+
+
+def test_the_year_to_date_says_what_share_of_sales_a_plan_covers():
+    """A total with no denominator cannot be judged. Half a business with no target is a
+    different screen from a rounding error, and the euros alone do not say which."""
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0, budget=1_000_000.0),
+        row(market="Korea", period="2026-04", actual=3_000_000.0, budget=None),
+    ])
+    ytd = built.ytd("2026-04")
+
+    assert ytd.outside == 3_000_000.0
+    assert ytd.covered == 0.25
