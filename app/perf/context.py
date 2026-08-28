@@ -266,6 +266,21 @@ def generation() -> float:
     return _stamp
 
 
+def install(notes: Sequence[Note]) -> None:
+    """Use these notes instead of the file, until `reset()`.
+
+    A seam for tests and nothing else, but a real one: setting `_loaded` by hand is not
+    enough, because `current()` compares the file's timestamp and would reload over the
+    top. Two pieces of state that must move together is exactly the kind of thing to put
+    behind one function rather than leave to whoever remembers both.
+    """
+    global _loaded, _stamp
+    from ..config import settings
+
+    _loaded = Context(notes)
+    _stamp = _stamp_of(settings.context_path)
+
+
 def reset() -> None:
     global _loaded, _stamp
     _loaded = None

@@ -360,6 +360,7 @@ def units_from_rows(
     budget: Optional[Budget] = None,
     period_label: str = "Sales MTD",
     history=None,
+    sell_in_record=None,
 ) -> Mapped:
     """Build business units from warehouse rows, taking budget from the file where it has one.
 
@@ -440,9 +441,16 @@ def units_from_rows(
         months_below, gap_history, chronic, vs_record = _history_for(
             history, market, channel, budget
         )
-        # A boundary someone has written down is not a plan to renegotiate. Without this,
-        # the American wholesale line reports its reclassification twice: once as the note
-        # that explains it, and once as a plan asking for growth nobody planned.
+        # Sell-in has no sell-out history to read, so its trajectory arrives already
+        # assembled from the two consolidation queries. Same finding, different source —
+        # and the sentence names its own basis, so the two cannot be confused.
+        if not vs_record and sell_in_record:
+            vs_record = sell_in_record.get((market, channel), "")
+        # A boundary someone has written down is not a plan to renegotiate. Last, so that
+        # it silences the finding whichever source produced it: written above the line
+        # that fills in sell-in, it cleared the sell-out verdict and let the sell-in one
+        # straight back through — the American wholesale line would have come back in by
+        # the other door after being shown out of the first.
         if any(note.kind in context_module.NOT_TRADING for note in
                context_module.notes_for(market, channel, period)):
             vs_record = ""

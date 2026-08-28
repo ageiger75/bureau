@@ -783,3 +783,57 @@ def test_a_figure_says_whether_it_counts_what_was_sold_or_what_was_shipped():
     assert unit("own").basis_note == ""
     assert "Shipped, not sold" in unit("sell-in").basis_note
     assert "not measured here" in unit("b2b").basis_note
+
+
+def test_a_sell_in_trajectory_reaches_the_unit_on_the_screen():
+    """The finding lived only in the terminal. Sell-in has no sell-out history to read, so
+    its trajectory arrives already assembled from the two consolidation queries — same
+    finding, different source, and the sentence names its own basis so the two cannot be
+    confused on one screen."""
+    # Through the same translation a real row takes: the consolidation labels a segment,
+    # and `sell_in_rows` is what turns it into the channel the plan and the screen speak.
+    rows = mapping.sell_in_rows([
+        {"market": "Japan", "region": "APAC", "segment": "DIS - Distributors",
+         "period": "2026-07", "sales_actual": 700_000.0}
+    ])
+    mapped = mapping.units_from_rows(
+        rows,
+        sell_in_record={("Japan", "dis"): "The plan asks for +40%, where the fiscal "
+                        "year to date ran at -5%."},
+    )
+
+    unit = mapped.units[0]
+    assert unit.perimeter == "sell-in"
+    assert unit.basis == "shipped"
+    assert "the fiscal year to date ran at -5%" in unit.plan_vs_record
+
+
+def test_a_note_still_silences_a_sell_in_trajectory():
+    """A boundary someone wrote down is not a plan to renegotiate, whichever perimeter it
+    lands on. Without this the American wholesale line would come back through the
+    sell-in door after being shown out of the sell-out one.
+
+    The context is installed directly rather than written through the command: a test that
+    posts a note has to post it somewhere, and the somewhere is a real file on whoever
+    runs it.
+    """
+    from app.perf import context
+
+    rows = mapping.sell_in_rows([
+        {"market": "Japan", "region": "APAC", "segment": "DIS - Distributors",
+         "period": "2026-07", "sales_actual": 700_000.0}
+    ])
+    said = {("Japan", "dis"): "A finding that should not be shown."}
+
+    assert mapping.units_from_rows(rows, sell_in_record=said).units[0].plan_vs_record
+
+    context.install([
+        context.Note(market="Japan", channel="dis", since="", kind=context.RECLASSIFIED,
+                     text="Filed on the other side.", source="test")
+    ])
+    try:
+        silent = mapping.units_from_rows(rows, sell_in_record=said).units[0]
+    finally:
+        context.reset()
+
+    assert silent.plan_vs_record == ""

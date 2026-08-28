@@ -49,6 +49,11 @@ CACHE_FILE = "warehouse-rows.json"
 #: years of history on every click would buy nothing and cost the whole wait back.
 HISTORY_CACHE_FILE = "warehouse-history.json"
 
+#: The closed fiscal year of sell-in, kept beside the sell-out history and for the same
+#: reason: it is a year that has finished and will not move again, while the query that
+#: reads it is not cheap.
+SELL_IN_HISTORY_CACHE_FILE = "warehouse-sell-in-history.json"
+
 #: A day. Bounded not by time but by the anchor: a cached history whose last month is not
 #: the month on screen is re-read whatever its age, because that is the only staleness
 #: that can actually mislead anyone.
@@ -77,7 +82,7 @@ def cache_clear() -> None:
 def cache_forget() -> None:
     """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
-    for name in (CACHE_FILE, HISTORY_CACHE_FILE):
+    for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -432,6 +437,42 @@ class SnowflakeSource:
         _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
         return history_module.from_rows(rows)
 
+    def _sell_in_record(self, queries, warehouse, sell_in_rows, budget):
+        """What the sell-in plan asks, against what partners have been buying.
+
+        Keyed by market and channel so the units can carry it. Nothing at all is a
+        survivable answer and the usual one until the closed year is readable: the screen
+        then shows sell-in with its month and without its trajectory, which is what it did
+        before this existed.
+        """
+        from . import history as history_module
+
+        if not queries.SELL_IN_HISTORY.strip() or not sell_in_rows:
+            return {}
+
+        stored = _read_disk_cache(SELL_IN_HISTORY_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+        if stored is not None:
+            closed = stored[0]
+        else:
+            try:
+                closed = warehouse.rows(
+                    queries.SELL_IN_HISTORY, label="SELL_IN_HISTORY"
+                )
+            except Exception as exc:  # noqa: BLE001 — one source failing is not all
+                LOG.info("warehouse: sell-in history unavailable (%s)", exc)
+                return {}
+            if closed:
+                _write_disk_cache(
+                    closed, time.time(), read_at(), SELL_IN_HISTORY_CACHE_FILE
+                )
+
+        moved = history_module.sell_in_trajectories(
+            closed, sell_in_rows, budget, history_module.explained_pairs()
+        )
+        return {
+            (m.market, m.channel): m.sentence for m in moved if m.sentence
+        }
+
     def dataset(self, refresh: bool = False) -> Dataset:
         global _cached
 
@@ -462,12 +503,13 @@ class SnowflakeSource:
             LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
         else:
             rows = warehouse.rows(queries.SALES_AND_DRIVERS, label="SALES_AND_DRIVERS")
+            sold_in = self._sell_in_rows(mapping, queries, warehouse)
             # Sell-in comes from a different source with a different cadence, so it is
             # read separately and its absence costs its own lines rather than the whole
             # screen. Read here and not after the cache branch: what gets written to
             # disk below is this concatenation, so appending again on a cache hit would
             # count every invoiced euro twice.
-            rows = rows + self._sell_in_rows(mapping, queries, warehouse)
+            rows = rows + sold_in
             stamp = time.time()
             read_at_text = read_at()
 
@@ -482,7 +524,15 @@ class SnowflakeSource:
         # month is caught and re-read rather than quietly ageing the trend by a month.
         history = self._history(queries, warehouse, period)
 
-        mapped = mapping.units_from_rows(rows, budget=budget, history=history)
+        # Sell-in rows survive the cache as part of the concatenation above, so they are
+        # recovered from it rather than re-read: a screen that grew its own revenue by
+        # being looked at twice is the worst failure available here.
+        sold_in = [row for row in rows if row.get("segment")]
+        sell_in_record = self._sell_in_record(queries, warehouse, sold_in, budget)
+
+        mapped = mapping.units_from_rows(
+            rows, budget=budget, history=history, sell_in_record=sell_in_record
+        )
         # Kept on the source, not on the dataset: they describe the plumbing, not the
         # business, and the screen shows them where it shows the caveat.
         self.conflicts = mapped.conflicts

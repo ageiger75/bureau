@@ -37,13 +37,14 @@ from app.models import User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
-def fresh_warehouse_cache():
+def fresh_warehouse_cache(monkeypatch):
     """No test inherits another's cached dataset.
 
     The cache is module-level by design — a per-request cache would never survive long
     enough to spare anyone the query — which means it outlives a test unless something
     clears it. Something does.
     """
+    from app.config import settings
     from app.perf import context, owners, source
 
     # Pointed at the test directory, not at the working `var/`: a test run must never
@@ -52,6 +53,19 @@ def fresh_warehouse_cache():
     # the real one would cost a two-year query the next time the screen was opened.
     source._cache_path = lambda name=source.CACHE_FILE: TEST_DIR / name
 
+    # The notes go the same way, and for a sharper reason than the cache. `cmd_note`
+    # appends to whatever `context_path` names — so a test that posts a note posts it
+    # into the notes a real screen is reading, on the machine of whoever runs the suite.
+    # This was not hypothetical: two notes reached the working `var/` before anyone
+    # noticed, and the suite then read them back and failed on them.
+    # `Settings` is frozen on purpose, so the derived property is what gets redirected
+    # rather than the field behind it. `monkeypatch` puts it back afterwards, which a
+    # hand-rolled override would have to remember to do.
+    monkeypatch.setattr(
+        type(settings), "context_path",
+        property(lambda self: TEST_DIR / "context.csv"),
+    )
+
     source.cache_forget()
     owners.reset()
     context.reset()
@@ -59,6 +73,10 @@ def fresh_warehouse_cache():
     source.cache_forget()
     owners.reset()
     context.reset()
+    try:
+        (TEST_DIR / "context.csv").unlink()
+    except OSError:
+        pass
 
 
 @pytest.fixture(autouse=True)

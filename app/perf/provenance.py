@@ -134,7 +134,7 @@ REGISTER: Dict[str, Measure] = {
         "fiscal year — rather than the two years the warehouse could supply. It is also "
         "sell-out only: sell-in has no history query yet, so the year to date covers the "
         "channels the warehouse measures and not the ones invoiced to partners.",
-        to_confirm="A second fiscal year of the monthly workbook. Until one exists, no "
+        to_confirm="Partner sell-through, and a second fiscal year of the monthly workbook. Until one exists, no "
         "twelve-month judgement can be made against a plan anyone stands behind.",
     ),
     "commitments": Measure(
