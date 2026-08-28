@@ -740,6 +740,7 @@ def cmd_kpi(argv: List[str]) -> int:
     apparié à la mauvaise ligne est noté contre la cible de quelqu'un d'autre et ressort
     comme une trouvaille. Ici, tout ce qui n'a pas été apparié est nommé.
     """
+    from .perf import kpi as kpi_rules
     from .perf import kpi_registry, tracker
     from .perf.xlsx import WorkbookError
 
@@ -834,6 +835,21 @@ def cmd_kpi(argv: List[str]) -> int:
     report = kpi_registry.join_report(registry, rows)
     print("")
     print("Relevés appariés    %d" % len(report.kpis))
+    # Le verdict, ligne par ligne. Sans cela, « six relevés appariés » ne dit ni lesquels
+    # ni contre quelle ligne du classeur : sept clés sur huit ont plusieurs prétendantes,
+    # et un arbitrage de périmètre qu'on ne peut pas relire est un arbitrage qu'on croit
+    # sur parole.
+    for item in report.kpis:
+        latest = item.latest
+        print("  %-26s %-9s %s  cible %s  %s" % (
+            item.label[:26],
+            item.scope or "—",
+            kpi_rules.format_value(item, latest.value if latest else None),
+            kpi_rules.format_value(item, item.target),
+            kpi_rules.STATUS_LABELS[item.status],
+        ))
+        if not item.can_be_challenged:
+            print("      %s" % item.withheld_reason)
     print("Clés non appariées  %d" % len(report.unmatched_keys))
     for key in report.unmatched_keys:
         # Nommées une par une : chacune est un KPI que le cockpit mesure et ne sait pas
@@ -845,7 +861,10 @@ def cmd_kpi(argv: List[str]) -> int:
         # question pour qui tient le classeur, pas une ambiguïté à absorber en silence.
         print("Départagés au périmètre %s" % ", ".join(report.ambiguous))
     if report.without_target:
-        print("Appariés sans cible %s" % ", ".join(report.without_target))
+        print("")
+        print("Appariés, non jugeables :")
+        for line in report.without_target:
+            print("  %s" % line)
     print("Lignes non nourries %d  (le classeur les suit, rien ne les alimente)"
           % report.without_reading)
     return 0

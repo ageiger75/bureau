@@ -322,6 +322,38 @@ class Entry:
         )
 
     @property
+    def is_amount(self) -> bool:
+        """Is the target a quantity of money or of people, rather than a level?
+
+        The distinction decides whether a reading can be measured against it at all. A
+        rate, a score or a ranking is the same number in July as in March — 5.3% is 5.3%.
+        An amount is a year's worth: `Net sales hors cleaning ≥ 1 259 M€` is what the
+        Maison intends to sell over twelve months, and one month of sales set against it
+        reads as a miss of 94%, every month, until the year ends.
+        """
+        return _plain(self.unit) in ("m€", "k€", "€", "eur", "k clients", "clients",
+                                     "meur", "keur")
+
+    @property
+    def scorable(self) -> str:
+        """Empty when this KPI can be judged; otherwise why it cannot.
+
+        The cockpit already measures euros against a monthly plan, market by market, and
+        does it properly. This panel is for the signals that lead them — rates, scores,
+        ratios — and saying so is better than showing a customer KPI that is wrong by a
+        factor of twelve.
+        """
+        if not self.has_target:
+            return "the tracker states no target this reader can stand behind"
+        if self.is_amount:
+            return (
+                "the target is a year's total (%g %s) and a reading is one period; the "
+                "sales panels above measure this against the monthly plan"
+                % (self.target, self.unit)
+            )
+        return ""
+
+    @property
     def has_target(self) -> bool:
         return self.target is not None
 

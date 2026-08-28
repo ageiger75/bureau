@@ -214,10 +214,12 @@ def join_report(registry: Tracker, rows: Sequence[Sequence],
 
     kpis, no_target = [], []
     for key, entry in sorted(matched.items()):
-        if not entry.has_target:
-            # Kept out of the list rather than scored against nothing. It is still a fact
-            # worth one line: the business measures this and has not said what good is.
-            no_target.append(entry.label or key)
+        refusal = entry.scorable
+        if refusal:
+            # Kept out of the list rather than scored against something it cannot be
+            # compared with. Still a fact worth one line each: the business measures this
+            # and either has not said what good is, or has said it for a whole year.
+            no_target.append("%s (%s)" % (entry.label or key, refusal))
             continue
         kpis.append(entry.to_kpi(readings.get(key, ())))
     return Join(

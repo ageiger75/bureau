@@ -228,7 +228,8 @@ def test_the_join_scores_what_it_can_and_reports_what_it_cannot():
     report = kpi_registry.join_report(registry, rows)
 
     assert [item.label for item in report.kpis] == ["NPS retail"]
-    assert report.without_target == ["Nouveaux clients"]
+    assert [line.split(" (")[0] for line in report.without_target] == ["Nouveaux clients"]
+    assert "no target" in report.without_target[0]
     assert report.unmatched_keys == ["refills_wob"]
     assert report.without_reading == 1
 
@@ -595,3 +596,43 @@ def test_the_labels_this_tracker_actually_uses_are_claimed():
     # The sheet carries "NPS Global" and no row per survey family, so this stays unclaimed
     # rather than being attached to a KPI that measures something else.
     assert unmatched == ["nps_retail"]
+
+
+def test_an_annual_amount_is_never_scored_against_one_month():
+    """`Net sales hors cleaning ≥ 1 259 M€` is what the Maison intends to sell over
+    twelve months. Set against one month of sales it reads as a miss of ninety-four
+    percent — every month, until the year ends — and it would sit at the top of a panel
+    whose whole job is to show only what is genuinely off.
+
+    The cockpit already measures euros against the monthly plan, market by market. This
+    panel is for the signals that lead them.
+    """
+    registry = tracker.tracker_from_rows([REAL,
+        real_row(),  # Net sales hors cleaning, 1259 M€
+        real_row(KPI="Refills", **{"Cible (num)": 5.3, "Unité": "%"}),
+    ])
+
+    amount, rate = registry.entries
+    assert amount.is_amount and amount.scorable
+    assert "year's total" in amount.scorable
+    assert not rate.is_amount and rate.scorable == ""
+
+    report = kpi_registry.join_report(registry, rows_for("refills_wob", 7.4)
+                                      + rows_for("net_sales", 78_000_000.0))
+
+    assert [item.label for item in report.kpis] == ["Refills"]
+    assert any("Net sales" in line for line in report.without_target)
+    # And the one that can be judged is judged: 7.4% against 5.3% holds.
+    assert report.kpis[0].status == rules.ON_TRACK
+
+
+def test_a_ranking_is_a_level_and_stays_scorable():
+    """`EMV ranking ≤ 10` is a position, not a quantity. Rank 12 in July is rank 12,
+    whatever the month — nothing about it is a year's worth."""
+    registry = tracker.tracker_from_rows([REAL, real_row(
+        KPI="EMV ranking", **{"Cible (num)": 10.0, "Unité": "Rang", "Sens": "↓"})])
+
+    entry = registry.entries[0]
+    assert not entry.is_amount and entry.scorable == ""
+    built = entry.to_kpi([rules.Reading("2026-07", 12.0)])
+    assert built.status == rules.ALERT
