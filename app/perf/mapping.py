@@ -510,5 +510,7 @@ def dataset_from_rows(
         units=mapped.units,
         # Built here as well as in the source, so the two ways of assembling a dataset
         # cannot drift into showing different screens from the same rows.
-        ytd=history.ytd(str(rows[0].get("period") or "")) if history and rows else None,
+        ytd=history.ytd(str(rows[0].get("period") or ""), budget=budget)
+        if history and rows
+        else None,
     )

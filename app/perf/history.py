@@ -228,6 +228,7 @@ class Ytd:
         "unsold_lines",
         "zero_goal_lines",
         "months",
+        "plan_source",
     )
 
     def __init__(
@@ -244,6 +245,7 @@ class Ytd:
         months: int,
         zero_goal_actual: float = 0.0,
         zero_goal_lines: int = 0,
+        plan_source: str = "",
     ) -> None:
         self.label = label
         self.first_period = first_period
@@ -260,6 +262,10 @@ class Ytd:
         #: other is a target someone set to nothing.
         self.zero_goal_actual = zero_goal_actual
         self.zero_goal_lines = zero_goal_lines
+        #: Which plan this was measured against, named on screen. Two sources with very
+        #: different standing sit behind this figure, and a reader who cannot tell them
+        #: apart cannot judge the number.
+        self.plan_source = plan_source
 
     @property
     def gap(self) -> float:
@@ -316,19 +322,35 @@ class History:
     def latest_period(self) -> str:
         return self.periods[-1] if self.periods else ""
 
-    def ytd(self, anchor: str = "") -> Optional[Ytd]:
+    def ytd(self, anchor: str = "", budget=None) -> Optional[Ytd]:
         """The fiscal year to date, ending at `anchor` (the last complete month).
 
-        Sums matched pairs only. The two unmatched amounts are counted separately and
-        returned alongside, never folded in: on the real warehouse the unbudgeted actual
-        alone is large enough to turn a year behind plan into a year ahead of it.
+        Measured against the planning workbook when one is given, and that is not a
+        preference — it is the difference between a figure worth quoting and one that is
+        not. The warehouse's goals fact turned out to cover 57% of measured sales: whole
+        markets carry no target in any of twenty-four months, China's stores and
+        marketplaces among them. A year-to-date built on it would compare a complete
+        actual with a plan missing two fifths of the business.
+
+        The workbook has no such hole, and the year to date is the one window where it can
+        be used: it covers the current fiscal year, which is exactly the period being
+        summed. The twenty-four-month trend still runs on the goals fact, because nothing
+        else reaches back that far — but a trend is a shape and a total is a claim.
+
+        The two sources are never mixed. A pair the workbook does not cover is unbudgeted,
+        not quietly filled from the other source: a total assembled from two definitions
+        of "plan" is a total nobody can reconcile with anything.
+
+        Sums matched pairs only, whichever source. What is left over is counted apart and
+        returned alongside — on real data it is large enough to turn a year behind plan
+        into a year ahead of it.
         """
         last = anchor or self.latest_period
         first = _fiscal_start(last)
         if not first:
             return None
 
-        actual = budget = unbudgeted = unsold = zero_goal = 0.0
+        actual = budget_total = unbudgeted = unsold = zero_goal = 0.0
         unbudgeted_lines = unsold_lines = zero_goal_lines = 0
         periods = set()
 
@@ -337,17 +359,22 @@ class History:
                 if not (first <= month.period <= last):
                     continue
                 periods.add(month.period)
-                if month.is_paired:
+                planned = (
+                    budget.budget_for(track.market, track.channel, month.period)
+                    if budget is not None
+                    else month.budget
+                )
+                if month.actual is not None and planned:
                     actual += month.actual
-                    budget += month.budget
-                elif month.is_zero_goal:
+                    budget_total += planned
+                elif planned == 0 and month.actual:
                     zero_goal += month.actual
                     zero_goal_lines += 1
-                elif month.budget is None and month.actual is not None:
+                elif planned is None and month.actual is not None:
                     unbudgeted += month.actual
                     unbudgeted_lines += 1
-                elif month.actual is None and month.budget:
-                    unsold += month.budget
+                elif month.actual is None and planned:
+                    unsold += planned
                     unsold_lines += 1
 
         if not periods:
@@ -357,7 +384,7 @@ class History:
             first_period=first,
             last_period=last,
             actual=actual,
-            budget=budget,
+            budget=budget_total,
             unbudgeted_actual=unbudgeted,
             unsold_budget=unsold,
             unbudgeted_lines=unbudgeted_lines,
@@ -365,6 +392,11 @@ class History:
             months=len(periods),
             zero_goal_actual=zero_goal,
             zero_goal_lines=zero_goal_lines,
+            plan_source=(
+                "the planning workbook"
+                if budget is not None
+                else "the warehouse's goals fact"
+            ),
         )
 
 

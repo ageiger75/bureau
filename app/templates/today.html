@@ -70,7 +70,13 @@
           <span class="variance-value {{ 'is-down' if dataset.ytd.gap < 0 else 'is-up' }}">
             {{ dataset.ytd.gap | eur }}
           </span>
-          <span class="variance-label">vs plan · {{ dataset.ytd.pct | pct }}</span>
+          {# Which plan, named. Two sources of very different standing can sit behind this
+             figure — a workbook that reconciles with the consolidated accounts, and a
+             warehouse fact that covers little more than half of measured sales. A reader
+             who cannot tell them apart cannot judge the number. #}
+          <span class="variance-label">
+            vs plan · {{ dataset.ytd.pct | pct }}{% if dataset.ytd.plan_source %} · {{ dataset.ytd.plan_source }}{% endif %}
+          </span>
         </li>
       </ul>
       {% if dataset.ytd.has_unmatched %}

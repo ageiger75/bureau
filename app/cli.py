@@ -740,17 +740,28 @@ def cmd_history(argv: List[str]) -> int:
     print("%d couples marché × canal, de %s à %s."
           % (len(built), built.periods[0] if built.periods else "?", built.latest_period))
 
+    # Le classeur, quand il est là : l'année à date se mesure contre lui et non contre le
+    # fait `goals`, qui ne couvre que 57 % du chiffre. Une année comparée à un plan
+    # amputé de deux cinquièmes n'est pas une année, c'est une illusion d'optique.
+    plan = None
+    if settings.has_budget_file:
+        from .perf import budget as budget_module
+
+        plan = budget_module.load(settings.budget_path)
+
     market = _option(argv, "--market")
     if market:
         return _print_one_market(built, market)
     if "--plans" in argv:
         return _print_unmatched(built)
 
-    ytd = built.ytd()
+    ytd = built.ytd(budget=plan)
     if ytd is not None:
         print("")
-        print("%s (%s → %s, %d mois) :" % (ytd.label, ytd.first_period,
-                                           ytd.last_period, ytd.months))
+        print("%s (%s → %s, %d mois), mesurée contre %s :"
+              % (ytd.label, ytd.first_period, ytd.last_period, ytd.months,
+                 "le classeur de planification" if plan is not None
+                 else "le fait `goals` de l'entrepôt"))
         print("  réalisé          %15s" % _eur(ytd.actual))
         print("  budget           %15s" % _eur(ytd.budget))
         print("  écart            %15s  %s" % (
@@ -762,8 +773,12 @@ def cmd_history(argv: List[str]) -> int:
         # Dit à côté du total et non en note de bas de page : c'est la raison pour
         # laquelle ce total est plus petit que la somme brute, et la raison pour
         # laquelle on peut s'y fier.
-        print("  sans budget      %15s  (%d cellules, hors total)"
+        print("  couverture       %15s" % (
+            "—" if ytd.covered is None else "%.0f %% du vendu" % (100.0 * ytd.covered)))
+        print("  sans plan        %15s  (%d cellules, hors total)"
               % (_eur(ytd.unbudgeted_actual), ytd.unbudgeted_lines))
+        print("  plan à zéro      %15s  (%d cellules, hors total)"
+              % (_eur(ytd.zero_goal_actual), ytd.zero_goal_lines))
         print("  sans vente       %15s  (%d cellules, hors total)"
               % (_eur(ytd.unsold_budget), ytd.unsold_lines))
 
@@ -850,7 +865,10 @@ def _print_unmatched(built) -> int:
 
     outside = unbudgeted + zero_goal
     print("")
-    print("Couverture du fait `goals` sur %d mois :" % len(built.periods))
+    # Ce rapport porte sur le fait `goals` et sur lui seul : c'est un diagnostic de
+    # l'entrepôt, pas une mesure de la performance. L'année à date, elle, se mesure
+    # contre le classeur — voir `manage.py history` sans argument.
+    print("Couverture du fait `goals` de l'entrepôt sur %d mois :" % len(built.periods))
     print("  vendu au total          %15s" % _eur(total_actual))
     print("  dont couvert par un objectif %10s   %s" % (
         _eur(paired), _share(paired, total_actual)))

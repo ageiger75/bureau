@@ -299,6 +299,7 @@ def dataset() -> Dataset:
             months=4,
             zero_goal_actual=780_000.0,
             zero_goal_lines=5,
+            plan_source="the planning workbook",
         ),
     )
 

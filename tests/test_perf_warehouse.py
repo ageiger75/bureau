@@ -834,7 +834,16 @@ def test_the_history_reaches_the_screen(monkeypatch):
     dataset = SnowflakeSource().dataset()
 
     assert dataset.ytd is not None
-    assert dataset.ytd.actual == 1_900_000.0
+    # The workbook is the plan, and it covers July here but not June. So July is the
+    # matched pair and June is unbudgeted — not quietly filled from the goals fact, which
+    # is the whole point: a total assembled from two definitions of "plan" reconciles
+    # with neither of them.
+    assert dataset.ytd.actual == 1_000_000.0
+    assert dataset.ytd.budget == 1_861_700.0
+    assert dataset.ytd.unbudgeted_actual == 900_000.0
+    assert dataset.ytd.plan_source == "the planning workbook"
+    # The trend still runs on the goals fact: nothing else reaches back two years, and a
+    # shape is not a claim.
     assert dataset.units[0].months_below_budget == 2
     source_module.cache_clear()
 

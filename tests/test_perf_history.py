@@ -364,3 +364,55 @@ def test_the_year_to_date_says_what_share_of_sales_a_plan_covers():
 
     assert ytd.outside == 3_000_000.0
     assert ytd.covered == 0.25
+
+
+# --------------------------------------------- the year to date runs on the workbook
+
+
+def _workbook(*lines):
+    from app.perf.budget import Budget, BudgetLine
+
+    return Budget([
+        BudgetLine(market=market, region="Test", segment="EBU - E-Business",
+                   channel=ECOMMERCE, period=period, budget=amount, last_year=None)
+        for market, period, amount in lines
+    ])
+
+
+def test_the_year_to_date_prefers_the_workbook_to_the_goals_fact():
+    """The goals fact covers 57% of measured sales on the real warehouse — whole markets
+    carry no target in any of twenty-four months. A year to date built on it compares a
+    complete actual with a plan missing two fifths of the business. The workbook has no
+    such hole and covers exactly the window being summed."""
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0, budget=None),
+        row(period="2026-05", actual=1_000_000.0, budget=None),
+    ])
+    plan = _workbook(("Japan", "2026-04", 900_000.0), ("Japan", "2026-05", 900_000.0))
+
+    on_goals = built.ytd("2026-05")
+    on_workbook = built.ytd("2026-05", budget=plan)
+
+    assert on_goals.actual == 0.0 and on_goals.unbudgeted_actual == 2_000_000.0
+    assert on_workbook.actual == 2_000_000.0
+    assert on_workbook.budget == 1_800_000.0
+    assert on_workbook.covered == 1.0
+    assert on_workbook.plan_source == "the planning workbook"
+
+
+def test_the_two_plan_sources_are_never_mixed():
+    """A pair the workbook does not cover is unbudgeted, not quietly filled from the
+    goals fact. A total assembled from two definitions of "plan" reconciles with neither.
+    """
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0, budget=950_000.0),
+        row(market="Korea", period="2026-04", actual=500_000.0, budget=480_000.0),
+    ])
+    plan = _workbook(("Japan", "2026-04", 900_000.0))
+
+    ytd = built.ytd("2026-04", budget=plan)
+
+    assert ytd.actual == 1_000_000.0
+    assert ytd.budget == 900_000.0
+    # Korea has a goals figure and no workbook line. It is reported, not borrowed.
+    assert ytd.unbudgeted_actual == 500_000.0
