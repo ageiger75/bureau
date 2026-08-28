@@ -562,3 +562,96 @@ def test_the_ask_value_is_not_mistaken_for_the_note(notes_at):
 
     assert written.text == "Sales tax changed."
     assert written.question == "Rebase the plan?"
+
+
+# --------------------------------------------------- a reclassification is a testable claim
+
+
+def _noted(label, channel, actual, budget, market="United States"):
+    """One noted channel of a market, with its reclassification note attached."""
+    return BusinessUnit(
+        key="%s-%s" % (market.lower().replace(" ", "-"), channel),
+        label=label,
+        market=market,
+        region="AMERICAS",
+        channel=channel,
+        owner=OWNER,
+        actual=Drivers.sales_only(actual),
+        budget=Drivers.sales_only(budget),
+        last_year=Drivers.sales_only(budget),
+        forecast_sales=0.0,
+        context_notes=[
+            note(kind=context.RECLASSIFIED, market=market, channel=channel,
+                 since="2025-09")
+        ],
+    )
+
+
+def test_a_reclassified_pair_that_cancels_confirms_the_note():
+    """The American case: the accounts file Sephora under Web Partners, the plan under
+    chain wholesale. What one channel gains the other loses, to the euro, and the market
+    total is untouched."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 14_526_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    assert check.offsets
+    assert check.net == 0.0
+    assert "The note holds" in check.message
+
+
+def test_a_reclassified_pair_that_does_not_cancel_says_so_without_accusing():
+    """Two things can produce it — a note written backwards, or real trading in the same
+    channels — and this cannot tell them apart. So it names both and asks. Claiming the
+    note is wrong would be the same overconfidence the note exists to prevent."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 18_500_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    assert not check.offsets
+    assert "wrong side" in check.message
+    assert "trading away from plan" in check.message
+
+
+def test_a_boundary_with_only_one_side_described_is_not_checked():
+    """A boundary has two sides. One of them being noted says nothing about whether the
+    note is right, and a verdict drawn from half a claim would be a guess with a number
+    attached."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[_noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0)],
+    )
+
+    assert analytics.reclassification_checks(dataset) == []
+
+
+def test_the_residual_is_judged_against_the_larger_leg():
+    """Against the sum of the legs it would be compared with a figure that already
+    contains it, and a pair that barely moved would look as sound as one that cancelled
+    exactly."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 31_000_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 18_200_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    assert check.gross == 1_000_000.0
+    assert check.net == 200_000.0
+    assert check.offsets

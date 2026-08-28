@@ -142,6 +142,7 @@ def today(request: Request):
             "kpis": kpi_rules.needing_attention(kpis),
             "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
+            "reclassifications": analytics.reclassification_checks(dataset),
             "suspects": analytics.worth_listing(suspects),
             "suspect_patterns": analytics.patterns(suspects),
             "suspects_held_back": len(suspects) - len(analytics.worth_listing(suspects)),

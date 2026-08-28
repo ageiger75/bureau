@@ -13,7 +13,7 @@ Three things this module refuses to do:
 
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .model import RATE_DRIVERS, BusinessUnit, Dataset, Drivers
 
@@ -607,6 +607,89 @@ def patterns(found: Sequence[Suspect]) -> List[str]:
         )
         said.append(PATTERN_MEANING[code] % (len(items), _eur(money), len(items)))
     return said
+
+
+#: How far a reclassified pair may fail to cancel and still be read as one boundary
+#: moving. Not zero: the noted channels carry real trading alongside the reclassified
+#: revenue — the American Web Partners line holds Amazon as well as Sephora — so an exact
+#: offset would only ever appear if nothing else in either channel had moved.
+OFFSET_TOLERANCE = 0.25
+
+
+class ReclassificationCheck:
+    """Do the two halves of a reclassified pair actually cancel?
+
+    A note that says "this revenue is filed on the other side of a boundary" makes a
+    testable claim: what one channel gained, its neighbour lost. The claim is worth testing
+    because it is easy to write down backwards — and a note pointing at the wrong side
+    sends someone to correct the source that was right.
+
+    The test is deliberately one-directional. When the two gaps cancel, the boundary
+    explains them and that is worth saying. When they do not, this cannot tell whether the
+    note is wrong or whether real trading is riding along in the same channels, so it says
+    both and asks rather than accuses.
+    """
+
+    __slots__ = ("market", "legs", "net", "gross")
+
+    def __init__(self, market: str, legs: Sequence[Tuple[str, float]], net: float,
+                 gross: float) -> None:
+        self.market = market
+        #: (channel label, € gap), in the order they appear on screen.
+        self.legs = list(legs)
+        self.net = net
+        #: The largest leg, which is what the net is judged against. Summing the legs
+        #: instead would compare a residual with a figure that already contains it.
+        self.gross = gross
+
+    @property
+    def offsets(self) -> bool:
+        if self.gross <= 0:
+            return False
+        return abs(self.net) / self.gross <= OFFSET_TOLERANCE
+
+    @property
+    def message(self) -> str:
+        moved = _listed_labels([label for label, _ in self.legs])
+        if self.offsets:
+            return (
+                "%s: %s move against each other and very nearly cancel — %s left over on "
+                "%s crossing the boundary. The note holds: this is where the revenue is "
+                "filed, not how it sold."
+                % (self.market, moved, _eur(abs(self.net)), _eur(self.gross))
+            )
+        return (
+            "%s: %s are noted as one boundary, but they do not cancel — %s is left over "
+            "on %s crossing. Either the note names the wrong side, or these channels are "
+            "also trading away from plan on their own."
+            % (self.market, moved, _eur(abs(self.net)), _eur(self.gross))
+        )
+
+
+def reclassification_checks(dataset: Dataset) -> List[ReclassificationCheck]:
+    """One check per market carrying reclassification notes on two or more channels.
+
+    A single noted channel is not checkable: a boundary has two sides, and only one of
+    them being described says nothing about whether the description is right.
+    """
+    from .context import RECLASSIFIED
+
+    by_market: Dict[str, List[BusinessUnit]] = {}
+    for unit in dataset.units:
+        if unit.is_aggregate or not unit.budget_known:
+            continue
+        if any(note.kind == RECLASSIFIED for note in unit.context_notes):
+            by_market.setdefault(unit.market, []).append(unit)
+
+    found = []
+    for market, units in sorted(by_market.items()):
+        if len(units) < 2:
+            continue
+        legs = [(unit.label, unit.gap_vs_budget) for unit in units]
+        net = sum(gap for _, gap in legs)
+        gross = max(abs(gap) for _, gap in legs)
+        found.append(ReclassificationCheck(market, legs, net, gross))
+    return found
 
 
 def suspects(dataset: Dataset) -> List[Suspect]:

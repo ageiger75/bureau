@@ -334,6 +334,33 @@
   {% endif %}
 </section>
 
+{# -------------------------------------------------- notes that make a testable claim #}
+
+{% if reclassifications %}
+<section class="panel">
+  <h2>Boundaries under review</h2>
+  <p class="lede">
+    A note saying revenue is filed on the wrong side of a channel boundary makes a claim
+    that can be checked: what one channel gained, its neighbour should have lost. It is
+    also easy to write down backwards — and a note pointing at the wrong side sends
+    someone to correct the source that was right. So the claim is tested here rather than
+    trusted.
+  </p>
+  <ul class="suspect-list">
+    {% for check in reclassifications %}
+      <li class="suspect">
+        <p class="suspect-message">{{ check.message }}</p>
+        <p class="suspect-fix">
+          {% for label, gap in check.legs %}
+            {{ label }} {{ gap | eur }}{% if not loop.last %} · {% endif %}
+          {% endfor %}
+        </p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {# ------------------------------------------------------- data we cannot read yet #}
 
 {% if suspects %}
