@@ -921,6 +921,15 @@ class Fire:
         asked = [n for n in self.unit.context_notes if n.question]
         if asked:
             return asked[0].question
+        if any(n.kind == "on_hold" for n in self.unit.context_notes):
+            # The money is genuinely missing, so this stays a fire — but the person who
+            # runs the market did not lose it, and asking them why sales collapsed when
+            # the Maison chose to stop shipping wastes the meeting and the screen's
+            # credibility with it.
+            return (
+                "What has to happen for this to resume, how much is owed, and what does "
+                "the delay cost by the time it does?"
+            )
         if self.unit.plan_vs_record and not self.unit.chronic_plan:
             # A plan asking for growth the record has never shown will be missed every
             # month of the year, and asking what moves a driver in thirty days sends

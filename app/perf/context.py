@@ -39,7 +39,18 @@ ONE_OFF = "one_off"
 #: with confidence, both meaningless.
 RECLASSIFIED = "reclassified"
 
-KINDS = (BASIS_CHANGE, ONE_OFF, RECLASSIFIED)
+#: Trading has deliberately stopped, and will resume when a condition is met. A partner
+#: on credit hold, a market awaiting a licence, a listing suspended.
+#:
+#: Distinct from a one-off, which is an event in the past: this is a live decision, and
+#: the money really is missing while it lasts. So it is *not* among the kinds where the
+#: gap stops being about trading — the euros are gone and someone owns them. What changes
+#: is the question. Asking a country manager why sales collapsed, when the answer is that
+#: the Maison chose to stop shipping to a customer who is not paying, wastes the meeting
+#: and the credibility of the screen. The question is what unblocks it and what is owed.
+ON_HOLD = "on_hold"
+
+KINDS = (BASIS_CHANGE, ONE_OFF, RECLASSIFIED, ON_HOLD)
 
 #: Kinds where the gap is not a statement about trading, so nobody is asked to answer for
 #: it. A gap that is real in the accounts and belongs to no one's performance must never
@@ -56,6 +67,11 @@ KIND_MEANING = {
     ONE_OFF: (
         "A one-off event sits inside this figure, so the gap is not the run rate."
     ),
+    ON_HOLD: (
+        "Trading here is deliberately stopped until a condition is met. The revenue is "
+        "genuinely missing, and the reason is known — so the gap is real and the question "
+        "is not about commercial performance."
+    ),
     RECLASSIFIED: (
         "The plan and the accounts file this revenue under different segments, so the gap "
         "here is a boundary rather than a result. The market total is unaffected."
@@ -68,6 +84,10 @@ KIND_QUESTION = {
     RECLASSIFIED: (
         "Which classification is right — and is the neighbouring segment's plan wrong by "
         "the same amount?"
+    ),
+    ON_HOLD: (
+        "What has to happen for this to resume, how much is owed, and what does the delay "
+        "cost by the time it does?"
     ),
 }
 

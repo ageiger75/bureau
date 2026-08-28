@@ -796,10 +796,14 @@ def sell_in_trajectories(closed_year, current, budget, explained=()) -> List[Tra
         running[0] += now
         running[1] += before
 
+    from .budget import is_aggregate_market
+
     skip = set(explained)
     found = []
     for where in sorted(set(planned) & set(last_year)):
-        if where in skip:
+        # A roll-up has no one to answer for it, and a slot it takes is a slot a real
+        # market loses.
+        if where in skip or is_aggregate_market(where[0]):
             continue
         base = last_year[where]
         now, before = to_date.get(where, [None, None])

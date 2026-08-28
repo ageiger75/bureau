@@ -368,7 +368,7 @@ def units_from_rows(
     as a fallback and cross-checked, because a silent divergence between the two would be
     worth knowing about long before anyone noticed it on a screen.
     """
-    from .budget import perimeter_of
+    from .budget import is_aggregate_market, perimeter_of
 
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
@@ -476,6 +476,10 @@ def units_from_rows(
                 perimeter=perimeter_of(str(row.get("segment") or ""))
                 if row.get("segment")
                 else ("own" if channel in (ECOMMERCE, RETAIL) else ""),
+                # The flag existed and nothing but the mock ever set it: on real data a
+                # roll-up could reach the fires and take a slot from a market someone can
+                # be asked about.
+                is_aggregate=is_aggregate_market(market),
                 months_below_budget=months_below,
                 gap_history=gap_history,
                 chronic_plan=chronic,

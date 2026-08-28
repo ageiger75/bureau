@@ -8,6 +8,7 @@
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
     python -m app.cli note           consigne ce que les chiffres ne peuvent pas dire
                                      note "Marché" "Ce qui s'est passé" [--kind one_off]
+                                     types : basis_change · one_off · reclassified · on_hold
                                      note --list · note --forget N
     python -m app.cli reconcile      confronte une extraction candidate aux réalisés connus
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
@@ -486,7 +487,13 @@ def cmd_note(argv: List[str]) -> int:
     print("Effet               %s" % context.KIND_MEANING[kind])
     print("Nouvelle question   %s" % (row["question"] or context.KIND_QUESTION[kind]))
     print("")
-    print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
+    # Le message dépend du type, sinon il ment : une note « hors trading » retire le
+    # marché de la liste des gens à challenger, une mise en attente non — l'argent
+    # manque vraiment et quelqu'un en répond, c'est la question qui change.
+    if kind in context.NOT_TRADING:
+        print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
+    else:
+        print("Rechargez l'écran : le marché reste à challenger, sur une autre question.")
     return 0
 
 
@@ -920,7 +927,9 @@ def _print_trajectories(built, plan) -> None:
     explained = history_module.explained_pairs()
     found = []
     for track in built.tracks.values():
-        if (track.market, track.channel) in explained:
+        from .perf.budget import is_aggregate_market
+
+        if (track.market, track.channel) in explained or is_aggregate_market(track.market):
             continue
         moved = track.trajectory(plan)
         if moved.sentence:

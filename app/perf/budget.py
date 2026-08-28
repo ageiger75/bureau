@@ -114,6 +114,21 @@ AMBIGUOUS_SEGMENTS = frozenset()
 SELL_OUT_SEGMENTS = OWN_SEGMENTS | PLATFORM_SEGMENTS
 
 
+#: Plan rows that are a roll-up rather than a market. There is nobody to challenge about
+#: "Other", and letting it into a ranking pushes out a market someone can actually be
+#: asked about — the same reason the screen keeps "Rest of World" out of its fires.
+#:
+#: A name is a weak key and this list is a maintenance cost. It is still the honest option:
+#: the workbook carries no column saying which of its rows are totals, so the alternative
+#: is to infer it from size or from a naming pattern, and both would eventually swallow a
+#: real market. An explicit list is wrong loudly rather than quietly.
+AGGREGATE_MARKETS = frozenset(("Other", "Others", "Rest of World", "ROW"))
+
+
+def is_aggregate_market(market: str) -> bool:
+    return (market or "").strip().lower() in {m.lower() for m in AGGREGATE_MARKETS}
+
+
 def perimeter_of(segment: str) -> str:
     """`own`, `platform`, `sell-in`, `b2b`, or `other`. Never a guess: unlisted codes fall
     to `other` rather than being placed by resemblance."""

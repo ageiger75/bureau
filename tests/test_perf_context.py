@@ -776,3 +776,34 @@ def test_the_units_are_rebuilt_when_the_notes_change(monkeypatch, notes_at):
 
     assert [n.text for n in after.units[0].context_notes] == ["A flagship closed."]
     source_module.cache_clear()
+
+
+# --------------------------------------------------------- trading deliberately stopped
+
+
+def test_a_credit_hold_is_a_real_gap_with_a_different_question():
+    """Australia stopped being shipped because the customer is not paying. The euros are
+    genuinely missing — so this is not among the kinds where the gap stops being about
+    trading, and it stays on the screen. What changes is the question: asking a country
+    manager why sales collapsed, when the Maison chose to stop shipping, wastes the
+    meeting and the credibility of the screen with it."""
+    held = unit(notes=[note(kind=context.ON_HOLD, market="Australia", channel="")])
+
+    assert context.ON_HOLD not in context.NOT_TRADING
+    assert "deliberately stopped" in context.KIND_MEANING[context.ON_HOLD]
+
+    fire = analytics.Fire(held)
+    assert "what does the delay cost" in fire.question
+    assert "how much is owed" in fire.question
+
+
+def test_a_roll_up_in_the_plan_is_not_a_market_to_challenge():
+    """There is nobody to answer for "Other", and a slot it takes is a slot a real market
+    loses — the same reason "Rest of World" is kept out of the fires."""
+    from app.perf.budget import is_aggregate_market
+
+    assert is_aggregate_market("Other")
+    assert is_aggregate_market("rest of world")
+    # Travel retail is a business unit with a leader, not a roll-up.
+    assert not is_aggregate_market("Loi Tr")
+    assert not is_aggregate_market("Australia")
