@@ -188,9 +188,10 @@ def today(request: Request):
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
             "plan_reviews": plan_reviews,
-            "suspects": analytics.worth_listing(suspects),
-            "suspect_patterns": analytics.patterns(suspects),
-            "suspects_held_back": len(suspects) - len(analytics.worth_listing(suspects)),
+            # One incident, one diagnosis. The panel used to state the shape and then
+            # list markets underneath, each repeating a fix for the same fault — two
+            # accounts of one fact, and the second undoes the first.
+            "incidents": analytics.incidents(suspects),
             "kpi_rules": kpi_rules,
             "unavailable": unavailable,
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),

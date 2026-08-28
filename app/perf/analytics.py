@@ -643,6 +643,73 @@ def patterns(found: Sequence[Suspect]) -> List[str]:
     return said
 
 
+class Incident:
+    """One break, however many markets it reaches.
+
+    The panel used to state the shape — "ten markets, one join not matching" — and then
+    list markets underneath, each with its own explanation of the same fault. Two accounts
+    of one fact, side by side, and the second undoes the first: a reader who has just been
+    told this is one incident then reads ten fixes and starts assigning ten of them.
+
+    So the diagnosis is the item, and the markets are its detail.
+    """
+
+    __slots__ = ("code", "diagnosis", "members")
+
+    def __init__(self, code: str, diagnosis: str, members: Sequence[Suspect]) -> None:
+        self.code = code
+        #: The canonical account, said once. Empty for a break that reaches one market
+        #: only, where the market's own message is the whole story.
+        self.diagnosis = diagnosis
+        self.members = list(members)
+
+    @property
+    def money(self) -> float:
+        return sum(item.money for item in self.members)
+
+    @property
+    def markets(self) -> int:
+        return len(self.members)
+
+    @property
+    def is_pattern(self) -> bool:
+        return bool(self.diagnosis)
+
+    @property
+    def fix(self) -> str:
+        """Who to ask. Identical across a pattern's members by construction — they are the
+        same fault — so it is asked once."""
+        return self.members[0].fix if self.members else ""
+
+
+def incidents(found: Sequence[Suspect]) -> List[Incident]:
+    """Breaks grouped into the incidents they actually are, largest first."""
+    by_code: Dict[str, List[Suspect]] = {}
+    for item in found:
+        by_code.setdefault(item.code, []).append(item)
+
+    built = []
+    for code, items in by_code.items():
+        items = sorted(items, key=lambda item: -item.money)
+        if len(items) >= PATTERN_THRESHOLD and code in PATTERN_MEANING:
+            money = sum(
+                item.unit.sales_last_year if code == "zero_against_history"
+                else item.unit.sales_actual
+                for item in items
+            )
+            built.append(Incident(
+                code,
+                PATTERN_MEANING[code] % (len(items), _eur(money), len(items)),
+                items,
+            ))
+            continue
+        # Below the threshold there is no shape to name, and inventing one would be the
+        # same overconfidence in the other direction. Each stands alone.
+        built.extend(Incident(code, "", [item]) for item in items)
+    built.sort(key=lambda incident: (-incident.markets, -incident.money))
+    return built
+
+
 #: How far a reclassified pair may fail to cancel and still be read as one boundary
 #: moving. Not zero: the noted channels carry real trading alongside the reclassified
 #: revenue — the American Web Partners line holds Amazon as well as Sephora — so an exact

@@ -1399,3 +1399,60 @@ def test_nothing_is_unattributed_when_the_plan_itself_is_the_baseline():
     assert fire.baseline_label == "plan"
     assert fire.unattributed == 0.0
     assert fire.bridge == ""
+
+
+# --------------------------------------------------- one incident, one diagnosis
+
+
+def _broken(n):
+    """A market reporting sessions and no orders at all."""
+    return unit(
+        key="m%d" % n,
+        actual=Drivers(("Sessions", "Conversion", "AOV"), (400_000.0, 0.0, 60.0)),
+        budget=Drivers.sales_only(500_000.0),
+        last_year=sessions_of(500_000 - n * 1_000, 380_000),
+    )
+
+
+def test_markets_failing_the_same_way_are_one_incident():
+    """The panel stated the shape — "ten markets, one join not matching" — and then listed
+    ten markets underneath, each carrying its own fix for the same fault. Two accounts of
+    one fact, side by side, and the second undoes the first: a reader just told this is one
+    incident then reads ten fixes and starts assigning ten of them.
+    """
+    found = analytics.suspects(dataset_of(*[_broken(n) for n in range(9)]))
+
+    built = analytics.incidents(found)
+
+    assert len(built) == 1
+    one, = built
+    assert one.is_pattern
+    assert one.markets == 9
+    # The shape, said once and naming its size: nine symptoms of one fault.
+    assert "9 markets" in one.diagnosis
+    assert "at once" in one.diagnosis
+    # The markets are the detail of the fault, and every one of them is kept.
+    assert len(one.members) == 9
+    assert one.money == pytest.approx(sum(item.money for item in found))
+
+
+def test_a_break_reaching_one_market_states_itself():
+    """Below the threshold there is no shape to name, and naming one anyway would be the
+    same overconfidence in the other direction."""
+    found = analytics.suspects(dataset_of(_broken(1)))
+
+    built = analytics.incidents(found)
+
+    assert [incident.is_pattern for incident in built] == [False]
+    assert built[0].markets == 1
+    assert built[0].diagnosis == ""
+
+
+def test_the_fix_is_asked_once_per_incident():
+    """Identical across a pattern's members by construction — they are the same fault."""
+    found = analytics.suspects(dataset_of(*[_broken(n) for n in range(9)]))
+
+    one, = analytics.incidents(found)
+
+    assert one.fix
+    assert len({item.fix for item in one.members}) == 1

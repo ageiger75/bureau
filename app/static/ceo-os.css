@@ -839,6 +839,15 @@ input:focus, textarea:focus, select:focus {
 .issue-members { list-style: none; margin: 12px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule-soft); display: grid; gap: 20px; }
 .issue-members > .fire h3 { font-size: 15px; }
 
+/* Un incident, son diagnostic, et ses marchés repliés. La liste par marché est un détail
+   du fait, pas une seconde explication du même fait. */
+.incident-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.incident { border-left: 2px solid var(--alert); padding-left: 14px; }
+.incident-head { font-weight: 600; font-size: 14.5px; margin: 0; max-width: 74ch; line-height: 1.55; }
+.incident-fix { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch; line-height: 1.55; }
+.incident-detail > summary { cursor: pointer; font-size: 13px; color: var(--ink-faint); margin-top: 8px; }
+.incident-detail[open] > summary { margin-bottom: 10px; }
+
 .kpi-pillar { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
   color: var(--ink-faint); margin: 22px 0 10px; font-weight: 600; }
 .kpi-pillar:first-of-type { margin-top: 12px; }
