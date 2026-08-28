@@ -121,17 +121,17 @@ REGISTER: Dict[str, Measure] = {
         label="Twenty-four months of history",
         maturity=BETA,
         note="What lets the screen say \"three months below plan\" and \"the gap is "
-        "widening\" instead of comparing one month to one plan. Two things are not "
-        "settled. The plan in it is the warehouse's goals fact, not the planning "
-        "workbook — the workbook covers this fiscal year only, and a ratio computed "
-        "across two definitions of \"plan\" would be an artefact; where both cover the "
-        "same month they are checked against each other, and a market whose two plans "
-        "disagree carries no verdict. And it is sell-out only: sell-in has no history "
-        "query yet, so the year to date here covers the channels the warehouse measures "
-        "and not the ones invoiced to partners.",
-        to_confirm="Which markets and channels the goals fact is actually maintained "
-        "for. It is not a plan of record: whole markets carry none, and some carry a "
-        "goal of exactly zero against real sales.",
+        "widening\" instead of comparing one month to one plan. The actuals are the "
+        "same sell-out figures as the current month and carry the same standing. The "
+        "plan they are measured against is the planning workbook and nothing else: the "
+        "warehouse also publishes a goals fact, but it has no target at all for two "
+        "fifths of what the group sells and the business does not stand behind it. So "
+        "the trend reaches exactly as far back as the workbook does — the current "
+        "fiscal year — rather than the two years the warehouse could supply. It is also "
+        "sell-out only: sell-in has no history query yet, so the year to date covers the "
+        "channels the warehouse measures and not the ones invoiced to partners.",
+        to_confirm="A second fiscal year of the monthly workbook. Until one exists, no "
+        "twelve-month judgement can be made against a plan anyone stands behind.",
     ),
     "commitments": Measure(
         key="commitments",

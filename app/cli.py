@@ -788,42 +788,66 @@ def cmd_history(argv: List[str]) -> int:
         print("  Sell-out uniquement — les canaux que l'entrepôt mesure. Ce qui est")
         print("  facturé à des partenaires n'a pas encore d'historique ici.")
 
-    # Deux listes et non une, parce que ce sont deux constats différents. Le premier
-    # porte sur le plan de référence ; le seul qui puisse être « recalé ». Le second
-    # porte sur le système de cibles magasin de l'entrepôt — des cibles jamais atteintes
-    # restent un vrai sujet de management, mais ce n'est pas le budget.
-    confirmed, on_goals = [], []
-    for track in built.tracks.values():
-        verdict = track.chronic
-        if verdict is None:
-            continue
-        (confirmed if track.chronic_for(plan) is not None else on_goals).append(
-            (track, verdict)
-        )
-    for group in (confirmed, on_goals):
-        group.sort(key=lambda pair: pair[1].months, reverse=True)
-
-    def _list(rows):
-        for track, verdict in rows:
-            print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
-                  % ("%s %s" % (track.market, track.channel), verdict.months,
-                     verdict.low, verdict.high, verdict.shortfall_pct))
-
+    # Une seule liste, mesurée contre le classeur. Le fait `goals` de l'entrepôt donnerait
+    # deux ans de profondeur au lieu de quelques mois, mais l'entreprise a tranché qu'il
+    # n'est pas fiable — et classer l'attention du dirigeant sur des chiffres que personne
+    # ne défend coûte plus cher que d'attendre.
+    covered = _months_of_plan(built, plan)
     print("")
-    print("Plans à recaler — sous le plan tous les mois, au même écart,")
-    print("et le classeur dit la même chose que l'entrepôt sur les mois partagés :")
-    if not confirmed:
-        print("  aucun.")
-    _list(confirmed)
+    if plan is None:
+        print("Sans le classeur, aucun plan de référence : rien à recaler.")
+        return 0
+    if covered < history_module.CHRONIC_WINDOW:
+        # Dire pourquoi la liste est vide. « Aucun plan mal calé » et « la question ne
+        # peut pas encore être posée » se ressemblent à l'écran et disent le contraire.
+        print("Plans à recaler : la question demande douze mois clos couverts par le")
+        print("classeur, et il y en a %d. Réponse possible à partir de %s."
+              % (covered, _month_plus(built.latest_period,
+                                      history_module.CHRONIC_WINDOW - covered)))
+        return 0
 
-    if on_goals:
-        print("")
-        print("Cibles magasin jamais atteintes — même constat, mais sur le fait `goals`")
-        print("de l'entrepôt seul : le classeur le contredit sur les mois qu'ils")
-        print("partagent. À ne pas rapporter comme un budget mal calé ; c'est le")
-        print("système de cibles de ces marchés qui ne sert plus à rien.")
-        _list(on_goals)
+    chronic = sorted(
+        (
+            (track, verdict)
+            for track, verdict in (
+                (t, t.chronic_for(plan)) for t in built.tracks.values()
+            )
+            if verdict is not None
+        ),
+        key=lambda pair: pair[1].months,
+        reverse=True,
+    )
+    print("Plans à recaler — sous le plan tous les mois, au même écart :")
+    if not chronic:
+        print("  aucun.")
+    for track, verdict in chronic:
+        print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
+              % ("%s %s" % (track.market, track.channel), verdict.months,
+                 verdict.low, verdict.high, verdict.shortfall_pct))
     return 0
+
+
+def _months_of_plan(built, plan) -> int:
+    """Combien de mois clos le classeur couvre, sur la fenêtre de l'historique."""
+    if plan is None:
+        return 0
+    return len({
+        month.period
+        for track in built.tracks.values()
+        for month in track.months
+        if month.actual is not None
+        and plan.budget_for(track.market, track.channel, month.period)
+    })
+
+
+def _month_plus(period: str, months: int) -> str:
+    """'2026-07' + 8 mois -> '2027-03'."""
+    try:
+        year, month = (int(part) for part in period.split("-"))
+    except ValueError:
+        return "?"
+    total = year * 12 + (month - 1) + months
+    return "%04d-%02d" % (total // 12, total % 12 + 1)
 
 
 def _print_one_market(built, market: str, plan=None) -> int:
@@ -841,8 +865,9 @@ def _print_one_market(built, market: str, plan=None) -> int:
             print("  %s  %15s  %15s  %15s" % (
                 month.period,
                 _eur(month.actual),
-                _eur(month.budget),
-                _eur(month.gap),
+                _eur(month.goal),
+                _eur(plan.budget_for(track.market, track.channel, month.period)
+                     if plan is not None else None),
             ))
         verdict = track.chronic_for(plan)
         if verdict is not None:
@@ -871,16 +896,16 @@ def _print_unmatched(built) -> int:
             if month.actual is not None:
                 sold += month.actual
                 months_sold += 1
-            if month.is_paired:
+            if month.has_goal:
                 paired += month.actual
             elif month.is_zero_goal:
                 zeroed += month.actual
                 months_missing += 1
-            elif month.budget is None and month.actual is not None:
+            elif month.goal is None and month.actual is not None:
                 missing += month.actual
                 months_missing += 1
-            elif month.actual is None and month.budget:
-                without_sales[name] = without_sales.get(name, 0.0) + month.budget
+            elif month.actual is None and month.goal:
+                without_sales[name] = without_sales.get(name, 0.0) + month.goal
         total_actual += sold
         unbudgeted += missing
         zero_goal += zeroed

@@ -842,9 +842,11 @@ def test_the_history_reaches_the_screen(monkeypatch):
     assert dataset.ytd.budget == 1_861_700.0
     assert dataset.ytd.unbudgeted_actual == 900_000.0
     assert dataset.ytd.plan_source == "the planning workbook"
-    # The trend still runs on the goals fact: nothing else reaches back two years, and a
-    # shape is not a claim.
-    assert dataset.units[0].months_below_budget == 2
+    # The trend runs on the workbook too, so it reaches exactly as far as the workbook
+    # does — one month here. The rows also carry the warehouse's own targets, which would
+    # buy two years of depth; using them would mean ranking on a source the business has
+    # ruled unreliable, so the depth is given up on purpose.
+    assert dataset.units[0].months_below_budget == 1
     source_module.cache_clear()
 
 

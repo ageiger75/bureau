@@ -19,17 +19,18 @@ from app.perf.model import ECOMMERCE, BusinessUnit, Drivers, Owner
 OWNER = Owner("Test Owner", "Managing Director", "Testland")
 
 
-def row(market="Japan", channel="E-COMMERCE", period="2026-04", actual=None, budget=None):
+def row(market="Japan", channel="E-COMMERCE", period="2026-04", actual=None, goal=None):
+    """A history row. `goal` is the warehouse's target — data, never the plan."""
     return {
         "market": market,
         "channel": channel,
         "period": period,
         "sales_actual": actual,
-        "sales_budget": budget,
+        "sales_budget": goal,
     }
 
 
-def months(count, start=(2025, 4), actual=None, budget=None, market="Japan",
+def months(count, start=(2025, 4), actual=None, goal=None, market="Japan",
            channel="E-COMMERCE"):
     """`count` consecutive months, oldest first, from `start`."""
     made = []
@@ -41,7 +42,7 @@ def months(count, start=(2025, 4), actual=None, budget=None, market="Japan",
                 channel=channel,
                 period="%04d-%02d" % (year, month),
                 actual=actual(index) if callable(actual) else actual,
-                budget=budget(index) if callable(budget) else budget,
+                goal=goal(index) if callable(goal) else goal,
             )
         )
         month += 1
@@ -50,63 +51,110 @@ def months(count, start=(2025, 4), actual=None, budget=None, market="Japan",
     return made
 
 
+def plan(*lines, **kwargs):
+    """The planning workbook: the only plan anything here is measured against.
+
+    `plan(("2026-04", 1000.0), ("2026-05", 1000.0))` for Japan e-commerce, or
+    `plan(*rows, amount=1000.0)` to cover every period of a fixture at one figure.
+    """
+    from app.perf.budget import Budget, BudgetLine
+
+    market = kwargs.get("market", "Japan")
+    channel = kwargs.get("channel", ECOMMERCE)
+    amount = kwargs.get("amount")
+    if amount is not None:
+        lines = tuple(
+            (r["period"] if isinstance(r, dict) else r, amount) for r in lines
+        )
+    return Budget([
+        BudgetLine(market=market, region="Test", segment="EBU - E-Business",
+                   channel=channel, period=period, budget=figure, last_year=None)
+        for period, figure in lines
+    ])
+
+
+def merged(*budgets):
+    """Several workbooks as one, for fixtures that span markets or channels."""
+    from app.perf.budget import Budget
+
+    return Budget([line for budget in budgets for line in budget.lines])
+
+
 # ------------------------------------------------------------------ reading a series
 
 
 def test_a_missing_side_is_skipped_rather_than_zeroed():
-    """A month with no plan is not a month whose gap closed.
+    """A month the workbook does not cover is not a month whose gap closed.
 
     Filling it with zero would put a €0 gap into the trend, and the acceleration factor
     reads the last two gaps — so one missing plan would report a gap as closing on a
     market that had simply not been budgeted.
     """
     built = history.from_rows([
-        row(period="2026-04", actual=900.0, budget=1000.0),
-        row(period="2026-05", actual=900.0, budget=None),
-        row(period="2026-06", actual=800.0, budget=1000.0),
+        row(period="2026-04", actual=900.0),
+        row(period="2026-05", actual=900.0),
+        row(period="2026-06", actual=800.0),
     ])
     track = built.track_for("Japan", ECOMMERCE)
+    partial = plan(("2026-04", 1000.0), ("2026-06", 1000.0))
 
-    assert track.gap_history == (-100.0, -200.0)
+    assert track.gap_history_for(partial) == (-100.0, -200.0)
 
 
 def test_the_run_below_plan_stops_at_the_first_month_that_met_it():
     built = history.from_rows([
-        row(period="2026-01", actual=900.0, budget=1000.0),
-        row(period="2026-02", actual=1100.0, budget=1000.0),
-        row(period="2026-03", actual=900.0, budget=1000.0),
-        row(period="2026-04", actual=950.0, budget=1000.0),
+        row(period="2026-01", actual=900.0),
+        row(period="2026-02", actual=1100.0),
+        row(period="2026-03", actual=900.0),
+        row(period="2026-04", actual=950.0),
     ])
     track = built.track_for("Japan", ECOMMERCE)
+    every_month = plan(
+        ("2026-01", 1000.0), ("2026-02", 1000.0), ("2026-03", 1000.0), ("2026-04", 1000.0)
+    )
 
-    assert track.months_below_budget == 2
+    assert track.months_below_for(every_month) == 2
+
+
+def test_nothing_is_measured_without_the_workbook():
+    """The rows carry the warehouse's own targets, and using them would buy two years of
+    depth instead of one. It would also mean ranking a CEO's attention on a source the
+    business has ruled unreliable — one with no target at all for two fifths of what it
+    sells. Fewer months of a real plan beats more months of a number nobody defends."""
+    built = history.from_rows(months(24, actual=900.0, goal=1000.0))
+    track = built.track_for("Japan", ECOMMERCE)
+
+    assert track.against(None) == []
+    assert track.gap_history_for(None) == ()
+    assert track.months_below_for(None) == 0
+    assert track.chronic_for(None) is None
+    # The targets are still there, as data. Reading them is a diagnostic, not a judgement.
+    assert track.months[0].goal == 1000.0
 
 
 def test_store_formats_fold_into_one_track():
     """The same fold the current month uses, or the history would be keyed differently
     from the units it describes and every store line would find no track at all."""
     built = history.from_rows([
-        row(channel="MALL STORE", period="2026-04", actual=600.0, budget=1000.0),
-        row(channel="STREET STORE", period="2026-04", actual=300.0, budget=1000.0),
+        row(channel="MALL STORE", period="2026-04", actual=600.0, goal=1000.0),
+        row(channel="STREET STORE", period="2026-04", actual=300.0, goal=1000.0),
     ])
 
     track = built.track_for("Japan", "retail")
     assert track is not None
     assert track.months[0].actual == 900.0
-    # Summed on both sides, and correctly: the goals fact is at the same grain as the
-    # sales fact, so each format carries its own target rather than repeating the
-    # channel's. Folding one side and not the other is what would break it.
-    assert track.months[0].budget == 2000.0
+    # Summed on both sides: the goals fact is at the same grain as the sales fact, so each
+    # format carries its own target rather than repeating the channel's.
+    assert track.months[0].goal == 2000.0
 
 
 # ------------------------------------------------------------------ a mis-set plan
 
 
 def test_a_year_of_the_same_steady_shortfall_is_a_mis_set_plan():
-    built = history.from_rows(
-        months(14, actual=lambda i: 940.0 - (i % 3) * 5, budget=1000.0)
-    )
-    chronic = built.track_for("Japan", ECOMMERCE).chronic
+    rows = months(14, actual=lambda i: 940.0 - (i % 3) * 5)
+    built = history.from_rows(rows)
+    chronic = built.track_for("Japan", ECOMMERCE).chronic_for(plan(*rows, amount=1000.0))
 
     assert chronic is not None
     assert chronic.months == 14
@@ -116,72 +164,53 @@ def test_a_year_of_the_same_steady_shortfall_is_a_mis_set_plan():
 
 def test_a_widening_gap_is_not_a_mis_set_plan():
     """It is a deterioration, and calling it a planning error would excuse it."""
-    built = history.from_rows(
-        months(14, actual=lambda i: 990.0 - i * 20, budget=1000.0)
-    )
+    rows = months(14, actual=lambda i: 990.0 - i * 20)
+    built = history.from_rows(rows)
 
-    assert built.track_for("Japan", ECOMMERCE).chronic is None
+    assert built.track_for("Japan", ECOMMERCE).chronic_for(plan(*rows, amount=1000.0)) is None
 
 
 def test_a_deep_shortfall_is_not_a_mis_set_plan_however_steady():
-    built = history.from_rows(months(14, actual=500.0, budget=1000.0))
+    rows = months(14, actual=500.0)
+    built = history.from_rows(rows)
 
-    assert built.track_for("Japan", ECOMMERCE).chronic is None
+    assert built.track_for("Japan", ECOMMERCE).chronic_for(plan(*rows, amount=1000.0)) is None
 
 
 def test_a_run_shorter_than_a_year_is_not_yet_chronic():
     """Below the seasonal cycle it cannot be told apart from a plan that is wrong for
     winter and right for summer, which is a different problem."""
-    built = history.from_rows(months(11, actual=940.0, budget=1000.0))
+    rows = months(11, actual=940.0)
+    built = history.from_rows(rows)
 
-    assert built.track_for("Japan", ECOMMERCE).chronic is None
-
-
-def _plan_at(amount):
-    """A workbook that says `amount` for Japan e-commerce, every month of the fixture."""
-    from app.perf.budget import Budget, BudgetLine
-
-    return Budget([
-        BudgetLine(market="Japan", region="Japan", segment="EBU - E-Business",
-                   channel=ECOMMERCE, period=month["period"], budget=amount,
-                   last_year=None)
-        for month in months(15, actual=1.0, budget=1.0)
-    ])
+    assert built.track_for("Japan", ECOMMERCE).chronic_for(plan(*rows, amount=1000.0)) is None
 
 
-def test_the_verdict_is_withheld_when_the_two_plans_disagree():
-    """The history compares against the warehouse's goals; the screen compares against
-    the planning workbook. Where they diverge, a "steady shortfall" may be nothing but the
-    distance between two spreadsheets — and "your plan is 6% high" said on that basis
-    sends someone to renegotiate a plan that is not the one being missed."""
-    built = history.from_rows(
-        months(14, actual=940.0, budget=1000.0) + [
-            row(period="2026-06", actual=940.0, budget=1000.0)
-        ]
-    )
-    agreeing = mapping._history_for(built, "Japan", ECOMMERCE, _plan_at(1000.0))
-    diverging = mapping._history_for(built, "Japan", ECOMMERCE, _plan_at(1400.0))
+def test_a_verdict_needs_the_workbook_to_cover_the_whole_run():
+    """The workbook covers the current fiscal year, so today it reaches a few closed
+    months, not twelve. The verdict therefore cannot appear yet — which is a true
+    statement about what is known, and better than a confident one drawn from targets
+    nobody stands behind."""
+    rows = months(14, actual=940.0)
+    built = history.from_rows(rows)
+    # Only the last four months are covered, as the real workbook covers FY27 to date.
+    recent = plan(*rows[-4:], amount=1000.0)
 
-    assert agreeing[2]
-    assert not diverging[2]
-    # Only the verdict is withheld. The run and the gaps are arithmetic on the goals fact
-    # alone and stay true whatever the workbook says.
-    assert diverging[0] == agreeing[0] > 0
+    assert built.track_for("Japan", ECOMMERCE).chronic_for(recent) is None
 
 
 # ------------------------------------------------------------------ the year to date
 
 
 def test_the_year_to_date_sums_matched_pairs_only():
-    """The trap this whole module is arranged around. On the real warehouse, 86 M€ of
-    actual arrives with no plan beside it; summed into the total and compared with a plan
-    that never covered it, a year behind budget reads as a year ahead of it."""
+    """The trap this whole module is arranged around. Summed into the total and compared
+    with a plan that never covered it, a year behind budget reads as a year ahead."""
     built = history.from_rows([
-        row(period="2026-04", actual=1000.0, budget=1200.0),
-        row(period="2026-05", actual=1000.0, budget=1200.0),
-        row(market="Korea", period="2026-05", actual=5000.0, budget=None),
+        row(period="2026-04", actual=1000.0),
+        row(period="2026-05", actual=1000.0),
+        row(market="Korea", period="2026-05", actual=5000.0),
     ])
-    ytd = built.ytd("2026-05")
+    ytd = built.ytd("2026-05", budget=plan(("2026-04", 1200.0), ("2026-05", 1200.0)))
 
     assert ytd.actual == 2000.0
     assert ytd.budget == 2400.0
@@ -193,10 +222,13 @@ def test_the_year_to_date_sums_matched_pairs_only():
 
 def test_a_plan_with_no_sales_against_it_is_counted_apart():
     built = history.from_rows([
-        row(period="2026-04", actual=1000.0, budget=1000.0),
-        row(market="Korea", period="2026-04", actual=None, budget=800.0),
+        row(period="2026-04", actual=1000.0),
+        row(market="Korea", period="2026-04", actual=None),
     ])
-    ytd = built.ytd("2026-04")
+    ytd = built.ytd("2026-04", budget=merged(
+        plan(("2026-04", 1000.0)),
+        plan(("2026-04", 800.0), market="Korea"),
+    ))
 
     assert ytd.budget == 1000.0
     assert ytd.unsold_budget == 800.0
@@ -206,13 +238,13 @@ def test_a_plan_with_no_sales_against_it_is_counted_apart():
 def test_the_year_to_date_opens_in_april():
     """The fiscal year, not the calendar one. Reading a year to date from January would
     put a quarter of the previous year's trading into this year's figure."""
-    built = history.from_rows([
-        row(period="2026-02", actual=9000.0, budget=9000.0),
-        row(period="2026-03", actual=9000.0, budget=9000.0),
-        row(period="2026-04", actual=1000.0, budget=1200.0),
-        row(period="2026-05", actual=1000.0, budget=1200.0),
-    ])
-    ytd = built.ytd("2026-05")
+    rows = [
+        row(period="2026-02", actual=9000.0),
+        row(period="2026-03", actual=9000.0),
+        row(period="2026-04", actual=1000.0),
+        row(period="2026-05", actual=1000.0),
+    ]
+    ytd = history.from_rows(rows).ytd("2026-05", budget=plan(*rows, amount=1200.0))
 
     assert ytd.first_period == "2026-04"
     assert ytd.months == 2
@@ -221,17 +253,92 @@ def test_the_year_to_date_opens_in_april():
 
 
 def test_a_month_before_the_fiscal_year_opens_looks_back_to_the_previous_april():
-    built = history.from_rows([
-        row(period="2025-04", actual=100.0, budget=100.0),
-        row(period="2026-02", actual=100.0, budget=100.0),
-    ])
-    ytd = built.ytd("2026-02")
+    rows = [row(period="2025-04", actual=100.0), row(period="2026-02", actual=100.0)]
+    ytd = history.from_rows(rows).ytd("2026-02", budget=plan(*rows, amount=100.0))
 
     assert ytd.first_period == "2025-04"
     assert ytd.label == "FY26 to date"
 
 
-# ------------------------------------------------------------------ reaching the screen
+def test_there_is_no_year_to_date_without_the_workbook():
+    """The alternative would be a total measured against the warehouse's targets, which
+    cover 57% of what is sold and which the business does not stand behind. A figure that
+    looks quotable and is not is worse than no figure."""
+    built = history.from_rows([row(period="2026-04", actual=1000.0, goal=900.0)])
+
+    assert built.ytd("2026-04") is None
+
+
+def test_the_year_to_date_says_what_share_of_sales_a_plan_covers():
+    """A total with no denominator cannot be judged. Half a business with no plan is a
+    different screen from a rounding error, and the euros alone do not say which."""
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0),
+        row(market="Korea", period="2026-04", actual=3_000_000.0),
+    ])
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 1_000_000.0)))
+
+    assert ytd.outside == 3_000_000.0
+    assert ytd.covered == 0.25
+
+
+def test_the_year_to_date_percentage_is_a_fraction():
+    """The same units as every other percentage in the cockpit. The template's filter
+    multiplies by a hundred, so a figure already in percent would reach the screen a
+    hundred times too large — and a headline that reads -1000% discredits the page."""
+    built = history.from_rows([row(period="2026-04", actual=900.0)])
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 1000.0)))
+
+    assert ytd.pct == -0.1
+    assert analytics.format_pct(ytd.pct) == "-10.0%"
+
+
+def test_a_plan_of_zero_is_not_a_plan_that_was_beaten():
+    """Paired with real sales, a plan of zero reads as "beat the plan by everything we
+    sold" — the most flattering sentence this cockpit could produce and the least true.
+    Nobody committed to nothing; nobody committed."""
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0),
+        row(period="2026-05", actual=1_000_000.0),
+    ])
+    ytd = built.ytd("2026-05", budget=plan(("2026-04", 0.0), ("2026-05", 1_200_000.0)))
+
+    assert ytd.actual == 1_000_000.0
+    assert ytd.budget == 1_200_000.0
+    assert ytd.gap == -200_000.0
+    # Named apart from a plainly missing line: a plan nobody wrote and a plan someone set
+    # to nothing need different conversations.
+    assert ytd.zero_goal_actual == 1_000_000.0
+    assert ytd.unbudgeted_actual == 0.0
+
+
+def test_a_plan_of_zero_does_not_enter_the_trend():
+    """It is not a month the business was above or below — there was nothing to be above
+    or below of."""
+    rows = [
+        row(period="2026-04", actual=800.0),
+        row(period="2026-05", actual=900.0),
+        row(period="2026-06", actual=700.0),
+    ]
+    track = history.from_rows(rows).track_for("Japan", ECOMMERCE)
+    with_a_hole = plan(("2026-04", 1000.0), ("2026-05", 0.0), ("2026-06", 1000.0))
+
+    assert track.gap_history_for(with_a_hole) == (-200.0, -300.0)
+    assert track.months_below_for(with_a_hole) == 2
+
+
+def test_a_closed_channel_planned_at_zero_is_counted_nowhere():
+    """Zero planned, zero sold. Not a plan met and not a plan missing — a channel that is
+    not trading, and a row nobody should have to read."""
+    built = history.from_rows([row(period="2026-04", actual=0.0)])
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 0.0)))
+
+    assert ytd.actual == 0.0
+    assert ytd.zero_goal_lines == 0
+    assert ytd.unbudgeted_lines == 0
+
+
+# ------------------------------------------------------------ reaching the screen
 
 
 def _unit(**overrides):
@@ -273,19 +380,14 @@ def test_a_mis_set_plan_is_asked_about_the_plan():
 
 def test_the_history_reaches_the_units():
     built = history.from_rows([
-        row(period="2026-05", actual=800.0, budget=1000.0),
-        row(period="2026-06", actual=700.0, budget=1000.0),
+        row(period="2026-05", actual=800.0),
+        row(period="2026-06", actual=700.0),
     ])
-    budget = Budget([
-        BudgetLine(
-            market="Japan", region="Japan", segment="EBU - E-Business",
-            channel=ECOMMERCE, period="2026-06", budget=1000.0, last_year=900.0,
-        )
-    ])
+    workbook = plan(("2026-05", 1000.0), ("2026-06", 1000.0))
     mapped = mapping.units_from_rows(
         [{"market": "Japan", "channel": "E-COMMERCE", "period": "2026-06",
           "sales_actual": 700.0}],
-        budget=budget,
+        budget=workbook,
         history=built,
     )
 
@@ -304,168 +406,3 @@ def test_no_history_costs_the_units_nothing_but_the_history():
     assert mapped.units[0].months_below_budget == 0
     assert mapped.units[0].gap_history == ()
     assert mapped.units[0].chronic_plan == ""
-
-
-def test_the_year_to_date_percentage_is_a_fraction():
-    """The same units as every other percentage in the cockpit. The template's filter
-    multiplies by a hundred, so a figure already in percent would reach the screen a
-    hundred times too large — and a headline that reads -1000% discredits the page, not
-    the number."""
-    built = history.from_rows([row(period="2026-04", actual=900.0, budget=1000.0)])
-    ytd = built.ytd("2026-04")
-
-    assert ytd.pct == -0.1
-    assert analytics.format_pct(ytd.pct) == "-10.0%"
-
-
-# ------------------------------------------------------- a plan of zero is not a plan
-
-
-def test_a_goal_of_zero_is_not_a_plan_that_was_beaten():
-    """The goals fact carries explicit zeros. Paired with real sales, a zero goal reads
-    as "beat the plan by everything we sold" — the most flattering sentence this cockpit
-    could produce and the least true. Nobody committed to nothing; nobody committed."""
-    built = history.from_rows([
-        row(period="2026-04", actual=1_000_000.0, budget=0.0),
-        row(period="2026-05", actual=1_000_000.0, budget=1_200_000.0),
-    ])
-    ytd = built.ytd("2026-05")
-
-    assert ytd.actual == 1_000_000.0
-    assert ytd.budget == 1_200_000.0
-    assert ytd.gap == -200_000.0
-    # Named apart from a plainly missing line: a target nobody set and a target someone
-    # set to nothing need different conversations.
-    assert ytd.zero_goal_actual == 1_000_000.0
-    assert ytd.unbudgeted_actual == 0.0
-
-
-def test_a_zero_goal_does_not_enter_the_trend():
-    """It is not a month the business was above or below — there was nothing to be
-    above or below of."""
-    built = history.from_rows([
-        row(period="2026-04", actual=800.0, budget=1000.0),
-        row(period="2026-05", actual=900.0, budget=0.0),
-        row(period="2026-06", actual=700.0, budget=1000.0),
-    ])
-    track = built.track_for("Japan", ECOMMERCE)
-
-    assert track.gap_history == (-200.0, -300.0)
-    assert track.months_below_budget == 2
-
-
-def test_a_closed_channel_planned_at_zero_is_counted_nowhere():
-    """Zero planned, zero sold. Not a plan met and not a plan missing — a channel that
-    is not trading, and a row nobody should have to read."""
-    built = history.from_rows([row(period="2026-04", actual=0.0, budget=0.0)])
-    ytd = built.ytd("2026-04")
-
-    assert ytd.actual == 0.0
-    assert ytd.zero_goal_lines == 0
-    assert ytd.unbudgeted_lines == 0
-
-
-def test_the_year_to_date_says_what_share_of_sales_a_plan_covers():
-    """A total with no denominator cannot be judged. Half a business with no target is a
-    different screen from a rounding error, and the euros alone do not say which."""
-    built = history.from_rows([
-        row(period="2026-04", actual=1_000_000.0, budget=1_000_000.0),
-        row(market="Korea", period="2026-04", actual=3_000_000.0, budget=None),
-    ])
-    ytd = built.ytd("2026-04")
-
-    assert ytd.outside == 3_000_000.0
-    assert ytd.covered == 0.25
-
-
-# --------------------------------------------- the year to date runs on the workbook
-
-
-def _workbook(*lines):
-    from app.perf.budget import Budget, BudgetLine
-
-    return Budget([
-        BudgetLine(market=market, region="Test", segment="EBU - E-Business",
-                   channel=ECOMMERCE, period=period, budget=amount, last_year=None)
-        for market, period, amount in lines
-    ])
-
-
-def test_the_year_to_date_prefers_the_workbook_to_the_goals_fact():
-    """The goals fact covers 57% of measured sales on the real warehouse — whole markets
-    carry no target in any of twenty-four months. A year to date built on it compares a
-    complete actual with a plan missing two fifths of the business. The workbook has no
-    such hole and covers exactly the window being summed."""
-    built = history.from_rows([
-        row(period="2026-04", actual=1_000_000.0, budget=None),
-        row(period="2026-05", actual=1_000_000.0, budget=None),
-    ])
-    plan = _workbook(("Japan", "2026-04", 900_000.0), ("Japan", "2026-05", 900_000.0))
-
-    on_goals = built.ytd("2026-05")
-    on_workbook = built.ytd("2026-05", budget=plan)
-
-    assert on_goals.actual == 0.0 and on_goals.unbudgeted_actual == 2_000_000.0
-    assert on_workbook.actual == 2_000_000.0
-    assert on_workbook.budget == 1_800_000.0
-    assert on_workbook.covered == 1.0
-    assert on_workbook.plan_source == "the planning workbook"
-
-
-def test_the_two_plan_sources_are_never_mixed():
-    """A pair the workbook does not cover is unbudgeted, not quietly filled from the
-    goals fact. A total assembled from two definitions of "plan" reconciles with neither.
-    """
-    built = history.from_rows([
-        row(period="2026-04", actual=1_000_000.0, budget=950_000.0),
-        row(market="Korea", period="2026-04", actual=500_000.0, budget=480_000.0),
-    ])
-    plan = _workbook(("Japan", "2026-04", 900_000.0))
-
-    ytd = built.ytd("2026-04", budget=plan)
-
-    assert ytd.actual == 1_000_000.0
-    assert ytd.budget == 900_000.0
-    # Korea has a goals figure and no workbook line. It is reported, not borrowed.
-    assert ytd.unbudgeted_actual == 500_000.0
-
-
-def test_the_verdict_checks_every_shared_month_not_just_the_latest():
-    """One month agreeing is a coincidence; twelve is the same plan. Checking only the
-    anchor would clear a workbook that matches the goals fact in July and diverges from
-    it all year."""
-    rows = months(14, actual=940.0, budget=1000.0)
-    built = history.from_rows(rows)
-    track = built.track_for("Japan", ECOMMERCE)
-
-    from app.perf.budget import Budget, BudgetLine
-
-    def plan(amount_by_period):
-        return Budget([
-            BudgetLine(market="Japan", region="Japan", segment="EBU - E-Business",
-                       channel=ECOMMERCE, period=period, budget=amount,
-                       last_year=None)
-            for period, amount in amount_by_period.items()
-        ])
-
-    periods = [r["period"] for r in rows]
-    agreeing = plan({p: 1000.0 for p in periods})
-    # Matches on the last month, diverges on every earlier one.
-    latest_only = plan(
-        {p: (1000.0 if p == periods[-1] else 1400.0) for p in periods}
-    )
-
-    assert track.chronic_for(agreeing) is not None
-    assert track.chronic_for(latest_only) is None
-
-
-def test_a_suppressed_verdict_is_still_a_finding():
-    """`chronic_for` answers the narrow question — is this a statement about the plan of
-    record — and `chronic` keeps the wider one. Targets missed by the same margin every
-    month for a year are a real management problem even when they are not the budget, and
-    a caller that can show both should not be handed only silence."""
-    built = history.from_rows(months(14, actual=940.0, budget=1000.0))
-    track = built.track_for("Japan", ECOMMERCE)
-
-    assert track.chronic is not None
-    assert track.chronic_for(_plan_at(1400.0)) is None

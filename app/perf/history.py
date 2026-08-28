@@ -64,52 +64,34 @@ def _number(value) -> Optional[float]:
 
 
 class Month:
-    """One market, one channel, one month: what was sold and what was planned.
+    """One market, one channel, one month: what was sold, and what the warehouse targeted.
 
-    Either side may be absent, and absent is not zero. A month with a plan and no sales is
-    a business that stopped selling while still carrying a commitment; a month with sales
-    and no plan is revenue nobody committed to. Zeroing either one would turn both of those
-    into ordinary rows.
+    The two are not peers and the names say so. `actual` is measured sell-out and is
+    trusted. `goal` is the warehouse's goals fact — a store-target system the business has
+    ruled unreliable, and which in any case has no target at all for two fifths of what it
+    sells. It is kept because a diagnostic of it is worth printing once; nothing in this
+    module judges performance by it.
+
+    The plan of record is the planning workbook, and it arrives from outside: every method
+    that compares takes it as an argument. Absent is not zero on either side.
     """
 
-    __slots__ = ("period", "actual", "budget")
+    __slots__ = ("period", "actual", "goal")
 
-    def __init__(self, period: str, actual: Optional[float], budget: Optional[float]) -> None:
+    def __init__(self, period: str, actual: Optional[float], goal: Optional[float]) -> None:
         self.period = period
         self.actual = actual
-        self.budget = budget
+        self.goal = goal
 
     @property
-    def is_paired(self) -> bool:
-        """Both sides present, and the plan side is an actual plan.
-
-        A goal of exactly zero is excluded, and that is not a rounding decision. The goals
-        fact carries explicit zeros — whole channels sit at 0 for months on end. Paired
-        with real sales, a zero goal reads as "beat the plan by everything we sold", which
-        is the single most flattering sentence this cockpit could produce and the least
-        true. Nobody committed to nothing; nobody committed at all.
-
-        Zero against zero is left out too: it is not a plan met, it is a channel that is
-        not trading, and counting it would put a row nobody looks at into a total.
-        """
-        return self.actual is not None and self.budget is not None and self.budget != 0
+    def has_goal(self) -> bool:
+        """A target exists in the warehouse and is not an explicit zero."""
+        return self.goal is not None and self.goal != 0
 
     @property
     def is_zero_goal(self) -> bool:
-        """Real sales against a goal of exactly zero — an absent plan written as a number."""
-        return self.budget == 0 and bool(self.actual)
-
-    @property
-    def gap(self) -> Optional[float]:
-        if not self.is_paired:
-            return None
-        return self.actual - self.budget
-
-    @property
-    def ratio(self) -> Optional[float]:
-        if not self.is_paired or not self.budget:
-            return None
-        return self.actual / self.budget
+        """Real sales against a target of exactly zero — an absent target written down."""
+        return self.goal == 0 and bool(self.actual)
 
 
 class Chronic:
@@ -137,19 +119,15 @@ class Chronic:
             % (self.months, self.low, self.high, self.shortfall_pct)
         )
 
-    @property
-    def months_short_of_a_year(self) -> int:
-        """How much more history a workbook would need to confirm this on the real plan.
-
-        Twelve months is the threshold; the planning workbook covers the current fiscal
-        year only. Until a second year of it exists, a verdict can be measured on the
-        warehouse's targets and never on the commitment itself.
-        """
-        return max(0, CHRONIC_WINDOW - self.months)
-
 
 class Track:
-    """One market × channel, across every month the history returned."""
+    """One market × channel, across every month the history returned.
+
+    Every comparison here takes the planning workbook as an argument rather than reading a
+    plan off the rows. That is the whole design: the rows carry the warehouse's targets,
+    which are not the plan, and a method that quietly used them would produce a confident
+    sentence about a number nobody stands behind.
+    """
 
     __slots__ = ("market", "channel", "months")
 
@@ -165,97 +143,68 @@ class Track:
                 return month
         return None
 
-    @property
-    def paired(self) -> List[Month]:
-        return [month for month in self.months if month.is_paired]
+    def against(self, budget) -> List[Tuple[str, float, float]]:
+        """`(period, actual, plan)` for months the workbook covers and something sold.
 
-    @property
-    def gap_history(self) -> Tuple[float, ...]:
-        """Monthly € gap against plan, oldest first, over paired months only.
-
-        A month where one side is missing is skipped rather than filled: a fabricated zero
-        would read on the screen as "the gap closed", which is the opposite of what a
-        missing plan means.
+        Oldest first. A month missing from either side is skipped rather than filled: a
+        fabricated zero would read on the screen as "the gap closed", which is the opposite
+        of what a missing plan means.
         """
-        gaps = [month.gap for month in self.paired]
+        if budget is None:
+            return []
+        found = []
+        for month in self.months:
+            if month.actual is None:
+                continue
+            planned = budget.budget_for(self.market, self.channel, month.period)
+            if not planned:
+                continue
+            found.append((month.period, month.actual, planned))
+        return found
+
+    def gap_history_for(self, budget) -> Tuple[float, ...]:
+        """Monthly € gap against the plan of record, oldest first."""
+        gaps = [actual - planned for _, actual, planned in self.against(budget)]
         return tuple(gaps[-GAP_HISTORY_MONTHS:])
 
-    @property
-    def months_below_budget(self) -> int:
-        """The current run of consecutive paired months below plan, ending at the latest."""
+    def months_below_for(self, budget) -> int:
+        """The current run of consecutive months below plan, ending at the latest."""
         run = 0
-        for month in reversed(self.paired):
-            if month.actual >= month.budget:
+        for _, actual, planned in reversed(self.against(budget)):
+            if actual >= planned:
                 break
             run += 1
         return run
 
-    @property
-    def chronic(self) -> Optional[Chronic]:
+    def chronic_for(self, budget) -> Optional[Chronic]:
         """A mis-set plan, or None.
 
         Deliberately hard to earn. Three conditions, all of them: the run must be long
-        enough to have crossed a whole seasonal cycle, the ratio must hold steady across it,
-        and it must not be so low that "the plan was optimistic" stops being a fair reading
-        of it.
+        enough to have crossed a whole seasonal cycle, the ratio must hold steady across
+        it, and it must not be so low that "the plan was optimistic" stops being a fair
+        reading of it.
+
+        Measured against the workbook and nothing else. It follows that the verdict cannot
+        appear until the workbook covers a full year of closed months — which is a true
+        statement about what is known, and better than a confident one drawn from targets
+        the business does not stand behind.
         """
-        paired = self.paired
+        paired = self.against(budget)
         if len(paired) < CHRONIC_WINDOW:
             return None
 
-        run: List[Month] = []
-        for month in reversed(paired):
-            if month.actual >= month.budget:
+        run = []
+        for period, actual, planned in reversed(paired):
+            if actual >= planned:
                 break
-            run.append(month)
+            run.append(actual / planned)
         if len(run) < CHRONIC_WINDOW:
             return None
 
-        ratios = [month.ratio for month in run if month.ratio is not None]
-        if len(ratios) != len(run):
-            return None
-        low, high = min(ratios), max(ratios)
+        low, high = min(run), max(run)
         if high - low > CHRONIC_SPREAD or low < CHRONIC_FLOOR:
             return None
-        return Chronic(
-            months=len(run), low=low, high=high, mean=sum(ratios) / len(ratios)
-        )
-
-    def chronic_for(self, budget=None) -> Optional[Chronic]:
-        """The verdict, but only where it is a statement about the plan of record.
-
-        A suppressed verdict is not a finding that vanished. What the history measures is
-        the warehouse's goals fact — a store-target system — and targets missed by the
-        same margin every month for a year are a real management problem: the
-        target-setting for that market has stopped meaning anything. It is simply not a
-        statement about the budget, and reporting it as one would send someone to
-        renegotiate a plan that is not the one being missed. Callers that can show both
-        should show both, labelled; this method answers only the narrower question.
-
-        The wider one is answered by `chronic`.
-
-        The ratio is computed on the warehouse's goals fact. The workbook is a different
-        plan, and on the months both cover they should say the same thing. Where they do,
-        a ratio measured on one is a fair statement about the other. Where they diverge, a
-        "steady shortfall" may be nothing but the distance between two spreadsheets — and
-        "your plan is 7% too high", said on that basis, sends someone to renegotiate a
-        plan that is not the one being missed.
-
-        Every shared month is checked, not just the latest: one month agreeing is a
-        coincidence, twelve is the same plan.
-        """
-        verdict = self.chronic
-        if verdict is None or budget is None:
-            return verdict
-        for month in self.months:
-            if not month.budget:
-                continue
-            other = budget.budget_for(self.market, self.channel, month.period)
-            if not other:
-                continue
-            if abs(other - month.budget) / other > PLAN_AGREEMENT:
-                return None
-        return verdict
+        return Chronic(months=len(run), low=low, high=high, mean=sum(run) / len(run))
 
 
 class Ytd:
@@ -398,7 +347,10 @@ class History:
         """
         last = anchor or self.latest_period
         first = _fiscal_start(last)
-        if not first:
+        if not first or budget is None:
+            # No workbook, no year to date. The alternative would be a total measured
+            # against the warehouse's targets, which cover 57% of what is sold and which
+            # the business does not stand behind — a figure that looks quotable and is not.
             return None
 
         actual = budget_total = unbudgeted = unsold = zero_goal = 0.0
@@ -410,11 +362,7 @@ class History:
                 if not (first <= month.period <= last):
                     continue
                 periods.add(month.period)
-                planned = (
-                    budget.budget_for(track.market, track.channel, month.period)
-                    if budget is not None
-                    else month.budget
-                )
+                planned = budget.budget_for(track.market, track.channel, month.period)
                 if month.actual is not None and planned:
                     actual += month.actual
                     budget_total += planned
@@ -443,11 +391,7 @@ class History:
             months=len(periods),
             zero_goal_actual=zero_goal,
             zero_goal_lines=zero_goal_lines,
-            plan_source=(
-                "the planning workbook"
-                if budget is not None
-                else "the warehouse's goals fact"
-            ),
+            plan_source="the planning workbook",
         )
 
 
@@ -499,7 +443,7 @@ def from_rows(rows: Sequence[Dict[str, object]]) -> History:
             Month(
                 period=period,
                 actual=_number(row.get("sales_actual")),
-                budget=_number(row.get("sales_budget")),
+                goal=_number(row.get("sales_budget")),
             )
         )
 

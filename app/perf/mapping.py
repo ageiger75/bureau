@@ -331,11 +331,16 @@ def _history_for(history, market, channel, budget):
     """What the last twenty-four months say about this market and channel.
 
     Returns the run of months below plan, the monthly gaps behind it, and — only when it
-    is earned and the workbook does not contradict it — the sentence that says the plan
-    itself is the problem. The cross-check lives on the track rather than here, so the
-    screen and the terminal cannot reach different verdicts from the same two files.
+    is earned — the sentence that says the plan itself is the problem.
+
+    All three are measured against the planning workbook. The history rows also carry the
+    warehouse's own targets, and using those would buy far more months of depth: they reach
+    back two years where the workbook covers the current one. It would also mean ranking
+    the CEO's attention on a source the business has ruled unreliable, and which has no
+    target at all for two fifths of what it sells. Fewer months of a real plan beats more
+    months of a number nobody stands behind.
     """
-    if history is None:
+    if history is None or budget is None:
         return 0, (), ""
     track = history.track_for(market, channel)
     if track is None:
@@ -343,8 +348,8 @@ def _history_for(history, market, channel, budget):
 
     chronic = track.chronic_for(budget)
     return (
-        track.months_below_budget,
-        track.gap_history,
+        track.months_below_for(budget),
+        track.gap_history_for(budget),
         chronic.sentence if chronic is not None else "",
     )
 
