@@ -34,6 +34,26 @@ RATE_DRIVERS = frozenset({"Conversion"})
 #: drivers survive such a change unharmed, which is what makes the distinction worth
 #: keeping: the decomposition stays readable if the reader is told which half moved for a
 #: reason that has nothing to do with the market.
+#: Month names for the one place a period is written out in prose. Kept here rather than
+#: imported from the source module, which imports this one.
+_MONTH_NAMES = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def _month_label(period: str) -> str:
+    """'2026-06' -> 'June'. The raw value back when it is not a month."""
+    parts = (period or "").split("-")
+    if len(parts) != 2:
+        return period
+    try:
+        month = int(parts[1])
+    except ValueError:
+        return period
+    return _MONTH_NAMES[month - 1] if 1 <= month <= 12 else period
+
+
 MONEY_DRIVERS = frozenset({"AOV", "ASP"})
 
 #: Markets whose stores have footfall counters, and where a retail conversion rate can
@@ -226,6 +246,7 @@ class BusinessUnit:
         "perimeter",
         "chronic_plan",
         "plan_vs_record",
+        "period",
     )
 
     def __init__(
@@ -258,6 +279,7 @@ class BusinessUnit:
         perimeter: str = "",
         chronic_plan: str = "",
         plan_vs_record: str = "",
+        period: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -325,6 +347,10 @@ class BusinessUnit:
         #: growth a market has never shown is a plan someone will be asked to explain in
         #: October. Blank when the plan merely continues the trend, which is most of them.
         self.plan_vs_record = plan_vs_record
+        #: The month this unit describes, 'YYYY-MM'. Held because the perimeters do not
+        #: always close on the same one: a card showing June under a heading that says
+        #: July is wrong twice, once in the number and once in the silence around it.
+        self.period = period
 
     # ------------------------------------------------------------------ sales
 
@@ -364,13 +390,20 @@ class BusinessUnit:
 
     @property
     def basis_note(self) -> str:
-        """The sentence that goes beside a shipped figure, and nothing beside a sold one."""
+        """The sentence that goes beside a shipped figure, and nothing beside a sold one.
+
+        It names the month, because the two perimeters do not always close on the same
+        one. The header learned to say so; the cards did not, and a reader looking at a
+        June gap under a heading that says July has been told the wrong thing twice — once
+        by the number and once by the silence around it.
+        """
         if self.basis != "shipped":
             return ""
+        when = " (%s)" % _month_label(self.period) if self.period else ""
         return (
-            "Shipped, not sold: this is what was invoiced to a partner, which is when "
-            "the accounts recognise it. How much of it reached a shopper, and when, is "
-            "not measured here."
+            "Shipped, not sold%s: invoiced to a partner, which is when the accounts "
+            "recognise it. How much of it reached a shopper, and when, is not measured "
+            "here." % when
         )
 
     @property

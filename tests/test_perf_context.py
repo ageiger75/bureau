@@ -830,3 +830,27 @@ def test_a_boundary_is_not_tested_on_a_month_where_nothing_crossed():
     assert "nothing crossed the boundary this month" in check.message
     # And no accusation anywhere in it.
     assert "wrong side" not in check.message
+
+
+def test_an_absence_someone_has_explained_is_not_a_broken_feed():
+    """Australia stopped being shipped because the customer is not paying, and it was
+    written down that morning. The screen still told its reader to go and check the data
+    feed. Sending someone to chase a pipeline over a fact they recorded themselves is how
+    a panel earns the right to be ignored — and this panel's whole value is that
+    everything in it is worth reading."""
+    from app.perf.mapping import ORDERS_NOT_TRACKED
+
+    silent = unit(
+        actual=Drivers.sales_only(0.0),
+        last_year=Drivers.sales_only(53_000.0),
+        funnel_status=ORDERS_NOT_TRACKED,
+        notes=[note(kind=context.ON_HOLD, market="Brazil", channel="")],
+    )
+    loud = unit(
+        actual=Drivers.sales_only(0.0),
+        last_year=Drivers.sales_only(53_000.0),
+        funnel_status=ORDERS_NOT_TRACKED,
+    )
+
+    assert analytics.suspect_of(silent) is None
+    assert analytics.suspect_of(loud) is not None

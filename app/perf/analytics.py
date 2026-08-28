@@ -443,6 +443,15 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
         ORDERS_NOT_TRACKED,
     )
 
+    # An absence somebody has already explained is not a break in the data. Australia
+    # stopped being shipped because the customer is not paying; the screen was still
+    # telling its reader to go and check the feed. Sending someone to chase a pipeline
+    # over a fact they wrote down themselves that morning is how a panel earns the right
+    # to be ignored — and this panel's whole value is that everything in it is worth
+    # reading.
+    if unit.context_notes:
+        return None
+
     # A market with no own site is not a broken feed. It sells through partners who
     # resell, so having no funnel — and often no own online revenue at all — is how that
     # market works. Sending anyone to repair it would send them after nothing.

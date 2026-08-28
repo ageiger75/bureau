@@ -608,10 +608,15 @@ def test_a_sell_in_unit_says_why_it_has_no_cause():
         budget=budget_of(line(market="Japan", channel="dis")),
     )
 
-    reason = mapped.units[0].no_breakdown_reason
+    unit = mapped.units[0]
 
-    assert "Invoiced to a partner" in reason
-    assert "none missing" in reason
+    # The fact is carried by two sentences now, not one: the basis note says what the
+    # figure counts, and this says why no driver table follows it. They used to open on
+    # the same clause, which read as padding — and padding on a card teaches a reader to
+    # skim the next one.
+    assert "none missing" in unit.no_breakdown_reason
+    assert "invoiced to a partner" in unit.basis_note
+    assert "not measured here" in unit.basis_note
 
 
 def test_a_row_with_no_segment_is_dropped():

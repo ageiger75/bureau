@@ -424,10 +424,11 @@ def units_from_rows(
             # Short on purpose: the basis note beside it already says what is and is not
             # in the figure. Printed in full, the two lines said the same thing twice on
             # one card, and a screen that repeats itself reads as one that is padding.
-            reason = (
-                "Invoiced to a partner who then resells, so there is no funnel behind "
-                "this figure and none missing."
-            )
+            # The basis note beside it already says this was invoiced to a partner. All
+            # this line adds is why there is no driver table, so that is all it says now:
+            # two sentences opening on the same clause read as padding, and padding on a
+            # card is what teaches a reader to skim the next one.
+            reason = "No funnel behind this figure, and none missing."
         elif channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON
         elif funnel_status in FUNNEL_REASONS:
@@ -490,6 +491,7 @@ def units_from_rows(
                 # roll-up could reach the fires and take a slot from a market someone can
                 # be asked about.
                 is_aggregate=is_aggregate_market(market),
+                period=period,
                 months_below_budget=months_below,
                 gap_history=gap_history,
                 chronic_plan=chronic,

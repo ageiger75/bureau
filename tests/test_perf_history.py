@@ -1016,3 +1016,20 @@ def test_the_alias_still_works_where_no_real_line_claims_it():
     ]))
 
     assert places[("M_017_UNLOC", "DIS - Distributors")] == ("Korea", "dis")
+
+
+def test_a_shipped_figure_names_its_own_month():
+    """The perimeters do not always close together: on real data the warehouse closed on
+    July and the consolidation on June. The header learned to say so; the cards did not,
+    and a June gap under a heading that says July is wrong twice — once in the number and
+    once in the silence around it."""
+    rows = mapping.sell_in_rows([
+        {"market": "Japan", "region": "APAC", "segment": "DIS - Distributors",
+         "period": "2026-06", "sales_actual": 700_000.0}
+    ])
+    unit = mapping.units_from_rows(rows).units[0]
+
+    assert unit.period == "2026-06"
+    assert "Shipped, not sold (June)" in unit.basis_note
+    # And it no longer repeats the clause the basis note already carries.
+    assert "Invoiced to a partner" not in unit.no_breakdown_reason
