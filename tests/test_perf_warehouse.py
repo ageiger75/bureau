@@ -82,7 +82,7 @@ def test_comments_do_not_hide_the_real_first_word():
 
 
 def test_only_the_written_queries_report_as_written():
-    """SALES_AND_DRIVERS is written against the real schema; the other five are not.
+    """Two queries are written against the real schema; the rest are not.
 
     Kept as an inventory rather than deleted: `missing()` is what the 503 page lists, so a
     query that silently stopped counting as written would produce a screen claiming a
@@ -91,6 +91,7 @@ def test_only_the_written_queries_report_as_written():
     """
     assert set(queries.missing()) == {
         "SALES_HISTORY",
+        "SELL_IN_HISTORY",
         "KPI_READINGS",
         "MARKET_INDEX",
         "COMMITMENTS",

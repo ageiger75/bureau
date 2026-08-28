@@ -561,6 +561,28 @@ where s.segment is not null
 order by s.sales_actual desc nulls last
 """
 
+#: The same sell-in figures, over a whole fiscal year, for the reconciliation to run
+#: against — `manage.py reconcile --from-warehouse`.
+#:
+#: It exists because a measurement that cannot be repeated is a claim, not a guarantee.
+#: The 98% agreement that promoted sell-in out of "not measured" was produced by a
+#: throwaway script on one machine: nobody else could reproduce it, and nobody — including
+#: whoever wrote it — could tell six months later whether it still held. Versioned here,
+#: the check runs monthly in one command and catches the drift it was built to catch.
+#:
+#: One row per entity, segment and month, over the last complete fiscal year:
+#:
+#:     entity            text     -- 'M_024', 'M_098_TRA'
+#:     segment           text     -- the plan's segment label
+#:     period            text     -- 'YYYY-MM', or 'YYYY-MM..YYYY-MM' for months the
+#:                                   source cannot separate. Never split by a rule of
+#:                                   thumb: a figure invented to fill a column is worth
+#:                                   less than an honest pair.
+#:     value             number   -- euros, at the plan's exchange year
+#:
+#: No market column is needed: the entity is what joins, and it is what the plan uses.
+SELL_IN_HISTORY = ""
+
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
 KPI_READINGS = ""
@@ -581,6 +603,7 @@ ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
     "SELL_IN": SELL_IN,
+    "SELL_IN_HISTORY": SELL_IN_HISTORY,
     "KPI_READINGS": KPI_READINGS,
     "MARKET_INDEX": MARKET_INDEX,
     "COMMITMENTS": COMMITMENTS,

@@ -11,6 +11,7 @@
                                      note --list · note --forget N
     python -m app.cli reconcile      confronte une extraction candidate aux réalisés connus
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
+                                     reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
@@ -154,22 +155,29 @@ def cmd_reconcile(argv: List[str]) -> int:
     qui ne les reproduit pas dit exactement où elle se trompe — ce qui vaut mieux à
     transmettre qu'une demande.
 
-    Le candidat est un CSV aux colonnes `market`, `segment`, `period`, `value`. C'est le
-    format qu'écrit `--spec`, pour que les deux fichiers se regardent en face.
+    Le candidat est un CSV aux colonnes `market`, `segment`, `period`, `value` — le format
+    qu'écrit `--spec`, pour que les deux fichiers se regardent en face. `--from-warehouse`
+    lit à la place la requête versionnée `SELL_IN_HISTORY`, ce qui rend la mesure
+    reproductible : une vérification qu'on ne peut pas relancer est une affirmation, pas
+    une garantie.
     """
     import csv
 
     from .perf import budget as budget_module
     from .perf.budget import normalise_market, perimeter_of, previous_year
 
-    if not argv or argv[0].startswith("--"):
-        print("Usage : manage.py reconcile CANDIDAT.csv [--perimeter sell-in]",
-              file=sys.stderr)
-        return 2
-    candidate_path = Path(argv[0])
-    if not candidate_path.exists():
-        print("Fichier introuvable : %s" % candidate_path, file=sys.stderr)
-        return 2
+    from_warehouse = "--from-warehouse" in argv
+    candidate_path = None
+    if not from_warehouse:
+        if not argv or argv[0].startswith("--"):
+            print("Usage : manage.py reconcile CANDIDAT.csv [--perimeter sell-in]",
+                  file=sys.stderr)
+            print("        manage.py reconcile --from-warehouse", file=sys.stderr)
+            return 2
+        candidate_path = Path(argv[0])
+        if not candidate_path.exists():
+            print("Fichier introuvable : %s" % candidate_path, file=sys.stderr)
+            return 2
     if not settings.has_budget_file:
         print("Classeur de planification absent : rien à quoi confronter.", file=sys.stderr)
         return 2
@@ -198,44 +206,51 @@ def cmd_reconcile(argv: List[str]) -> int:
         print("Aucun réalisé connu sur ce périmètre.", file=sys.stderr)
         return 2
 
+    if from_warehouse:
+        candidate = _candidate_from_warehouse()
+        if candidate is None:
+            return 2
+    else:
+        with candidate_path.open(encoding="utf-8-sig", newline="") as handle:
+            candidate = list(csv.DictReader(handle))
+
     found = {}
     combined = []
     unknown = 0
     matched_on_entity = 0
-    with candidate_path.open(encoding="utf-8-sig", newline="") as handle:
-        for record in csv.DictReader(handle):
-            segment = str(record.get("segment") or "").strip()
-            period = str(record.get("period") or "").strip()
-            entity = str(record.get("entity") or "").strip().upper()
+    for record in candidate:
+        segment = str(record.get("segment") or "").strip()
+        period = str(record.get("period") or "").strip()
+        entity = str(record.get("entity") or "").strip().upper()
 
-            # A source may be unable to separate two months — a cumulative fact with a
-            # snapshot missing in the middle. Splitting them by a rule of thumb would be
-            # the one thing worth less than not having them: a figure invented to fill a
-            # column. `2025-04..2025-05` says so instead, and is confronted with the plan's
-            # own two months added together.
-            months = _months_in(period)
-            if len(months) > 1:
-                combined.append((entity, segment, months, _value_of(record)))
-                continue
+        # A source may be unable to separate two months — a cumulative fact with a
+        # snapshot missing in the middle. Splitting them by a rule of thumb would be
+        # the one thing worth less than not having them: a figure invented to fill a
+        # column. `2025-04..2025-05` says so instead, and is confronted with the plan's
+        # own two months added together.
+        months = _months_in(period)
+        if len(months) > 1:
+            combined.append((entity, segment, months, _value_of(record)))
+            continue
 
-            key = None
-            if entity:
-                key = by_entity.get((entity, segment, period))
-                if key is not None:
-                    matched_on_entity += 1
-            if key is None:
-                key = (
-                    normalise_market(str(record.get("market") or "")),
-                    segment,
-                    period,
-                )
-            value = _value_of(record)
-            if value is None:
-                continue
-            if key not in expected:
-                unknown += 1
-                continue
-            found[key] = found.get(key, 0.0) + value
+        key = None
+        if entity:
+            key = by_entity.get((entity, segment, period))
+            if key is not None:
+                matched_on_entity += 1
+        if key is None:
+            key = (
+                normalise_market(str(record.get("market") or "")),
+                segment,
+                period,
+            )
+        value = _value_of(record)
+        if value is None:
+            continue
+        if key not in expected:
+            unknown += 1
+            continue
+        found[key] = found.get(key, 0.0) + value
 
     # Combined months are resolved after the single ones, so a range never shadows a month
     # the candidate also produced on its own.
@@ -433,6 +448,37 @@ def cmd_note(argv: List[str]) -> int:
     print("")
     print("Rechargez l'écran : le marché sort de « Qui challenger » et garde son écart.")
     return 0
+
+
+def _candidate_from_warehouse():
+    """Run the versioned reconciliation query, so the check is repeatable.
+
+    The measurement that promoted sell-in out of "not measured" was produced by a
+    throwaway script on one machine. Nobody else could reproduce it, and nobody could tell
+    six months later whether it still held — which makes it a claim rather than a
+    guarantee. Versioned, it runs monthly in one command.
+    """
+    if not settings.reads_warehouse:
+        print("CEOOS_DATA_SOURCE n'est pas « snowflake » : rien à lire.", file=sys.stderr)
+        return None
+
+    from .perf import queries, warehouse
+
+    if not queries.SELL_IN_HISTORY.strip():
+        print("SELL_IN_HISTORY n'est pas écrite. Le contrat est dans app/perf/queries.py :",
+              file=sys.stderr)
+        print("  entity, segment, period, value — sur un exercice complet.", file=sys.stderr)
+        return None
+
+    _silence_third_party_noise()
+    try:
+        rows = warehouse.rows(queries.SELL_IN_HISTORY, label="SELL_IN_HISTORY")
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Lecture impossible : %s" % exc, file=sys.stderr)
+        return None
+
+    print("Lu dans l'entrepôt  %d lignes" % len(rows))
+    return [{str(k): v for k, v in row.items()} for row in rows]
 
 
 def _value_of(record) -> Optional[float]:

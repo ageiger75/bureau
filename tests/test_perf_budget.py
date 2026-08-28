@@ -922,3 +922,78 @@ def test_grouped_months_count_towards_the_rate(tmp_path, capsys, pair):
     cmd_reconcile([str(path)])
 
     assert "Taux d'accord       100.0%" in capsys.readouterr().out
+
+
+# ----------------------------------------------- une vérification qui se relance seule
+#
+# La mesure qui a fait passer le sell-in de « non mesuré » à « bêta » venait d'un script
+# jetable sur une machine. Personne d'autre ne pouvait la refaire, et personne — pas même
+# son auteur — ne pouvait dire six mois plus tard si elle tenait encore. C'est une
+# affirmation, pas une garantie.
+
+
+def test_la_verification_depuis_lentrepot_exige_la_requete(capsys, monkeypatch):
+    from app.cli import cmd_reconcile
+    from app.config import settings
+    from app.perf import queries
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(type(settings), "reads_warehouse", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
+    monkeypatch.setattr(queries, "SELL_IN_HISTORY", "")
+
+    assert cmd_reconcile(["--from-warehouse"]) == 2
+    assert "SELL_IN_HISTORY" in capsys.readouterr().err
+
+
+def test_la_verification_depuis_lentrepot_refuse_la_source_fictive(capsys, monkeypatch):
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
+
+    assert cmd_reconcile(["--from-warehouse"]) == 2
+    assert "snowflake" in capsys.readouterr().err
+
+
+def test_la_verification_depuis_lentrepot_confronte_les_lignes_lues(monkeypatch, capsys):
+    from app.cli import cmd_reconcile
+    from app.config import settings
+    from app.perf import queries, warehouse
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(type(settings), "reads_warehouse", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
+    monkeypatch.setattr(queries, "SELL_IN_HISTORY", "SELECT 1")
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label="": [
+        {"entity": "M_098_TRA", "segment": "TRA - Travel retail",
+         "period": "2025-04..2025-05", "value": 500_000.0},
+        {"entity": "M_098_TRA", "segment": "TRA - Travel retail",
+         "period": "2025-06", "value": 250_000.0},
+    ])
+
+    assert cmd_reconcile(["--from-warehouse"]) == 0
+
+    out = capsys.readouterr().out
+
+    assert "Lu dans l'entrepôt  2 lignes" in out
+    assert "Utilisable" in out
+
+
+def test_un_echec_de_lecture_ne_fait_pas_tomber_la_commande(monkeypatch, capsys):
+    from app.cli import cmd_reconcile
+    from app.config import settings
+    from app.perf import queries, warehouse
+
+    def boom(sql, params=None, label=""):
+        raise RuntimeError("object does not exist")
+
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(type(settings), "reads_warehouse", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
+    monkeypatch.setattr(queries, "SELL_IN_HISTORY", "SELECT 1")
+    monkeypatch.setattr(warehouse, "rows", boom)
+
+    assert cmd_reconcile(["--from-warehouse"]) == 2
+    assert "Lecture impossible" in capsys.readouterr().err
