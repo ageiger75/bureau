@@ -333,6 +333,95 @@ class Suspect:
         return self.money >= SUSPECT_FLOOR_EUR
 
 
+# ------------------------------------------------------------------- reallocation
+
+
+class Reallocation:
+    """A market that moved between its channels and still holds its commitment.
+
+    A country can decide, mid-year, to push one digital channel rather than another. The
+    channel it left drops below plan, the channel it chose rises above it, and the market
+    delivers what it promised. Ranked channel by channel, that reads as a serious problem
+    in one place and a triumph in another — two confident findings about a decision
+    somebody made deliberately.
+
+    Worth saying out loud, because the mix changed and that has consequences a total
+    hides. But it is not a gap, and the person who made the choice should not be asked to
+    explain it as a shortfall. What is a problem is the whole falling below plan; that
+    case is not a reallocation and is not reported as one.
+    """
+
+    __slots__ = ("market", "gained", "lost", "net", "moved")
+
+    def __init__(self, market, gained, lost, net, moved) -> None:
+        self.market = market
+        #: Channels above plan, largest first.
+        self.gained = gained
+        #: Channels below it.
+        self.lost = lost
+        #: What the market as a whole is versus its plan — small, by definition.
+        self.net = net
+        #: How much moved between channels, which is the size of the decision.
+        self.moved = moved
+
+    @property
+    def summary(self) -> str:
+        return "%s moved %s between channels and held its plan to within %s." % (
+            self.market,
+            _eur(self.moved),
+            _eur(abs(self.net)),
+        )
+
+    @property
+    def question(self) -> str:
+        return "Was this deliberate, and does the plan still describe how %s sells?" % (
+            self.market,
+        )
+
+
+def reallocation_of(units: Sequence[BusinessUnit]) -> Optional[Reallocation]:
+    """Whether these channels of one market traded places without losing money.
+
+    Two conditions, both required. Material movement in opposite directions — otherwise
+    it is noise, not a decision. And a market total that holds: the moment the whole falls
+    materially below plan, this stops being a reallocation and becomes a gap that happens
+    to be unevenly spread.
+    """
+    gained = sorted(
+        (u for u in units if u.gap_vs_budget >= MATERIALITY_FLOOR_EUR),
+        key=lambda u: -u.gap_vs_budget,
+    )
+    lost = sorted(
+        (u for u in units if u.gap_vs_budget <= -MATERIALITY_FLOOR_EUR),
+        key=lambda u: u.gap_vs_budget,
+    )
+    if not gained or not lost:
+        return None
+
+    net = sum(u.gap_vs_budget for u in units)
+    if abs(net) >= MATERIALITY_FLOOR_EUR:
+        return None
+
+    moved = min(
+        sum(u.gap_vs_budget for u in gained),
+        -sum(u.gap_vs_budget for u in lost),
+    )
+    return Reallocation(units[0].market, gained, lost, net, moved)
+
+
+def reallocations(dataset: Dataset) -> List[Reallocation]:
+    found = [
+        reallocation_of(units) for units in dataset.by_market().values()
+    ]
+    return sorted(
+        (item for item in found if item is not None), key=lambda item: -item.moved
+    )
+
+
+def reallocating_markets(dataset: Dataset) -> set:
+    return {item.market for item in reallocations(dataset)}
+
+
 def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     """Whether this unit's figures look like a break in the data rather than the business."""
     from .mapping import (
@@ -737,6 +826,12 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
     Capped on purpose: the brief optimises for CEO attention, not completeness. A sixth
     fire would not be read, and pretending otherwise would make the first five worth less.
     """
+    # A market that moved between its channels and still holds its plan has not lost
+    # anything. Ranking the channel it left would be a confident finding about a decision
+    # somebody made on purpose — and the channel it chose would appear, two panels down,
+    # as a triumph. Both are listed as one reallocation instead.
+    moved = reallocating_markets(dataset)
+
     candidates = [
         Fire(unit)
         for unit in dataset.units
@@ -746,6 +841,7 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
         # A broken feed is not a fire. It is listed separately, as a question for the
         # data team rather than for the market.
         and suspect_of(unit) is None
+        and unit.market not in moved
         and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
     ]
     candidates.sort(key=lambda fire: fire.priority.score, reverse=True)
@@ -870,8 +966,15 @@ class Win:
 
 
 def wins(dataset: Dataset, limit: int = 3) -> List[Win]:
+    # The other half of the same decision. A channel that grew because its market chose to
+    # push it is not a playbook another market could copy — it is one country's arbitrage,
+    # and the channel beside it paid for it.
+    moved = reallocating_markets(dataset)
+
     found = []
     for unit in dataset.units:
+        if unit.market in moved:
+            continue
         if not unit.budget_known:
             # Beating a budget that does not exist is not an achievement.
             continue

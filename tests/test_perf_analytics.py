@@ -1149,3 +1149,111 @@ def test_the_listed_breaks_come_largest_first():
     listed = analytics.worth_listing(analytics.suspects(dataset_of(small, large)))
 
     assert [item.unit.key for item in listed] == ["large", "small"]
+
+
+# --------------------------------------------- a market that moved between its channels
+#
+# A country can decide mid-year to push one digital channel rather than another. The
+# channel it left falls below plan, the one it chose rises above it, and the market
+# delivers what it promised. Ranked channel by channel that reads as a serious problem in
+# one place and a triumph in another — two confident findings about a deliberate decision.
+#
+# What is a problem is the whole falling below plan. That case is not a reallocation and
+# must not be reported as one.
+
+
+def _channel(key, market, channel, actual, budget):
+    return unit(
+        key=key,
+        market=market,
+        channel=channel,
+        actual=Drivers.sales_only(actual),
+        budget=Drivers.sales_only(budget),
+        last_year=Drivers.sales_only(budget),
+    )
+
+
+def _traded():
+    return dataset_of(
+        _channel("cn-webp", "China", "webp", 1_000_000.0, 3_300_000.0),
+        _channel("cn-mktp", "China", "marketplace", 5_400_000.0, 3_100_000.0),
+    )
+
+
+def test_channels_that_trade_places_are_one_finding_not_two():
+    found = analytics.reallocations(_traded())
+
+    assert len(found) == 1
+    assert found[0].market == "China"
+    assert [u.key for u in found[0].gained] == ["cn-mktp"]
+    assert [u.key for u in found[0].lost] == ["cn-webp"]
+
+
+def test_a_reallocation_is_not_ranked_as_a_gap():
+    """It would have arrived first on the screen: -€2.3m, a named owner, and a question
+    about a decision she made on purpose."""
+    assert analytics.fires(_traded()) == []
+
+
+def test_the_other_half_is_not_ranked_as_a_win():
+    """A channel that grew because its market chose to push it is not a playbook another
+    market could copy. The channel beside it paid for it."""
+    assert analytics.wins(_traded()) == []
+
+
+def test_a_market_genuinely_below_plan_is_still_a_gap():
+    """The condition that keeps this honest. The moment the whole falls materially short,
+    this stops being a reallocation and becomes a gap that happens to be unevenly spread."""
+    short = dataset_of(
+        _channel("cn-webp", "China", "webp", 1_000_000.0, 3_300_000.0),
+        _channel("cn-mktp", "China", "marketplace", 3_400_000.0, 3_100_000.0),
+    )
+
+    assert analytics.reallocations(short) == []
+    assert [f.unit.key for f in analytics.fires(short)] == ["cn-webp"]
+
+
+def test_one_channel_moving_alone_is_not_a_reallocation():
+    """Nothing traded places: a single channel below plan is a gap, whatever its size."""
+    alone = dataset_of(
+        _channel("cn-webp", "China", "webp", 1_000_000.0, 3_300_000.0),
+        _channel("cn-mktp", "China", "marketplace", 3_100_000.0, 3_100_000.0),
+    )
+
+    assert analytics.reallocations(alone) == []
+
+
+def test_small_movements_are_not_a_decision():
+    """Below the materiality floor it is noise on both sides, not an arbitrage."""
+    noise = dataset_of(
+        _channel("cn-webp", "China", "webp", 3_260_000.0, 3_300_000.0),
+        _channel("cn-mktp", "China", "marketplace", 3_140_000.0, 3_100_000.0),
+    )
+
+    assert analytics.reallocations(noise) == []
+
+
+def test_the_size_of_the_decision_is_what_moved():
+    """Not the net, which is near zero by definition — the amount that changed hands."""
+    found = analytics.reallocations(_traded())[0]
+
+    assert found.moved == pytest.approx(2_300_000.0)
+    assert abs(found.net) < analytics.MATERIALITY_FLOOR_EUR
+
+
+def test_markets_never_trade_across_borders():
+    mixed = dataset_of(
+        _channel("cn-webp", "China", "webp", 1_000_000.0, 3_300_000.0),
+        _channel("jp-mktp", "Japan", "marketplace", 5_400_000.0, 3_100_000.0),
+    )
+
+    assert analytics.reallocations(mixed) == []
+    assert [f.unit.key for f in analytics.fires(mixed)] == ["cn-webp"]
+
+
+def test_the_question_asks_whether_it_was_deliberate():
+    """The only thing worth asking. If it was, the plan is what needs updating."""
+    found = analytics.reallocations(_traded())[0]
+
+    assert "deliberate" in found.question
+    assert "China" in found.question

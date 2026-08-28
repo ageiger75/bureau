@@ -422,6 +422,21 @@ class Dataset:
     def sales_forecast(self) -> float:
         return sum(unit.forecast_sales for unit in self.units)
 
+    def by_market(self):
+        """Units grouped by market, budgeted ones only.
+
+        A market is what a person runs; a channel is a way of reaching customers, and a
+        market can move between channels during the year on purpose. So a gap has to be
+        readable at both levels — and read at the market level first, because that is
+        where the commitment was made.
+        """
+        grouped = {}
+        for unit in self.units:
+            if unit.is_aggregate or not unit.budget_known:
+                continue
+            grouped.setdefault(unit.market, []).append(unit)
+        return grouped
+
     @property
     def markets_without_own_site(self) -> List[str]:
         """Markets that sell online only through partners who resell.

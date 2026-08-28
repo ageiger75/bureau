@@ -167,6 +167,37 @@
   {% endif %}
 </section>
 
+{# --------------------------------------------------------------- reallocations #}
+
+{% if reallocations %}
+<section class="panel">
+  <h2>Markets that moved between channels</h2>
+  <p class="lede">
+    A country can decide mid-year to push one channel rather than another. The channel it
+    left falls below plan, the one it chose rises above it, and the market delivers what it
+    promised. Read channel by channel that looks like a serious problem in one place and a
+    triumph in another — two confident findings about a decision somebody made on purpose.
+    They are neither, so they are here rather than in the two lists above.
+  </p>
+  <ul class="reallocation-list">
+    {% for item in reallocations %}
+      <li class="reallocation">
+        <p class="reallocation-head">{{ item.summary }}</p>
+        <ul class="reallocation-legs">
+          {% for unit in item.gained %}
+            <li><span class="is-up">+{{ unit.gap_vs_budget | eur }}</span> {{ unit.label }}</li>
+          {% endfor %}
+          {% for unit in item.lost %}
+            <li><span class="is-down">{{ unit.gap_vs_budget | eur }}</span> {{ unit.label }}</li>
+          {% endfor %}
+        </ul>
+        <p class="ask">{{ item.question }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {# ------------------------------------------------------------------ opportunities #}
 
 <section class="panel">
