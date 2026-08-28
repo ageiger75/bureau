@@ -1327,3 +1327,75 @@ def test_the_question_asks_whether_it_was_deliberate():
 
     assert "deliberate" in found.question
     assert "China" in found.question
+
+
+# ------------------------------------------------- the arithmetic a reader can redo
+
+
+def test_the_upside_formula_names_every_factor_it_multiplies():
+    """The displayed line used to read "sessions × conversion LY vs actual sales", which
+    omits the basket — and the computation does not. A reader checking it found a number
+    they could not reproduce, on the one panel that claims money the business has already
+    proved it can make.
+
+    Retail multiplies by two more factors than e-commerce, and one of them is a count of
+    units rather than an amount of money: naming them from the data is what stops the line
+    printing "UPT €2".
+    """
+    store = unit(
+        key="france",
+        actual=Drivers(("Traffic", "Conversion", "UPT", "ASP"),
+                       (1_000_000.0, 0.10, 2.0, 50.0)),
+        budget=Drivers.sales_only(12_000_000.0),
+        last_year=Drivers(("Traffic", "Conversion", "UPT", "ASP"),
+                          (1_000_000.0, 0.12, 2.0, 50.0)),
+    )
+
+    found = analytics.opportunity_of(store)
+
+    assert found is not None
+    assert found.calculation == (
+        "Traffic 1.0m × (12.00% − 10.00%) × UPT 2.00 × ASP €50 = €2.0m")
+    # And the sentence reconciles: 1m × 2 points × 2 × €50 = €2m exactly.
+    assert found.amount == pytest.approx(2_000_000.0)
+
+
+def test_the_two_bridges_are_named_and_reconciled():
+    """One headline, two bridges. The drivers explain the movement against last year; the
+    plan asked for something else again. Saying only what the drivers sum to left the
+    reader holding a title of one size and a table of another, with the difference — which
+    is itself the finding — unexplained.
+    """
+    japan = unit(
+        key="japan",
+        actual=sessions_of(900_000, 750_000),
+        budget=Drivers.sales_only(1_200_000),
+        last_year=sessions_of(1_100_000, 800_000),
+    )
+
+    fire = analytics.Fire(japan)
+
+    assert fire.gap == -300_000.0
+    assert fire.movement == -200_000.0
+    assert fire.unattributed == -100_000.0
+    assert "planned growth that did not happen" in fire.bridge
+    # The two halves add up to the headline, which is the only thing that makes it a bridge.
+    assert fire.movement + fire.unattributed == pytest.approx(fire.gap)
+
+
+def test_nothing_is_unattributed_when_the_plan_itself_is_the_baseline():
+    """A budget with its own funnel needs no second bridge: the drivers already decompose
+    the gap against plan, and a sentence about unattributed growth would invent a
+    distinction that is not there."""
+    with_funnel = unit(
+        key="mock",
+        actual=sessions_of(900_000, 750_000),
+        budget=sessions_of(1_000_000, 800_000),
+        last_year=sessions_of(1_100_000, 800_000),
+    )
+
+    fire = analytics.Fire(with_funnel)
+
+    assert fire.baseline_label == "plan"
+    assert fire.unattributed == 0.0
+    assert fire.bridge == ""

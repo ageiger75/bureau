@@ -892,6 +892,34 @@ class Fire:
         return bool(self.contributions)
 
     @property
+    def unattributed(self) -> float:
+        """The part of the plan gap the drivers cannot reach.
+
+        Two bridges sit behind one headline. The drivers explain the movement against last
+        year; the plan asked for something else again, and the distance between the two is
+        growth that was planned and did not happen. Nothing here can attribute it, because
+        nobody planned a session count or a conversion rate — so it is named and left
+        unattributed rather than folded into a driver that would then be wrong.
+        """
+        if not self.has_breakdown or self.baseline_label == "plan":
+            return 0.0
+        return self.gap - self.movement
+
+    @property
+    def bridge(self) -> str:
+        """Both bridges in one sentence, when they differ."""
+        if not self.unattributed:
+            return ""
+        return (
+            "Two bridges: %s against %s, which the drivers above take apart, and %s of "
+            "planned growth that did not happen, which nothing here can attribute — no "
+            "plan was ever set for sessions or conversion. Together they are the %s "
+            "gap against plan."
+            % (_eur(self.movement), self.baseline_label, _eur(self.unattributed),
+               _eur(self.gap))
+        )
+
+    @property
     def chronic_plan(self) -> str:
         """The history's verdict that the plan, not the month, is what is wrong."""
         return self.unit.chronic_plan
@@ -1302,6 +1330,16 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
     volume_before = unit.last_year.value_of(volume_label) or 0.0
     level = HIGH if volume_now >= volume_before else MEDIUM
 
+    # Everything else the funnel multiplies by, named from the data rather than written
+    # into the sentence. Online it is one driver; in a store it is two, units per ticket
+    # and price per unit. A formula that names some of its factors is a formula the reader
+    # cannot reproduce, which is worse than showing none.
+    rest = [
+        (name, unit.actual.value_of(name) or 0.0)
+        for name in unit.actual.labels
+        if name not in (volume_label, label)
+    ]
+
     return Opportunity(
         unit=unit,
         driver=label,
@@ -1311,10 +1349,17 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
             "today's level."
             % (_driver_word(label), _level_pct(before, digits=2), volume_label.lower())
         ),
+        # The formula as it is actually computed, which is not what this line used to
+        # say. `Drivers.sales` is the product of every driver, so the recovery already
+        # carries today's AOV — the displayed line omitted it, and a reader checking the
+        # arithmetic would have found a number they could not reproduce.
         calculation=(
-            "%s %s × %s %s (LY) vs actual sales"
-            % (volume_label, _num(volume_now), _driver_word(label),
-               _level_pct(before, digits=2))
+            "%s %s × (%s − %s)%s = %s"
+            % (volume_label, _num(volume_now), _level_pct(before, digits=2),
+               _level_pct(now, digits=2),
+               "".join(" × %s %s" % (_driver_word(name), _driver_value(name, value))
+                       for name, value in rest),
+               _eur(amount))
         ),
         confidence=level,
     )
@@ -1460,6 +1505,23 @@ def _pct(value: Optional[float], digits: int = 1) -> str:
     if value is None:
         return "n/a"
     return "%+.*f%%" % (digits, value * 100) if digits else "%+.0f%%" % (value * 100)
+
+
+def _driver_value(label: str, value: float) -> str:
+    """A driver's value in the unit that driver is measured in.
+
+    Three kinds, and guessing between them is how "UPT €2" reaches a screen: a rate, an
+    amount of money per unit sold, and a plain count. Anything unrecognised is printed as
+    a number with no unit claimed — a missing unit costs a little, a wrong one costs the
+    line its credibility.
+    """
+    from .model import MONEY_DRIVERS, RATE_DRIVERS
+
+    if label in RATE_DRIVERS:
+        return _level_pct(value, digits=2)
+    if label in MONEY_DRIVERS:
+        return _eur(value)
+    return _num(value)
 
 
 def _level_pct(value: Optional[float], digits: int = 1) -> str:

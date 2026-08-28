@@ -224,11 +224,14 @@
           Driver impacts are estimates from a chained decomposition, not measured causes.
           They sum to {{ fire.movement | eur }} exactly — the movement versus
           {{ fire.baseline_label }}.
-          {%- if fire.baseline_label != "plan" %}
-          The gap against plan is {{ fire.gap | eur }}, and cannot be taken apart:
-          no plan was set for sessions or conversion.
-          {%- endif %}
         </p>
+        {% if fire.bridge %}
+          {# The two bridges named and reconciled. Saying only "they sum to the movement
+             versus last year" left the reader holding a headline of one size and a table
+             of another, with the difference unexplained — and the difference is itself
+             the finding: growth that was planned and did not happen. #}
+          <p class="estimate-note">{{ fire.bridge }}</p>
+        {% endif %}
         {% if fire.basis_caveat %}
           {# Without this the table reads as a finding about the market. It is exact, and
              half of it moved because the yardstick moved. #}
