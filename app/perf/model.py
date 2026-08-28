@@ -345,6 +345,35 @@ class BusinessUnit:
         return self.perimeter == "sell-in"
 
     @property
+    def basis(self) -> str:
+        """`sold` or `shipped` — what the euros on this line actually count.
+
+        Not a nuance. A store or an own site books revenue when a shopper buys: the figure
+        is what was sold. A partner or a hotel books it when the Maison invoices: the
+        figure is what was shipped, and what happens after the invoice — how much reached a
+        shopper, and when — is not in it.
+
+        The two are not interchangeable and neither is wrong. The consolidated accounts
+        measure shipped, because that is when revenue is recognised, so any figure here
+        that departed from that basis would stop reconciling with Finance. The management
+        question is usually the other one. The rule this property exists to enforce is that
+        the screen always says which of the two a number is, and never mixes them in one
+        total without naming the mixture.
+        """
+        return "shipped" if self.perimeter in ("sell-in", "b2b") else "sold"
+
+    @property
+    def basis_note(self) -> str:
+        """The sentence that goes beside a shipped figure, and nothing beside a sold one."""
+        if self.basis != "shipped":
+            return ""
+        return (
+            "Shipped, not sold: this is what was invoiced to a partner, which is when "
+            "the accounts recognise it. How much of it reached a shopper, and when, is "
+            "not measured here."
+        )
+
+    @property
     def basis_changed(self) -> bool:
         """Whether this gap is a statement about trading at all.
 

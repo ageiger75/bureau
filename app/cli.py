@@ -851,6 +851,15 @@ def _print_sell_in(plan) -> int:
     from .perf import history as history_module
     from .perf import queries, warehouse
 
+    # Dit avant le premier chiffre, pas après le dernier : tout ce qui suit compte des
+    # expéditions. C'est la base des comptes consolidés — le revenu est reconnu à la
+    # facture — et ce n'est pas la question de gestion, qui porte sur ce qui s'est vendu.
+    # Les deux ne se mélangent pas dans un même total sans être nommées.
+    print("")
+    print("Base : EXPÉDIÉ. Ces chiffres comptent ce qui a été facturé aux partenaires,")
+    print("comme les comptes consolidés. Ce qui s'est vendu ensuite chez eux — et quand —")
+    print("n'est mesuré par aucune source branchée ici.")
+    print("")
     print("Lecture du sell-in — deux requêtes, quelques dizaines de secondes.")
     try:
         closed = warehouse.rows(queries.SELL_IN_HISTORY, label="SELL_IN_HISTORY")

@@ -753,3 +753,33 @@ def test_a_sell_in_finding_says_it_is_reading_shipments():
     assert moved.is_shipment_timed
     assert "Sell-in is shipments" in moved.sentence
     assert "hardens as the year fills" in moved.sentence
+
+
+# ------------------------------------------------------------ shipped is not sold
+
+
+def test_a_figure_says_whether_it_counts_what_was_sold_or_what_was_shipped():
+    """A store books revenue when a shopper buys; a partner when the Maison invoices. The
+    consolidated accounts measure the second, because that is when revenue is recognised,
+    so a screen that quietly switched to the first would stop reconciling with Finance.
+    The management question is usually the other one. The rule is that the screen always
+    says which of the two a number is."""
+    from app.perf.model import BusinessUnit, Drivers, Owner
+
+    def unit(perimeter):
+        return BusinessUnit(
+            key="k", label="L", market="M", region="R", channel=ECOMMERCE,
+            owner=Owner("A", "B", "C"), actual=Drivers.sales_only(1.0),
+            budget=Drivers.sales_only(1.0), last_year=Drivers.sales_only(1.0),
+            forecast_sales=0.0, perimeter=perimeter,
+        )
+
+    assert unit("own").basis == "sold"
+    assert unit("platform").basis == "sold"
+    assert unit("sell-in").basis == "shipped"
+    # Hotels do not resell either, but they are invoiced the same way.
+    assert unit("b2b").basis == "shipped"
+
+    assert unit("own").basis_note == ""
+    assert "Shipped, not sold" in unit("sell-in").basis_note
+    assert "not measured here" in unit("b2b").basis_note

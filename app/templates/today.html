@@ -155,6 +155,13 @@
           <p class="estimate-note is-warning">{{ fire.chronic_plan }}</p>
         {% endif %}
 
+        {% if fire.unit.basis_note %}
+          {# Beside the money, never in a footnote. A shipped figure and a sold one answer
+             different questions, and a reader who cannot tell which they are looking at
+             will act on the wrong one. #}
+          <p class="estimate-note">{{ fire.unit.basis_note }}</p>
+        {% endif %}
+
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
 
         {% if not fire.has_breakdown %}

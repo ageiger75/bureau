@@ -103,18 +103,22 @@ REGISTER: Dict[str, Measure] = {
     ),
     "sell_in": Measure(
         key="sell_in",
-        label="Sell-in",
+        label="Sell-in — shipped, not sold",
         maturity=BETA,
         note="Everything invoiced to a partner who then resells: wholesale, distributors, "
         "department stores, travel retail, e-retailers. Read from the management "
         "consolidation, which is where the plan's own actuals come from — so the two "
         "reconcile by construction rather than by coincidence, and they do: across last "
         "year, the whole perimeter agrees to within a euro, and 98% of its monthly cells "
-        "agree individually. What is not settled is that this is a query written here "
-        "rather than a source anyone else can use, and that a few months arrive as pairs "
-        "because the underlying figures are cumulative and one snapshot is missing.",
-        to_confirm="A governed sell-in view, so this stops depending on one query nobody "
-        "else maintains.",
+        "agree individually. What it counts is what was shipped, because that is when "
+        "the accounts recognise revenue, and every figure on this perimeter says so. "
+        "What happens after the invoice — how much of it reaches a shopper, and when — "
+        "is not measured by any source connected here. That is the management question, "
+        "and answering it would take partner sell-through, which is a different source "
+        "with a different owner, not a query away.",
+        to_confirm="Whether partner sell-through exists in a form anyone can query — "
+        "and if it does, it is reported beside the shipped figure and never instead of "
+        "it, or the screen stops reconciling with Finance.",
     ),
     "sales_history": Measure(
         key="sales_history",
