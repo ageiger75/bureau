@@ -457,3 +457,15 @@ def test_the_verdict_checks_every_shared_month_not_just_the_latest():
 
     assert track.chronic_for(agreeing) is not None
     assert track.chronic_for(latest_only) is None
+
+
+def test_a_suppressed_verdict_is_still_a_finding():
+    """`chronic_for` answers the narrow question — is this a statement about the plan of
+    record — and `chronic` keeps the wider one. Targets missed by the same margin every
+    month for a year are a real management problem even when they are not the budget, and
+    a caller that can show both should not be handed only silence."""
+    built = history.from_rows(months(14, actual=940.0, budget=1000.0))
+    track = built.track_for("Japan", ECOMMERCE)
+
+    assert track.chronic is not None
+    assert track.chronic_for(_plan_at(1400.0)) is None

@@ -788,28 +788,41 @@ def cmd_history(argv: List[str]) -> int:
         print("  Sell-out uniquement — les canaux que l'entrepôt mesure. Ce qui est")
         print("  facturé à des partenaires n'a pas encore d'historique ici.")
 
-    chronic = sorted(
-        (
+    # Deux listes et non une, parce que ce sont deux constats différents. Le premier
+    # porte sur le plan de référence ; le seul qui puisse être « recalé ». Le second
+    # porte sur le système de cibles magasin de l'entrepôt — des cibles jamais atteintes
+    # restent un vrai sujet de management, mais ce n'est pas le budget.
+    confirmed, on_goals = [], []
+    for track in built.tracks.values():
+        verdict = track.chronic
+        if verdict is None:
+            continue
+        (confirmed if track.chronic_for(plan) is not None else on_goals).append(
             (track, verdict)
-            for track, verdict in (
-                (t, t.chronic_for(plan)) for t in built.tracks.values()
-            )
-            if verdict is not None
-        ),
-        key=lambda pair: pair[1].months,
-        reverse=True,
-    )
+        )
+    for group in (confirmed, on_goals):
+        group.sort(key=lambda pair: pair[1].months, reverse=True)
+
+    def _list(rows):
+        for track, verdict in rows:
+            print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
+                  % ("%s %s" % (track.market, track.channel), verdict.months,
+                     verdict.low, verdict.high, verdict.shortfall_pct))
+
     print("")
-    if not chronic:
-        print("Aucun plan raté douze mois de suite au même écart.")
-        return 0
-    print("Plans à recaler — sous le plan tous les mois, au même écart.")
-    print("Le ratio est calculé sur le fait `goals` de l'entrepôt, pas sur le classeur ;")
-    print("un couple dont les deux plans divergent ne reçoit aucun verdict.")
-    for track, verdict in chronic:
-        print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
-              % ("%s %s" % (track.market, track.channel), verdict.months,
-                 verdict.low, verdict.high, verdict.shortfall_pct))
+    print("Plans à recaler — sous le plan tous les mois, au même écart,")
+    print("et le classeur dit la même chose que l'entrepôt sur les mois partagés :")
+    if not confirmed:
+        print("  aucun.")
+    _list(confirmed)
+
+    if on_goals:
+        print("")
+        print("Cibles magasin jamais atteintes — même constat, mais sur le fait `goals`")
+        print("de l'entrepôt seul : le classeur le contredit sur les mois qu'ils")
+        print("partagent. À ne pas rapporter comme un budget mal calé ; c'est le")
+        print("système de cibles de ces marchés qui ne sert plus à rien.")
+        _list(on_goals)
     return 0
 
 

@@ -137,6 +137,16 @@ class Chronic:
             % (self.months, self.low, self.high, self.shortfall_pct)
         )
 
+    @property
+    def months_short_of_a_year(self) -> int:
+        """How much more history a workbook would need to confirm this on the real plan.
+
+        Twelve months is the threshold; the planning workbook covers the current fiscal
+        year only. Until a second year of it exists, a verdict can be measured on the
+        warehouse's targets and never on the commitment itself.
+        """
+        return max(0, CHRONIC_WINDOW - self.months)
+
 
 class Track:
     """One market × channel, across every month the history returned."""
@@ -212,7 +222,17 @@ class Track:
         )
 
     def chronic_for(self, budget=None) -> Optional[Chronic]:
-        """The verdict, withheld when a second plan disagrees with the one behind it.
+        """The verdict, but only where it is a statement about the plan of record.
+
+        A suppressed verdict is not a finding that vanished. What the history measures is
+        the warehouse's goals fact — a store-target system — and targets missed by the
+        same margin every month for a year are a real management problem: the
+        target-setting for that market has stopped meaning anything. It is simply not a
+        statement about the budget, and reporting it as one would send someone to
+        renegotiate a plan that is not the one being missed. Callers that can show both
+        should show both, labelled; this method answers only the narrower question.
+
+        The wider one is answered by `chronic`.
 
         The ratio is computed on the warehouse's goals fact. The workbook is a different
         plan, and on the months both cover they should say the same thing. Where they do,
