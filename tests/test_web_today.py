@@ -185,10 +185,26 @@ def test_a_quarterly_kpi_is_not_reported_missing_between_readings(client):
     """The US NPS has a Q1 figure and no August one. That is the calendar, not a gap."""
     page = page_text(client.get("/"))
 
-    assert "not reported" in page          # the genuinely late one is named
-    assert "CLV — top customers" in page
+    assert "CLV — top customers" in page   # the genuinely late one is named
+    assert "Reading overdue" in page
     # and the rule is stated, so the absence of other flags is understood
     assert "would teach you to ignore the flag" in page
+
+
+def test_a_kpi_off_on_both_axes_is_listed_once(client):
+    """CLV is short of target and its reading is stale. It used to be listed once for
+    each — the same line under two headings of the same panel, reading as two problems.
+
+    Counted inside the customer panel and not across the page: the same KPI appearing
+    beside a market's card is a cross-reference, which is the opposite of a duplicate —
+    it is what makes the card worth more than the number alone.
+    """
+    page = page_text(client.get("/"))
+    panel = page.split("Customers")[-1].split("Commitments")[0]
+
+    assert panel.count("CLV — top customers") == 1
+    assert "Reading overdue" in panel
+    assert "Awaiting a reading" not in page
 
 
 def test_customer_signals_are_attached_to_the_market_that_is_on_fire(client):

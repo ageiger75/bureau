@@ -81,7 +81,7 @@ def test_the_watch_band_matches_the_trackers_own_rule():
 
 def test_no_reading_is_not_an_alert():
     """An absent figure is an absent figure, not bad performance."""
-    assert kpi(readings=[]).status == K.NO_DATA
+    assert kpi(readings=[]).status == K.CANNOT_JUDGE
 
 
 def test_trend_is_read_in_the_direction_that_counts_as_progress():
@@ -187,11 +187,54 @@ def test_a_kpi_merely_on_watch_stays_quiet():
     assert watch.question(AUGUST) == ""
 
 
-def test_a_late_reading_is_asked_about_as_a_late_reading():
-    """Asking what will move a number nobody has reported is the wrong question."""
-    late = kpi(frequency=K.QUARTERLY, readings=[K.Reading("Q4 FY26", 402.0)])
+def test_a_stale_reading_keeps_its_verdict_and_carries_its_staleness():
+    """Two facts about one KPI, and the screen used to let the second erase the first.
 
-    assert "late" in late.question(AUGUST)
+    A figure exists; it is simply older than it should be. Replacing "this is 20% below
+    target" with "the reading is late" loses the finding — and listing the KPI a second
+    time under a heading of its own turned one line into two problems.
+    """
+    stale = kpi(frequency=K.QUARTERLY, target=500.0,
+                readings=[K.Reading("Q4 FY26", 402.0)])
+
+    assert stale.status == K.ALERT
+    assert stale.freshness(AUGUST) == K.OVERDUE
+    assert "Below target" in stale.question(AUGUST)
+
+
+def test_a_kpi_on_target_is_not_made_amber_by_an_old_reading():
+    """Freshness never leaks into performance. A KPI sitting exactly where it should sit
+    is on track, and separately overdue — folding the two into one verdict means lying
+    about one of them."""
+    stale = kpi(frequency=K.QUARTERLY, target=400.0,
+                readings=[K.Reading("Q4 FY26", 402.0)])
+
+    assert stale.status == K.ON_TRACK
+    assert stale.freshness(AUGUST) == K.OVERDUE
+
+
+def test_a_figure_that_never_arrived_asks_about_the_figure():
+    """Here there is no performance to ask about: the reading itself is the blocker."""
+    never = kpi(readings=[])
+
+    assert never.status == K.CANNOT_JUDGE
+    assert never.freshness(AUGUST) == K.OVERDUE
+    assert "ever arrived" in never.question(AUGUST)
+
+
+def test_a_kpi_appears_once_however_many_ways_it_is_off():
+    """The duplicate this split exists to remove: off target and overdue at the same
+    time used to be two entries under two headings."""
+    both = kpi(key="both", frequency=K.QUARTERLY, target=500.0,
+               readings=[K.Reading("Q4 FY26", 402.0)])
+    late_only = kpi(key="late", frequency=K.QUARTERLY, target=400.0,
+                    readings=[K.Reading("Q4 FY26", 402.0)])
+    fine = kpi(key="fine", target=4.0, readings=[K.Reading("2026-07", 4.8)])
+
+    shown = K.worth_showing([both, late_only, fine], AUGUST)
+
+    assert [item.key for item in shown] == ["both", "late"]
+    assert len(shown) == len(set(id(item) for item in shown))
 
 
 # ----------------------------------------------------------------- selection

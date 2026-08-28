@@ -168,7 +168,10 @@ def today(request: Request):
             "people": analytics.people_to_push([issue.fires[0] for issue in issues]),
             "wins": analytics.wins(dataset),
             "commitments": commitments,
-            "kpis": kpi_rules.needing_attention(kpis),
+            # One list, one line per KPI. Off target, overdue, or both — the card carries
+            # whichever apply, instead of the KPI appearing here for one and again below
+            # for the other, as if it were two problems.
+            "kpis": kpi_rules.worth_showing(kpis),
             #: The denominator. "Three KPIs are off target" and "three of seventeen" are
             #: different facts, and the panel shows only the three — so without this the
             #: reader cannot tell a business mostly holding from one mostly failing.
@@ -176,7 +179,6 @@ def today(request: Request):
             "kpis_holding": len([
                 item for item in kpis if item.status == kpi_rules.ON_TRACK
             ]),
-            "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,

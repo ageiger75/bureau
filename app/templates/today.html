@@ -607,16 +607,21 @@
         <div class="kpi-head">
           <span class="kpi-name">{{ item.label }}
             <span class="kpi-scope">{{ item.scope }}</span></span>
-          <span class="kpi-value">{{ kpi_rules.format_value(item, item.latest.value) }}</span>
+          {# A KPI that has never reported still has a line: an absent figure is a fact
+             about the business, and rendering it as a blank would read as a zero. #}
+          <span class="kpi-value">{{ kpi_rules.format_value(item, item.latest.value if item.latest else none) }}</span>
         </div>
         <p class="kpi-meta">
+          {# Two states, side by side and never merged. A KPI can sit exactly on target
+             and be two months stale; a screen that folds them into one verdict has to
+             lie about one of the two, and it is always the performance that gets lost. #}
           Target {{ kpi_rules.format_value(item, item.target) }}
           · {{ kpi_rules.STATUS_LABELS[item.status] }}
+          · {{ item.freshness_label() }}{% if item.latest %} ({{ item.latest.period }}){% endif %}
           {% if item.direction == 'down' %}· lower is better{% endif %}
           {% if item.is_improving is not none %}
             · {{ 'improving' if item.is_improving else 'still deteriorating' }}
           {% endif %}
-          · {{ item.latest.period }}
           · {{ kpi_rules.FREQUENCY_LABELS[item.frequency] }}
           · {{ item.owner }} · {{ item.source }}
         </p>
@@ -630,15 +635,6 @@
       </li>
     {% endfor %}
   </ul>
-  {% endif %}
-
-  {% if kpis_awaiting %}
-    <p class="kpi-note">
-      <strong>Awaiting a reading:</strong>
-      {% for item in kpis_awaiting %}
-        {{ item.label }} ({{ item.scope }}) — {{ item.expected_period() }} not reported{% if not loop.last %} · {% endif %}
-      {% endfor %}
-    </p>
   {% endif %}
 
   {% if kpi_coverage %}

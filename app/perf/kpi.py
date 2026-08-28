@@ -40,10 +40,30 @@ P1 = "P1"
 P2 = "P2"
 P3 = "P3"
 
+#: Performance: where the figure stands against what was asked of it. One axis, and only
+#: one — a KPI is never called "watch" because its reading is old.
 ON_TRACK = "on_track"
 WATCH = "watch"
 ALERT = "alert"
-NO_DATA = "no_data"
+CANNOT_JUDGE = "cannot_judge"
+
+#: Freshness: whether the figure that exists is the one that should. The second axis, and
+#: orthogonal to the first on purpose: a KPI can sit exactly on target and be two months
+#: stale, and a screen that folds the two into one verdict has to lie about one of them.
+#:
+#: Three states, not the four the design calls for. `due_soon` needs the day a reading is
+#: expected to land — a normal reporting lag, which varies by KPI and lives in nobody's
+#: column yet. Inventing one would turn every KPI amber for a week each month on a rule
+#: this cockpit made up.
+FRESH = "fresh"
+OVERDUE = "overdue"
+NOT_DUE = "not_due"
+
+FRESHNESS_LABELS = {
+    FRESH: "Current",
+    OVERDUE: "Reading overdue",
+    NOT_DUE: "Not due yet",
+}
 
 #: The tracker's own rule: at target or better is fine, within 5% is watch, beyond is alert.
 WATCH_BAND = 0.05
@@ -60,7 +80,7 @@ STATUS_LABELS = {
     ON_TRACK: "On track",
     WATCH: "Watch",
     ALERT: "Alert",
-    NO_DATA: "No reading yet",
+    CANNOT_JUDGE: "Cannot judge",
 }
 
 
@@ -169,11 +189,12 @@ class Kpi:
 
     @property
     def status(self) -> str:
+        """Where the figure stands. Never a comment on how old it is."""
         if self.latest is None or self.target is None:
-            return NO_DATA
+            return CANNOT_JUDGE
         ratio = self.gap_ratio
         if ratio is None:
-            return NO_DATA
+            return CANNOT_JUDGE
         if ratio >= 0:
             return ON_TRACK
         if abs(ratio) <= WATCH_BAND:
@@ -210,6 +231,18 @@ class Kpi:
         if self.frequency == ANNUAL:
             return fiscal.year_label(fiscal.previous_year_end(day))
         return None
+
+    def freshness(self, today: Optional[date] = None) -> str:
+        """Whether the figure that exists is the one that should exist by now."""
+        expected = self.expected_period(today)
+        if expected is None:
+            return NOT_DUE
+        if self.latest is None or self.latest.period != expected:
+            return OVERDUE
+        return FRESH
+
+    def freshness_label(self, today: Optional[date] = None) -> str:
+        return FRESHNESS_LABELS[self.freshness(today)]
 
     def is_awaiting(self, today: Optional[date] = None) -> bool:
         """Is a figure genuinely late, as opposed to simply not due?
@@ -253,10 +286,10 @@ class Kpi:
         """
         if not self.can_be_challenged:
             return ""
-        if self.is_awaiting(today):
-            # Asking what will move a number nobody has reported yet is the wrong
-            # question. The figure itself is the blocker.
-            return "The %s reading is late. What is holding it up?" % self.expected_period(today)
+        if self.latest is None:
+            # Nothing has ever been reported: there is no performance to ask about, and
+            # the figure itself is the blocker.
+            return "No reading has ever arrived. What is holding it up?"
         if self.status != ALERT:
             return ""
 
@@ -290,6 +323,21 @@ def needing_attention(kpis: Sequence[Kpi]) -> List[Kpi]:
 
 def awaiting(kpis: Sequence[Kpi], today: Optional[date] = None) -> List[Kpi]:
     return [kpi for kpi in kpis if kpi.is_awaiting(today)]
+
+
+def worth_showing(kpis: Sequence[Kpi], today: Optional[date] = None) -> List[Kpi]:
+    """Everything off on either axis, each KPI once.
+
+    The panel used to list a KPI for being off target and then list it again, below, for
+    being overdue — the same line twice, under two headings, as if they were two problems.
+    They are two facts about one KPI, and the card shows both.
+    """
+    off = {id(item) for item in needing_attention(kpis)}
+    ordered = needing_attention(kpis) + [
+        item for item in kpis
+        if id(item) not in off and item.freshness(today) == OVERDUE
+    ]
+    return ordered
 
 
 def provisional(kpis: Sequence[Kpi]) -> List[Kpi]:
