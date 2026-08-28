@@ -817,6 +817,7 @@ class Fire:
         "misaligned_plan",
         "forecast_flag",
         "baseline_label",
+        "boundary_standing",
     )
 
     def __init__(self, unit: BusinessUnit) -> None:
@@ -862,6 +863,13 @@ class Fire:
             if unit.forecast_revisions_down >= 2
             else ""
         )
+        #: Whether the boundary claim this card rests on was actually testable this
+        #: month. Filled by `fires()`, which is where the other channels are in scope.
+        #: A note saying "this gap is a boundary, not a result" takes the market's own
+        #: question off the card — so a card must not state that claim flatly on a month
+        #: when the screen's own check could not run. It said so two panels below and
+        #: nowhere on the card the claim was doing its work.
+        self.boundary_standing = ""
 
     @property
     def has_breakdown(self) -> bool:
@@ -1080,7 +1088,50 @@ def fires(dataset: Dataset, limit: int = 5) -> List[Fire]:
         and abs(unit.gap_vs_budget) >= MATERIALITY_FLOOR_EUR
     ]
     candidates.sort(key=lambda fire: fire.priority.score, reverse=True)
-    return candidates[:limit]
+    ranked = candidates[:limit]
+    _attach_boundary_standing(ranked, dataset)
+    return ranked
+
+
+def _attach_boundary_standing(found: Sequence["Fire"], dataset: Dataset) -> None:
+    """Carry the boundary check's verdict onto the cards it is about.
+
+    The check runs on the whole market and prints its own panel. The card, meanwhile,
+    prints the note's claim — "the gap here is a boundary rather than a result" — as
+    settled, and on the strength of it the market's own question disappears. When the
+    check could not run, the two halves of the screen say different things about the
+    same euros, and only one of them is on the card the reader acts from.
+    """
+    from .context import RECLASSIFIED
+
+    checks = {check.market: check for check in reclassification_checks(dataset)}
+    for fire in found:
+        if not any(note.kind == RECLASSIFIED for note in fire.unit.context_notes):
+            continue
+        check = checks.get(fire.unit.market)
+        if check is None:
+            fire.boundary_standing = (
+                "Only one side of this boundary is noted, so nothing here can check it: "
+                "a boundary has two sides, and one description says nothing about "
+                "whether it is right."
+            )
+        elif not check.crossed:
+            fire.boundary_standing = (
+                "Not checked this month: nothing crossed this boundary — %s move the "
+                "same way — so the sentence above rests on the note alone."
+                % _listed_labels([label for label, _ in check.legs])
+            )
+        elif check.offsets:
+            fire.boundary_standing = (
+                "Checked this month: the two sides cancel to %s. %s"
+                % (_eur(abs(check.net)), check.direction)
+            )
+        else:
+            fire.boundary_standing = (
+                "Checked this month and they do not cancel: %s left over. Either the "
+                "note names the wrong side, or these channels are also trading away "
+                "from plan on their own." % _eur(abs(check.net))
+            )
 
 
 # --------------------------------------------------------------------- opportunities

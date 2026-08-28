@@ -174,6 +174,15 @@
 
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
 
+        {% if fire.boundary_standing %}
+          {# The diagnosis above may end on a note's claim that this gap is a boundary
+             and not a result — which is what takes the market's own question off this
+             card. The screen tests that claim in its own panel further down; whether the
+             test could run belongs here, beside the sentence it qualifies, not two
+             panels away from the card the reader acts from. #}
+          <p class="estimate-note">{{ fire.boundary_standing }}</p>
+        {% endif %}
+
         {% if not fire.has_breakdown %}
           {# The diagnosis above already carries the reason and says the gap is real. This
              block used to repeat both, word for word, directly underneath. Better an
@@ -226,16 +235,21 @@
 
         <p class="fire-meta">
           <span class="confidence confidence-{{ fire.confidence }}">Confidence {{ fire.confidence | upper }}</span>
-          {% if fire.action_owner %}
-            {# A note has said this is not the market's to answer. Printing the market's
-               lead here and a sentence two lines below saying the market is not the one
-               to question puts a real person's name against a question they do not own —
-               the most expensive thing this screen can do. #}
-            <span class="owner">· {{ fire.action_owner }} — not {{ fire.unit.owner.name }}'s to answer</span>
-          {% else %}
-            <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
-          {% endif %}
+          <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
         </p>
+
+        {% if fire.action_owner %}
+          {# Between the name and the question, which is the only place it works. Folded
+             into the line above it produced "· Consolidation — centre de profit X — not
+             Yann's to answer": three clauses and two dashes, and the reader had to parse
+             it to find out whose it was. Dropping the market lead instead loses the one
+             thing that stays true — it is still their market. So the name stands, and
+             this sentence takes the question away from it before the question is asked. #}
+          <p class="estimate-note is-warning">
+            Not {{ fire.unit.owner.name }}'s to answer. The action sits with
+            {{ fire.action_owner }}.
+          </p>
+        {% endif %}
 
         <p class="ask">{{ fire.question }}</p>
 

@@ -706,6 +706,77 @@ def test_a_reclassified_pair_that_does_not_cancel_says_so_without_accusing():
     assert "trading away from plan" in check.message
 
 
+def test_the_boundary_verdict_reaches_the_card_it_is_about():
+    """The check has its own panel; the card has the claim. A note saying "this gap is a
+    boundary rather than a result" is what takes the market's own question off the card,
+    so a month where the check could not run must say so *there* — not two panels below,
+    where it is not read by anyone deciding what to do about the euros on the card.
+    """
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            # Both legs below plan: nothing crossed, so there is no split to test.
+            _noted("United States E-retailers", "webp", 29_846_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 18_146_000.0, 19_000_000.0),
+        ],
+    )
+
+    found = analytics.fires(dataset)
+
+    assert found, "both legs are materially below plan"
+    for fire in found:
+        assert "Not checked this month" in fire.boundary_standing
+        assert "rests on the note alone" in fire.boundary_standing
+
+
+def test_a_boundary_that_nearly_cancels_says_so_on_the_card_too():
+    """When the two halves cancel to the euro the market is a reallocation and raises no
+    fire at all. The card matters in the band between: the check calls it offset — it
+    tolerates a quarter of the larger leg — while a residue above the materiality floor
+    still leaves a real gap on screen. That card carries a confirmed boundary and a gap.
+    """
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 14_026_000.0, 19_000_000.0),
+        ],
+    )
+
+    check, = analytics.reclassification_checks(dataset)
+    assert check.offsets  # €500k left over on €4.97m crossing
+
+    found = analytics.fires(dataset)
+
+    assert [f.unit.label for f in found] == ["United States Chain Wholesale"]
+    assert "Checked this month" in found[0].boundary_standing
+    assert "cancel" in found[0].boundary_standing
+
+
+def test_a_card_with_no_boundary_note_says_nothing_about_boundaries():
+    """The line is printed only where a claim needs qualifying. Everywhere else it would
+    be a sentence about a check that was never in question."""
+    plain = BusinessUnit(
+        key="japan-ecom",
+        label="Japan E-commerce",
+        market="Japan",
+        region="APAC",
+        channel="ecommerce",
+        owner=OWNER,
+        actual=Drivers.sales_only(9_000_000.0),
+        budget=Drivers.sales_only(10_000_000.0),
+        last_year=Drivers.sales_only(10_000_000.0),
+        forecast_sales=0.0,
+    )
+    dataset = Dataset(period_label="July 2026", as_of="", units=[plain])
+
+    found = analytics.fires(dataset)
+
+    assert found[0].boundary_standing == ""
+
+
 def test_a_boundary_with_only_one_side_described_is_not_checked():
     """A boundary has two sides. One of them being noted says nothing about whether the
     note is right, and a verdict drawn from half a claim would be a guess with a number
