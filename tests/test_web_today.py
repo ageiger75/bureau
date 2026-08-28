@@ -417,7 +417,7 @@ def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
     trusted, while the workbook covers the current year only."""
     page = page_text(client.get("/"))
 
-    assert "growth this business has not shown" in page
+    assert "above every reading of the record" in page
     assert "Was this plan ever reachable" in page
     # And the other one is still there. Neither hides the other.
     assert "Why is the plan focused on sessions" in page

@@ -144,9 +144,10 @@ def units() -> List[BusinessUnit]:
             # action focus of its own, so the demonstration screen carries both kinds of
             # question — one about where the plan aims, one about whether it was reachable.
             plan_vs_record=(
-                "The plan asks for +18% where the last twelve months delivered +2% — 16 "
-                "points of growth this business has not shown. The business is slowing "
-                "down, which argues against it."
+                "The plan asks for +18%, where the last twelve months delivered +2% and "
+                "the last three months ran at -4% — the plan is above every reading of "
+                "the record, by up to 22 points. The business is slowing down, which "
+                "argues against it."
             ),
             no_breakdown_reason=NO_COUNTER_REASON,
         ),

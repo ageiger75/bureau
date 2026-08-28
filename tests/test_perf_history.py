@@ -432,7 +432,7 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
     assert moved.plan_growth == 0.25
     assert moved.stretch == 0.25
     assert moved.is_ahead_of_record
-    assert "the plan is above both" in moved.sentence
+    assert "the plan is above every reading of the record" in moved.sentence
 
 
 def test_a_plan_that_merely_continues_the_trend_says_nothing():
@@ -455,7 +455,7 @@ def test_a_plan_below_what_the_business_already_delivers():
     moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
 
     assert moved.is_behind_record
-    assert "the plan is below both" in moved.sentence
+    assert "the plan is below every reading of the record" in moved.sentence
 
 
 def test_the_record_says_whether_the_business_is_speeding_up():
@@ -525,7 +525,7 @@ def test_the_record_reaches_the_units_and_the_question():
     )
 
     unit = mapped.units[0]
-    assert "the plan is above both" in unit.plan_vs_record
+    assert "the plan is above every reading of the record" in unit.plan_vs_record
     assert unit.chronic_plan == ""
 
     fire = analytics.Fire(unit)
@@ -574,3 +574,84 @@ def test_a_plan_in_line_with_the_recent_quarter_is_not_called_timid():
     assert moved.stretch < 0
     assert not moved.is_behind_record
     assert moved.sentence == ""
+
+
+# ------------------------------------------------------------------- sell-in
+
+
+def _sell_in_plan(entity, market, segment, monthly, months=12):
+    from app.perf.budget import Budget, BudgetLine
+
+    return Budget([
+        BudgetLine(market=market, region="R", segment=segment, channel="",
+                   period="2026-%02d" % n, budget=monthly, last_year=None, entity=entity)
+        for n in range(1, months + 1)
+    ])
+
+
+def test_the_sell_in_plan_is_confronted_with_what_partners_actually_bought():
+    """Built from the two queries that already exist rather than a third nobody has run.
+    Both sides are stated at the plan's own rates, which is the property that makes the
+    sell-in reconciliation exact and is worth carrying over."""
+    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+               "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
+    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+                "period": "2026-%02d" % n, "sales_actual": 950.0,
+                "sales_last_year": 1000.0} for n in range(4, 8)]
+
+    moved, = history.sell_in_trajectories(
+        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+    )
+
+    assert moved.market == "Japan"
+    # Floating point: the figures are a ratio of sums, not a decimal typed in.
+    assert round(moved.plan_growth, 10) == 0.4
+    assert round(moved.recent, 10) == -0.05
+    assert moved.is_ahead_of_record
+    assert "the fiscal year to date ran at" in moved.sentence
+
+
+def test_the_sell_in_record_is_named_for_what_it_is():
+    """The consolidation publishes a comparison, not a series: it says what a month did
+    against the same month a year earlier and never what the twelve before it did. So the
+    record is the fiscal year to date, and calling it anything else would be a small lie
+    in the one sentence a reader takes away."""
+    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+               "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
+    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 900.0, "sales_last_year": 1000.0}]
+
+    moved, = history.sell_in_trajectories(
+        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+    )
+
+    assert moved.growth is None
+    assert moved.records == [moved.recent]
+    assert "twelve months" not in moved.sentence
+
+
+def test_the_sell_in_join_uses_the_entity_code_with_its_suffix():
+    """The workbook types the same entity two ways — bare for most, suffixed for a few —
+    while the consolidation always writes the suffix. Joining on a country name instead
+    would drop the eleven markets billed by a hub."""
+    closed = [{"entity": "M_017_UNLOC", "segment": "DIS - Distributors",
+               "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
+    current = [{"entity": "M_017_UNLOC", "segment": "DIS - Distributors",
+                "period": "2026-04", "sales_actual": 900.0, "sales_last_year": 1000.0}]
+
+    moved, = history.sell_in_trajectories(
+        closed, current, _sell_in_plan("M_017", "Korea", "DIS - Distributors", 1400.0)
+    )
+
+    assert moved.market == "Korea"
+
+
+def test_a_sell_in_pair_the_plan_does_not_name_is_left_out():
+    """Not guessed into a market by resemblance. A figure attributed to the wrong country
+    is worse than a figure nobody sees."""
+    closed = [{"entity": "M_999", "segment": "DIS - Distributors",
+               "period": "2025-01", "value": 1000.0}]
+
+    assert history.sell_in_trajectories(
+        closed, [], _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+    ) == []

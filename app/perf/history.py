@@ -283,12 +283,19 @@ class Trajectory:
     the season cancels out. A December compared with a November says nothing.
     """
 
-    __slots__ = ("market", "channel", "growth", "recent", "plan_growth")
+    __slots__ = ("market", "channel", "growth", "recent", "plan_growth", "recent_label")
 
     def __init__(self, market: str, channel: str, growth: Optional[float],
-                 recent: Optional[float], plan_growth: Optional[float]) -> None:
+                 recent: Optional[float], plan_growth: Optional[float],
+                 recent_label: str = "the last three months") -> None:
         self.market = market
         self.channel = channel
+        #: How to name the shorter window in prose. Sell-out reads three months against
+        #: the same three a year earlier; sell-in reads the fiscal year to date against
+        #: the same months, because its source publishes the comparison and not the
+        #: series. Naming it wrongly would be a small lie in the one sentence a reader
+        #: takes away.
+        self.recent_label = recent_label
         #: The last twelve months against the twelve before them.
         self.growth = growth
         #: The last three months against the same three a year earlier.
@@ -318,8 +325,20 @@ class Trajectory:
         return self.plan_growth - self.recent
 
     @property
+    def records(self) -> List[float]:
+        """Every reading of the record that is actually available.
+
+        Two for sell-out — the trailing year and the recent quarter. One for sell-in,
+        whose source publishes a year-on-year comparison rather than a series, so only the
+        fiscal year to date can be read. The verdict below requires the plan to clear
+        every record there is, which keeps the discipline without pretending to a reading
+        that does not exist.
+        """
+        return [r for r in (self.growth, self.recent) if r is not None]
+
+    @property
     def is_ahead_of_record(self) -> bool:
-        """The plan assumes a break with the record, on both readings of it.
+        """The plan assumes a break with the record, on every reading of it.
 
         Both, because the twelve-month figure goes stale on a business that has turned.
         The first version of this compared the plan with the trailing year alone and
@@ -327,12 +346,9 @@ class Trajectory:
         its last three months ran at +63%. It had just shown it. Four findings in five
         came back positive that way, which is not a signal, it is a habit.
         """
-        return (
-            self.stretch is not None
-            and self.stretch > STRETCH_THRESHOLD
-            and self.recent_stretch is not None
-            and self.recent_stretch > STRETCH_THRESHOLD
-        )
+        if self.plan_growth is None or not self.records:
+            return False
+        return all(self.plan_growth - r > STRETCH_THRESHOLD for r in self.records)
 
     @property
     def is_behind_record(self) -> bool:
@@ -342,12 +358,9 @@ class Trajectory:
         with the recent quarter is not timid — it is a plan that has taken the turn into
         account, which is what a plan is supposed to do.
         """
-        return (
-            self.stretch is not None
-            and self.stretch < -STRETCH_THRESHOLD
-            and self.recent_stretch is not None
-            and self.recent_stretch < -STRETCH_THRESHOLD
-        )
+        if self.plan_growth is None or not self.records:
+            return False
+        return all(self.plan_growth - r < -STRETCH_THRESHOLD for r in self.records)
 
     @property
     def direction(self) -> str:
@@ -375,20 +388,21 @@ class Trajectory:
             "slowing": " The business is slowing down, which argues against it.",
             "steady": " The trend is steady, so nothing in the record supports the change.",
         }.get(self.direction, "")
-        # Both records are named, because a reader shown only the twelve-month figure
-        # cannot tell a business that is still falling from one that has already turned.
-        if self.is_ahead_of_record:
-            return (
-                "The plan asks for %s. The last twelve months delivered %s and the last "
-                "three ran at %s — the plan is above both, by %s against the year.%s"
-                % (_pct(self.plan_growth), _pct(self.growth), _pct(self.recent),
-                   _points(self.stretch), turning)
-            )
+        # Every record is named, because a reader shown one figure cannot tell a business
+        # that is still falling from one that has already turned.
+        said = []
+        if self.growth is not None:
+            said.append("the last twelve months delivered %s" % _pct(self.growth))
+        if self.recent is not None:
+            said.append("%s ran at %s" % (self.recent_label, _pct(self.recent)))
+        where = " and ".join(said)
+        side = "above" if self.is_ahead_of_record else "below"
+        widest = max(abs(self.plan_growth - r) for r in self.records)
         return (
-            "The plan asks for %s. The last twelve months delivered %s and the last three "
-            "ran at %s — the plan is below both, by %s against the year.%s"
-            % (_pct(self.plan_growth), _pct(self.growth), _pct(self.recent),
-               _points(-self.stretch), turning)
+            "The plan asks for %s, where %s — %s %s every reading of the record, by up "
+            "to %s.%s"
+            % (_pct(self.plan_growth), where, "the plan is", side, _points(widest),
+               turning)
         )
 
 
@@ -634,6 +648,81 @@ def _fiscal_label(period: str) -> str:
     if day is None:
         return "Year to date"
     return "%s to date" % fiscal.year_label(day)
+
+
+def sell_in_trajectories(closed_year, current, budget) -> List[Trajectory]:
+    """What the sell-in plan asks, against what the partners have actually been buying.
+
+    Built from the two queries that already exist rather than a third nobody has run.
+    `SELL_IN_HISTORY` gives the last closed fiscal year month by month, restated at the
+    plan's own rates; `SELL_IN` gives the current year to date with each month's
+    year-earlier figure beside it, at those same rates. Both sides of every comparison
+    here are therefore stated identically, which is the property that makes the sell-in
+    reconciliation exact and is worth preserving.
+
+    Only one reading of the record is available. The consolidation publishes a comparison,
+    not a series: it says what this month did against the same month last year, and never
+    what the twelve months before that did. So the record is the fiscal year to date, and
+    the sentence says so rather than implying a year.
+
+    The join is on the plan's own entity code, not on a country name. Names are typed by
+    people and translated twice on the way here; the code is what the consolidation uses.
+    """
+    from .budget import channel_of, normalise_market
+
+    #: (entity, segment) -> market and channel, from the plan. The suffixed spelling is
+    #: registered as an alias, because the workbook types the same entity two ways while
+    #: the consolidation always writes the suffix.
+    named: Dict[Tuple[str, str], Tuple[str, str]] = {}
+    planned: Dict[Tuple[str, str], float] = {}
+    for line in budget.lines if budget else []:
+        if not line.entity or not line.budget:
+            continue
+        where = (normalise_market(line.market), channel_of(line.segment))
+        named.setdefault((line.entity, line.segment), where)
+        named.setdefault((line.entity + "_UNLOC", line.segment), where)
+        planned[where] = planned.get(where, 0.0) + line.budget
+
+    last_year: Dict[Tuple[str, str], float] = {}
+    for row in closed_year or []:
+        where = named.get(
+            (str(row.get("entity") or ""), str(row.get("segment") or ""))
+        )
+        value = _number(row.get("value"))
+        if where is not None and value is not None:
+            last_year[where] = last_year.get(where, 0.0) + value
+
+    to_date: Dict[Tuple[str, str], List[float]] = {}
+    for row in current or []:
+        where = named.get(
+            (str(row.get("entity") or ""), str(row.get("segment") or ""))
+        )
+        if where is None:
+            continue
+        now, before = _number(row.get("sales_actual")), _number(row.get("sales_last_year"))
+        if now is None or before is None:
+            continue
+        running = to_date.setdefault(where, [0.0, 0.0])
+        running[0] += now
+        running[1] += before
+
+    found = []
+    for where in sorted(set(planned) & set(last_year)):
+        base = last_year[where]
+        now, before = to_date.get(where, [None, None])
+        found.append(
+            Trajectory(
+                market=where[0],
+                channel=where[1],
+                # Absent, and stated as absent: the consolidation publishes a comparison,
+                # not a series, so a trailing twelve-month growth cannot be read from it.
+                growth=None,
+                recent=(now / before - 1.0) if before else None,
+                plan_growth=(planned[where] / base - 1.0) if base else None,
+                recent_label="the fiscal year to date",
+            )
+        )
+    return found
 
 
 def from_rows(rows: Sequence[Dict[str, object]]) -> History:

@@ -16,6 +16,7 @@
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans pour ce qui n'a ni budget ni ventes en face
+                                     --sell-in confronte le sell-in à son plan
                                      --refresh pour relire l'entrepôt au lieu du cache
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
@@ -749,6 +750,9 @@ def cmd_history(argv: List[str]) -> int:
 
         plan = budget_module.load(settings.budget_path)
 
+    if "--sell-in" in argv:
+        return _print_sell_in(plan)
+
     market = _option(argv, "--market")
     if market:
         return _print_one_market(built, market, plan)
@@ -827,6 +831,60 @@ def cmd_history(argv: List[str]) -> int:
         print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
               % ("%s %s" % (track.market, track.channel), verdict.months,
                  verdict.low, verdict.high, verdict.shortfall_pct))
+    return 0
+
+
+def _print_sell_in(plan) -> int:
+    """Le sell-in confronté à son plan, sans écrire une requête de plus.
+
+    Les deux lectures nécessaires existent déjà : `SELL_IN_HISTORY` donne le dernier
+    exercice clos mois par mois, aux taux du plan ; `SELL_IN` donne l'exercice en cours à
+    date avec, en face de chaque mois, le même mois de l'an dernier aux mêmes taux. C'est
+    cette propriété — les deux côtés énoncés aux mêmes taux — qui rend la réconciliation
+    sell-in exacte à vingt-neuf centimes sur 375 M€, et elle se transporte ici telle
+    quelle.
+    """
+    if plan is None:
+        print("Classeur de planification absent : rien à confronter.", file=sys.stderr)
+        return 2
+
+    from .perf import history as history_module
+    from .perf import queries, warehouse
+
+    print("Lecture du sell-in — deux requêtes, quelques dizaines de secondes.")
+    try:
+        closed = warehouse.rows(queries.SELL_IN_HISTORY, label="SELL_IN_HISTORY")
+        current = warehouse.rows(queries.SELL_IN, label="SELL_IN")
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Échec : %s" % exc, file=sys.stderr)
+        return 1
+
+    found = history_module.sell_in_trajectories(closed, current, plan)
+    print("%d couples marché × canal appariés au plan." % len(found))
+    if not found:
+        print("Aucun. La jointure se fait sur le code entité du plan : si elle ne prend")
+        print("pas, c'est là qu'il faut regarder, pas dans les chiffres.")
+        return 0
+
+    flagged = [m for m in found if m.sentence]
+    print("")
+    if not flagged:
+        print("Aucun plan sell-in ne s'écarte du réel de plus de dix points.")
+    else:
+        print("Plans sell-in qui s'écartent du réel :")
+    for moved in sorted(flagged, key=lambda m: -abs(m.plan_growth - m.recent))[:20]:
+        print("")
+        print("  %s %s" % (moved.market, moved.channel))
+        print("    plan année %s · exercice à date %s"
+              % (_growth(moved.plan_growth), _growth(moved.recent)))
+        for line in _wrapped(moved.sentence, 74):
+            print("    %s" % line)
+
+    # Ce que la source ne permet pas de dire, dit une fois plutôt que sous-entendu.
+    print("")
+    print("Une seule lecture du réel ici : la consolidation publie une comparaison,")
+    print("pas une série. Elle dit ce qu'un mois a fait contre le même mois l'an")
+    print("dernier, jamais ce que les douze mois d'avant avaient fait.")
     return 0
 
 
