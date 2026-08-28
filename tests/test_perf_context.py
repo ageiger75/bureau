@@ -840,17 +840,37 @@ def test_an_absence_someone_has_explained_is_not_a_broken_feed():
     everything in it is worth reading."""
     from app.perf.mapping import ORDERS_NOT_TRACKED
 
-    silent = unit(
-        actual=Drivers.sales_only(0.0),
-        last_year=Drivers.sales_only(53_000.0),
+    def empty(**extra):
+        return unit(
+            actual=Drivers.sales_only(0.0),
+            last_year=Drivers.sales_only(53_000.0),
+            funnel_status=ORDERS_NOT_TRACKED,
+            **extra
+        )
+
+    held = empty(notes=[note(kind=context.ON_HOLD, market="Brazil", channel="")])
+
+    assert analytics.suspect_of(held) is None
+    assert analytics.suspect_of(empty()) is not None
+
+
+def test_a_note_about_a_gap_does_not_bury_a_measurement_fault():
+    """The first version of this silenced every suspect on any noted unit, and Brazil went
+    with it: its note is about a tax change, which explains the size of a gap and says
+    nothing whatever about a missing analytics tag. A real measurement fault on €179k of
+    sales disappeared behind an unrelated sentence — the more expensive of the two
+    mistakes, because nothing on a screen says "the thing you are not seeing"."""
+    from app.perf.mapping import ORDERS_NOT_TRACKED
+
+    trading = unit(
+        actual=Drivers.sales_only(179_000.0),
         funnel_status=ORDERS_NOT_TRACKED,
-        notes=[note(kind=context.ON_HOLD, market="Brazil", channel="")],
-    )
-    loud = unit(
-        actual=Drivers.sales_only(0.0),
-        last_year=Drivers.sales_only(53_000.0),
-        funnel_status=ORDERS_NOT_TRACKED,
+        sessions=90_000.0,
+        orders=None,
+        notes=[note(kind=context.BASIS_CHANGE, market="Brazil", channel="")],
     )
 
-    assert analytics.suspect_of(silent) is None
-    assert analytics.suspect_of(loud) is not None
+    found = analytics.suspect_of(trading)
+
+    assert found is not None
+    assert found.code == "traffic_without_orders"

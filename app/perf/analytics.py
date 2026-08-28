@@ -435,6 +435,24 @@ def reallocating_markets(dataset: Dataset) -> set:
     return {item.market for item in reallocations(dataset)}
 
 
+#: Note kinds that account for a market selling nothing. Trading stopped on purpose, or
+#: the revenue is filed under a neighbouring segment — both explain an empty month. A tax
+#: change or a one-off does not: they explain how large a gap is, not why a feed is silent.
+EXPLAINS_ABSENCE = ("on_hold", "reclassified")
+
+
+def _absence_is_explained(unit: BusinessUnit) -> bool:
+    """Whether a note already accounts for this market reporting nothing.
+
+    Deliberately narrow. A note is about a gap; a suspect is about a measurement. They
+    overlap in exactly one place — a market that reports no sales at all — and nowhere
+    else, so nowhere else may be silenced by one.
+    """
+    if unit.sales_actual:
+        return False
+    return any(note.kind in EXPLAINS_ABSENCE for note in unit.context_notes)
+
+
 def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     """Whether this unit's figures look like a break in the data rather than the business."""
     from .mapping import (
@@ -449,7 +467,13 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
     # over a fact they wrote down themselves that morning is how a panel earns the right
     # to be ignored — and this panel's whole value is that everything in it is worth
     # reading.
-    if unit.context_notes:
+    #
+    # Only the absence, and only from a note that accounts for one. The first version of
+    # this silenced every suspect on any noted unit, and Brazil went with it: its note is
+    # about a tax change, which explains the size of a gap and says nothing whatever about
+    # a missing analytics tag. A real measurement fault on €179k of sales disappeared
+    # behind an unrelated sentence, which is the more expensive of the two mistakes.
+    if _absence_is_explained(unit):
         return None
 
     # A market with no own site is not a broken feed. It sells through partners who
