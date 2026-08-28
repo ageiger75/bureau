@@ -407,8 +407,113 @@ from joined
 order by sales_actual desc nulls last
 """
 
-#: The same, for the previous periods that feed the acceleration factor.
-SALES_HISTORY = ""
+#: Twenty-four months at the grain of `SALES_AND_DRIVERS`, so the screen can stop
+#: comparing one month to one month — the loudest noise and the faintest signal it has.
+#:
+#: It feeds three things the cockpit already computes and cannot currently supply:
+#: persistence ("three consecutive months below plan"), acceleration ("the gap is
+#: widening"), and the fiscal year to date. A month-on-month reading is worst exactly
+#: where decisions are heaviest: a shipment that slips across a month boundary shows up
+#: as a collapse followed by a rebound, and neither happened.
+#:
+#: One row per market, channel and month:
+#:
+#:     market            text
+#:     channel           text     -- `STORE_SUB_CHANNEL`, verbatim, as in SALES_AND_DRIVERS
+#:     period            text     -- 'YYYY-MM'
+#:     sales_actual      number   -- euros, tax excluded
+#:     sales_budget      number   -- euros, from the goals fact; null where none is set
+#:
+#: Both sides are joined with a full outer join on purpose. A month with a plan and no
+#: sales is not an empty row: it is a market that stopped selling while still carrying a
+#: commitment, which is the strongest signal this query can carry.
+SALES_HISTORY = """
+with period as (
+    select
+        -- The latest closed month, and twenty-four months of context behind it.
+        date_trunc('month', add_months(anchor, -1))       as last_month,
+        date_trunc('month', add_months(anchor, -24))      as first_month
+    from (
+        -- Bounded, for the reason established on SALES_AND_DRIVERS: unbounded, one
+        -- `max(date)` reads 77 GB. The latest transaction is recent by definition.
+        select max(max_sales_date) as anchor
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_sellout_analysis
+            metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+            where f_sellout_sales_details.transaction_date
+                  >= dateadd(month, -3, current_date)
+        )
+    )
+),
+sellout_day as (
+    select
+        store_country,
+        store_sub_channel,
+        transaction_date,
+        net_sales_eur
+    from semantic_view(
+        dwh.semantic_layer.v_sl_ai_sellout_analysis
+        dimensions
+            d_stores.store_country,
+            d_stores.store_sub_channel,
+            f_sellout_sales_details.transaction_date
+        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+        -- A bound the view can read on its own. The window below is expressed
+        -- against the `period` CTE, which the view cannot see, so that predicate
+        -- does not push down. Twenty-six months leaves the slack a two-year window
+        -- needs without reading the whole history.
+        where d_stores.store_brand = 'L''OCCITANE'
+          and f_sellout_sales_details.transaction_date
+              >= dateadd(month, -26, current_date)
+    )
+),
+goals_day as (
+    select
+        store_country,
+        store_sub_channel,
+        goals_date,
+        goals_eur
+    from semantic_view(
+        dwh.semantic_layer.v_sl_ai_sellout_analysis
+        dimensions d_stores.store_country,
+                   d_stores.store_sub_channel,
+                   f_sales_goals.goals_date
+        metrics sum(f_sales_goals.goals_eur) as goals_eur
+        where d_stores.store_brand = 'L''OCCITANE'
+          and f_sales_goals.goals_date >= dateadd(month, -26, current_date)
+    )
+),
+sales as (
+    select
+        s.store_country                            as market,
+        s.store_sub_channel                        as channel,
+        date_trunc('month', s.transaction_date)    as month,
+        sum(s.net_sales_eur)                       as sales_actual
+    from sellout_day s cross join period p
+    where date_trunc('month', s.transaction_date) between p.first_month and p.last_month
+    group by 1, 2, 3
+),
+budget as (
+    select
+        g.store_country                        as market,
+        g.store_sub_channel                    as channel,
+        date_trunc('month', g.goals_date)      as month,
+        sum(g.goals_eur)                       as sales_budget
+    from goals_day g cross join period p
+    where date_trunc('month', g.goals_date) between p.first_month and p.last_month
+    group by 1, 2, 3
+)
+select
+    coalesce(s.market, b.market)                        as market,
+    coalesce(s.channel, b.channel)                      as channel,
+    to_char(coalesce(s.month, b.month), 'YYYY-MM')      as period,
+    s.sales_actual                                      as sales_actual,
+    b.sales_budget                                      as sales_budget
+from sales s
+full outer join budget b
+    on b.market = s.market and b.channel = s.channel and b.month = s.month
+order by market, channel, period
+"""
 
 #: Sell-in: everything invoiced to a partner who then resells. Roughly two fifths of the
 #: plan, and invisible to every sell-out source by construction — the revenue is recognised

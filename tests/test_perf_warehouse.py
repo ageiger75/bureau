@@ -82,7 +82,7 @@ def test_comments_do_not_hide_the_real_first_word():
 
 
 def test_only_the_written_queries_report_as_written():
-    """Three queries are written against the real schema; the rest are not.
+    """Four queries are written against the real schema; the rest are not.
 
     Kept as an inventory rather than deleted: `missing()` is what the 503 page lists, so a
     query that silently stopped counting as written would produce a screen claiming a
@@ -90,7 +90,6 @@ def test_only_the_written_queries_report_as_written():
     empties, the mapping tests are what should exist in its place.
     """
     assert set(queries.missing()) == {
-        "SALES_HISTORY",
         "KPI_READINGS",
         "MARKET_INDEX",
         "COMMITMENTS",
@@ -253,7 +252,7 @@ def test_an_unready_source_explains_itself_instead_of_crashing(
     # It names what is still missing. The SQL and the mapping now exist, so the first
     # thing standing in the way is the planning workbook on the machine.
     assert "planning workbook" in response.text
-    assert "SALES_HISTORY" in response.text
+    assert "KPI_READINGS" in response.text
     # And it says how to get back to a working screen.
     assert "CEOOS_DATA_SOURCE=mock" in response.text
 
