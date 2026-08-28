@@ -429,4 +429,4 @@ def test_the_plan_finding_carries_its_euros(client):
     exception."""
     page = page_text(client.get("/"))
 
-    assert "of revenue the record does not account for" in page
+    assert "across the year's plan" in page

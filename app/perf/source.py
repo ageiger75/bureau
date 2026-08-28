@@ -206,7 +206,7 @@ LEFT_OUT_WORDS = (
     ("WHOIN", "wholesale"),
     ("WHOSP", "wholesale"),
     ("TVC", "TV channels"),
-    ("B2B", "hospitality and B2B"),
+    ("B2B", "hospitality"),
     ("COPG", "corporate gifts"),
     ("DDS", "direct selling"),
 )

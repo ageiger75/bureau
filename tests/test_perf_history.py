@@ -707,7 +707,10 @@ def test_the_finding_is_stated_in_euros():
 
     # Four planned months at 1.5m against four record months at 1.0m.
     assert moved.money_at_stake == 2_000_000.0
-    assert "€2.0m of revenue the record does not account for" in moved.sentence
+    # Labelled as the year's figure: the card also carries a monthly gap, and two very
+    # different numbers side by side with nothing to tell them apart is how a reader ends
+    # up quoting the wrong one.
+    assert "€2.0m across the year's plan" in moved.sentence
 
 
 def test_a_reclassified_pair_is_not_reported_as_a_mis_set_plan():

@@ -146,8 +146,8 @@ def units() -> List[BusinessUnit]:
             plan_vs_record=(
                 "The plan asks for +18%, where the last twelve months delivered +2% and "
                 "the last three months ran at -4% — the plan is above every reading of "
-                "the record, by up to 22 points. That is €4.1m of revenue the record "
-                "does not account for. The business is slowing down, which argues "
+                "the record, by up to 22 points — €4.1m across the year's plan, beside "
+                "a monthly gap of its own. The business is slowing down, which argues "
                 "against it."
             ),
             no_breakdown_reason=NO_COUNTER_REASON,

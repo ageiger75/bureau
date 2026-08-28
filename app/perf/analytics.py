@@ -648,8 +648,24 @@ class ReclassificationCheck:
         self.gross = gross
 
     @property
+    def crossed(self) -> bool:
+        """Did anything actually move across the boundary this month?
+
+        A boundary shift makes one channel gain and its neighbour lose. Two losses mean
+        nothing crossed — the revenue that gets misfiled simply did not ship. Sephora, the
+        case this was built for, ships in waves: the American boundary moved in four
+        months of the last two years and in none of the others.
+
+        Without this the check confronts a claim on a month where the claim says nothing,
+        finds the halves do not cancel — of course they do not — and reports that the note
+        may name the wrong side. It would be accusing a correct note of being backwards,
+        which is worse than staying quiet.
+        """
+        return any(gap > 0 for _, gap in self.legs) and any(gap < 0 for _, gap in self.legs)
+
+    @property
     def offsets(self) -> bool:
-        if self.gross <= 0:
+        if self.gross <= 0 or not self.crossed:
             return False
         return abs(self.net) / self.gross <= OFFSET_TOLERANCE
 
@@ -673,6 +689,13 @@ class ReclassificationCheck:
     @property
     def message(self) -> str:
         moved = _listed_labels([label for label, _ in self.legs])
+        if not self.crossed:
+            return (
+                "%s: nothing crossed the boundary this month — %s move the same way, so "
+                "there is no split to test. The note stands unexamined until a month in "
+                "which the revenue it describes actually ships."
+                % (self.market, moved)
+            )
         if self.offsets:
             return (
                 "%s: %s move against each other and very nearly cancel — %s left over on "

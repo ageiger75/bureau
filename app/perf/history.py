@@ -465,7 +465,7 @@ class Trajectory:
         )
         return (
             "The plan asks for %s, where %s — the plan is %s every reading of the record, "
-            "by up to %s. That is %s of revenue the record does not account for.%s%s"
+            "by up to %s — %s across the year's plan, beside a monthly gap of its own.%s%s"
             % (_pct(self.plan_growth), where, side, _points(widest),
                _eur(abs(self.money_at_stake)), turning, caveat)
         )

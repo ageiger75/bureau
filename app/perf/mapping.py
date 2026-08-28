@@ -421,10 +421,12 @@ def units_from_rows(
 
         reason = ""
         if str(row.get("segment") or "") and perimeter_of(str(row.get("segment"))) == "sell-in":
+            # Short on purpose: the basis note beside it already says what is and is not
+            # in the figure. Printed in full, the two lines said the same thing twice on
+            # one card, and a screen that repeats itself reads as one that is padding.
             reason = (
                 "Invoiced to a partner who then resells, so there is no funnel behind "
-                "this figure and none missing. What happens after the invoice — how much "
-                "of it reaches a shopper, and when — is not measured here at all."
+                "this figure and none missing."
             )
         elif channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON

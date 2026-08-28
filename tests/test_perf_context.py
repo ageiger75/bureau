@@ -807,3 +807,26 @@ def test_a_roll_up_in_the_plan_is_not_a_market_to_challenge():
     # Travel retail is a business unit with a leader, not a roll-up.
     assert not is_aggregate_market("Loi Tr")
     assert not is_aggregate_market("Australia")
+
+
+def test_a_boundary_is_not_tested_on_a_month_where_nothing_crossed():
+    """Sephora ships in waves: the American boundary moved in four months of the last two
+    years and in none of the others. On July, both channels are simply below plan for
+    ordinary reasons — so the halves do not cancel, of course they do not, and the check
+    was reporting that a correct note might name the wrong side. Accusing a right note of
+    being backwards is worse than staying quiet."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 29_846_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 18_146_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    assert not check.crossed
+    assert not check.offsets
+    assert "nothing crossed the boundary this month" in check.message
+    # And no accusation anywhere in it.
+    assert "wrong side" not in check.message
