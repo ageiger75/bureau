@@ -981,3 +981,38 @@ def test_a_row_with_no_entity_still_joins_on_its_name():
     ytd = built.ytd("2026-04", budget=workbook, sell_in=sold_in)
 
     assert ytd.actual == 450_000.0
+
+
+def test_a_real_suffixed_entity_is_not_shadowed_by_an_alias():
+    """The workbook writes the same entity two ways, so `M_017` registers `M_017_UNLOC` as
+    an alias. But some workbooks carry `M_017_UNLOC` as an entity in its own right — and
+    registered in one pass, the alias could take the key first and send that market's
+    revenue to its neighbour. Exact spellings claim their keys before any alias is
+    offered."""
+    from app.perf.budget import Budget, BudgetLine
+
+    def line(entity, market):
+        return BudgetLine(market=market, region="R", segment="DIS - Distributors",
+                          channel="dis", period="2026-04", budget=1.0, last_year=None,
+                          entity=entity)
+
+    # The bare entity comes first in the file, exactly as it would in a spreadsheet.
+    places = history.plan_places(Budget([line("M_017", "Korea"),
+                                         line("M_017_UNLOC", "Singapore")]))
+
+    assert places[("M_017", "DIS - Distributors")] == ("Korea", "dis")
+    assert places[("M_017_UNLOC", "DIS - Distributors")] == ("Singapore", "dis")
+
+
+def test_the_alias_still_works_where_no_real_line_claims_it():
+    """The reason it exists: the consolidation always writes the suffix, the workbook
+    usually does not."""
+    from app.perf.budget import Budget, BudgetLine
+
+    places = history.plan_places(Budget([
+        BudgetLine(market="Korea", region="R", segment="DIS - Distributors",
+                   channel="dis", period="2026-04", budget=1.0, last_year=None,
+                   entity="M_017")
+    ]))
+
+    assert places[("M_017_UNLOC", "DIS - Distributors")] == ("Korea", "dis")
