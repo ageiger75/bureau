@@ -545,27 +545,59 @@ def _resolve_combined(entries, expected, by_entity, found) -> List["Combined"]:
 
     The months it covers are then removed from `expected`: they were checked, jointly, and
     counting them again as missing would report a gap that has just been closed.
+
+    Entries that land on the same plan cells are added up before being confronted, and
+    that is not a detail. Two entities can feed one market — China is billed by both
+    `M_037` and `M_007_JDCOM` — so comparing either one alone against the market's whole
+    figure makes it look short by exactly the other's revenue, and the second entry then
+    finds its cells already spent and is reported as having no target at all. That
+    manufactured a 3 to 6 M€ divergence on Chinese cross-border out of two entities whose
+    annual totals both reconcile to the euro.
     """
-    resolved: List[Combined] = []
+    grouped: Dict[tuple, dict] = {}
+    order: List[tuple] = []
+    orphans: List[Combined] = []
+
     for entity, segment, months, value in entries:
         if value is None:
             continue
         keys = []
         for month in months:
             key = by_entity.get((entity, segment, month))
-            if key is not None and key in expected:
+            if key is not None and key in expected and key not in keys:
                 keys.append(key)
         if not keys:
-            resolved.append(Combined("%s %s" % (entity, segment), months, None, value))
+            orphans.append(Combined("%s %s" % (entity, segment), months, None, value))
             continue
-        target = sum(expected[key] for key in keys)
-        resolved.append(Combined("%s %s" % (entity, segment), months, target, value))
-        for key in keys:
+        signature = tuple(sorted(keys))
+        if signature not in grouped:
+            grouped[signature] = {
+                "keys": keys,
+                "months": months,
+                "value": 0.0,
+                "labels": [],
+            }
+            order.append(signature)
+        bucket = grouped[signature]
+        bucket["value"] += value
+        bucket["labels"].append("%s %s" % (entity, segment))
+
+    resolved: List[Combined] = []
+    for signature in order:
+        bucket = grouped[signature]
+        target = sum(expected[key] for key in bucket["keys"] if key in expected)
+        label = bucket["labels"][0]
+        if len(bucket["labels"]) > 1:
+            # Named rather than hidden: a figure that took two entities to make is a
+            # different thing to check than one that took a single entity.
+            label = "%s +%d" % (label, len(bucket["labels"]) - 1)
+        resolved.append(Combined(label, bucket["months"], target, bucket["value"]))
+        for key in bucket["keys"]:
             # Checked jointly, so no longer outstanding. Leaving them would report a gap
             # that has just been closed, and understate a candidate that did its job.
             expected.pop(key, None)
             found.pop(key, None)
-    return resolved
+    return resolved + orphans
 
 
 def _read_notes(path) -> List[dict]:

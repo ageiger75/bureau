@@ -1059,3 +1059,75 @@ def test_the_plans_own_spelling_wins_over_the_alias(tmp_path, capsys, monkeypatc
     # Matched Australia on its own spelling, not merged into Elsewhere.
     assert "D'accord            1" in out
     assert "En désaccord        0" in out
+
+
+def test_two_entities_on_one_market_are_added_before_being_confronted(
+    tmp_path, capsys, monkeypatch
+):
+    """China is billed by two entities. A ranged figure from either one, compared alone
+    against the market's whole cell, looks short by exactly the other's revenue — and the
+    second entry then finds those cells already spent and is reported as having no target.
+    That invented a multi-million divergence out of two entities that both reconcile
+    exactly. They are summed first, and the label says the figure took more than one.
+    """
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
+                   "2026-04", 0.0, 1_500_000.0, entity="M_037"),
+        BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
+                   "2026-05", 0.0, 3_000_000.0, entity="M_037"),
+        BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
+                   "2026-04", 0.0, 1_500_000.0, entity="M_007_JDCOM"),
+        BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
+                   "2026-05", 0.0, 1_500_000.0, entity="M_007_JDCOM"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        # The same market and the same inseparable pair, reached by two entities.
+        writer.writerow(["M_037", "WEBP - Web Partners", "2025-04..2025-05", "4500000"])
+        writer.writerow(["M_007_JDCOM", "WEBP - Web Partners", "2025-04..2025-05", "3000000"])
+
+    exit_code = cmd_reconcile([str(path)])
+    out = capsys.readouterr().out
+
+    # 4.5m + 3m against a 7.5m market cell: one figure that agrees, not two that fail.
+    assert "dont 1 d'accord" in out
+    assert "sans cible" not in out
+    assert exit_code == 0
+
+
+def test_a_single_entity_figure_is_not_labelled_as_shared(tmp_path, capsys, monkeypatch):
+    """The `+n` suffix must mean something. One entity, no suffix."""
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Japan", "JAPAN", "DIS - Distributors", "dis",
+                   "2026-04", 0.0, 100_000.0, entity="M_024"),
+        BudgetLine("Japan", "JAPAN", "DIS - Distributors", "dis",
+                   "2026-05", 0.0, 200_000.0, entity="M_024"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        writer.writerow(["M_024", "DIS - Distributors", "2025-04..2025-05", "300000"])
+
+    assert cmd_reconcile([str(path)]) == 0
+    out = capsys.readouterr().out
+    assert "dont 1 d'accord" in out
+    assert "+1" not in out
