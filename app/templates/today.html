@@ -505,8 +505,17 @@
       this panel says nothing rather than saying everything is fine.
     </p>
   {% elif not kpis %}
-    <p class="empty">Every customer KPI is at or above target.</p>
+    <p class="empty">
+      All {{ kpis_total }} customer KPIs are at or above target. Nothing here needs you.
+    </p>
   {% else %}
+    {# The denominator, before the list. The panel shows only what is off — which is the
+       point — but three off out of seventeen and three out of four are different
+       businesses, and the list alone reads the same either way. #}
+    <p class="lede">
+      {{ kpis_holding }} of {{ kpis_total }} are at or above target.
+      {{ kpis | length }} {{ 'is' if kpis | length == 1 else 'are' }} not:
+    </p>
   <ul class="kpi-list">
     {% for item in kpis %}
       <li class="kpi kpi-{{ item.status }}">

@@ -19,6 +19,7 @@ from ..config import settings
 from ..util import now_iso
 from . import mock
 from .kpi import Kpi
+from . import kpi_registry, tracker
 from .model import Dataset
 
 
@@ -54,6 +55,12 @@ HISTORY_CACHE_FILE = "warehouse-history.json"
 #: reads it is not cheap.
 SELL_IN_HISTORY_CACHE_FILE = "warehouse-sell-in-history.json"
 
+#: The customer readings. Cached hardest of the three: the query is a two-minute read that
+#: has already hit the warehouse's own 300-second ceiling once, and a KPI moves monthly, so
+#: a reading a few hours old is the same reading. What must never happen is the screen
+#: waiting on it — a panel is worth a stale figure, never the whole page.
+KPI_CACHE_FILE = "warehouse-kpis.json"
+
 #: A day. Bounded not by time but by the anchor: a cached history whose last month is not
 #: the month on screen is re-read whatever its age, because that is the only staleness
 #: that can actually mislead anyone.
@@ -82,7 +89,8 @@ def cache_clear() -> None:
 def cache_forget() -> None:
     """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
-    for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE):
+    for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE,
+                 KPI_CACHE_FILE):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -157,6 +165,15 @@ def cached_history_rows():
 def store_history_rows(rows) -> None:
     """Keep a history read where the screen will find it, whoever paid for it."""
     _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
+
+
+def _read_kpi_cache():
+    stored = _read_disk_cache(KPI_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+    return None if stored is None else stored[0]
+
+
+def _write_kpi_cache(rows) -> None:
+    _write_disk_cache(rows, time.time(), read_at(), KPI_CACHE_FILE)
 
 
 def _sell_in_month(rows, sold_in, period: str):
@@ -625,8 +642,31 @@ class SnowflakeSource:
         raise NotImplementedError("Commitment mapping not written yet.")
 
     def client_kpis(self) -> List[Kpi]:
+        """Warehouse readings, judged against the tracker the business maintains.
+
+        Both halves are required and neither substitutes for the other. Readings without a
+        registry are numbers nobody can score; a registry without readings is a list of
+        intentions. Missing either, this refuses — the panel then says it is not connected,
+        which is true, rather than showing green on what it cannot see.
+        """
         self._refuse_if_unwritten("KPI_READINGS")
-        raise NotImplementedError("KPI mapping not written yet.")
+        if not settings.has_kpi_file:
+            raise NotImplementedError(
+                "The KPI tracker is not on this machine, so no reading can be judged. "
+                "Expected at %s." % settings.kpi_path
+            )
+        from . import queries, warehouse
+
+        registry = tracker.read_tracker(settings.kpi_path)
+        # Its own cache, and a long one. The query is a two-minute read that has hit the
+        # warehouse's own timeout at least once; hanging the screen on it would trade a
+        # panel for the whole page. A KPI moves monthly — a reading a day old is the same
+        # reading.
+        rows = _read_kpi_cache()
+        if rows is None:
+            rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
+            _write_kpi_cache(rows)
+        return kpi_registry.join(registry, rows)
 
 
 def current_source():

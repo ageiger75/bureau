@@ -156,6 +156,13 @@ def today(request: Request):
             "wins": analytics.wins(dataset),
             "commitments": commitments,
             "kpis": kpi_rules.needing_attention(kpis),
+            #: The denominator. "Three KPIs are off target" and "three of seventeen" are
+            #: different facts, and the panel shows only the three — so without this the
+            #: reader cannot tell a business mostly holding from one mostly failing.
+            "kpis_total": len(kpis),
+            "kpis_holding": len([
+                item for item in kpis if item.status == kpi_rules.ON_TRACK
+            ]),
             "kpis_awaiting": kpi_rules.awaiting(kpis),
             "kpis_provisional": kpi_rules.provisional(kpis),
             "reclassifications": analytics.reclassification_checks(dataset),

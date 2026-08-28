@@ -79,6 +79,11 @@ DEFAULT_OWNERS_FILE = "var/owners.xlsx"
 #: Connaissance d'entreprise, pas mesure — donc hors du dépôt, comme le reste.
 DEFAULT_CONTEXT_FILE = "var/context.csv"
 
+#: The KPI tracker the business maintains: definitions, targets, cadence, owners. Beside
+#: the plan workbook and gitignored with it, because it names people and states targets.
+#: The warehouse supplies values; nothing there says what good is.
+DEFAULT_KPI_FILE = "var/kpi-tracker.xlsx"
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -90,6 +95,7 @@ class Settings:
     budget_file: str = DEFAULT_BUDGET_FILE
     owners_file: str = DEFAULT_OWNERS_FILE
     context_file: str = DEFAULT_CONTEXT_FILE
+    kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
     #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
@@ -117,6 +123,15 @@ class Settings:
     def context_path(self) -> Path:
         path = Path(self.context_file)
         return path if path.is_absolute() else ROOT / path
+
+    @property
+    def kpi_path(self) -> Path:
+        path = Path(self.kpi_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_kpi_file(self) -> bool:
+        return self.kpi_path.exists()
 
     @property
     def has_context_file(self) -> bool:
@@ -191,6 +206,7 @@ def load_settings() -> Settings:
         budget_file=_env("CEOOS_BUDGET_FILE") or DEFAULT_BUDGET_FILE,
         owners_file=_env("CEOOS_OWNERS_FILE") or DEFAULT_OWNERS_FILE,
         context_file=_env("CEOOS_CONTEXT_FILE") or DEFAULT_CONTEXT_FILE,
+        kpi_file=_env("CEOOS_KPI_FILE") or DEFAULT_KPI_FILE,
         snowflake_connection=snowflake_connection,
     )
 

@@ -24,6 +24,9 @@
                                      --segments pour la vue par segment et par périmètre
                                      --spec FICHIER.csv exporte les réalisés de l'an dernier
                                      --perimeter sell-in|own|other|all (défaut sell-in)
+    python -m app.cli kpi            ce que le cockpit lit dans le classeur de suivi
+                                     --join confronte le registre aux relevés de l'entrepôt
+                                     --file CHEMIN pour un autre classeur que var/
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -721,6 +724,93 @@ def _print_notes(rows, path) -> int:
                   % row["action_owner"])
         print("")
     print("Pour en retirer une : manage.py note --forget N")
+    return 0
+
+
+def cmd_kpi(argv: List[str]) -> int:
+    """Ce que le cockpit lit dans le classeur de suivi, avant que rien n'atteigne l'écran.
+
+        manage.py kpi                 le registre, et ce qu'il n'a pas su lire
+        manage.py kpi --join          en plus : les relevés de l'entrepôt, appariés
+        manage.py kpi --file chemin   un autre classeur que celui de var/
+
+    Cette commande existe parce qu'un registre mal lu est invisible sur l'écran : un KPI
+    apparié à la mauvaise ligne est noté contre la cible de quelqu'un d'autre et ressort
+    comme une trouvaille. Ici, tout ce qui n'a pas été apparié est nommé.
+    """
+    from .perf import kpi_registry, tracker
+    from .perf.xlsx import WorkbookError
+
+    path = _option(argv, "--file") or str(settings.kpi_path)
+    if not Path(path).exists():
+        print("Classeur de suivi introuvable : %s" % path, file=sys.stderr)
+        print("Posez-le là, ou donnez son chemin : manage.py kpi --file ~/…/suivi.xlsx",
+              file=sys.stderr)
+        return 2
+    try:
+        registry = tracker.read_tracker(path)
+    except WorkbookError as exc:
+        print("%s" % exc, file=sys.stderr)
+        return 2
+
+    print("Fichier             %s" % path)
+    print("Lignes lues         %d" % len(registry))
+    print("Avec une cible      %d" % len(registry.with_target))
+    print("Sans cible          %d  (comptées, jamais notées)"
+          % len(registry.without_target))
+    if registry.columns_missing:
+        print("Colonnes absentes   %s" % ", ".join(registry.columns_missing))
+    if registry.open_points:
+        print("Points ouverts      %d KPI marqués provisoires"
+              % len(registry.open_points))
+    print("")
+
+    for entry in registry.with_target[:20]:
+        print("  %-46s cible %s%s%s" % (
+            entry.label[:46],
+            "≤ " if entry.direction == "down" else "≥ ",
+            ("%g" % entry.target),
+            (" " + entry.unit) if entry.unit else "",
+        ))
+    if len(registry.with_target) > 20:
+        print("  … et %d autres." % (len(registry.with_target) - 20))
+
+    if registry.without_target:
+        print("")
+        print("Sans cible lisible — le classeur mesure, il ne dit pas ce qui est bon :")
+        for entry in registry.without_target[:15]:
+            print("  %s" % entry.label[:70])
+        if len(registry.without_target) > 15:
+            print("  … et %d autres." % (len(registry.without_target) - 15))
+
+    if "--join" not in argv:
+        print("")
+        print("`manage.py kpi --join` pour confronter le registre aux relevés de "
+              "l'entrepôt.")
+        return 0
+
+    from .perf import source as source_module
+
+    rows = source_module._read_kpi_cache()
+    if rows is None:
+        from .perf import queries, warehouse
+        print("")
+        print("Lecture de l'entrepôt (deux minutes environ)…")
+        rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
+        source_module._write_kpi_cache(rows)
+
+    report = kpi_registry.join_report(registry, rows)
+    print("")
+    print("Relevés appariés    %d" % len(report.kpis))
+    print("Clés non appariées  %d" % len(report.unmatched_keys))
+    for key in report.unmatched_keys:
+        # Nommées une par une : chacune est un KPI que le cockpit mesure et ne sait pas
+        # juger, et la corriger demande de savoir laquelle.
+        print("  %s — aucune ligne du classeur ne la revendique" % key)
+    if report.without_target:
+        print("Appariés sans cible %s" % ", ".join(report.without_target))
+    print("Lignes non nourries %d  (le classeur les suit, rien ne les alimente)"
+          % report.without_reading)
     return 0
 
 
@@ -1527,6 +1617,8 @@ def main(argv: List[str]) -> int:
         return cmd_history(argv[1:])
     if command == "note":
         return cmd_note(argv[1:])
+    if command == "kpi":
+        return cmd_kpi(argv[1:])
     if command == "reconcile":
         return cmd_reconcile(argv[1:])
     if command == "serve":
