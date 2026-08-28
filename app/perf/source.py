@@ -404,6 +404,11 @@ class SnowflakeSource:
         #: What the headline figure leaves out, in the plan's own proportions. Computed
         #: from the file rather than written down, so it stays true when the file changes.
         self.perimeter_note = ""
+        #: How much of the tracker this panel can actually see. Set when the KPIs are
+        #: read, because "two of three hold" says nothing without it: the tracker follows
+        #: two hundred and fourteen, and a reader who takes three for the whole is worse
+        #: off than one who was told nothing.
+        self.kpi_coverage = ""
 
     def _refuse_if_unwritten(self, *names: str) -> None:
         from . import queries
@@ -666,7 +671,28 @@ class SnowflakeSource:
         if rows is None:
             rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
             _write_kpi_cache(rows)
-        return kpi_registry.join(registry, rows)
+        report = kpi_registry.join_report(registry, rows)
+        self.kpi_coverage = _kpi_coverage(report, registry)
+        return report.kpis
+
+
+def _kpi_coverage(report, registry) -> str:
+    """One sentence on what this panel can see, and what it cannot.
+
+    Deliberately a count and not a list. The panel exists to show what is off; two
+    hundred rows named one by one would bury the one that is. But the denominator has to
+    be said, or three KPIs read as the whole customer picture.
+    """
+    parts = ["%d of the tracker's %d KPIs are wired to a reading and a target"
+             % (len(report.kpis), len(registry.entries))]
+    if report.unmatched_keys:
+        parts.append(
+            "%d measured figure%s has no row claiming it"
+            % (len(report.unmatched_keys), "" if len(report.unmatched_keys) == 1 else "s")
+        )
+    if report.without_target:
+        parts.append("%d matched but cannot be judged" % len(report.without_target))
+    return ". ".join(parts) + "."
 
 
 def current_source():

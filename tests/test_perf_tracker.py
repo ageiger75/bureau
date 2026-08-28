@@ -691,3 +691,27 @@ def test_a_group_reading_is_refused_when_the_group_has_no_row():
     # And EMEA's own reading still finds EMEA's row.
     scoped, _, _ = kpi_registry.match(registry, ["brand_com_sales"], scope="EMEA")
     assert scoped["brand_com_sales"].scope == "EMEA"
+
+
+def test_the_panel_says_how_much_of_the_tracker_it_can_see():
+    """"Two of three hold" is a sentence about three KPIs. The tracker follows two
+    hundred and fourteen, and a reader who takes the three for the whole customer picture
+    is worse off than one who was told nothing. A count, never a list — the panel exists
+    to show what is off, and two hundred rows named one by one would bury it.
+    """
+    from app.perf.source import _kpi_coverage
+
+    registry = tracker.tracker_from_rows([REAL,
+        real_row(KPI="Heroes WOB", **{"Cible (num)": 30.0, "Unité": "%"}),
+        real_row(KPI="Traffic", **{"Cible (num)": None, "Cible FY27": "> marché"}),
+        real_row(KPI="Un KPI que rien n'alimente", **{"Cible (num)": 5.0, "Unité": "%"})])
+
+    report = kpi_registry.join_report(
+        registry, rows_for("heroes_wob", 25.5) + rows_for("retail_traffic", 100.0)
+        + rows_for("nps_retail", 72.9))
+
+    sentence = _kpi_coverage(report, registry)
+
+    assert "1 of the tracker's 3 KPIs" in sentence
+    assert "1 measured figure has no row claiming it" in sentence
+    assert "1 matched but cannot be judged" in sentence

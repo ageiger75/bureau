@@ -173,6 +173,7 @@ def today(request: Request):
             "unavailable": unavailable,
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
+            "kpi_coverage": getattr(source, "kpi_coverage", ""),
             "markets_without_own_site": dataset.markets_without_own_site,
             "conflicts": getattr(source, "conflicts", []),
             "markets_without_owner": getattr(source, "markets_without_owner", []),

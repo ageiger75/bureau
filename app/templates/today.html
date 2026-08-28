@@ -556,6 +556,14 @@
     </p>
   {% endif %}
 
+  {% if kpi_coverage %}
+    {# The denominator for the panel itself, not just for the list inside it. Three KPIs
+       judged out of a tracker that follows two hundred and fourteen is a fact about how
+       much of the customer picture this screen can see, and it belongs beside the
+       verdicts rather than in a note nobody reaches. #}
+    <p class="kpi-note">{{ kpi_coverage }}</p>
+  {% endif %}
+
   <p class="kpi-note kpi-note-quiet">
     KPIs reported quarterly or less often are not listed as missing between readings: the
     figure does not exist yet, and flagging it every month would teach you to ignore the flag.
