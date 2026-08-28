@@ -32,6 +32,11 @@ REGISTRY_SHEET = "KPI FY27"
 OPEN_POINTS_SHEET = "POINTS OUVERTS"
 
 
+def _words_of(text) -> frozenset:
+    """The distinct unaccented words of a name."""
+    return frozenset(part for part in re.split(r"[^a-z0-9]+", _plain(text)) if part)
+
+
 def _plain(text) -> str:
     """Lower-case, unaccented, single-spaced — for matching headers and names only.
 
@@ -72,7 +77,25 @@ COLUMNS = {
     "cadence": "frequency_text",
     "priorite": "priority_text",
     "source": "source",
+    "sens": "direction_text",
+    "direction": "direction_text",
+    "polarite": "direction_text",
 }
+
+#: Words that name a quantity a business wants *down*. A target written as a bare number
+#: carries no operator, and this reader defaults to "higher is better" — which is right for
+#: most of the sheet and catastrophically wrong for a discount rate or an attrition rate:
+#: read as a floor, a ceiling turns every overshoot into good news.
+#:
+#: So these do not flip the direction — inferring a business rule from a word would be the
+#: same overconfidence in the other direction. They mark the row as unsettled, and the
+#: screen shows the figure while withholding the verdict. Wrong loudly rather than quietly,
+#: and a list somebody can correct.
+CEILING_WORDS = frozenset((
+    "discount", "remise", "remises", "turnover", "attrition", "cout", "couts", "delai",
+    "delais", "retours", "reclamations", "ruptures", "rupture", "absenteisme",
+    "demarque", "casse", "churn",
+))
 
 #: Level, as the tracker writes it, to the cockpit's priority. Board-level KPIs outrank
 #: functional ones when several are equally far from target.
@@ -189,12 +212,12 @@ class Entry:
 
     __slots__ = ("id", "label", "definition", "scope", "owner", "pillar", "level",
                  "target", "direction", "unit", "frequency", "priority", "last_year",
-                 "open_question", "source")
+                 "open_question", "source", "direction_assumed")
 
     def __init__(self, id="", label="", definition="", scope="", owner="", pillar="",
                  level="", target=None, direction=rules.UP, unit="",
                  frequency=rules.MONTHLY, priority=rules.P2, last_year=None,
-                 open_question="", source="") -> None:
+                 open_question="", source="", direction_assumed=False) -> None:
         self.id = id
         self.label = label
         self.definition = definition
@@ -210,12 +233,43 @@ class Entry:
         self.last_year = last_year
         self.open_question = open_question
         self.source = source
+        #: True when nothing in the sheet said which way this KPI should move and the
+        #: reader fell back to "higher is better". Harmless on most rows; on a ceiling it
+        #: inverts the verdict, so it is stated rather than assumed away.
+        self.direction_assumed = direction_assumed
+
+    @property
+    def reads_as_ceiling(self) -> bool:
+        """Does this KPI's own name say it should fall, against an assumed floor?
+
+        Only where there is a target to be wrong about: a row with none is already kept
+        out of the scoring, and a second reason to withhold a verdict nobody was going to
+        reach is a sentence that would only ever confuse.
+        """
+        return (
+            self.has_target
+            and self.direction_assumed
+            and bool(CEILING_WORDS & _words_of(self.label))
+        )
 
     @property
     def has_target(self) -> bool:
         return self.target is not None
 
+    @property
+    def unsettled_reason(self) -> str:
+        if self.open_question:
+            return self.open_question
+        if self.reads_as_ceiling:
+            return (
+                "the sheet gives \u201c%g\u201d with no sign, and this name reads as a "
+                "quantity to keep down \u2014 read as a floor it would score every "
+                "overshoot as good news" % self.target
+            )
+        return ""
+
     def to_kpi(self, readings: Sequence["rules.Reading"] = ()) -> "rules.Kpi":
+        unsettled = self.unsettled_reason
         return rules.Kpi(
             key=self.id or _plain(self.label),
             label=self.label,
@@ -228,11 +282,11 @@ class Entry:
             direction=self.direction,
             frequency=self.frequency,
             source=self.source or "KPI tracker",
-            definition_status=rules.PROVISIONAL if self.open_question else rules.LOCKED,
+            definition_status=rules.PROVISIONAL if unsettled else rules.LOCKED,
             priority=self.priority,
             last_year=self.last_year,
             readings=readings,
-            open_question=self.open_question,
+            open_question=unsettled,
         )
 
 
@@ -341,6 +395,17 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
             target, direction, unit = read_plain_target(_cell(row, columns["target_text"]))
         else:
             target, direction, unit = read_target(_cell(row, columns.get("definition")))
+        direction_text = _plain(_text(row, columns.get("direction_text")))
+        if direction_text in ("baisse", "down", "inverse", "moins", "lower", "descendant"):
+            direction = rules.DOWN
+        elif direction_text in ("hausse", "up", "plus", "higher", "ascendant"):
+            direction = rules.UP
+        # Assumed only when nothing anywhere stated it: no operator in the target, and no
+        # column saying which way the KPI is supposed to move.
+        assumed = not direction_text and not _COMPARISON.search(
+            str(_cell(row, columns.get("target_text")) or "")
+            or str(_cell(row, columns.get("definition")) or "")
+        )
         if target is None:
             refused.append(
                 "%s: no target this reader can stand behind, so it is counted and not "
@@ -364,6 +429,7 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
             last_year=last_year if isinstance(last_year, float) else None,
             open_question=points.get(_plain(label), "") or points.get(_plain(identifier), ""),
             source=_text(row, columns.get("source")),
+            direction_assumed=assumed,
         ))
     return Tracker(entries, refused=refused, columns_missing=missing, open_points=points)
 

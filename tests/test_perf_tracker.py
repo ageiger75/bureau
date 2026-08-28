@@ -194,7 +194,7 @@ def test_a_reading_is_matched_by_id_before_any_label():
         ["nps_retail", "Groupe", "Luc", "LOEP", "Client", "Un tout autre nom", "≥ 70", 71.0],
     ))
 
-    matched, unmatched = kpi_registry.match(registry, ["nps_retail"])
+    matched, unmatched, _ = kpi_registry.match(registry, ["nps_retail"])
 
     assert unmatched == []
     assert matched["nps_retail"].owner == "Luc"
@@ -207,7 +207,7 @@ def test_a_key_nothing_claims_is_named_rather_than_attached_to_a_near_miss():
         ["K1", "Groupe", "Marie", "LOEP", "Client", "NPS retail", "≥ 74", 72.7],
     ))
 
-    matched, unmatched = kpi_registry.match(
+    matched, unmatched, _ = kpi_registry.match(
         registry, ["nps_retail", "nps_ecommerce", "review_rating"])
 
     assert sorted(matched) == ["nps_retail"]
@@ -362,3 +362,69 @@ def test_a_kpi_sheet_under_another_name_is_still_found(tmp_path):
     registry = tracker.read_tracker(path)
 
     assert [entry.label for entry in registry.entries] == ["NPS retail"]
+
+
+def test_the_group_reading_is_scored_against_the_group_target():
+    """The sheet holds `Heroes WOB` twice — 30% for the group, 25% for a business unit.
+    Matched on the name alone, a group reading of 25.1% is scored against whichever row
+    the spreadsheet happened to sort first: against 25 it holds, against 30 it misses.
+    The perimeter decides, never the order.
+    """
+    registry = tracker.tracker_from_rows(sheet(
+        ["K9", "BU", "Luc", "Japan", "Client", "Heroes WOB", "≥ 25", 24.0],
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "Heroes WOB", "≥ 30", 25.1],
+    ))
+
+    matched, _, ambiguous = kpi_registry.match(registry, ["heroes_wob"])
+
+    assert matched["heroes_wob"].target == 30.0
+    assert matched["heroes_wob"].scope == "LOEP"
+    # And the fact that two rows could have claimed it is reported, not hidden: the same
+    # name carrying two targets is a question for whoever maintains the sheet.
+    assert ambiguous == ["heroes_wob"]
+
+
+def test_a_market_reading_takes_that_market_row():
+    registry = tracker.tracker_from_rows(sheet(
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "Heroes WOB", "≥ 30", 25.1],
+        ["K9", "BU", "Luc", "Japan", "Client", "Heroes WOB", "≥ 25", 24.0],
+    ))
+
+    matched, _, _ = kpi_registry.match(registry, ["heroes_wob"], scope="Japan")
+
+    assert matched["heroes_wob"].target == 25.0
+
+
+def test_a_bare_target_on_a_name_that_reads_as_a_ceiling_withholds_the_verdict():
+    """"Discount ≥ 15" is what a bare 15 becomes in a reader that defaults to "higher is
+    better". On a discount rate that scores every overshoot as good news. The figure is
+    shown; the verdict is not, and the reason says which number is in doubt.
+    """
+    # A sheet with a column the tracker itself labels a target, which is the only place a
+    # bare number may be read as one.
+    header = HEADER + ["Cible FY27"]
+    registry = tracker.tracker_from_rows([
+        header,
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "Discount", "", 16.0, "15"],
+        ["K2", "Groupe", "Marie", "LOEP", "Client", "Heroes WOB", "", 25.1, "30"],
+    ])
+
+    discount, heroes = registry.entries
+    assert discount.reads_as_ceiling
+    assert not heroes.reads_as_ceiling  # a bare floor on a name that is plainly a floor
+
+    built = discount.to_kpi([rules.Reading("2026-07", 22.0)])
+    assert built.definition_status == rules.PROVISIONAL
+    assert built.question() == ""
+    assert "keep down" in built.withheld_reason
+
+
+def test_an_operator_settles_the_direction_and_nothing_is_assumed():
+    registry = tracker.tracker_from_rows(sheet(
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "Turnover retail", "≤ 20", 22.0],
+    ))
+
+    entry = registry.entries[0]
+    assert entry.direction == rules.DOWN
+    assert not entry.direction_assumed
+    assert entry.to_kpi([rules.Reading("2026-07", 25.0)]).can_be_challenged

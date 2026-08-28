@@ -731,6 +731,8 @@ def cmd_kpi(argv: List[str]) -> int:
     """Ce que le cockpit lit dans le classeur de suivi, avant que rien n'atteigne l'écran.
 
         manage.py kpi                 le registre, et ce qu'il n'a pas su lire
+        manage.py kpi --columns       les colonnes du classeur, et ce qu'il en a fait
+        manage.py kpi --show "NOM"    une ligne du classeur, cellule par cellule
         manage.py kpi --join          en plus : les relevés de l'entrepôt, appariés
         manage.py kpi --file chemin   un autre classeur que celui de var/
 
@@ -752,6 +754,12 @@ def cmd_kpi(argv: List[str]) -> int:
     except WorkbookError as exc:
         print("%s" % exc, file=sys.stderr)
         return 2
+
+    if "--columns" in argv or _option(argv, "--show"):
+        # Avant de discuter d'une cible, savoir quelle colonne le lecteur a prise pour
+        # quoi. Une colonne renommée ne fait pas planter : elle vide un champ, et un
+        # champ vide ressemble à un classeur qui ne dit rien.
+        return _print_kpi_columns(path, _option(argv, "--show"))
 
     print("Fichier             %s" % path)
     print("Lignes lues         %d" % len(registry))
@@ -815,6 +823,73 @@ def cmd_kpi(argv: List[str]) -> int:
         print("Appariés sans cible %s" % ", ".join(report.without_target))
     print("Lignes non nourries %d  (le classeur les suit, rien ne les alimente)"
           % report.without_reading)
+    return 0
+
+
+def _print_kpi_columns(path: str, show: str = "") -> int:
+    """Les en-têtes tels qu'ils sont écrits, et le champ que chacun alimente."""
+    from .perf import tracker
+    from .perf.xlsx import Workbook
+
+    with Workbook(path) as book:
+        names = list(book.sheet_names)
+        sheet = next(
+            (name for name in names
+             if tracker._plain(name) == tracker._plain(tracker.REGISTRY_SHEET)),
+            None,
+        ) or next((name for name in names
+                   if tracker._plain(name).startswith("kpi")), None)
+        if sheet is None:
+            print("Aucune feuille KPI. Feuilles : %s" % ", ".join(names), file=sys.stderr)
+            return 2
+        rows = list(book.rows(sheet))
+
+    print("Feuilles            %s" % ", ".join(names))
+    print("Feuille lue         %s" % sheet)
+    header_at = next(
+        (index for index, row in enumerate(rows)
+         if "label" in tracker._header_map(row)), None)
+    if header_at is None:
+        print("Aucune ligne d'en-tête reconnue.", file=sys.stderr)
+        return 2
+    mapping = tracker._header_map(rows[header_at])
+    by_index = {index: field for field, index in mapping.items()}
+    print("")
+    for index, cell in enumerate(rows[header_at]):
+        if cell in (None, ""):
+            continue
+        print("  %-38s -> %s" % (
+            str(cell)[:38],
+            by_index.get(index) or "(non utilisée)",
+        ))
+
+    if not show:
+        print("")
+        print("Les colonnes marquées « non utilisée » sont celles dont le lecteur ne "
+              "connaît pas le nom.")
+        return 0
+
+    wanted = tracker._plain(show)
+    label_at = mapping.get("label")
+    print("")
+    printed = 0
+    for row in rows[header_at + 1:]:
+        if label_at is None or label_at >= len(row):
+            continue
+        if wanted not in tracker._plain(row[label_at]):
+            continue
+        print("  %s" % (row[label_at],))
+        for index, cell in enumerate(row):
+            if cell in (None, "") or index == label_at:
+                continue
+            head = rows[header_at][index] if index < len(rows[header_at]) else "?"
+            print("      %-30s %s" % (str(head)[:30], str(cell)[:90]))
+        print("")
+        printed += 1
+        if printed >= 5:
+            break
+    if not printed:
+        print("  Aucune ligne dont le nom contient « %s »." % show)
     return 0
 
 

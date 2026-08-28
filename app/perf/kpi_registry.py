@@ -66,13 +66,26 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
 }
 
 
+#: Level and scope spellings that mean "the whole group". A reading returned at group
+#: scope must be judged against the group's target, never a business unit's — the sheet
+#: carries `Heroes WOB` twice, at 30 and at 25, and picking the wrong one silently turns a
+#: KPI that holds into a KPI that misses.
+GROUP_NAMES = frozenset(("loep", "groupe", "group", "monde", "total", "comex"))
+
+
 class Join:
     """What the join produced, and what it refused to produce."""
 
-    __slots__ = ("kpis", "unmatched_keys", "without_target", "without_reading")
+    __slots__ = ("kpis", "unmatched_keys", "without_target", "without_reading",
+                 "ambiguous")
 
-    def __init__(self, kpis, unmatched_keys=(), without_target=(), without_reading=0):
+    def __init__(self, kpis, unmatched_keys=(), without_target=(), without_reading=0,
+                 ambiguous=()):
         self.kpis = list(kpis)
+        #: Keys several tracker rows could have claimed. The scope decided, and the fact
+        #: that it had to is worth printing: a duplicate name with two different targets
+        #: is a question for whoever maintains the sheet.
+        self.ambiguous = list(ambiguous)
         #: Keys the warehouse returned that no tracker row claims. Each is a KPI the
         #: cockpit is measuring and cannot judge, which is a question for a person.
         self.unmatched_keys = list(unmatched_keys)
@@ -85,9 +98,20 @@ class Join:
         self.without_reading = without_reading
 
 
-def match(registry: Tracker, keys: Sequence[str]) -> Tuple[Dict[str, Entry], List[str]]:
-    """`(key -> entry, unmatched keys)`. Ids first, then aliases, never resemblance."""
-    taken, found, unmatched = set(), {}, []
+def _is_group(entry: Entry) -> bool:
+    return bool(GROUP_NAMES & (_words(entry.scope) | _words(entry.level)))
+
+
+def match(registry: Tracker, keys: Sequence[str], scope: str = GROUP_SCOPE
+          ) -> Tuple[Dict[str, Entry], List[str], List[str]]:
+    """`(key -> entry, unmatched keys, ambiguous keys)`.
+
+    Ids first, then aliases, never resemblance — and among the rows an alias fits, the one
+    whose perimeter matches the reading's. The tracker holds the same KPI at several
+    levels: `Heroes WOB` appears at 30% for the group and 25% for a business unit, and a
+    group reading scored against the unit's target reads as a miss that is not there.
+    """
+    taken, found, unmatched, ambiguous = set(), {}, [], []
 
     # Two passes over all the keys rather than one pass deciding per key: an id is a claim
     # and a label is a coincidence, so every id must have its chance before any alias is
@@ -104,25 +128,32 @@ def match(registry: Tracker, keys: Sequence[str]) -> Tuple[Dict[str, Entry], Lis
         else:
             remaining.append(key)
 
+    wants_group = scope.strip().lower() in GROUP_NAMES
     for key in remaining:
-        candidates = ALIASES.get(key, ())
-        chosen = None
-        for alias in candidates:
+        fitting = []
+        for alias in ALIASES.get(key, ()):
             wanted = _words(alias)
-            for entry in registry.entries:
-                if id(entry) in taken:
-                    continue
-                if wanted and wanted <= _words(entry.label):
-                    chosen = entry
-                    break
-            if chosen is not None:
-                break
-        if chosen is None:
+            if not wanted:
+                continue
+            fitting.extend(
+                entry for entry in registry.entries
+                if id(entry) not in taken and wanted <= _words(entry.label)
+                and entry not in fitting
+            )
+        if not fitting:
             unmatched.append(key)
-        else:
-            taken.add(id(chosen))
-            found[key] = chosen
-    return found, unmatched
+            continue
+        if len(fitting) > 1:
+            ambiguous.append(key)
+        # The perimeter decides, and only then the sheet's order. Preferring the first row
+        # would make the answer depend on how somebody sorted the spreadsheet.
+        scoped = [entry for entry in fitting
+                  if _words(entry.scope) == _words(scope)] if not wants_group else []
+        chosen = (scoped or [entry for entry in fitting if _is_group(entry)] or fitting)[0] \
+            if wants_group else (scoped or fitting)[0]
+        taken.add(id(chosen))
+        found[key] = chosen
+    return found, unmatched, ambiguous
 
 
 def readings_by_key(rows: Sequence[Sequence], scope: str = GROUP_SCOPE
@@ -164,7 +195,7 @@ def join(registry: Tracker, rows: Sequence[Sequence],
 def join_report(registry: Tracker, rows: Sequence[Sequence],
                 scope: str = GROUP_SCOPE) -> Join:
     readings = readings_by_key(rows, scope=scope)
-    matched, unmatched = match(registry, sorted(readings))
+    matched, unmatched, ambiguous = match(registry, sorted(readings), scope=scope)
 
     kpis, no_target = [], []
     for key, entry in sorted(matched.items()):
@@ -179,4 +210,5 @@ def join_report(registry: Tracker, rows: Sequence[Sequence],
         unmatched_keys=unmatched,
         without_target=no_target,
         without_reading=max(len(registry.entries) - len(matched), 0),
+        ambiguous=ambiguous,
     )
