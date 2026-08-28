@@ -323,6 +323,55 @@ def test_several_notes_can_be_taken_back_at_once(notes_at):
     assert remaining.notes[0].market == "Brazil"
 
 
+def test_a_note_can_be_taken_back_by_what_it_is_about(notes_at):
+    """A line number is a figure the caller has to go and read somewhere else before
+    acting, and it moves the moment anyone posts another note. A instruction written
+    yesterday that says "forget 2" deletes whatever happens to be second today — which
+    is somebody else's note, silently. A name says what it removes.
+    """
+    from app.cli import cmd_note
+
+    cmd_note(["Australia", "Deliveries stopped.", "--kind", "on_hold"])
+    cmd_note(["United States", "Filed under web partners.", "--kind", "reclassified",
+              "--channel", "WEBP - Web Partners"])
+    cmd_note(["United States", "The other side of it.", "--kind", "reclassified",
+              "--channel", "WHOCH - Wholesale Chains"])
+    cmd_note(["Brazil", "Sales tax changed."])
+
+    assert cmd_note(["--forget", "United States"]) == 0
+
+    remaining = context.load(notes_at)
+
+    assert [n.market for n in remaining.notes] == ["Australia", "Brazil"]
+
+
+def test_a_note_can_be_taken_back_by_market_and_channel(notes_at):
+    """Both sides of a boundary sit on the same market, so the market alone takes both.
+    Naming the channel takes the one meant."""
+    from app.cli import cmd_note
+
+    cmd_note(["United States", "Filed under web partners.", "--kind", "reclassified",
+              "--channel", "WEBP - Web Partners"])
+    cmd_note(["United States", "The other side of it.", "--kind", "reclassified",
+              "--channel", "WHOCH - Wholesale Chains"])
+
+    assert cmd_note(["--forget", "United States", "--channel", "whoch"]) == 0
+
+    remaining = context.load(notes_at)
+
+    assert len(remaining) == 1
+    assert "webp" in remaining.notes[0].channel.lower()
+
+
+def test_forgetting_a_market_with_no_note_takes_nothing(notes_at):
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+
+    assert cmd_note(["--forget", "Japan"]) == 2
+    assert len(context.load(notes_at)) == 1
+
+
 def test_a_bad_number_in_the_list_takes_nothing(notes_at):
     """All or nothing. Deleting the valid half and reporting a failure would leave the
     file in a state the caller did not ask for and cannot see."""

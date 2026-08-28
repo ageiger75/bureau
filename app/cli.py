@@ -400,6 +400,7 @@ def cmd_note(argv: List[str]) -> int:
         manage.py note --list
         manage.py note --forget 2
         manage.py note --forget 1,2,3     plusieurs d'un coup, sans recompter
+        manage.py note --forget "United States" --channel webp   par ce qu'elle vise
 
     `--ask "…"` remplace la question que la note substitue, quand elle est déjà tranchée.
     `--for "…"` dit à qui revient l'action quand ce n'est pas le responsable du marché.
@@ -426,9 +427,23 @@ def cmd_note(argv: List[str]) -> int:
             indexes = sorted({int(part) for part in forget.replace(" ", ",").split(",")
                               if part}, reverse=True)
         except ValueError:
-            print("Numéros attendus : manage.py note --forget 2  ·  --forget 1,2,3",
-                  file=sys.stderr)
-            return 2
+            # Pas un numéro : alors un marché. Un numéro de ligne est un chiffre qu'il
+            # faut relire ailleurs avant d'agir, et une consigne écrite hier vise la
+            # mauvaise note dès qu'une autre a été posée entre-temps — ici, se tromper
+            # de numéro efface la note de quelqu'un d'autre sans rien demander. Un nom
+            # dit ce qu'il supprime.
+            market = normalise_market(forget)
+            channel = (_option(argv, "--channel") or "").strip().lower()
+            matched = [
+                i for i, note in enumerate(existing, start=1)
+                if normalise_market(note["market"]) == market
+                and (not channel or channel in (note["channel"] or "").lower())
+            ]
+            if not matched:
+                print("Aucune note pour %s%s. `manage.py note --list` pour les voir."
+                      % (forget, " sur ce canal" if channel else ""), file=sys.stderr)
+                return 2
+            indexes = sorted(matched, reverse=True)
         unknown = [n for n in indexes if not 1 <= n <= len(existing)]
         if unknown or not indexes:
             print("Aucune note numéro %s. `manage.py note --list` pour les voir."
