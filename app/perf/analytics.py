@@ -630,14 +630,19 @@ class ReclassificationCheck:
     both and asks rather than accuses.
     """
 
-    __slots__ = ("market", "legs", "net", "gross")
+    __slots__ = ("market", "legs", "net", "gross", "notes")
 
     def __init__(self, market: str, legs: Sequence[Tuple[str, float]], net: float,
-                 gross: float) -> None:
+                 gross: float, notes=()) -> None:
         self.market = market
         #: (channel label, € gap), in the order they appear on screen.
         self.legs = list(legs)
         self.net = net
+        #: The notes themselves, shown beside the verdict. Not decoration: the euros
+        #: cannot read prose, so a note written backwards passes the offset test — and
+        #: printing it next to the machine's account of the direction is what makes the
+        #: disagreement visible to the person who wrote it.
+        self.notes = list(notes)
         #: The largest leg, which is what the net is judged against. Summing the legs
         #: instead would compare a residual with a figure that already contains it.
         self.gross = gross
@@ -649,21 +654,39 @@ class ReclassificationCheck:
         return abs(self.net) / self.gross <= OFFSET_TOLERANCE
 
     @property
+    def direction(self) -> str:
+        """Which side gained and which lost, in the machine's own words.
+
+        This is the half the check could not otherwise reach. The test above compares
+        euros, so a note whose prose describes the boundary backwards passes it silently —
+        the numbers cancel either way. Stating the direction here puts that sentence
+        beside the note on screen, where a reader can see the two disagree.
+        """
+        gained = [label for label, gap in self.legs if gap > 0]
+        lost = [label for label, gap in self.legs if gap < 0]
+        if not gained or not lost:
+            return ""
+        return "The revenue lands in %s and is missing from %s." % (
+            _listed_labels(gained), _listed_labels(lost)
+        )
+
+    @property
     def message(self) -> str:
         moved = _listed_labels([label for label, _ in self.legs])
         if self.offsets:
             return (
                 "%s: %s move against each other and very nearly cancel — %s left over on "
-                "%s crossing the boundary. The note holds: this is where the revenue is "
-                "filed, not how it sold."
-                % (self.market, moved, _eur(abs(self.net)), _eur(self.gross))
-            )
+                "%s crossing the boundary. %s The note holds: this is where the revenue "
+                "is filed, not how it sold."
+                % (self.market, moved, _eur(abs(self.net)), _eur(self.gross),
+                   self.direction)
+            ).replace("  ", " ")
         return (
             "%s: %s are noted as one boundary, but they do not cancel — %s is left over "
-            "on %s crossing. Either the note names the wrong side, or these channels are "
-            "also trading away from plan on their own."
-            % (self.market, moved, _eur(abs(self.net)), _eur(self.gross))
-        )
+            "on %s crossing. %s Either the note names the wrong side, or these channels "
+            "are also trading away from plan on their own."
+            % (self.market, moved, _eur(abs(self.net)), _eur(self.gross), self.direction)
+        ).replace("  ", " ")
 
 
 def reclassification_checks(dataset: Dataset) -> List[ReclassificationCheck]:
@@ -688,7 +711,13 @@ def reclassification_checks(dataset: Dataset) -> List[ReclassificationCheck]:
         legs = [(unit.label, unit.gap_vs_budget) for unit in units]
         net = sum(gap for _, gap in legs)
         gross = max(abs(gap) for _, gap in legs)
-        found.append(ReclassificationCheck(market, legs, net, gross))
+        seen, notes = set(), []
+        for unit in units:
+            for note in unit.context_notes:
+                if note.kind == RECLASSIFIED and note.text not in seen:
+                    seen.add(note.text)
+                    notes.append(note)
+        found.append(ReclassificationCheck(market, legs, net, gross, notes))
     return found
 
 

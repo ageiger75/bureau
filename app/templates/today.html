@@ -350,6 +350,12 @@
     {% for check in reclassifications %}
       <li class="suspect">
         <p class="suspect-message">{{ check.message }}</p>
+        {% for note in check.notes %}
+          {# Printed beside the machine's own sentence on purpose: if the note describes
+             the boundary the other way round, the two lines contradict each other in
+             front of the person who wrote it. The euros cannot catch that; a reader can. #}
+          <p class="suspect-note">“{{ note.text }}”{% if note.source %} — {{ note.source }}{% endif %}</p>
+        {% endfor %}
         <p class="suspect-fix">
           {% for label, gap in check.legs %}
             {{ label }} {{ gap | eur }}{% if not loop.last %} · {% endif %}

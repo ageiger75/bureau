@@ -813,6 +813,11 @@ input:focus, textarea:focus, select:focus {
   margin: 6px 0 0; line-height: 1.5;
 }
 
+.suspect-note {
+  font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch;
+  line-height: 1.55; font-style: italic;
+}
+
 .provenance-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }
 .provenance { border-left: 2px solid var(--rule); padding-left: 14px; }
 .provenance-beta { border-left-color: var(--warn); }

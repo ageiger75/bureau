@@ -655,3 +655,43 @@ def test_the_residual_is_judged_against_the_larger_leg():
     assert check.gross == 1_000_000.0
     assert check.net == 200_000.0
     assert check.offsets
+
+
+def test_the_check_states_which_side_gained():
+    """The half the euros cannot reach. A note whose prose describes the boundary
+    backwards passes the offset test in silence — the two gaps cancel either way. Saying
+    which side the revenue landed on puts that sentence beside the note on screen, where
+    the contradiction becomes visible to the person who wrote it."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 14_526_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    assert check.direction == (
+        "The revenue lands in United States E-retailers and is missing from "
+        "United States Chain Wholesale."
+    )
+    assert check.direction in check.message
+
+
+def test_the_note_is_carried_to_the_check():
+    """So the screen can print the claim next to the verdict on it."""
+    dataset = Dataset(
+        period_label="July 2026",
+        as_of="",
+        units=[
+            _noted("United States E-retailers", "webp", 34_474_000.0, 30_000_000.0),
+            _noted("United States Chain Wholesale", "whoch", 14_526_000.0, 19_000_000.0),
+        ],
+    )
+    check, = analytics.reclassification_checks(dataset)
+
+    # One note, not two: both channels carry the same sentence in this fixture, and
+    # printing it twice would read as two independent findings.
+    assert len(check.notes) == 1
+    assert check.notes[0].kind == context.RECLASSIFIED
