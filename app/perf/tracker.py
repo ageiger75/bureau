@@ -392,7 +392,7 @@ def read_open_points(rows: Iterable[Sequence[object]]) -> Dict[str, str]:
 def read_tracker(path) -> Tracker:
     """Read the tracker workbook, refusing rather than improvising when a sheet is absent."""
     with Workbook(path) as workbook:
-        names = workbook.sheet_names()
+        names = workbook.sheet_names
         registry = REGISTRY_SHEET if REGISTRY_SHEET in names else None
         if registry is None:
             # Not by position: a sheet added in front would silently redirect the whole

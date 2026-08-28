@@ -5,8 +5,72 @@ a target read where none was written, and a reading matched to the wrong row. Bo
 a confident verdict about a number nobody agreed.
 """
 
+import zipfile
+from xml.sax.saxutils import escape
+
+import pytest
+
 from app.perf import kpi as rules
 from app.perf import kpi_registry, tracker
+from app.perf.xlsx import WorkbookError
+
+
+def write_workbook(path, sheets):
+    """A real .xlsx on disk, written with the stdlib.
+
+    The parsing tests below all start from rows in memory, which is the right place to
+    exercise the rules — and is exactly how a typo in the file-opening path shipped once
+    with a green suite. Everything between a path and those rows has to be walked at
+    least once by something.
+    """
+    def column(index):
+        name, index = "", index + 1
+        while index:
+            index, remainder = divmod(index - 1, 26)
+            name = chr(ord("A") + remainder) + name
+        return name
+
+    def cell(row_at, col_at, value):
+        ref = "%s%d" % (column(col_at), row_at + 1)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return '<c r="%s"><v>%s</v></c>' % (ref, value)
+        return '<c r="%s" t="inlineStr"><is><t>%s</t></is></c>' % (
+            ref, escape(str(value)))
+
+    parts, rels, book = [], [], []
+    for number, (name, rows) in enumerate(sheets.items(), start=1):
+        body = "".join(
+            "<row r='%d'>%s</row>" % (
+                at + 1,
+                "".join(cell(at, col, value)
+                        for col, value in enumerate(row) if value not in (None, "")),
+            )
+            for at, row in enumerate(rows)
+        )
+        parts.append(("xl/worksheets/sheet%d.xml" % number,
+                      "<worksheetData xmlns='http://schemas.openxmlformats.org/"
+                      "spreadsheetml/2006/main'><sheetData>%s</sheetData>"
+                      "</worksheetData>".replace("worksheetData", "worksheet") % body))
+        rels.append(
+            '<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/'
+            'officeDocument/2006/relationships/worksheet" '
+            'Target="worksheets/sheet%d.xml"/>' % (number, number))
+        book.append('<sheet name="%s" sheetId="%d" r:id="rId%d"/>'
+                    % (escape(name), number, number))
+
+    with zipfile.ZipFile(str(path), "w") as archive:
+        archive.writestr(
+            "xl/workbook.xml",
+            "<workbook xmlns='http://schemas.openxmlformats.org/spreadsheetml/2006/main' "
+            "xmlns:r='http://schemas.openxmlformats.org/officeDocument/2006/"
+            "relationships'><sheets>%s</sheets></workbook>" % "".join(book))
+        archive.writestr(
+            "xl/_rels/workbook.xml.rels",
+            "<Relationships xmlns='http://schemas.openxmlformats.org/package/2006/"
+            "relationships'>%s</Relationships>" % "".join(rels))
+        for name, content in parts:
+            archive.writestr(name, content)
+    return path
 
 HEADER = ["ID", "Niveau", "Propriétaire", "Périmètre", "Pilier", "KPI", "Définition",
           "Réel FY26"]
@@ -220,3 +284,81 @@ def test_a_ceiling_kpi_above_its_target_is_the_alert_not_the_good_news():
     assert built[0].direction == rules.DOWN
     assert built[0].status == rules.ALERT
     assert rules.needing_attention(built) == built
+
+
+# ------------------------------------------------------------------ the file itself
+
+
+def test_a_real_workbook_is_read_end_to_end(tmp_path):
+    """Every step between a path on disk and a scored KPI, walked once.
+
+    The rules above are tested on rows in memory, which is where they belong — and that
+    is precisely how a property called as a method reached the terminal with a green
+    suite behind it. A registry that raises on open is indistinguishable, from the
+    screen, from a registry that is empty.
+    """
+    path = write_workbook(tmp_path / "suivi.xlsx", {
+        "LISEZ-MOI": [["Ce classeur suit les KPI FY27."]],
+        "KPI FY27": [
+            HEADER,
+            ["K1", "Groupe", "Marie", "LOEP", "Client", "NPS retail", "≥ 74", 72.7],
+            ["K2", "Groupe", "Marie", "LOEP", "Client", "Part des heroes", "≥ 28,9 %",
+             25.1],
+            ["K3", "Fonction", "Luc", "LOEP", "Client", "Nouveaux clients",
+             "Nombre recruté", 1_000.0],
+        ],
+        "POINTS OUVERTS": [
+            ["KPI", "Point"],
+            ["Part des heroes",
+             "Le référentiel produit et le chiffre RGM ne désignent pas les mêmes "
+             "produits."],
+        ],
+    })
+
+    registry = tracker.read_tracker(path)
+
+    assert len(registry) == 3
+    assert [entry.label for entry in registry.without_target] == ["Nouveaux clients"]
+    assert registry.open_points  # the third sheet was found and read
+
+    built = kpi_registry.join(registry, rows_for("nps_retail", 71.0, 72.98))
+
+    assert [item.label for item in built] == ["NPS retail"]
+    # 72.98 against 74 is 1.4% short: inside the tracker's own watch band, so it is
+    # shown and not raised as an alert. The distinction is the panel's whole value.
+    assert built[0].status == rules.WATCH
+    assert built[0].owner == "Marie"
+
+    # And the open point reached the KPI it names, through the file rather than a fixture.
+    heroes = kpi_registry.join(registry, rows_for("heroes_wob", 25.1))
+    assert heroes[0].definition_status == rules.PROVISIONAL
+
+
+def test_a_workbook_with_no_kpi_sheet_says_which_sheets_it_found(tmp_path):
+    """Refusing by name, so the next step is obvious. "No KPI sheet" with nothing else
+    sends someone to look at a file they cannot see from here."""
+    path = write_workbook(tmp_path / "autre.xlsx", {
+        "Budget": [["A", "B"]],
+        "Notes": [["C"]],
+    })
+
+    with pytest.raises(WorkbookError) as raised:
+        tracker.read_tracker(path)
+
+    assert "Budget" in str(raised.value) and "Notes" in str(raised.value)
+
+
+def test_a_kpi_sheet_under_another_name_is_still_found(tmp_path):
+    """The sheet is named by people. Never by position, though: a sheet added in front
+    would silently redirect the whole registry to the wrong table."""
+    path = write_workbook(tmp_path / "suivi.xlsx", {
+        "Garde": [["Sommaire"]],
+        "KPI FY28 (v2)": [
+            HEADER,
+            ["K1", "Groupe", "Marie", "LOEP", "Client", "NPS retail", "≥ 74", 72.7],
+        ],
+    })
+
+    registry = tracker.read_tracker(path)
+
+    assert [entry.label for entry in registry.entries] == ["NPS retail"]

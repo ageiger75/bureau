@@ -770,7 +770,11 @@ def cmd_kpi(argv: List[str]) -> int:
             entry.label[:46],
             "≤ " if entry.direction == "down" else "≥ ",
             ("%g" % entry.target),
-            (" " + entry.unit) if entry.unit else "",
+            # L'unité telle qu'on la lit, pas telle que le code la nomme : « days » est
+            # un jeton interne, et un jeton interne sous les yeux du lecteur est
+            # exactement ce que cet écran passe son temps à retirer.
+            (" " + {"days": "j", "pts": "pts"}.get(entry.unit, entry.unit))
+            if entry.unit else "",
         ))
     if len(registry.with_target) > 20:
         print("  … et %d autres." % (len(registry.with_target) - 20))
