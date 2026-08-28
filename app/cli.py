@@ -393,6 +393,7 @@ def cmd_note(argv: List[str]) -> int:
             --kind reclassified --channel "WEBP - Web Partners"
         manage.py note --list
         manage.py note --forget 2
+        manage.py note --forget 1,2,3     plusieurs d'un coup, sans recompter
 
     `--ask "…"` remplace la question que la note substitue, quand elle est déjà tranchée.
     """
@@ -409,18 +410,32 @@ def cmd_note(argv: List[str]) -> int:
 
     forget = _option(argv, "--forget")
     if forget:
+        # Plusieurs numéros d'un coup, parce que les notes se posent souvent par paires —
+        # une frontière a deux côtés — et qu'en les retirant une par une les numéros se
+        # décalent à chaque suppression. Une consigne qui demande de recompter entre deux
+        # commandes est une consigne qui sera mal exécutée, et ici se tromper de numéro
+        # veut dire effacer la note de quelqu'un d'autre.
         try:
-            index = int(forget)
+            indexes = sorted({int(part) for part in forget.replace(" ", ",").split(",")
+                              if part}, reverse=True)
         except ValueError:
-            print("Numéro attendu : manage.py note --forget 2", file=sys.stderr)
+            print("Numéros attendus : manage.py note --forget 2  ·  --forget 1,2,3",
+                  file=sys.stderr)
             return 2
-        if not 1 <= index <= len(existing):
+        unknown = [n for n in indexes if not 1 <= n <= len(existing)]
+        if unknown or not indexes:
             print("Aucune note numéro %s. `manage.py note --list` pour les voir."
-                  % forget, file=sys.stderr)
+                  % ", ".join(str(n) for n in unknown or ["?"]), file=sys.stderr)
             return 2
-        dropped = existing.pop(index - 1)
+        # Du plus grand au plus petit : retirer la note 1 en premier renumérote toutes
+        # les suivantes, et la deuxième suppression viserait alors la mauvaise ligne.
+        dropped = [existing.pop(index - 1) for index in indexes]
         _write_notes(path, existing)
-        print("Oubliée : %s — %s" % (dropped["market"] or "tous marchés", dropped["note"]))
+        for note in reversed(dropped):
+            print("Oubliée : %s — %s" % (note["market"] or "tous marchés", note["note"]))
+        print("")
+        print("Il reste %d note%s. `manage.py note --list` pour les voir."
+              % (len(existing), "" if len(existing) == 1 else "s"))
         return 0
 
     positional = [a for a in argv if not a.startswith("--")]

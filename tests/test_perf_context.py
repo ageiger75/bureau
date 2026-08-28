@@ -303,6 +303,38 @@ def test_a_note_can_be_taken_back(notes_at):
     assert remaining.notes[0].market == "Japan"
 
 
+def test_several_notes_can_be_taken_back_at_once(notes_at):
+    """Notes are posted in pairs — a boundary has two sides — so they come back in pairs.
+    One at a time, every removal renumbers the rest, and a second command aimed at the
+    old numbering deletes somebody else's note. The numbers are therefore applied from
+    the highest down, and the caller never has to recount between two commands.
+    """
+    from app.cli import cmd_note
+
+    cmd_note(["United States", "Filed under web partners.", "--kind", "reclassified"])
+    cmd_note(["United States", "The other side of it.", "--kind", "reclassified"])
+    cmd_note(["Brazil", "Sales tax changed."])
+
+    assert cmd_note(["--forget", "1,2"]) == 0
+
+    remaining = context.load(notes_at)
+
+    assert len(remaining) == 1
+    assert remaining.notes[0].market == "Brazil"
+
+
+def test_a_bad_number_in_the_list_takes_nothing(notes_at):
+    """All or nothing. Deleting the valid half and reporting a failure would leave the
+    file in a state the caller did not ask for and cannot see."""
+    from app.cli import cmd_note
+
+    cmd_note(["Brazil", "Sales tax changed."])
+    cmd_note(["Japan", "A flagship closed.", "--kind", "one_off"])
+
+    assert cmd_note(["--forget", "1,9"]) == 2
+    assert len(context.load(notes_at)) == 2
+
+
 def test_forgetting_a_note_that_is_not_there_is_refused(notes_at, capsys):
     from app.cli import cmd_note
 
