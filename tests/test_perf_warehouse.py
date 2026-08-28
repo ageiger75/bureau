@@ -940,3 +940,38 @@ def test_a_history_written_from_the_terminal_is_found_by_the_screen(monkeypatch)
     assert "SALES_HISTORY" not in asked
     assert dataset.ytd is not None
     source_module.cache_clear()
+
+
+def test_the_screen_shows_one_month_of_sell_in_and_the_year_keeps_them_all():
+    """One query, two questions. The screen is a month and the year to date is a year, so
+    the query stopped deciding and the callers filter. Before this, the year to date added
+    one month of sell-in to four months of sell-out and nothing said so — €21m where €98m
+    belonged."""
+    from app.perf.source import _sell_in_month
+
+    rows = [{"market": "Japan", "channel": "ecommerce", "period": "2026-07"}]
+    rows += [{"market": "Japan", "segment": "DIS - Distributors",
+              "period": "2026-%02d" % n, "sales_actual": 100.0} for n in range(4, 8)]
+
+    current = _sell_in_month(rows, rows[1:], "2026-07")
+
+    assert len(current) == 2
+    assert {str(r.get("period")) for r in current} == {"2026-07"}
+
+
+def test_two_sources_that_close_on_different_months_do_not_empty_the_screen():
+    """The consolidation is cut on a snapshot date, the sell-out warehouse on a
+    transaction date, and they can disagree. Filtering blindly on the sell-out month would
+    drop the whole sell-in perimeter and leave a calm-looking page missing a third of the
+    Maison — the one failure this module exists to prevent."""
+    from app.perf.source import _sell_in_month
+
+    rows = [{"market": "Japan", "channel": "ecommerce", "period": "2026-07"}]
+    rows += [{"market": "Japan", "segment": "DIS - Distributors",
+              "period": "2026-%02d" % n, "sales_actual": 100.0} for n in range(4, 7)]
+
+    current = _sell_in_month(rows, rows[1:], "2026-07")
+
+    # The sell-out row and the sell-in's own latest month, not an empty perimeter.
+    assert len(current) == 2
+    assert any(r.get("segment") and r["period"] == "2026-06" for r in current)

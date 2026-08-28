@@ -658,12 +658,17 @@ select
     cast(null as number(38, 4)) as sales_forecast,
     cast(null as varchar)       as owner_name
 from stepped s
-join anchor a on a.period_end = s.snapshot_date
+-- Every month of the exchange year, not only the latest. The final anchor join used to
+-- sit here, and it made this query answer one question well and another silently wrong:
+-- the screen wants the closed month, the year to date wants all of them. Filtering the
+-- rows is the caller's business — a query that has already decided cannot be asked the
+-- other question, and the year to date added one month of sell-in to four of sell-out
+-- without anything saying so.
 where s.segment is not null
   -- A row that is zero on both periods is a channel the entity does not use.
   -- Kept out so the screen is not padded with lines nobody can act on.
   and (s.sales_actual <> 0 or s.sales_last_year <> 0)
-order by s.sales_actual desc nulls last
+order by s.snapshot_date, s.sales_actual desc nulls last
 """
 
 #: The same sell-in figures, over a whole fiscal year, for the reconciliation to run

@@ -159,6 +159,31 @@ def store_history_rows(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
 
 
+def _sell_in_month(rows, sold_in, period: str):
+    """Every sell-out row, and the sell-in rows of the month the screen is showing.
+
+    The two sources close their month independently, and they can disagree — the
+    consolidation is cut on a snapshot date, the sell-out warehouse on a transaction date.
+    Filtering blindly on the sell-out month would then drop the entire sell-in perimeter
+    from the screen and leave a calm-looking page missing a third of the Maison, which is
+    the one failure this module exists to prevent. So a disagreement falls back to the
+    sell-in's own latest month and says so.
+    """
+    wanted = period
+    if sold_in:
+        months = {str(r.get("period") or "") for r in sold_in}
+        if period not in months:
+            wanted = max(months) if months else period
+            LOG.info(
+                "warehouse: sell-in closes on %s, sell-out on %s — showing %s",
+                wanted, period, wanted,
+            )
+    return [
+        row for row in rows
+        if not row.get("segment") or str(row.get("period") or "") == wanted
+    ]
+
+
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"
@@ -530,8 +555,12 @@ class SnowflakeSource:
         sold_in = [row for row in rows if row.get("segment")]
         sell_in_record = self._sell_in_record(queries, warehouse, sold_in, budget)
 
+        # The screen is a month; the year to date is a year. Sell-in now arrives with
+        # every month of the fiscal year, so the units take only the one on screen —
+        # otherwise a market would appear four times, once per month, all called July.
+        current = _sell_in_month(rows, sold_in, period)
         mapped = mapping.units_from_rows(
-            rows, budget=budget, history=history, sell_in_record=sell_in_record
+            current, budget=budget, history=history, sell_in_record=sell_in_record
         )
         # Kept on the source, not on the dataset: they describe the plumbing, not the
         # business, and the screen shows them where it shows the caveat.
