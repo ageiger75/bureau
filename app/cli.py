@@ -815,9 +815,21 @@ def cmd_kpi(argv: List[str]) -> int:
     if rows is None:
         from .perf import queries, warehouse
         print("")
-        print("Lecture de l'entrepôt (deux minutes environ)…")
-        rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
+        print("Lecture de l'entrepôt (deux minutes environ, plafond à cinq)…")
+        try:
+            rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
+        except Exception as exc:
+            # Deux minutes de requête qui rendent une pile d'appels, c'est deux minutes
+            # perdues et une phrase que personne ici ne peut lire. Cette requête touche
+            # le plafond de l'entrepôt : l'échec est un cas prévu, pas un accident.
+            print("", file=sys.stderr)
+            print("La lecture a échoué : %s" % exc, file=sys.stderr)
+            print("Le registre ci-dessus est lu, lui. Si c'est un dépassement de délai, "
+                  "relancez : la requête tient en 130 à 155 secondes et le plafond est "
+                  "à 300.", file=sys.stderr)
+            return 2
         source_module._write_kpi_cache(rows)
+        print("%d lignes lues, gardées en cache pour la journée." % len(rows))
 
     report = kpi_registry.join_report(registry, rows)
     print("")
@@ -827,6 +839,11 @@ def cmd_kpi(argv: List[str]) -> int:
         # Nommées une par une : chacune est un KPI que le cockpit mesure et ne sait pas
         # juger, et la corriger demande de savoir laquelle.
         print("  %s — aucune ligne du classeur ne la revendique" % key)
+    if report.ambiguous:
+        # Plusieurs lignes du classeur pouvaient revendiquer la clé ; c'est le périmètre
+        # qui a tranché. Le dire, parce qu'un même nom portant deux cibles est une
+        # question pour qui tient le classeur, pas une ambiguïté à absorber en silence.
+        print("Départagés au périmètre %s" % ", ".join(report.ambiguous))
     if report.without_target:
         print("Appariés sans cible %s" % ", ".join(report.without_target))
     print("Lignes non nourries %d  (le classeur les suit, rien ne les alimente)"

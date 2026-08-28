@@ -58,11 +58,15 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
     "heroes_wob": ("heroes", "hero", "produits heros"),
     "refills_wob": ("recharges", "refills", "refill"),
     "new_clients": ("nouveaux clients", "new clients", "recrutement clients"),
-    "retail_traffic": ("trafic retail", "retail traffic", "trafic magasins"),
+    # Ordered from most specific to least: the first alias that fits wins, so a bare
+    # "traffic" may only claim a row after the qualified spellings have had their chance.
+    "retail_traffic": ("trafic retail", "retail traffic", "trafic magasins", "traffic",
+                       "trafic"),
     "nps_retail": ("nps retail", "nps magasin"),
     "nps_ecommerce": ("nps ecommerce", "nps e commerce", "nps web"),
     "nps_customer_service": ("nps service client", "nps customer service", "nps sav"),
-    "review_rating": ("note avis", "review rating", "avis clients", "notation avis"),
+    "review_rating": ("note avis", "review rating", "avis clients", "notation avis",
+                      "reviews", "review"),
 }
 
 
@@ -167,9 +171,20 @@ def readings_by_key(rows: Sequence[Sequence], scope: str = GROUP_SCOPE
     """
     found: Dict[str, List[rules.Reading]] = {}
     for row in rows:
-        if len(row) < 4:
+        # The warehouse hands back dictionaries keyed by column name; the tests and the
+        # disk cache hand back sequences. Read by name where there is one — a positional
+        # read of a mapping does not fail loudly, it fails two minutes into a query, on
+        # the one machine that has the data.
+        if isinstance(row, dict):
+            lowered = {str(name).lower(): value for name, value in row.items()}
+            row_scope = lowered.get("scope")
+            key = lowered.get("kpi_key")
+            period = lowered.get("period")
+            value = lowered.get("value")
+        elif len(row) >= 4:
+            row_scope, key, period, value = row[0], row[1], row[2], row[3]
+        else:
             continue
-        row_scope, key, period, value = row[0], row[1], row[2], row[3]
         if str(row_scope or "").strip().upper() != scope.upper():
             continue
         if value is None or not str(key or "").strip():

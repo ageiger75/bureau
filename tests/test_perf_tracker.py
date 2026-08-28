@@ -549,3 +549,49 @@ def test_the_perimeter_column_separates_five_rows_of_the_same_name():
 
     america, _, _ = kpi_registry.match(registry, ["new_clients"], scope="NA")
     assert america["new_clients"].target == 722.0
+
+
+def test_the_warehouse_hands_back_dictionaries_and_they_are_read_by_name():
+    """`warehouse.rows` returns one dict per row, keyed by column name; the disk cache and
+    these tests hand back sequences. A positional read of a mapping does not fail here —
+    it fails two minutes into a query, on the one machine that has the data.
+    """
+    registry = tracker.tracker_from_rows(sheet(
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "NPS retail", "≥ 74", 72.7],
+    ))
+    as_dicts = [
+        {"SCOPE": "LOEP", "KPI_KEY": "nps_retail", "PERIOD": "2026-06", "VALUE": 71.0},
+        {"scope": "LOEP", "kpi_key": "nps_retail", "period": "2026-07", "value": 72.98},
+        {"scope": "Japan", "kpi_key": "nps_retail", "period": "2026-07", "value": 30.0},
+    ]
+
+    built = kpi_registry.join(registry, as_dicts)
+
+    assert [reading.value for reading in built[0].readings] == [71.0, 72.98]
+
+
+def test_the_labels_this_tracker_actually_uses_are_claimed():
+    """Written against the real sheet: `Traffic` alone, `Reviews sur relances`,
+    `Net sales hors cleaning`, `Same-store sales Groupe`. An alias list is only worth
+    what the file it is pointed at says."""
+    registry = tracker.tracker_from_rows(sheet(
+        ["1", "Maison", "Julie", "LOEP", "3P", "Net sales hors cleaning", "≥ 1259", 1209.0],
+        ["2", "Maison", "Julie", "LOEP", "3P", "Same-store sales Groupe", "≥ 4,5", 3.0],
+        ["3", "Maison", "Julie", "LOEP", "Client", "Traffic", "≥ 2", 1.0],
+        ["4", "Maison", "Julie", "LOEP", "Client", "Reviews sur relances", "≥ 4,6", 4.5],
+        ["5", "Maison", "Julie", "LOEP", "Client", "Heroes WOB", "≥ 30", 28.9],
+        ["6", "Maison", "Julie", "LOEP", "Client", "Refills", "≥ 5,3", 5.0],
+    ))
+
+    matched, unmatched, _ = kpi_registry.match(registry, [
+        "net_sales", "same_store_sales", "retail_traffic", "review_rating",
+        "heroes_wob", "refills_wob", "nps_retail",
+    ])
+
+    assert sorted(matched) == ["heroes_wob", "net_sales", "refills_wob",
+                               "retail_traffic", "review_rating", "same_store_sales"]
+    assert matched["retail_traffic"].label == "Traffic"
+    assert matched["review_rating"].label == "Reviews sur relances"
+    # The sheet carries "NPS Global" and no row per survey family, so this stays unclaimed
+    # rather than being attached to a KPI that measures something else.
+    assert unmatched == ["nps_retail"]
