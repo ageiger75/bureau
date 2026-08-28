@@ -599,6 +599,15 @@ input:focus, textarea:focus, select:focus {
 .variance-value { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .variance-label { font-size: 12px; color: var(--ink-soft); letter-spacing: 0.04em; }
 
+/* The year to date, set apart from the month above it rather than beside it. Two
+   readings of the same business at two grains; run together on one line they read as one
+   list of four numbers, and nobody can tell which is which. */
+.cockpit-ytd {
+  margin: 22px 0 0; padding: 16px 0 0; border-top: 1px solid var(--rule);
+}
+.cockpit-ytd .cockpit-eyebrow { margin: 0 0 8px; }
+.cockpit-ytd .variance-value { font-size: 18px; }
+
 .is-down { color: var(--alert); }
 .is-up { color: var(--ok); }
 .is-neutral { color: var(--ink); }

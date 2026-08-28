@@ -327,10 +327,47 @@ def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
     return translated
 
 
+def _history_for(history, market, channel, period, from_file_budget):
+    """What the last twenty-four months say about this market and channel.
+
+    Returns the run of months below plan, the monthly gaps behind it, and — only when it
+    is earned — the sentence that says the plan itself is the problem.
+
+    The verdict is withheld when the two plans disagree. The history compares against the
+    warehouse's goals fact; the screen compares against the planning workbook. Where both
+    cover the same month and give the same figure, a ratio computed on one is a fair
+    statement about the other. Where they diverge, a "steady shortfall" may be nothing but
+    the distance between two spreadsheets, and saying "the plan is set 5% high" on that
+    basis would send someone to renegotiate a plan that is not the one being missed.
+    """
+    if history is None:
+        return 0, (), ""
+    track = history.track_for(market, channel)
+    if track is None:
+        return 0, (), ""
+
+    chronic = track.chronic
+    if chronic is not None and from_file_budget:
+        anchor = track.month_for(period)
+        planned = anchor.budget if anchor is not None else None
+        if (
+            planned
+            and abs(from_file_budget - planned) / from_file_budget > BUDGET_DISAGREEMENT
+        ):
+            chronic = None
+
+    return (
+        track.months_below_budget,
+        track.gap_history,
+        chronic.sentence if chronic is not None else "",
+    )
+
+
 def units_from_rows(
     rows: Sequence[Dict[str, object]],
     budget: Optional[Budget] = None,
     period_label: str = "Sales MTD",
+    history=None,
 ) -> Mapped:
     """Build business units from warehouse rows, taking budget from the file where it has one.
 
@@ -408,6 +445,10 @@ def units_from_rows(
                 "cannot be attributed to a driver."
             )
 
+        months_below, gap_history, chronic = _history_for(
+            history, market, channel, period, from_file_budget
+        )
+
         units.append(
             BusinessUnit(
                 key="%s-%s" % (market.lower().replace(" ", "-"), channel),
@@ -437,6 +478,9 @@ def units_from_rows(
                 perimeter=perimeter_of(str(row.get("segment") or ""))
                 if row.get("segment")
                 else ("own" if channel in (ECOMMERCE, RETAIL) else ""),
+                months_below_budget=months_below,
+                gap_history=gap_history,
+                chronic_plan=chronic,
             )
         )
 
@@ -455,6 +499,16 @@ def dataset_from_rows(
     budget: Optional[Budget] = None,
     period_label: str = "Sales MTD",
     as_of: str = "",
+    history=None,
 ) -> Dataset:
-    mapped = units_from_rows(rows, budget=budget, period_label=period_label)
-    return Dataset(period_label=period_label, as_of=as_of, units=mapped.units)
+    mapped = units_from_rows(
+        rows, budget=budget, period_label=period_label, history=history
+    )
+    return Dataset(
+        period_label=period_label,
+        as_of=as_of,
+        units=mapped.units,
+        # Built here as well as in the source, so the two ways of assembling a dataset
+        # cannot drift into showing different screens from the same rows.
+        ytd=history.ytd(str(rows[0].get("period") or "")) if history and rows else None,
+    )

@@ -203,6 +203,19 @@ def priority_of(unit: BusinessUnit) -> Priority:
     persistence, persistence_reason = persistence_factor(unit.months_below_budget)
     acceleration, acceleration_reason = acceleration_factor(unit.gap_history)
 
+    # A plan that has been missed by the same margin every month for a year is not a gap
+    # that has lasted a year. Persistence exists to say "this keeps coming back and nobody
+    # has fixed it"; applied here it says the opposite of what the numbers mean, and it
+    # says it loudly — the factor is at its ceiling exactly where the business is at its
+    # most stable. So it is stood down, and the reason names what replaced it. The euros
+    # stay: the shortfall against a committed plan is real money either way.
+    if unit.chronic_plan:
+        persistence = 1.0
+        persistence_reason = (
+            "below plan every month for a year at the same ratio — a plan to reset, not a "
+            "gap that opened"
+        )
+
     # The factor discounts a *named* cause we are unsure of. Where no cause is named there
     # is no claim to discount, and applying it anyway pushed every unmeasured market down
     # the list — so the blinder the market, the lower it ranked, and blind spots buried
@@ -687,6 +700,11 @@ class Fire:
         return bool(self.contributions)
 
     @property
+    def chronic_plan(self) -> str:
+        """The history's verdict that the plan, not the month, is what is wrong."""
+        return self.unit.chronic_plan
+
+    @property
     def context_notes(self):
         return self.unit.context_notes
 
@@ -786,6 +804,16 @@ class Fire:
         asked = [n for n in self.unit.context_notes if n.question]
         if asked:
             return asked[0].question
+        if self.unit.chronic_plan:
+            # Before every question about this month, because none of them has an answer
+            # here. "What will move conversion in 30 days" asked of a business that has
+            # delivered the same steady 93% of its plan every month for a year sends
+            # someone to find a cause that does not exist, and again the month after.
+            return (
+                "Has this plan ever been met? The shortfall has been the same every month "
+                "for a year or more — is the target wrong, or is something structural "
+                "being tolerated?"
+            )
         if self.unit.is_sell_in:
             # Sell-in is shipments. A month of it against a month of plan is mostly a
             # statement about when an order was placed, so "what would it take to measure

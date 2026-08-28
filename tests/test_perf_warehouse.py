@@ -433,9 +433,14 @@ def test_the_cache_survives_a_new_source_object(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -454,18 +459,22 @@ def test_an_expired_cache_reads_again(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
     monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
 
     SnowflakeSource().dataset()
-    one_read = len(calls)
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2 * one_read
+    assert calls.count("SALES_AND_DRIVERS") == 2
     source_module.cache_clear()
 
 
@@ -474,17 +483,21 @@ def test_a_refresh_is_not_refused_by_the_cache(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
-    one_read = len(calls)
     SnowflakeSource().dataset(refresh=True)
 
-    assert len(calls) == 2 * one_read
+    assert calls.count("SALES_AND_DRIVERS") == 2
     source_module.cache_clear()
 
 
@@ -539,9 +552,14 @@ def test_a_restart_reuses_the_last_read(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
@@ -600,19 +618,23 @@ def test_an_expired_file_is_ignored(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
-    one_read = len(calls)
     source_module.cache_clear()
     monkeypatch.setattr(source_module, "CACHE_SECONDS", -1)
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2 * one_read
+    assert calls.count("SALES_AND_DRIVERS") == 2
 
 
 def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
@@ -620,18 +642,25 @@ def test_forgetting_the_cache_reaches_the_disk(monkeypatch):
     from app.perf import warehouse
     from app.perf.source import SnowflakeSource
 
+    # Labelled, because the screen now pays for three queries and only one of them is
+    # the current month. Counting reads in the aggregate would make this test pass or
+    # fail on the caching of a query it is not about.
     calls = []
     monkeypatch.setattr(
-        warehouse, "rows", lambda sql, params=None, label='': calls.append(1) or [_sales_row()]
+        warehouse,
+        "rows",
+        lambda sql, params=None, label='': calls.append(label) or [_sales_row()],
     )
     monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
 
     SnowflakeSource().dataset()
-    one_read = len(calls)
     source_module.cache_forget()
     SnowflakeSource().dataset()
 
-    assert len(calls) == 2 * one_read
+    assert calls.count("SALES_AND_DRIVERS") == 2
+    # Forgetting means forgetting everything on disk, the history included. A `--refresh`
+    # that left a two-year history behind would answer half the question it was asked.
+    assert calls.count("SALES_HISTORY") == 2
 
 
 def test_the_cached_rows_are_primitives(monkeypatch):
@@ -721,7 +750,9 @@ def test_an_unwritten_sell_in_query_is_not_reached_for(monkeypatch):
 
     SnowflakeSource().dataset()
 
-    assert len(asked) == 1
+    # Named rather than counted: the screen reads several queries, and a count would turn
+    # "the unwritten one was skipped" into "exactly this many exist today".
+    assert not any("f_management_operating_profit_country" in sql for sql in asked)
 
 
 def test_a_cached_read_does_not_count_sell_in_twice(monkeypatch):
@@ -759,3 +790,107 @@ def test_a_cached_read_does_not_count_sell_in_twice(monkeypatch):
     cached = SnowflakeSource().dataset()
 
     assert cached.sales_actual == first.sales_actual
+
+
+# ------------------------------------------------------- the history behind the month
+
+
+def _history_row(period="2026-07", actual=1_000_000.0, budget=1_200_000.0):
+    return {
+        "market": "Japan",
+        "channel": "ecommerce",
+        "period": period,
+        "sales_actual": actual,
+        "sales_budget": budget,
+    }
+
+
+def _labelled(monkeypatch, history_rows):
+    """A warehouse that answers each query differently, and records what was asked."""
+    from app.perf import warehouse
+
+    asked = []
+
+    def rows(sql, params=None, label=''):
+        asked.append(label)
+        if label == "SALES_HISTORY":
+            return [dict(row) for row in history_rows]
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", rows)
+    return asked
+
+
+def test_the_history_reaches_the_screen(monkeypatch):
+    from app.perf import source as source_module
+    from app.perf.source import SnowflakeSource
+
+    _labelled(monkeypatch, [
+        _history_row("2026-06", 900_000.0, 1_200_000.0),
+        _history_row("2026-07", 1_000_000.0, 1_200_000.0),
+    ])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert dataset.ytd is not None
+    assert dataset.ytd.actual == 1_900_000.0
+    assert dataset.units[0].months_below_budget == 2
+    source_module.cache_clear()
+
+
+def test_the_history_is_cached_apart_from_the_month(monkeypatch):
+    """Two years of history is the expensive read, and a month that closed a year ago
+    will not move again. Paying for it on every refresh would put the whole wait back."""
+    from app.perf import source as source_module
+    from app.perf.source import SnowflakeSource
+
+    asked = _labelled(monkeypatch, [_history_row()])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    SnowflakeSource().dataset(refresh=True)
+
+    assert asked.count("SALES_AND_DRIVERS") == 2
+    assert asked.count("SALES_HISTORY") == 1
+    source_module.cache_clear()
+
+
+def test_a_history_that_ends_before_the_month_on_screen_is_read_again(monkeypatch):
+    """The only staleness that can mislead anyone. A cached history is as current as it
+    needs to be while its last month is the month being read — and useless the moment it
+    is not, because the month everyone is looking at would be missing from its own trend.
+    """
+    from app.perf import source as source_module
+    from app.perf.source import SnowflakeSource
+
+    asked = _labelled(monkeypatch, [_history_row("2026-05")])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    SnowflakeSource().dataset()
+    source_module.cache_clear()
+    SnowflakeSource().dataset()
+
+    assert asked.count("SALES_HISTORY") == 2
+
+
+def test_a_history_that_fails_does_not_take_the_screen_with_it(monkeypatch):
+    """It is context around the figures, not the figures. Without it the cockpit compares
+    one month to one plan, which is what it did before this existed."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    def rows(sql, params=None, label=''):
+        if label == "SALES_HISTORY":
+            raise RuntimeError("the history view is not granted to this role")
+        return [_sales_row()]
+
+    monkeypatch.setattr(warehouse, "rows", rows)
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert dataset.sales_actual > 0
+    assert dataset.ytd is None
+    source_module.cache_clear()

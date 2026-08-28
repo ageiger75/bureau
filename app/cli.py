@@ -13,6 +13,9 @@
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
                                      reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
+    python -m app.cli history        les vingt-quatre mois derrière le mois affiché
+                                     --market NOM pour dérouler un marché mois par mois
+                                     --plans pour ce qui n'a ni budget ni ventes en face
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
                                      --segments pour la vue par segment et par périmètre
@@ -678,6 +681,132 @@ def cmd_refresh() -> int:
     return 0
 
 
+def cmd_history(argv: List[str]) -> int:
+    """Déroule les vingt-quatre mois derrière le mois affiché.
+
+    L'écran montre un mois. Cette commande montre la série dont il fait partie, et
+    surtout les deux choses qu'un mois seul ne peut pas dire : quels marchés ratent leur
+    plan depuis un an au même écart — un plan à recaler, pas un écart qui s'est ouvert —
+    et combien de chiffre d'affaires n'a aucun budget en face. Le second point n'est pas
+    un détail de tuyauterie : additionné sans le dire, il flatte l'année de plus de moitié.
+    """
+    if not settings.reads_warehouse:
+        print("CEOOS_DATA_SOURCE n'est pas « snowflake » : rien à lire.", file=sys.stderr)
+        return 2
+    _silence_third_party_noise()
+    from .perf import history as history_module
+    from .perf import queries, warehouse
+
+    if not queries.SALES_HISTORY.strip():
+        print("La requête SALES_HISTORY n'est pas écrite.", file=sys.stderr)
+        return 2
+
+    try:
+        rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
+    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+        print("Échec : %s" % exc, file=sys.stderr)
+        return 1
+
+    built = history_module.from_rows(rows)
+    print("%d couples marché × canal, de %s à %s."
+          % (len(built), built.periods[0] if built.periods else "?", built.latest_period))
+
+    market = _option(argv, "--market")
+    if market:
+        return _print_one_market(built, market)
+    if "--plans" in argv:
+        return _print_unmatched(built)
+
+    ytd = built.ytd()
+    if ytd is not None:
+        print("")
+        print("%s (%s → %s, %d mois) :" % (ytd.label, ytd.first_period,
+                                           ytd.last_period, ytd.months))
+        print("  réalisé          %15s" % _eur(ytd.actual))
+        print("  budget           %15s" % _eur(ytd.budget))
+        print("  écart            %15s  %s" % (
+            _eur(ytd.gap),
+            # Une fraction dans le modèle, des pourcents à l'écran : la conversion se
+            # fait ici, comme dans le gabarit, et jamais dans la propriété.
+            "" if ytd.pct is None else "%+.1f %%" % (100.0 * ytd.pct),
+        ))
+        # Dit à côté du total et non en note de bas de page : c'est la raison pour
+        # laquelle ce total est plus petit que la somme brute, et la raison pour
+        # laquelle on peut s'y fier.
+        print("  sans budget      %15s  (%d cellules, hors total)"
+              % (_eur(ytd.unbudgeted_actual), ytd.unbudgeted_lines))
+        print("  sans vente       %15s  (%d cellules, hors total)"
+              % (_eur(ytd.unsold_budget), ytd.unsold_lines))
+
+    chronic = sorted(
+        (
+            (track, track.chronic)
+            for track in built.tracks.values()
+            if track.chronic is not None
+        ),
+        key=lambda pair: pair[1].months,
+        reverse=True,
+    )
+    print("")
+    if not chronic:
+        print("Aucun plan raté douze mois de suite au même écart.")
+        return 0
+    print("Plans à recaler — sous le plan tous les mois, au même écart :")
+    for track, verdict in chronic:
+        print("  %-38s %2d mois  ratio %.2f–%.2f  soit %.0f %% trop haut"
+              % ("%s %s" % (track.market, track.channel), verdict.months,
+                 verdict.low, verdict.high, verdict.shortfall_pct))
+    return 0
+
+
+def _print_one_market(built, market: str) -> int:
+    """Un marché, mois par mois. Ce que l'écran ne montre jamais."""
+    tracks = [t for t in built.tracks.values() if t.market.lower() == market.lower()]
+    if not tracks:
+        print("Aucune série pour « %s »." % market, file=sys.stderr)
+        return 2
+    for track in sorted(tracks, key=lambda t: t.channel):
+        print("")
+        print("%s %s :" % (track.market, track.channel))
+        for month in track.months:
+            # Un tiret et non un zéro : « pas de plan » et « plan à zéro » sont deux
+            # faits différents, et le second n'existe pas dans ce classeur.
+            print("  %s  %15s  %15s  %15s" % (
+                month.period,
+                _eur(month.actual),
+                _eur(month.budget),
+                _eur(month.gap),
+            ))
+        if track.chronic is not None:
+            print("  → %s" % track.chronic.sentence)
+    return 0
+
+
+def _print_unmatched(built) -> int:
+    """Ce qui n'a pas de vis-à-vis, marché par marché, du plus gros au plus petit."""
+    without_plan: Dict[str, float] = {}
+    without_sales: Dict[str, float] = {}
+    for track in built.tracks.values():
+        name = "%s %s" % (track.market, track.channel)
+        for month in track.months:
+            if month.actual is not None and month.budget is None:
+                without_plan[name] = without_plan.get(name, 0.0) + month.actual
+            elif month.budget is not None and month.actual is None:
+                without_sales[name] = without_sales.get(name, 0.0) + month.budget
+
+    for title, found in (("Vendu sans budget en face", without_plan),
+                         ("Budgété sans vente en face", without_sales)):
+        print("")
+        print("%s :" % title)
+        if not found:
+            print("  rien.")
+            continue
+        for name, amount in sorted(found.items(), key=lambda p: -p[1])[:20]:
+            print("  %-38s %15s" % (name, _eur(amount)))
+        print("  %-38s %15s" % ("total", _eur(sum(found.values()))))
+    return 0
+
+
 def cmd_budget(argv: List[str]) -> int:
     """Lit le classeur de planification et dit ce qu'il contient.
 
@@ -1046,6 +1175,8 @@ def main(argv: List[str]) -> int:
         return cmd_budget(argv[1:])
     if command == "refresh":
         return cmd_refresh()
+    if command == "history":
+        return cmd_history(argv[1:])
     if command == "note":
         return cmd_note(argv[1:])
     if command == "reconcile":

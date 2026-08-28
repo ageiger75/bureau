@@ -52,6 +52,49 @@
       {% endif %}
     </li>
   </ul>
+
+  {% if dataset.ytd %}
+    {# A month is the loudest number on this screen and the least reliable one: a shipment
+       that slips across a month end shows here as a collapse. The year to date is the
+       same business read without that noise. #}
+    <div class="cockpit-ytd">
+      <p class="cockpit-eyebrow">
+        {{ dataset.ytd.label }} · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }}
+      </p>
+      <ul class="cockpit-variances">
+        <li>
+          <span class="variance-value is-neutral">{{ dataset.ytd.actual | eur }}</span>
+          <span class="variance-label">sold since April</span>
+        </li>
+        <li>
+          <span class="variance-value {{ 'is-down' if dataset.ytd.gap < 0 else 'is-up' }}">
+            {{ dataset.ytd.gap | eur }}
+          </span>
+          <span class="variance-label">vs plan · {{ dataset.ytd.pct | pct }}</span>
+        </li>
+      </ul>
+      {% if dataset.ytd.has_unmatched %}
+        {# The reason this figure is trustworthy is the reason it looks smaller than the
+           warehouse total. Saying so here is not a disclaimer; it is the finding. #}
+        <p class="cockpit-caveat">
+          Months where one side is missing are left out of both totals rather than summed
+          against nothing.
+          {% if dataset.ytd.unbudgeted_actual %}
+            {{ dataset.ytd.unbudgeted_actual | eur }} was sold across
+            {{ dataset.ytd.unbudgeted_lines }} market-months carrying no plan.
+          {% endif %}
+          {% if dataset.ytd.unsold_budget %}
+            {{ dataset.ytd.unsold_budget | eur }} was planned across
+            {{ dataset.ytd.unsold_lines }} market-months with no sales recorded against it.
+          {% endif %}
+        </p>
+      {% endif %}
+      <p class="cockpit-caveat">
+        Sell-out only — the channels the warehouse measures. What is invoiced to partners
+        has no history here yet.
+      </p>
+    </div>
+  {% endif %}
 </section>
 
 {# ------------------------------------------------------------------ where to push #}
@@ -77,6 +120,13 @@
           <span class="fire-gap">{{ fire.gap | eur }}
             <span class="fire-gap-sub">vs plan</span></span>
         </div>
+
+        {% if fire.chronic_plan %}
+          {# Placed above the diagnosis rather than below it, because it changes what the
+             diagnosis is about. Read afterwards, the driver table has already sent the
+             reader looking for what went wrong this month. #}
+          <p class="estimate-note is-warning">{{ fire.chronic_plan }}</p>
+        {% endif %}
 
         <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
 

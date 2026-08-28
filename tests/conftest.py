@@ -47,9 +47,10 @@ def fresh_warehouse_cache():
     from app.perf import context, owners, source
 
     # Pointed at the test directory, not at the working `var/`: a test run must never
-    # write into — or read from — the cache a real screen is using.
-    cache_at = TEST_DIR / "warehouse-rows.json"
-    source._cache_path = lambda: cache_at
+    # write into — or read from — a cache a real screen is using. Every cache file, not
+    # just the one for the current month: the history has its own, and a test that wiped
+    # the real one would cost a two-year query the next time the screen was opened.
+    source._cache_path = lambda name=source.CACHE_FILE: TEST_DIR / name
 
     source.cache_forget()
     owners.reset()

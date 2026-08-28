@@ -383,3 +383,28 @@ def test_a_panel_with_no_source_is_still_listed(monkeypatch):
         page = page_text(client.get("/"))
 
     assert "No source connected" in page
+
+
+# ------------------------------------------------------------ the year behind the month
+
+
+def test_the_year_to_date_is_on_the_screen(client):
+    """A month is the loudest figure here and the least reliable: a shipment that slips
+    across a month end shows as a collapse and a rebound, and neither happened. The year
+    to date is the same business read without that noise."""
+    page = page_text(client.get("/"))
+
+    assert "FY27 to date" in page
+    assert "sold since April" in page
+
+
+def test_the_year_to_date_says_what_it_could_not_compare(client):
+    """The reason the figure is trustworthy is the reason it looks small. On the real
+    warehouse the actual with no plan against it is large enough to turn a year behind
+    budget into a year ahead of it, so it is named rather than absorbed."""
+    page = page_text(client.get("/"))
+
+    assert "carrying no plan" in page
+    assert "no sales recorded against it" in page
+    # And what the history does not cover at all, said in the same breath as the figure.
+    assert "Sell-out only" in page

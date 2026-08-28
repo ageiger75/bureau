@@ -30,6 +30,7 @@ from .kpi import (
     Kpi,
     Reading,
 )
+from .history import Ytd
 from .model import (
     ECOMMERCE,
     NO_COUNTER_REASON,
@@ -277,7 +278,27 @@ def units() -> List[BusinessUnit]:
 
 
 def dataset() -> Dataset:
-    return Dataset(period_label="Sales MTD", as_of=today().isoformat(), units=units())
+    return Dataset(
+        period_label="Sales MTD",
+        as_of=today().isoformat(),
+        units=units(),
+        # Invented like everything else here, but present: a block that only ever renders
+        # against the warehouse is a block nobody looks at until it is wrong in front of
+        # the person it was built for. The unmatched amounts are included on purpose —
+        # they are the part of the year to date that is easy to get wrong.
+        ytd=Ytd(
+            label="FY27 to date",
+            first_period="2026-04",
+            last_period="2026-07",
+            actual=41_800_000.0,
+            budget=44_300_000.0,
+            unbudgeted_actual=2_100_000.0,
+            unsold_budget=640_000.0,
+            unbudgeted_lines=14,
+            unsold_lines=6,
+            months=4,
+        ),
+    )
 
 
 # --------------------------------------------------------------------- commitments

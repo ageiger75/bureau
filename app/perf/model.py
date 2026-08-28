@@ -224,6 +224,7 @@ class BusinessUnit:
         "funnel_status",
         "context_notes",
         "perimeter",
+        "chronic_plan",
     )
 
     def __init__(
@@ -254,6 +255,7 @@ class BusinessUnit:
         funnel_status: str = "",
         context_notes=(),
         perimeter: str = "",
+        chronic_plan: str = "",
     ) -> None:
         self.key = key
         self.label = label
@@ -310,6 +312,11 @@ class BusinessUnit:
         #: shipment to a reseller lands in one month or the next, so a month of sell-in
         #: measured against a month of plan is mostly a statement about timing.
         self.perimeter = perimeter
+        #: Set when this business has been under its plan every month for a year at a
+        #: steady ratio. That is a different management problem from a gap that opened,
+        #: and the two need different conversations: one is about the plan, the other is
+        #: about the month. Blank unless the history earns it.
+        self.chronic_plan = chronic_plan
 
     # ------------------------------------------------------------------ sales
 
@@ -394,12 +401,21 @@ class BusinessUnit:
 class Dataset:
     """The whole normalised dataset for one period."""
 
-    __slots__ = ("period_label", "as_of", "units")
+    __slots__ = ("period_label", "as_of", "units", "ytd")
 
-    def __init__(self, period_label: str, as_of: str, units: Sequence[BusinessUnit]) -> None:
+    def __init__(
+        self,
+        period_label: str,
+        as_of: str,
+        units: Sequence[BusinessUnit],
+        ytd=None,
+    ) -> None:
         self.period_label = period_label
         self.as_of = as_of
         self.units = list(units)
+        #: The fiscal year to date, when a history was read. None means no history, which
+        #: the screen says rather than papering over with a single month's figure.
+        self.ytd = ytd
 
     @property
     def sales_actual(self) -> float:

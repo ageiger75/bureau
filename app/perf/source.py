@@ -10,7 +10,7 @@ When real data arrives, add a source that returns the same normalised `Dataset` 
 
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 import logging
 import time
@@ -43,14 +43,25 @@ CACHE_SECONDS = 3600
 #: corrupt file can never do worse than force one more query.
 CACHE_FILE = "warehouse-rows.json"
 
+#: The twenty-four months behind the month on screen, cached apart from it and for far
+#: longer. They are not the same kind of fact: this month's figures are still being
+#: reprocessed, while a month that closed a year ago will not move again. Re-reading two
+#: years of history on every click would buy nothing and cost the whole wait back.
+HISTORY_CACHE_FILE = "warehouse-history.json"
+
+#: A day. Bounded not by time but by the anchor: a cached history whose last month is not
+#: the month on screen is re-read whatever its age, because that is the only staleness
+#: that can actually mislead anyone.
+HISTORY_CACHE_SECONDS = 24 * 3600
+
 #: (dataset, read at, conflicts, unnamed markets, perimeter note). Module level rather
 #: than on the instance: `current_source()` builds a new source per request, and a cache
 #: that dies with the request is not a cache.
 _cached = None
 
 
-def _cache_path():
-    return settings.budget_path.parent / CACHE_FILE
+def _cache_path(name: str = CACHE_FILE):
+    return settings.budget_path.parent / name
 
 
 def cache_clear() -> None:
@@ -59,23 +70,30 @@ def cache_clear() -> None:
 
 
 def cache_forget() -> None:
-    """Drop the disk cache too. For `--refresh`, and for a warehouse known to have moved."""
+    """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
-    try:
-        _cache_path().unlink()
-    except OSError:
-        pass
+    for name in (CACHE_FILE, HISTORY_CACHE_FILE):
+        try:
+            _cache_path(name).unlink()
+        except OSError:
+            pass
 
 
-def _read_disk_cache():
+def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None):
     """The last warehouse read, if it is still young enough to use.
 
     Anything unreadable is treated as absent rather than raised: a cache that can break a
     screen is worse than no cache, and the only cost of ignoring it is one query.
+
+    `max_age` is resolved here and not in the signature: a default argument would capture
+    `CACHE_SECONDS` at import and go on using that value after the constant changed, which
+    is exactly the kind of quietly-wrong that a cache should never be allowed.
     """
     import json
 
-    path = _cache_path()
+    if max_age is None:
+        max_age = CACHE_SECONDS
+    path = _cache_path(name)
     try:
         with path.open(encoding="utf-8") as handle:
             stored = json.load(handle)
@@ -86,15 +104,17 @@ def _read_disk_cache():
         return None
     if not isinstance(rows, list) or not rows:
         return None
-    if time.time() - stamp >= CACHE_SECONDS:
+    if time.time() - stamp >= max_age:
         return None
     return rows, stamp, read_at_text
 
 
-def _write_disk_cache(rows, stamp: float, read_at_text: str) -> None:
+def _write_disk_cache(
+    rows, stamp: float, read_at_text: str, name: str = CACHE_FILE
+) -> None:
     import json
 
-    path = _cache_path()
+    path = _cache_path(name)
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as handle:
@@ -342,6 +362,51 @@ class SnowflakeSource:
             LOG.info("warehouse: sell-in unavailable (%s)", exc)
             return []
 
+    def _history(self, queries, warehouse, anchor: str):
+        """Twenty-four months behind the anchor month, or nothing.
+
+        Nothing is survivable and says so on the screen: without it the cockpit compares
+        one month to one plan, which is what it did before this existed. What it must not
+        do is fail the whole render — the history is context around the figures, not the
+        figures.
+
+        Cached apart from the current month and validated against the anchor rather than
+        against the clock. A history whose last month is the month on screen is current by
+        construction, however old the file is; one that ends earlier is stale however
+        fresh, because the month everyone is reading would be missing from its own trend.
+        """
+        from . import history as history_module
+
+        if not queries.SALES_HISTORY.strip():
+            return None
+
+        stored = _read_disk_cache(HISTORY_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+        if stored is not None:
+            rows, _stamp, read_at_text = stored
+            built = history_module.from_rows(rows)
+            if not anchor or built.latest_period == anchor:
+                LOG.info(
+                    "warehouse: history from cache (%d tracks, read %s)",
+                    len(built),
+                    read_at_text,
+                )
+                return built
+            LOG.info(
+                "warehouse: cached history ends %s, screen shows %s — re-reading",
+                built.latest_period,
+                anchor,
+            )
+
+        try:
+            rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
+        except Exception as exc:  # noqa: BLE001 — one source failing is not all of them
+            LOG.info("warehouse: history unavailable (%s)", exc)
+            return None
+        if not rows:
+            return None
+        _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
+        return history_module.from_rows(rows)
+
     def dataset(self, refresh: bool = False) -> Dataset:
         global _cached
 
@@ -382,14 +447,18 @@ class SnowflakeSource:
                 "business look identical, so this refuses rather than renders."
             )
 
-        mapped = mapping.units_from_rows(rows, budget=budget)
+        period = str(rows[0].get("period") or "")
+        # Read after the current month and keyed to it, so a history that ends on an older
+        # month is caught and re-read rather than quietly ageing the trend by a month.
+        history = self._history(queries, warehouse, period)
+
+        mapped = mapping.units_from_rows(rows, budget=budget, history=history)
         # Kept on the source, not on the dataset: they describe the plumbing, not the
         # business, and the screen shows them where it shows the caveat.
         self.conflicts = mapped.conflicts
         self.markets_without_owner = mapped.markets_without_owner
         self.perimeter_note = _perimeter_note(budget, mapped.units)
 
-        period = str(rows[0].get("period") or "")
         built = Dataset(
             period_label=_period_label(period),
             # The moment of the read, not the period — and to the minute, because the
@@ -401,6 +470,7 @@ class SnowflakeSource:
             # restamps: the whole point of saying when is that it stays said.
             as_of=read_at_text,
             units=mapped.units,
+            ytd=history.ytd(period) if history is not None else None,
         )
         if stored is None:
             _write_disk_cache(rows, stamp, read_at_text)

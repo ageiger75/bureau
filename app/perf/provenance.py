@@ -116,6 +116,22 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="A governed sell-in view, so this stops depending on one query nobody "
         "else maintains.",
     ),
+    "sales_history": Measure(
+        key="sales_history",
+        label="Twenty-four months of history",
+        maturity=BETA,
+        note="What lets the screen say \"three months below plan\" and \"the gap is "
+        "widening\" instead of comparing one month to one plan. Two things are not "
+        "settled. The plan in it is the warehouse's goals fact, not the planning "
+        "workbook — the workbook covers this fiscal year only, and a ratio computed "
+        "across two definitions of \"plan\" would be an artefact; where both cover the "
+        "same month they are checked against each other, and a market whose two plans "
+        "disagree carries no verdict. And it is sell-out only: sell-in has no history "
+        "query yet, so the year to date here covers the channels the warehouse measures "
+        "and not the ones invoiced to partners.",
+        to_confirm="Whether the goals fact is maintained to the same standard as the "
+        "planning workbook, market by market.",
+    ),
     "commitments": Measure(
         key="commitments",
         label="Commitments",
