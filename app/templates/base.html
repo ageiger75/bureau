@@ -34,16 +34,19 @@
     {# The chrome follows the primary product, which is now the cockpit and is in
        English. Decision Room's own screens keep their French — a transition state,
        stated rather than hidden. #}
+    {# Two facts, and only two: whether the figures are real, and that nothing leaves
+       this machine or is written back. Everything else the banner used to carry — the
+       database path, the loopback address, the autonomy level — is true and is not a
+       decision, so it moved to System status. A line spent on where a file sits is a
+       line taken from the five that matter. #}
     {% if reads_warehouse %}
-      <strong>Confidential</strong>
-      Real company figures, read from the warehouse. No authentication on this screen —
-      it is reachable from this machine only ({{ database_label }}). Nothing is sent,
-      nothing is written back — autonomy level {{ autonomy_level }}.
+      <strong>Internal · read only</strong>
+      Real company figures. Nothing is sent, nothing is written back.
     {% else %}
-      <strong>Prototype</strong>
-      No authentication, no real data expected. Local storage only ({{ database_label }}).
-      Nothing is sent, nothing is written outside — autonomy level {{ autonomy_level }}.
+      <strong>Prototype · read only</strong>
+      No real data. Nothing is sent, nothing is written back.
     {% endif %}
+    <a class="scope-link" href="/system">System status</a>
   </div>
 </div>
 
@@ -61,13 +64,10 @@
 
 <footer class="footer">
   <div class="wrap">
-    <p>
-      CEO OS {{ app_version }} · {{ env_name }} environment · {{ database_label }}
-      · reachable from 127.0.0.1 only
-    </p>
     <p class="footer-note">
       The tool prepares, flags and structures. The CEO decides.
     </p>
+    <p>CEO OS {{ app_version }} · <a href="/system">System status</a></p>
   </div>
 </footer>
 

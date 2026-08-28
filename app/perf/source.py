@@ -409,6 +409,8 @@ class SnowflakeSource:
         #: two hundred and fourteen, and a reader who takes three for the whole is worse
         #: off than one who was told nothing.
         self.kpi_coverage = ""
+        self.kpi_judged = None
+        self.kpi_tracked = 0
 
     def _refuse_if_unwritten(self, *names: str) -> None:
         from . import queries
@@ -673,6 +675,11 @@ class SnowflakeSource:
             _write_kpi_cache(rows)
         report = kpi_registry.join_report(registry, rows)
         self.kpi_coverage = _kpi_coverage(report, registry)
+        #: The denominator alone, for the decision screen. The rest of the sentence —
+        #: which keys nothing claims, which are matched and unjudgeable — is wiring, and
+        #: wiring belongs on System status.
+        self.kpi_judged = len(report.kpis)
+        self.kpi_tracked = len(registry.entries)
         return report.kpis
 
 

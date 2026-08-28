@@ -640,12 +640,15 @@
   {% endfor %}
   {% endif %}
 
-  {% if kpi_coverage %}
-    {# The denominator for the panel itself, not just for the list inside it. Three KPIs
-       judged out of a tracker that follows two hundred and fourteen is a fact about how
-       much of the customer picture this screen can see, and it belongs beside the
-       verdicts rather than in a note nobody reaches. #}
-    <p class="kpi-note">{{ kpi_coverage }}</p>
+  {% if kpis_judged is not none and kpis_tracked %}
+    {# The denominator, and nothing else. Which keys found no row and which could not be
+       judged is wiring, and wiring belongs on System status — but the share itself is a
+       fact about the business: three KPIs read as the whole customer picture unless the
+       screen says what they are three of. #}
+    <p class="kpi-note">
+      {{ kpis_judged }} of the {{ kpis_tracked }} KPIs the tracker follows are wired to
+      both a reading and a target.
+    </p>
   {% endif %}
 
   <p class="kpi-note kpi-note-quiet">

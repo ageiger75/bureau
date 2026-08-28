@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}System status — CEO OS{% endblock %}
+
+{% block content %}
+
+<section class="panel">
+  <h2>System status</h2>
+  <p class="lede">
+    What this instance is, and how far it can be trusted. None of it belongs on the
+    decision screen — a line spent on where a database file sits is a line taken from the
+    five that matter — and all of it is true, so it lives here rather than nowhere.
+  </p>
+
+  <ul class="provenance-list">
+    <li class="provenance">
+      <div class="provenance-head"><span class="provenance-name">Reach</span></div>
+      <p class="provenance-note">
+        Served on the loopback address only: nothing outside this machine can open it.
+        No authentication, for the same reason — there is nobody else to authenticate.
+      </p>
+    </li>
+    <li class="provenance">
+      <div class="provenance-head"><span class="provenance-name">Autonomy</span>
+        <span class="badge badge-class">{{ autonomy }}</span></div>
+      <p class="provenance-note">
+        The cockpit reads. It sends nothing, and writes nothing back to any source it
+        reads from. Its own store is local: {{ database }}.
+      </p>
+    </li>
+    <li class="provenance">
+      <div class="provenance-head"><span class="provenance-name">Source</span>
+        <span class="badge badge-class">{{ source.label }}</span></div>
+      <p class="provenance-note">
+        {{ source.caveat }}
+        {% if reads_warehouse %} Named connection: {{ connection }}.{% endif %}
+        {% if last_read %} Last read {{ last_read }}.{% endif %}
+      </p>
+    </li>
+    {% if missing_queries %}
+      <li class="provenance provenance-absent">
+        <div class="provenance-head"><span class="provenance-name">Queries not written</span></div>
+        <p class="provenance-note">
+          {{ missing_queries | join(", ") }}. Each describes, in
+          <code>app/perf/queries.py</code>, exactly what it must return.
+        </p>
+      </li>
+    {% endif %}
+    <li class="provenance">
+      <div class="provenance-head"><span class="provenance-name">KPI tracker</span></div>
+      <p class="provenance-note">
+        {% if kpi_tracker %}Read from {{ kpi_tracker }}.{% else %}
+        Not on this machine, so no reading can be judged: a value is neither good nor bad
+        until something says what was asked for.{% endif %}
+        {% if kpi_coverage %} {{ kpi_coverage }}{% endif %}
+      </p>
+    </li>
+  </ul>
+</section>
+
+{% if measures %}
+<section class="panel panel-quiet">
+  <h2>Not settled yet</h2>
+  <p class="lede">
+    Each line says which of the screen's figures is checked and which is not, and what
+    would settle it.
+  </p>
+  <ul class="provenance-list">
+    {% for item in measures %}
+      <li class="provenance provenance-{{ item.maturity }}">
+        <div class="provenance-head">
+          <span class="provenance-name">{{ item.label }}</span>
+          <span class="badge badge-{{ item.maturity }}">{{ item.badge }}</span>
+        </div>
+        <p class="provenance-note">{{ item.note }}</p>
+        {% if item.to_confirm %}
+          <p class="provenance-ask"><strong>To confirm:</strong> {{ item.to_confirm }}</p>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% endblock %}

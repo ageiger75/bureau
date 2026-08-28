@@ -11,6 +11,7 @@ from . import (
     options,
     recommendation,
     reviews,
+    system,
     today,
 )
 
@@ -25,6 +26,7 @@ ROUTERS = (
     decision.router,
     commitments.router,
     reviews.router,
+    system.router,
 )
 
 

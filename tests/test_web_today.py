@@ -281,8 +281,13 @@ def test_the_banner_does_not_deny_real_data_when_there_is_some(monkeypatch):
     with TestClient(app) as client:
         page = page_text(client.get("/"))
 
-    assert "no real data expected" not in page
-    assert "Confidential" in page
+    assert "No real data" not in page
+    assert "Internal · read only" in page
+    # And the two facts that survived the trim are both there: real figures, nothing
+    # written back. The database path and the loopback address moved to System status.
+    assert "Real company figures" in page
+    assert "nothing is written back" in page
+    assert "sqlite" not in page.lower()
 
 
 def test_the_prototype_banner_still_appears_on_invented_data():
@@ -293,7 +298,8 @@ def test_the_prototype_banner_still_appears_on_invented_data():
     with TestClient(app) as client:
         page = page_text(client.get("/"))
 
-    assert "no real data expected" in page
+    assert "Prototype · read only" in page
+    assert "No real data" in page
 
 
 def test_a_missing_forecast_is_a_dash_not_a_zero(monkeypatch):
@@ -486,3 +492,22 @@ def test_the_freshness_check_can_never_cause_a_warehouse_read(monkeypatch):
     source.cache_clear()
 
     assert source.last_read() == ""
+
+
+def test_the_plumbing_is_one_click_away_and_not_on_the_decision_screen(client):
+    """None of it is deleted, because all of it is true and someone eventually asks. It
+    simply is not a decision: the person deciding what to do about Japan this week does
+    not need the SQLite path, the loopback address or the autonomy level, and every line
+    of that kind is a line taken from the five that matter.
+    """
+    today = page_text(client.get("/"))
+
+    assert "127.0.0.1" not in today
+    assert "autonomy level" not in today.lower()
+    assert "System status" in today          # named, so nothing looks hidden
+
+    status = page_text(client.get("/system"))
+
+    assert "PREPARE" in status
+    assert "loopback" in status
+    assert "writes nothing back" in status
