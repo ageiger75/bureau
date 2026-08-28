@@ -16,6 +16,7 @@
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans pour ce qui n'a ni budget ni ventes en face
+                                     --refresh pour relire l'entrepôt au lieu du cache
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
                                      --period AAAA-MM pour détailler un mois
                                      --segments pour la vue par segment et par périmètre
@@ -716,11 +717,24 @@ def cmd_history(argv: List[str]) -> int:
         print("La requête SALES_HISTORY n'est pas écrite.", file=sys.stderr)
         return 2
 
-    try:
-        rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
-    except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
-        print("Échec : %s" % exc, file=sys.stderr)
-        return 1
+    # Le même cache que l'écran, et pour la même raison : deux ans d'historique sont la
+    # lecture chère de cet entrepôt. Sans ça, regarder l'année, puis un marché, puis ce
+    # qui n'a pas de plan coûterait trois fois la requête entière.
+    from .perf import source as source_module
+
+    stored = None if "--refresh" in argv else source_module.cached_history_rows()
+    if stored is not None:
+        rows, read_at_text = stored
+        print("Lu en cache le %s. `--refresh` pour relire l'entrepôt." % read_at_text)
+    else:
+        print("Lecture de l'entrepôt — deux ans d'historique, comptez quelques minutes.")
+        try:
+            rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
+        except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+            print("Échec : %s" % exc, file=sys.stderr)
+            return 1
+        # Écrit là où l'écran le cherchera : peu importe qui a payé la requête.
+        source_module.store_history_rows(rows)
 
     built = history_module.from_rows(rows)
     print("%d couples marché × canal, de %s à %s."

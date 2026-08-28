@@ -894,3 +894,38 @@ def test_a_history_that_fails_does_not_take_the_screen_with_it(monkeypatch):
     assert dataset.sales_actual > 0
     assert dataset.ytd is None
     source_module.cache_clear()
+
+
+def test_the_terminal_and_the_screen_share_one_history_read(monkeypatch):
+    """Two years of history is the expensive read here. A command that ignored the
+    screen's cache would pay it again in full — and three times over for someone looking
+    at the year, then at a market, then at what carries no plan."""
+    from app.perf import source as source_module
+
+    rows = [_history_row("2026-07")]
+    source_module.store_history_rows(rows)
+
+    stored = source_module.cached_history_rows()
+
+    assert stored is not None
+    kept, read_at_text = stored
+    assert kept == rows
+    assert read_at_text.endswith("UTC")
+
+
+def test_a_history_written_from_the_terminal_is_found_by_the_screen(monkeypatch):
+    """Whoever paid for the query, the other one benefits. Otherwise the first screen
+    opened after a terminal session pays for a read that already happened."""
+    from app.perf import source as source_module
+    from app.perf import warehouse
+    from app.perf.source import SnowflakeSource
+
+    source_module.store_history_rows([_history_row("2026-07", 900_000.0, 1_200_000.0)])
+    asked = _labelled(monkeypatch, [])
+    monkeypatch.setattr(SnowflakeSource, "_budget", lambda self: _budget_for())
+
+    dataset = SnowflakeSource().dataset()
+
+    assert "SALES_HISTORY" not in asked
+    assert dataset.ytd is not None
+    source_module.cache_clear()

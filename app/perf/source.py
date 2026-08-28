@@ -134,6 +134,26 @@ def _write_disk_cache(
         LOG.info("warehouse: cache not written (%s)", exc)
 
 
+def cached_history_rows():
+    """The last history read from disk, or None. `(rows, when it was read)`.
+
+    Shared with the terminal on purpose. Two years of history is the expensive read on
+    this warehouse, and a command that ignored the screen's cache would pay it again in
+    full — three times over, for someone looking at the year to date, then at a market,
+    then at what carries no plan.
+    """
+    stored = _read_disk_cache(HISTORY_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+    if stored is None:
+        return None
+    rows, _stamp, read_at_text = stored
+    return rows, read_at_text
+
+
+def store_history_rows(rows) -> None:
+    """Keep a history read where the screen will find it, whoever paid for it."""
+    _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
+
+
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"
