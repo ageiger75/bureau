@@ -157,13 +157,23 @@ def test_no_outbound_call_is_made_to_render_the_cockpit(client):
 # --------------------------------------------------------------- customer KPIs
 
 
-def test_customer_kpis_are_on_the_screen(client):
-    """Recruitment and active customers lead the sales figures by months."""
+def test_managed_kpis_are_grouped_by_the_pillar_the_tracker_files_them_under(client):
+    """The domain comes from the tracker, never from the query that produced the figure.
+
+    Grouping by the query is what put customer recruitment, an advocacy score and a
+    supply metric under one heading called "Customers" — three pillars, one label, and a
+    reader who would have taken the lot for a picture of the customer base.
+    """
     page = page_text(client.get("/"))
 
-    assert "Customers" in page
+    assert "Managed KPIs" in page
+    assert "Client Acquisition" in page
+    assert "Brand Elevation" in page
+    assert "3P People" in page
     assert "New customers" in page
     assert "ARC — active customers" in page
+    # And the claim nothing here has demonstrated is no longer made.
+    assert "lead the sales figures above by months" not in page
 
 
 def test_a_lower_is_better_kpi_is_marked_as_such(client):
@@ -200,7 +210,7 @@ def test_a_kpi_off_on_both_axes_is_listed_once(client):
     it is what makes the card worth more than the number alone.
     """
     page = page_text(client.get("/"))
-    panel = page.split("Customers")[-1].split("Commitments")[0]
+    panel = page.split("Managed KPIs")[-1].split("Commitments")[0]
 
     assert panel.count("CLV — top customers") == 1
     assert "Reading overdue" in panel

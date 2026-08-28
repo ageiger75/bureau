@@ -18,7 +18,7 @@ losing a CEO's trust:
 from __future__ import annotations
 
 from datetime import date
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import fiscal
 
@@ -346,6 +346,28 @@ def provisional(kpis: Sequence[Kpi]) -> List[Kpi]:
 
 def by_scope(kpis: Sequence[Kpi], scope: str) -> List[Kpi]:
     return [kpi for kpi in kpis if kpi.scope == scope]
+
+
+#: What a KPI without a pillar is filed under. Named rather than folded into whichever
+#: heading happens to be first: a KPI whose domain nobody stated is a fact about the
+#: tracker, and hiding it inside a domain it does not belong to is how a panel called
+#: "Customers" ended up carrying a supply-chain metric.
+UNFILED = "Not assigned to a pillar"
+
+
+def by_pillar(kpis: Sequence[Kpi]) -> List[Tuple[str, List[Kpi]]]:
+    """KPIs grouped under the pillar the tracker files them under, largest group first.
+
+    The domain comes from the tracker and from nowhere else — never from a keyword, an
+    owner, or which query happened to produce the figure. Grouping them by the query is
+    what put customer recruitment, an advocacy score and a refill rate under one heading
+    called "Customers": three pillars, one label, and a reader who would have taken the
+    lot for a picture of the customer base.
+    """
+    groups: Dict[str, List[Kpi]] = {}
+    for item in kpis:
+        groups.setdefault((item.pillar or "").strip() or UNFILED, []).append(item)
+    return sorted(groups.items(), key=lambda pair: (-len(pair[1]), pair[0]))
 
 
 def format_value(kpi: Kpi, value: Optional[float]) -> str:

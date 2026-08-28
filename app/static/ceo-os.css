@@ -839,6 +839,10 @@ input:focus, textarea:focus, select:focus {
 .issue-members { list-style: none; margin: 12px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule-soft); display: grid; gap: 20px; }
 .issue-members > .fire h3 { font-size: 15px; }
 
+.kpi-pillar { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-faint); margin: 22px 0 10px; font-weight: 600; }
+.kpi-pillar:first-of-type { margin-top: 12px; }
+
 .routed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .routed { border-left: 2px solid var(--rule); padding-left: 14px; }
 .routed-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0; }

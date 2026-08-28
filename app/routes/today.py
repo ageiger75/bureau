@@ -172,6 +172,11 @@ def today(request: Request):
             # whichever apply, instead of the KPI appearing here for one and again below
             # for the other, as if it were two problems.
             "kpis": kpi_rules.worth_showing(kpis),
+            # Grouped under the pillar the tracker files them under. The domain comes from
+            # the tracker and nowhere else — never from the query that produced the figure,
+            # which is what put recruitment, an advocacy score and a refill rate under one
+            # heading called "Customers".
+            "kpis_by_pillar": kpi_rules.by_pillar(kpi_rules.worth_showing(kpis)),
             #: The denominator. "Three KPIs are off target" and "three of seventeen" are
             #: different facts, and the panel shows only the three — so without this the
             #: reader cannot tell a business mostly holding from one mostly failing.
