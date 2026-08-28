@@ -829,3 +829,11 @@ input:focus, textarea:focus, select:focus {
 
 /* An exact table that would be misread without one more sentence. */
 .estimate-note.is-warning { color: var(--warn); }
+
+/* A market that traded between its channels. Neither a gap nor a win — the two lists
+   above would each have told half of it, confidently and wrongly. */
+.reallocation-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+.reallocation { border-left: 2px solid var(--rule); padding-left: 14px; }
+.reallocation-head { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+.reallocation-legs { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.reallocation-legs li > span { display: inline-block; min-width: 5.5em; font-variant-numeric: tabular-nums; }

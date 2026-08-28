@@ -135,6 +135,7 @@ def today(request: Request):
             },
             "fires": linked,
             "opportunities": analytics.opportunities(dataset),
+            "reallocations": analytics.reallocations(dataset),
             "people": analytics.people_to_push(fires),
             "wins": analytics.wins(dataset),
             "commitments": commitments,

@@ -194,6 +194,10 @@ def cmd_reconcile(argv: List[str]) -> int:
             continue
         # Keyed on the month the actual belongs to, matching what `--spec` writes. The
         # two files have to describe the same months or nothing will ever agree.
+        # Keyed by market, not by entity: several entities of one country are summed
+        # here, exactly as the screen folds them. A disagreement that survives this is a
+        # disagreement about a country's revenue, not about which of its legal entities
+        # booked it — the second would be invisible to a reader and is not worth a line.
         key = (line.market, line.segment, previous_year(line.period))
         expected[key] = expected.get(key, 0.0) + line.last_year
         # A second way in, for a candidate that joins on the plan's own entity code. It is
