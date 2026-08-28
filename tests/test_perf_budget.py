@@ -997,3 +997,65 @@ def test_un_echec_de_lecture_ne_fait_pas_tomber_la_commande(monkeypatch, capsys)
 
     assert cmd_reconcile(["--from-warehouse"]) == 2
     assert "Lecture impossible" in capsys.readouterr().err
+
+
+def test_the_warehouse_suffix_joins_to_a_plan_that_omits_it(tmp_path, capsys, monkeypatch):
+    """The workbook types the same entity two ways: bare `M_002` for most of them,
+    suffixed `M_017_UNLOC` for a few. The consolidation always writes the suffixed
+    form, so an exact match alone loses five markets — France, Germany, Hong Kong,
+    New Zealand and the United States, 165 cells of real revenue. The suffix is an
+    alias rather than a rule in the query: how a spreadsheet was typed is not
+    something SQL should have to know.
+    """
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("France", "EMEA", "DIS - Distributors", "dis",
+                   "2026-07", 300_000.0, 250_000.0, entity="M_002"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        writer.writerow(["M_002_UNLOC", "DIS - Distributors", "2025-07", "250000"])
+
+    assert cmd_reconcile([str(path)]) == 0
+    out = capsys.readouterr().out
+    assert "Jointes par entité  1" in out
+    assert "Absentes            0" in out
+
+
+def test_the_plans_own_spelling_wins_over_the_alias(tmp_path, capsys, monkeypatch):
+    """An alias must never shadow a line the plan actually wrote. Where both forms
+    exist they are different markets, and quietly merging them would invent revenue."""
+    import csv
+
+    from app.cli import cmd_reconcile
+    from app.config import settings
+
+    plan = Budget([
+        BudgetLine("Australia", "APAC", "DPT - Department Stores", "dpt",
+                   "2026-07", 90_000.0, 80_000.0, entity="M_017_UNLOC"),
+        BudgetLine("Elsewhere", "APAC", "DPT - Department Stores", "dpt",
+                   "2026-07", 10_000.0, 5_000.0, entity="M_017"),
+    ])
+    monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
+    monkeypatch.setattr(budget_module, "load", lambda path: plan)
+
+    path = tmp_path / "candidate.csv"
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["entity", "segment", "period", "value"])
+        writer.writerow(["M_017_UNLOC", "DPT - Department Stores", "2025-07", "80000"])
+
+    assert cmd_reconcile([str(path)]) == 1  # the other cell is still missing
+    out = capsys.readouterr().out
+    # Matched Australia on its own spelling, not merged into Elsewhere.
+    assert "D'accord            1" in out
+    assert "En désaccord        0" in out

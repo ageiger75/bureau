@@ -200,7 +200,18 @@ def cmd_reconcile(argv: List[str]) -> int:
         # a stronger key than a market name: names are typed by people and translated
         # twice on the way here, while the code is what the consolidation itself uses.
         if line.entity:
-            by_entity[(line.entity, line.segment, previous_year(line.period))] = key
+            month = previous_year(line.period)
+            by_entity[(line.entity, line.segment, month)] = key
+            # The workbook types the same entity two ways — bare `M_002` for most,
+            # suffixed `M_017_UNLOC` for a few — while the consolidation always
+            # writes the suffixed form. Registering the suffix as an alias lets a
+            # candidate join on what the warehouse actually contains, instead of
+            # asking a query to know how a spreadsheet happened to be typed. An
+            # exact line written later overwrites the alias, so the plan's own
+            # spelling always wins where it exists.
+            alias = (line.entity + "_UNLOC", line.segment, month)
+            if alias not in by_entity:
+                by_entity[alias] = key
 
     if not expected:
         print("Aucun réalisé connu sur ce périmètre.", file=sys.stderr)

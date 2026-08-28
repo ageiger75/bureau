@@ -581,7 +581,121 @@ order by s.sales_actual desc nulls last
 #:     value             number   -- euros, at the plan's exchange year
 #:
 #: No market column is needed: the entity is what joins, and it is what the plan uses.
-SELL_IN_HISTORY = ""
+SELL_IN_HISTORY = """
+with bounds as (
+    -- The last complete fiscal year, derived rather than written down: the year
+    -- opens on 1 April and closes on 31 March, so today's month decides which
+    -- one has finished. The plan states its figures at the *following* year's
+    -- rates, because its actuals sit in that year's prior-year column.
+    select
+        year(current_date) - iff(month(current_date) >= 4, 0, 1) as closing_year
+),
+years as (
+    select
+        'FY' || to_varchar(closing_year)     as data_year,
+        'FY' || to_varchar(closing_year + 1) as plan_year,
+        date_from_parts(closing_year - 1, 4, 1) as fiscal_start,
+        date_from_parts(closing_year, 3, 31)    as fiscal_end
+    from bounds
+),
+month_ytd as (
+    select
+        f.entity_code,
+        case f.channel
+            when 'WEB PARTNERS'      then 'WEBP - Web Partners'
+            when 'TRAVEL RETAIL'     then 'TRA - Travel retail'
+            when 'DISTRIBUTORS'      then 'DIS - Distributors'
+            when 'DEPARTMENT STORES' then 'DPT - Department Stores'
+            when 'CHAINS WHOLESALE'  then 'WHOCH - Chains Wholesale'
+            when 'WHOLESALE INDEP'   then 'WHOIN - Wholesale indep'
+            when 'WHOLESALES SPA'    then 'WHOSP - Wholesales SPA'
+            when 'TV CHANNELS'       then 'TVC - TV Channels'
+        end as segment,
+        f.snapshot_date,
+        sum(iff(f.account_code in ('PPL101', 'PPL102'),
+                coalesce(f.actual_ty, 0), 0)) * 1000 as ytd
+    from dwh.public.f_management_operating_profit_country f
+    join years y on y.data_year = f.exchange_year
+    where f.brand_code = 'OC'
+      and f.snapshot_date between y.fiscal_start and add_months(y.fiscal_end, 1)
+      and f.channel in ('WEB PARTNERS', 'TRAVEL RETAIL', 'DISTRIBUTORS',
+                        'DEPARTMENT STORES', 'CHAINS WHOLESALE', 'WHOLESALE INDEP',
+                        'WHOLESALES SPA', 'TV CHANNELS')
+    group by 1, 2, 3
+),
+data_year_annual as (
+    -- The closing year-to-date is the year, by definition of a cumulative column.
+    select entity_code, sum(ytd) as annual
+    from month_ytd
+    where snapshot_date = (select max(snapshot_date) from month_ytd)
+    group by 1
+),
+plan_year_annual as (
+    -- The same year, restated at the rates the plan is stated in. It lives in the
+    -- next exchange year's prior-year column.
+    select
+        f.entity_code,
+        sum(iff(f.account_code in ('PPL101', 'PPL102'),
+                coalesce(f.actual_ly, 0), 0)) * 1000 as annual
+    from dwh.public.f_management_operating_profit_country f
+    join years y on y.plan_year = f.exchange_year
+    where f.brand_code = 'OC'
+      and f.channel in ('WEB PARTNERS', 'TRAVEL RETAIL', 'DISTRIBUTORS',
+                        'DEPARTMENT STORES', 'CHAINS WHOLESALE', 'WHOLESALE INDEP',
+                        'WHOLESALES SPA', 'TV CHANNELS')
+      and f.snapshot_date = (
+          select max(snapshot_date)
+          from dwh.public.f_management_operating_profit_country g
+          join years z on z.plan_year = g.exchange_year
+          where g.brand_code = 'OC')
+    group by 1
+),
+rate as (
+    -- An exchange year is one fixed rate set for the whole year, so the two annual
+    -- totals for an entity differ by a constant. Deriving it here and checking the
+    -- restated series still sums to the annual total is what makes this a
+    -- conversion rather than an adjustment.
+    select d.entity_code, p.annual / d.annual as ratio
+    from data_year_annual d
+    join plan_year_annual p on p.entity_code = d.entity_code
+    where d.annual <> 0
+),
+stepped as (
+    select
+        m.entity_code,
+        m.segment,
+        m.snapshot_date,
+        m.ytd - coalesce(
+            lag(m.ytd) over (partition by m.entity_code, m.segment
+                             order by m.snapshot_date), 0) as month_value,
+        datediff(
+            'month',
+            coalesce(
+                lag(m.snapshot_date) over (partition by m.entity_code, m.segment
+                                           order by m.snapshot_date),
+                (select add_months(fiscal_start, -1) from years)),
+            m.snapshot_date) as months_covered
+    from month_ytd m
+)
+select
+    s.entity_code as entity,
+    s.segment     as segment,
+    case
+        when s.months_covered <= 1 then to_char(s.snapshot_date, 'YYYY-MM')
+        -- A snapshot missing from the middle of a cumulative series makes two
+        -- months inseparable. Said as a pair rather than split by a rule of
+        -- thumb: `reconcile` confronts a range with the plan's own months added
+        -- together, and a figure invented to fill a column is worth less than an
+        -- honest pair.
+        else to_char(add_months(s.snapshot_date, 1 - s.months_covered), 'YYYY-MM')
+             || '..' || to_char(s.snapshot_date, 'YYYY-MM')
+    end                                    as period,
+    s.month_value * coalesce(r.ratio, 1)   as value
+from stepped s
+left join rate r on r.entity_code = s.entity_code
+where s.segment is not null
+order by s.entity_code, s.segment, s.snapshot_date
+"""
 
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
