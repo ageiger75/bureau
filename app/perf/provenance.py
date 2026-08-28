@@ -131,9 +131,10 @@ REGISTER: Dict[str, Measure] = {
         "warehouse also publishes a goals fact, but it has no target at all for two "
         "fifths of what the group sells and the business does not stand behind it. So "
         "the trend reaches exactly as far back as the workbook does — the current "
-        "fiscal year — rather than the two years the warehouse could supply. It is also "
-        "sell-out only: sell-in has no history query yet, so the year to date covers the "
-        "channels the warehouse measures and not the ones invoiced to partners.",
+        "fiscal year — rather than the two years the warehouse could supply. The month by "
+        "month trend is sell-out only, because the consolidation publishes a comparison "
+        "and not a series; the year to date covers both, sold and shipped, as the "
+        "accounts recognise them.",
         to_confirm="Partner sell-through, and a second fiscal year of the monthly workbook. Until one exists, no "
         "twelve-month judgement can be made against a plan anyone stands behind.",
     ),
