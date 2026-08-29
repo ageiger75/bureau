@@ -106,7 +106,7 @@ def test_priority_exposes_every_factor():
     priority = analytics.priority_of(unit(months_below_budget=3, gap_history=(-50_000, -100_000)))
 
     labels = [label for label, _ in priority.factors]
-    assert labels == ["€ gap", "persistence", "acceleration", "strategic weight", "confidence"]
+    assert labels == ["€ gap", "persistence", "acceleration", "strategic weight"]
     assert priority.reasons
     assert all(reason.strip() for reason in priority.reasons)
 
@@ -1086,18 +1086,32 @@ def test_a_larger_blind_gap_outranks_a_smaller_explained_one():
     assert ranked[0] == "australia-retail"
 
 
-def test_an_uncertain_diagnosis_is_still_discounted():
-    """The factor keeps its job where a cause *is* named and spread thin."""
+def test_evidence_never_moves_a_problem_down_the_list():
+    """Confidence was a fifth factor and is gone.
+
+    Discounting a gap for being poorly explained means the blinder the market, the quieter
+    it ranks — blind spots burying themselves. Stores arrived at 48% of plan and sat below
+    smaller online gaps for no reason but that nobody counts their door. A problem is worth
+    what its size says; what the evidence decides is the move.
+    """
     spread = unit(
         key="spread",
         actual=Drivers(("Sessions", "Conversion", "AOV"), (900_000.0, 0.019, 58.0)),
         budget=Drivers.sales_only(1_200_000.0),
         last_year=Drivers(("Sessions", "Conversion", "AOV"), (950_000.0, 0.020, 60.0)),
     )
+    blind = unit(
+        key="blind",
+        actual=Drivers.sales_only(spread.sales_actual),
+        budget=Drivers.sales_only(1_200_000.0),
+        last_year=Drivers.sales_only(1_100_000.0),
+    )
 
-    priority = analytics.priority_of(spread)
-
-    assert priority.score < abs(spread.gap_vs_budget)
+    # Same gap, one explained and one not: the same rank.
+    assert analytics.priority_of(spread).score == pytest.approx(
+        analytics.priority_of(blind).score)
+    # And the confidence is still stated, because it explains the move on the card.
+    assert "confidence" in " ".join(analytics.priority_of(spread).reasons)
 
 
 def test_the_reason_says_there_was_nothing_to_discount():
@@ -1112,7 +1126,8 @@ def test_the_reason_says_there_was_nothing_to_discount():
 
     reasons = " ".join(analytics.priority_of(blind).reasons)
 
-    assert "no diagnosis possible" in reasons
+    assert "no cause measured here" in reasons
+    assert "changes the move and not the rank" in reasons
     assert "confidence LOW" not in reasons
 
 

@@ -56,7 +56,7 @@ def test_where_the_upside_is(client):
 def test_who_to_challenge(client):
     page = page_text(client.get("/"))
 
-    assert "People to push" in page
+    assert "This week's conversations" in page
     assert "Naoki" in page
 
 

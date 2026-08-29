@@ -147,9 +147,30 @@ def test_a_one_off_asks_a_different_question_from_a_basis_change():
 
 
 def test_an_ordinary_market_is_unaffected():
-    fires = analytics.fires(dataset_of(unit(notes=[])))
+    """A gap this screen can take apart puts its market's lead in the room. The unit here
+    reports a funnel, so the move is to challenge — which is the one case where naming a
+    person beside a number is fair."""
+    ordinary = unit(
+        notes=[],
+        actual=Drivers(("Sessions", "Conversion", "AOV"), (900_000.0, 0.019, 58.0)),
+        last_year=Drivers(("Sessions", "Conversion", "AOV"), (950_000.0, 0.021, 58.0)),
+    )
+    fires = analytics.fires(dataset_of(ordinary))
 
+    assert fires and fires[0].routed.move == routing.CHALLENGE
     assert analytics.people_to_push(fires) != []
+
+
+def test_a_gap_nobody_can_explain_names_nobody():
+    """The defect this rule removes, and it was on the screen: China at the top marked
+    "investigate", and Queenie pushed at the bottom of the same page. The card tells the
+    reader the cause is not measured, and then hands them the person to press about it.
+    """
+    blind = unit(notes=[])
+    fires = analytics.fires(dataset_of(blind))
+
+    assert fires and fires[0].routed.move == routing.REQUEST_DATA
+    assert analytics.people_to_push(fires) == []
 
 
 # ------------------------------------------------------------------- reading the file

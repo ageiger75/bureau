@@ -188,11 +188,16 @@ CONFIDENCE_FACTOR = {HIGH: 1.0, MEDIUM: 0.85, LOW: 0.7}
 
 
 def priority_of(unit: BusinessUnit) -> Priority:
-    """priority = € gap × persistence × acceleration × strategic weight × confidence.
+    """priority = € gap × persistence × acceleration × strategic weight.
 
-    Deliberately multiplicative and deliberately small: five factors a CEO can check by
-    hand. The brief warns against overengineering this, and an unverifiable ranking would
-    cost more trust than a slightly imperfect one.
+    Deliberately multiplicative and deliberately small: four factors a CEO can check by
+    hand. An unverifiable ranking would cost more trust than a slightly imperfect one.
+
+    Confidence used to be a fifth, and is gone. Evidence must never move a problem down
+    this list: a €2.3m gap nobody can explain is worth exactly what its size says, and
+    discounting it for being unexplained means the blinder the market, the quieter it
+    ranks — blind spots burying themselves. What the evidence decides is the move, which
+    the card carries and this score does not.
     """
     gap = abs(min(0.0, unit.gap_vs_budget))
     # Confidence describes how concentrated the explanation is, so it is read against the
@@ -217,14 +222,7 @@ def priority_of(unit: BusinessUnit) -> Priority:
             "gap that opened"
         )
 
-    # The factor discounts a *named* cause we are unsure of. Where no cause is named there
-    # is no claim to discount, and applying it anyway pushed every unmeasured market down
-    # the list — so the blinder the market, the lower it ranked, and blind spots buried
-    # themselves. Stores arrived at 48% of the plan and ranked below smaller online gaps
-    # for no reason but that nobody counts their door.
-    confidence = 1.0 if baseline is None else CONFIDENCE_FACTOR[level]
-
-    score = gap * persistence * acceleration * unit.strategic_weight * confidence
+    score = gap * persistence * acceleration * unit.strategic_weight
 
     reasons = [
         "%s below plan" % _eur(gap),
@@ -233,10 +231,12 @@ def priority_of(unit: BusinessUnit) -> Priority:
     ]
     if unit.strategic_weight != 1.0:
         reasons.append("strategic weight %.2f" % unit.strategic_weight)
-    if baseline is None:
-        reasons.append("no diagnosis possible, so nothing is discounted")
-    else:
-        reasons.append("diagnosis confidence %s" % level.upper())
+    # Still shown, because it explains the move printed on the card — and no longer a
+    # factor, because it never belonged in what the problem is worth.
+    reasons.append(
+        "no cause measured here, which changes the move and not the rank"
+        if baseline is None else "diagnosis confidence %s" % level.upper()
+    )
 
     return Priority(
         score=score,
@@ -245,7 +245,6 @@ def priority_of(unit: BusinessUnit) -> Priority:
             ("persistence", persistence),
             ("acceleration", acceleration),
             ("strategic weight", unit.strategic_weight),
-            ("confidence", confidence),
         ],
         reasons=reasons,
     )
@@ -1521,6 +1520,13 @@ class Push:
         self.fire = fire
 
 
+#: The two moves that put a commercial owner in the room. `investigate` and
+#: `request_data` are real work and belong to data, ops or finance; printing them as a
+#: conversation is how a screen sends someone to press a market about a number it has
+#: just said it cannot read.
+CONVERSATION_MOVES = (routing.CHALLENGE, routing.REQUEST_PLAN)
+
+
 def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
     """One line per person, and never two for the same one.
 
@@ -1534,6 +1540,13 @@ def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
     for fire in items:
         owner = fire.unit.owner
         if owner.name in seen:
+            continue
+        if fire.routed.move not in CONVERSATION_MOVES:
+            # The move already decided who answers, and the card says so at the top of the
+            # screen. Naming the market's lead at the bottom of the same page undoes it:
+            # the reader is told to investigate a figure nobody can explain, and then
+            # handed the person to press about it. Only a gap this screen can take apart,
+            # or a plan somebody set, is a conversation with a commercial owner.
             continue
         if fire.unit.basis_changed:
             # The gap is real in the accounts and is not this person's to answer for.

@@ -264,9 +264,11 @@ def test_the_subject_is_ranked_on_what_the_market_loses_altogether():
 
 def test_an_owner_is_named_once_for_their_market():
     japan_ec = unit(key="jp-ec", label="Japan E-commerce", market="Japan",
-                    channel="ecommerce", actual=8_000_000.0, budget=9_000_000.0)
+                    channel="ecommerce", actual=funnel(8_000_000, 100_000),
+                    budget=funnel(9_000_000, 100_000))
     japan_retail = unit(key="jp-rt", label="Japan Retail", market="Japan",
-                        channel="retail", actual=8_500_000.0, budget=9_000_000.0)
+                        channel="retail", actual=funnel(8_500_000, 100_000),
+                        budget=funnel(9_000_000, 100_000))
 
     found = analytics.issues(dataset_of(japan_ec, japan_retail))
     pushes = analytics.people_to_push([issue.fires[0] for issue in found])
@@ -283,3 +285,24 @@ def test_a_single_channel_market_is_still_a_subject():
 
     assert found[0].is_single
     assert found[0].gap == found[0].fires[0].gap
+
+
+def test_only_two_moves_put_a_commercial_owner_in_the_room():
+    """A gap the screen can take apart, or a plan somebody set. Everything else is real
+    work owned by data, ops or finance — and printing it as a conversation is how a page
+    tells its reader to investigate a figure and then hands them someone to press."""
+    measured = unit(key="a", label="Measured", market="A",
+                    actual=funnel(900_000, 100_000), budget=funnel(1_000_000, 100_000))
+    blind = unit(key="b", label="Blind", market="B",
+                 actual=7_000_000.0, budget=9_000_000.0)
+    shipped = unit(key="c", label="Shipped", market="C", channel="dis",
+                   perimeter="sell-in", actual=7_000_000.0, budget=9_000_000.0)
+
+    dataset = dataset_of(measured, blind, shipped)
+    found = analytics.fires(dataset)
+
+    # All three are ranked: size decides, and the two blind ones are the larger.
+    assert [f.unit.label for f in found] == ["Blind", "Shipped", "Measured"]
+    # Only one of them is a conversation.
+    pushes = analytics.people_to_push(found)
+    assert [p.fire.unit.label for p in pushes] == ["Measured"]

@@ -133,17 +133,52 @@ def test_a_milestone_expects_no_figure():
 # ----------------------------------------------------------------- challenge
 
 
-def test_a_provisional_definition_withholds_the_challenge():
-    """Sending a CEO to argue about a number nobody has agreed costs more than the insight."""
+def test_a_provisional_definition_withholds_the_verdict_as_well_as_the_question():
+    """A number nobody has agreed cannot be scored, however comfortable the arithmetic.
+
+    Refills is the case: 9.6% read against a target of 5.3%, and the tracker's own open
+    points say the two may not be in the same base — one stated in value, the other in
+    units. It came out "on track". A green verdict drawn across an unsettled definition is
+    the most expensive thing this panel can print, because it closes a question that is
+    still open.
+    """
     unsettled = kpi(
         definition_status=K.PROVISIONAL,
         readings=[K.Reading("2026-07", 1.0)],
         open_question="the scoring method is not aligned across the region",
     )
 
-    assert unsettled.status == K.ALERT        # the variance is still shown
-    assert unsettled.question(AUGUST) == ""   # the question is not
+    assert unsettled.status == K.CANNOT_JUDGE
+    assert unsettled.question(AUGUST) == ""
     assert "not aligned" in unsettled.withheld_reason
+    # And it is still on the panel: the figure and its target are shown, only the verdict
+    # is withheld. Hiding it would be the opposite failure.
+    assert unsettled in K.worth_showing([unsettled], AUGUST)
+
+
+def test_a_comfortable_number_on_an_open_definition_is_not_on_track():
+    """The direction that costs the most: a KPI that looks fine, and is not judged."""
+    flattering = kpi(
+        definition_status=K.PROVISIONAL, target=5.3,
+        readings=[K.Reading("2026-07", 9.6)],
+        open_question="value or units — the base is not settled",
+    )
+
+    assert flattering.status != K.ON_TRACK
+    assert flattering.status == K.CANNOT_JUDGE
+
+
+def test_a_stale_reading_shows_no_live_trend():
+    """"Still deteriorating" beside today's date reads as a live trajectory. Between two
+    old figures it says what happened then."""
+    stale = kpi(frequency=K.QUARTERLY, target=500.0,
+                readings=[K.Reading("Q3 FY26", 430.0), K.Reading("Q4 FY26", 402.0)])
+    current = kpi(target=5.0,
+                  readings=[K.Reading("2026-06", 4.5), K.Reading("2026-07", 4.2)])
+
+    assert stale.is_improving is False
+    assert not stale.trend_is_current(AUGUST)
+    assert current.trend_is_current(AUGUST)
 
 
 def test_a_locked_definition_off_target_does_produce_a_question():

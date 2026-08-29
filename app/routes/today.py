@@ -180,10 +180,13 @@ def today(request: Request):
             #: The denominator. "Three KPIs are off target" and "three of seventeen" are
             #: different facts, and the panel shows only the three — so without this the
             #: reader cannot tell a business mostly holding from one mostly failing.
+            # Recounted from the cards actually printed, never from the list they were
+            # drawn out of. The two drifted apart the moment "shown" stopped meaning "off
+            # target": a KPI held back for an unsettled definition is neither holding nor
+            # failing, and counting it as holding while printing it as a problem is a
+            # summary that contradicts the list beneath it.
             "kpis_total": len(kpis),
-            "kpis_holding": len([
-                item for item in kpis if item.status == kpi_rules.ON_TRACK
-            ]),
+            "kpis_holding": len(kpis) - len(kpi_rules.worth_showing(kpis)),
             "kpis_provisional": kpi_rules.provisional(kpis),
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
@@ -196,8 +199,6 @@ def today(request: Request):
             "unavailable": unavailable,
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
-            "kpis_judged": getattr(source, "kpi_judged", None),
-            "kpis_tracked": getattr(source, "kpi_tracked", 0),
             "markets_without_own_site": dataset.markets_without_own_site,
             "conflicts": getattr(source, "conflicts", []),
             "markets_without_owner": getattr(source, "markets_without_owner", []),

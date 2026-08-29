@@ -135,9 +135,11 @@
     The five subjects where attention is worth the most money today — subjects, not
     channels: a market losing ground in two of them is one conversation with one person.
     Ranked by euros at stake rather than by percentage — a -3% miss on a large market
-    outweighs -30% on a small one — then weighted by how long the gap has lasted, whether
-    it is widening, and how sure the diagnosis is. Each entry shows its own arithmetic, so
-    an order that looks wrong can be checked rather than argued with.
+    outweighs -30% on a small one — then weighted by how long the gap has lasted and
+    whether it is widening. Evidence does not enter the ranking: a gap nobody can explain
+    stays exactly where its size puts it, and what the evidence decides is the move. Each
+    entry shows its own arithmetic, so an order that looks wrong can be checked rather
+    than argued with.
   </p>
 
   {% if not issues %}
@@ -306,7 +308,7 @@
             {% for reason in fire.priority.reasons %}<li>{{ reason }}</li>{% endfor %}
           </ul>
           <p class="why-formula">
-            priority = € gap × persistence × acceleration × strategic weight × confidence
+            priority = € gap × persistence × acceleration × strategic weight
           </p>
           <ul class="why-factors">
             {% for label, value in fire.priority.factors %}
@@ -370,7 +372,7 @@
       <li class="routed">
         <p class="routed-head">
           <span class="routed-name">{{ item.unit.label }}</span>
-          {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} sur l'année</span>{% endif %}
+          {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} across the year</span>{% endif %}
         </p>
         <p class="routed-why">{{ item.sentence }}</p>
       </li>
@@ -444,10 +446,12 @@
 {# ------------------------------------------------------------------ people #}
 
 <section class="panel">
-  <h2>People to push</h2>
+  <h2>This week's conversations</h2>
   <p class="lede">
     Owners whose area needs you this week. This ranks business areas, never people — the
-    reason shown is always a number.
+    reason shown is always a number. Only subjects this screen can take apart, or plans
+    somebody set, appear here: a gap whose cause is not measured is real work and it is
+    not a conversation with a market's lead.
   </p>
   <ul class="people-list">
     {% for push in people %}
@@ -472,12 +476,14 @@
 
 <section class="panel">
   <h2>Wins</h2>
+  {% if not wins %}
+    {# One line, not a section with a heading, a lede and an empty box under it. Three
+       lines to say nothing happened is three lines taken from what did. #}
+    <p class="empty">Nothing is beating plan by enough to call it a win.</p>
+  {% else %}
   <p class="lede">
     Unusually strong performance, surfaced to be copied rather than congratulated.
   </p>
-  {% if not wins %}
-    <p class="empty">Nothing is beating plan by enough to call it a win.</p>
-  {% else %}
   <ul class="win-list">
     {% for win in wins %}
       <li class="win">
@@ -590,16 +596,16 @@
     </p>
   {% elif not kpis %}
     <p class="empty">
-      All {{ kpis_total }} customer KPIs are at or above target. Nothing here needs you.
+      All {{ kpis_total }} managed KPIs are at or above target, current, and settled.
+      Nothing here needs you.
     </p>
   {% else %}
     {# The denominator, before the list. The panel shows only what is off — which is the
        point — but three off out of seventeen and three out of four are different
        businesses, and the list alone reads the same either way. #}
     <p class="lede">
-      {{ kpis_holding }} of {{ kpis_total }} are at or above target.
-      {{ kpis | length }} {{ 'is' if kpis | length == 1 else 'are' }} off on one axis or
-      the other:
+      {{ kpis_holding }} of {{ kpis_total }} need nothing from you.
+      {{ kpis | length }} {{ 'does' if kpis | length == 1 else 'do' }}:
     </p>
   {% for pillar, group in kpis_by_pillar %}
     <h3 class="kpi-pillar">{{ pillar }}</h3>
@@ -621,7 +627,10 @@
           · {{ kpi_rules.STATUS_LABELS[item.status] }}
           · {{ item.freshness_label() }}{% if item.latest %} ({{ item.latest.period }}){% endif %}
           {% if item.direction == 'down' %}· lower is better{% endif %}
-          {% if item.is_improving is not none %}
+          {% if item.is_improving is not none and item.trend_is_current() %}
+            {# Not on a stale reading: the movement between two old figures says what
+               happened then, and "still deteriorating" printed beside today's date reads
+               as a live trajectory. Either it carries its date or it is not shown. #}
             · {{ 'improving' if item.is_improving else 'still deteriorating' }}
           {% endif %}
           · {{ kpi_rules.FREQUENCY_LABELS[item.frequency] }}
@@ -640,16 +649,6 @@
   {% endfor %}
   {% endif %}
 
-  {% if kpis_judged is not none and kpis_tracked %}
-    {# The denominator, and nothing else. Which keys found no row and which could not be
-       judged is wiring, and wiring belongs on System status — but the share itself is a
-       fact about the business: three KPIs read as the whole customer picture unless the
-       screen says what they are three of. #}
-    <p class="kpi-note">
-      {{ kpis_judged }} of the {{ kpis_tracked }} KPIs the tracker follows are wired to
-      both a reading and a target.
-    </p>
-  {% endif %}
 
   <p class="kpi-note kpi-note-quiet">
     KPIs reported quarterly or less often are not listed as missing between readings: the

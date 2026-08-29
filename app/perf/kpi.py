@@ -189,7 +189,17 @@ class Kpi:
 
     @property
     def status(self) -> str:
-        """Where the figure stands. Never a comment on how old it is."""
+        """Where the figure stands. Never a comment on how old it is.
+
+        A KPI whose definition is still being argued cannot be scored at all, however
+        comfortable the arithmetic looks. Refills reads 9.6% against a target of 5.3% and
+        came out "on track" — while the tracker's own open points say the two numbers may
+        not be in the same base, one stated in value and the other in units. A green
+        verdict drawn across an unsettled definition is the most expensive thing this
+        panel can print: it closes a question that is still open.
+        """
+        if not self.can_be_challenged:
+            return CANNOT_JUDGE
         if self.latest is None or self.target is None:
             return CANNOT_JUDGE
         ratio = self.gap_ratio
@@ -200,6 +210,16 @@ class Kpi:
         if abs(ratio) <= WATCH_BAND:
             return WATCH
         return ALERT
+
+    def trend_is_current(self, today: Optional[date] = None) -> bool:
+        """Whether "still deteriorating" is a statement about now.
+
+        On a stale reading it is not: the movement between two old figures says what
+        happened then, and printed in the present tense beside today's date it reads as a
+        live trajectory. Either the trend carries the date it was read on, or it is not
+        shown.
+        """
+        return self.freshness(today) != OVERDUE
 
     @property
     def trend(self) -> Optional[float]:
@@ -335,7 +355,8 @@ def worth_showing(kpis: Sequence[Kpi], today: Optional[date] = None) -> List[Kpi
     off = {id(item) for item in needing_attention(kpis)}
     ordered = needing_attention(kpis) + [
         item for item in kpis
-        if id(item) not in off and item.freshness(today) == OVERDUE
+        if id(item) not in off
+        and (item.freshness(today) == OVERDUE or item.status == CANNOT_JUDGE)
     ]
     return ordered
 
