@@ -26,6 +26,11 @@ from .xlsx import Workbook, WorkbookError
 #: The sheet holding one row per country with the closed quarter beside its budget.
 COUNTRY_SHEET = "BY QUARTER BY COUNTRY"
 TOTAL_SHEET = "OVERALL BY QUARTER"
+#: What the file separates out of its own total: bulk, daigou, the café business. Read
+#: and printed, never assigned to markets — whether a daigou flow belongs to Hong Kong or
+#: to China is a judgement the file does not make, and this reader making it would put a
+#: number under a heading nobody chose.
+CLEANING_SHEET = "CLEANING"
 
 #: How close a roll-up has to be to the rows under it to count as their sum. A cent on
 #: figures in the hundreds of millions: this is spotting a subtotal, not tolerating a
@@ -56,11 +61,12 @@ class Reference:
     """The closed quarter, by market and in total."""
 
     __slots__ = ("lines", "total_actual", "total_budget", "skipped",
-                 "total_ex_cleaning")
+                 "total_ex_cleaning", "cleaning")
 
     def __init__(self, lines: Sequence[Line], total_actual: float = 0.0,
                  total_budget: float = 0.0, skipped: Sequence[str] = (),
-                 total_ex_cleaning: float = 0.0) -> None:
+                 total_ex_cleaning: float = 0.0,
+                 cleaning: Sequence[Tuple[str, float]] = ()) -> None:
         self.lines = list(lines)
         #: Read from the summary sheet rather than summed from the lines: the two are
         #: produced by different pivots, and a total this reader computed itself would
@@ -74,6 +80,11 @@ class Reference:
         #: summary sheet, and a difference this reader computed would be a guess at which
         #: of them the cockpit's perimeter matches.
         self.total_ex_cleaning = total_ex_cleaning
+        #: `(name, amount)` for what the file holds outside its clean perimeter. Shown so
+        #: a market's gap can be read against it: a country short by two million with two
+        #: million of bulk sitting in this list is a different finding from one short by
+        #: two million with nothing here.
+        self.cleaning = list(cleaning)
 
     def by_market(self) -> Dict[str, Line]:
         return {line.market: line for line in self.lines}
@@ -96,6 +107,7 @@ def read_reference(path) -> Reference:
             )
         rows = list(book.rows(COUNTRY_SHEET))
         totals = list(book.rows(TOTAL_SHEET)) if TOTAL_SHEET in names else []
+        cleaning_rows = list(book.rows(CLEANING_SHEET)) if CLEANING_SHEET in names else []
 
     read = []
     for row in rows:
@@ -146,7 +158,8 @@ def read_reference(path) -> Reference:
             "against a total this reader cannot reproduce."
             % (summed / MILLIONS, total_actual / MILLIONS)
         )
-    return Reference(lines, total_actual, total_budget, skipped, ex_cleaning)
+    cleaning = _cleaning_lines(cleaning_rows, total_actual - ex_cleaning)
+    return Reference(lines, total_actual, total_budget, skipped, ex_cleaning, cleaning)
 
 
 def _leaves(read: Sequence[Tuple[str, float, float]]):
@@ -164,16 +177,33 @@ def _leaves(read: Sequence[Tuple[str, float, float]]):
     leaves, skipped, index = [], [], 0
     while index < len(read):
         name, actual, _budget = read[index]
+
+        # Forward: the country sheet writes a business unit and then its countries.
         run = 0.0
+        forward = False
         for ahead in range(index + 1, len(read)):
             run += read[ahead][1]
             if abs(run - actual) <= SUBTOTAL_TOLERANCE:
-                skipped.append(name)
+                forward = True
                 break
+        # Backward: the grey sheet does the opposite, closing each block with its own
+        # total. One file, two conventions, and a reader that knows only one of them
+        # counts a block twice — which is how the same six million read as ten.
+        back = 0.0
+        backward = False
+        for behind in range(len(leaves) - 1, -1, -1):
+            back += leaves[behind][1]
+            if abs(back - actual) <= SUBTOTAL_TOLERANCE:
+                backward = True
+                break
+
+        if forward or backward:
+            skipped.append(name)
+            if backward:
+                # The rows it summed are its members and stay; the sum itself goes.
+                pass
         else:
             leaves.append(read[index])
-            index += 1
-            continue
         index += 1
 
     # The grand total closes the column and has nothing after it to sum against, so the
@@ -186,6 +216,35 @@ def _leaves(read: Sequence[Tuple[str, float, float]]):
             leaves.pop(position)
             break
     return leaves, skipped
+
+
+def _cleaning_lines(rows, expected: float) -> List[Tuple[str, float]]:
+    """The categories outside the clean perimeter, counted once.
+
+    The sheet cuts the same money twice — by category, then by channel — one block under
+    the other with nothing between them. Read straight through, it comes to ten million
+    where the file says six point seven: every euro counted twice, and a reader would have
+    taken the sum for a bigger hole than exists.
+
+    So the reading stops the moment the categories add up to what the summary sheet says
+    is outside the perimeter. The second cut is the same money seen differently, and a
+    second view is not more money.
+    """
+    read = []
+    for row in rows:
+        name = str(row[0] or "").strip() if row else ""
+        amount = _number(row[1] if len(row) > 1 else None)
+        if name and amount is not None:
+            read.append((name, amount, amount))
+
+    leaves, _skipped = _leaves(read)
+    found, running = [], 0.0
+    for name, amount, _budget in leaves:
+        found.append((name, amount * THOUSANDS))
+        running += amount * THOUSANDS
+        if expected and abs(running - expected) <= SUBTOTAL_TOLERANCE * THOUSANDS:
+            break
+    return found
 
 
 def compare(reference: Reference, ours: Dict[str, float]) -> List[Tuple[str, float, float]]:

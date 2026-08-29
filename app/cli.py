@@ -812,7 +812,15 @@ def cmd_compare(argv: List[str]) -> int:
           % (mine / 1e6, base / 1e6, (base - mine) / 1e6,
              100.0 * (base - mine) / base if base else 0.0))
     print("                    l'hospitality et les cadeaux d'affaires, non mesurés ici,")
-    print("                    valent environ 3 %% du plan ; le reste est du change.")
+    print("                    valent environ 3 % du plan ; le reste est du change.")
+    if ref.cleaning:
+        print("")
+        print("Hors périmètre propre, tel que le fichier le sépare lui-même :")
+        for name, amount in ref.cleaning:
+            print("  %-24s %9s" % (name[:24], _eur_k(amount)))
+        print("  Ces montants restent dans les lignes marché ci-dessous : un marché court")
+        print("  de deux millions avec deux millions ici n'est pas le même constat qu'un")
+        print("  marché court de deux millions sans rien.")
     print("")
 
     rows = reference.compare(ref, ours)
