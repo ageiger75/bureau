@@ -789,8 +789,18 @@ def cmd_compare(argv: List[str]) -> int:
           % (ref.total_actual / 1e6, ref.total_budget / 1e6,
              (ref.total_actual - ref.total_budget) / 1000))
     print("")
-    print("Aux taux du budget dans ce fichier, à ce qui a été facturé dans l'entrepôt :")
-    print("l'écart de chaque ligne contient le mouvement de change.")
+    # Ce que cette comparaison peut et ne peut pas dire, et c'est plus sévère qu'un
+    # simple « attention au change ». Les deux côtés ne sont pas seulement à des taux
+    # différents : ils sont sur deux régimes de taux différents. Le vendu convertit à un
+    # taux fixe par devise, le même sur tous les trimestres et tous les exercices ; la
+    # consolidation applique un jeu de taux par exercice. Aucun exercice de consolidation
+    # n'est donc comparable au vendu pour toutes les devises à la fois — une devise dont
+    # le taux fixe tombe près de celui de cet exercice se compare bien, une autre non, et
+    # rien dans le tableau ne dit laquelle est laquelle.
+    print("Deux régimes de taux, pas seulement deux taux : le vendu convertit à un taux")
+    print("fixe par devise, la consolidation à un jeu de taux par exercice. Une ligne")
+    print("n'est donc lisible que là où les deux coïncident, et le tableau ne dit pas où.")
+    print("Le rapprochement juste se ferait en devise locale ; celui-ci est provisoire.")
     print("")
 
     # The quarter, never the month on screen. `sales_actual` is July alone, and setting a

@@ -338,23 +338,25 @@ REGISTER: Dict[str, Measure] = {
     ),
     "rate_effect": Measure(
         key="rate_effect",
-        label="The difference the exchange rate accounts for",
-        maturity=BETA,
-        note="Most of the market-by-market differences in the reconciliation are the "
-        "currency, and that is now demonstrated rather than assumed. Two readings were "
-        "wrong along the way and both were mine to relay: that the long tail was a missing "
-        "perimeter, and then that it was the consolidation front-loading its first "
-        "quarter.\n\n"
-        "What settled it is a method worth keeping. The consolidation restates last year "
-        "at this year's rates in a column of its own, so comparing that column against the "
-        "same quarter of sell-out removes the rate entirely and leaves whatever else there "
-        "is. Done that way most markets land inside a point, and the few that do not are "
-        "the real findings.\n\n"
-        "The tell was in the shape all along: a difference that holds at the same "
-        "percentage across four quarters and then vanishes is a multiplier, and only a "
-        "rate behaves like that. A calendar effect does not.",
-        to_confirm="The full year at constant rates, which needs the March snapshot. Until "
-        "then the quarter is the only window where both sides can be put on one rate.",
+        label="Two rate regimes, not two rates",
+        maturity=ABSENT,
+        note="The two sides of the reconciliation do not merely use different exchange "
+        "rates. They use different kinds of rate. The sell-out converts at a fixed rate "
+        "per currency — the same figure on every quarter of every year, and the ratio "
+        "between two pegged currencies comes out at the peg exactly. The consolidation "
+        "applies a rate set per fiscal year, and those are not market rates: the same two "
+        "currencies do not respect their peg in it.\n\n"
+        "So no consolidation year is comparable to the sell-out for every market at once. "
+        "A currency whose fixed rate happens to sit near this year's set compares "
+        "cleanly; the next one does not, and nothing in a euro table says which is "
+        "which. Two findings were manufactured this way and then withdrawn — a long tail "
+        "across thirty markets, and a residual on one market that turned out to be the "
+        "arithmetic of the comparison rather than anything in the business.\n\n"
+        "The reconciliation that would be sound is in local currency, where the question "
+        "does not arise. The sell-out carries a local-currency figure; nothing reads it "
+        "yet. Until it does, the market-by-market table is provisional and says so.",
+        to_confirm="Reading net sales in local currency on both sides. It removes the "
+        "question rather than answering it, which is the only durable fix.",
     ),
     "china_quarter_timing": Measure(
         key="china_quarter_timing",
@@ -395,7 +397,7 @@ REGISTER: Dict[str, Measure] = {
     "franchise_buyback": Measure(
         key="franchise_buyback",
         label="Stores coming back into the network",
-        maturity=ABSENT,
+        maturity=BETA,
         note="The Maison intends to exit franchising gradually. Each store bought back "
         "moves its revenue from one side of the invoice to the other: what was wholesale "
         "to a franchisee becomes a till of the Maison's own, so the sold figure of that "
@@ -404,11 +406,23 @@ REGISTER: Dict[str, Measure] = {
         "Nothing here would say so. The screen would show a French retail line jumping and "
         "a distributor line falling, both real in the accounts and both meaningless as "
         "performance — the exact shape the cockpit already refuses to hand anyone as a "
-        "question, and the exact reason the note mechanism exists. It only works if "
-        "somebody writes the note when a store converts.",
-        to_confirm="Who will say when a store converts, and when. A conversion recorded "
-        "the month it happens costs one line; discovered afterwards it costs a quarter of "
-        "wrong conversations.",
+        "question, and the exact reason the note mechanism exists.\n\n"
+        "It turns out the warehouse can see it coming, which changes this from a hope "
+        "that somebody remembers into a thing the cockpit can watch. A buy-back leaves "
+        "three traces in the same month: the invoicing of a profit centre marked as "
+        "franchised steps down durably, one or more stores record their first sale in "
+        "that country, and the consolidation moves money from distributors to retail. Two "
+        "of the three raise the question; all three name the conversion. None is enough "
+        "alone.\n\n"
+        "The first trace is already moving, and the second is not — franchise invoicing "
+        "is well down year on year while no French store has appeared in the sell-out for "
+        "over a year. Those two together are not a conversion: they are either "
+        "destocking before one, or a commercial decline. The two readings are opposite "
+        "and only the pair of series distinguishes them, which is why the cockpit has to "
+        "carry both rather than either.",
+        to_confirm="Which of the two the franchise decline is. And who says when a store "
+        "converts — a conversion recorded the month it happens costs one line; discovered "
+        "afterwards it costs a quarter of wrong conversations.",
     ),
     "hospitality": Measure(
         key="hospitality",
