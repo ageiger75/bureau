@@ -243,7 +243,11 @@ REGISTER: Dict[str, Measure] = {
     "consolidation_rollups": Measure(
         key="consolidation_rollups",
         label="Store-total entities in the consolidation",
-        maturity=VALIDATED,
+        # Not validated, and the register is right to refuse it: that state is reserved
+        # for a figure checked against a pack the organisation publishes, and this is a
+        # control rather than a figure. The zero-retail check that clears these entities
+        # came from one reading of the warehouse, not from a published reconciliation.
+        maturity=BETA,
         note="Seven entities in the consolidation carry a country's retail as a store "
         "total — 168m€ a year, the largest being the United States at 81m€. They were "
         "briefly taken for duplicates of their countries, and they are not: in every one "
@@ -255,6 +259,9 @@ REGISTER: Dict[str, Measure] = {
         "total looking wrong. That condition is tested on the rows read, at every "
         "reconciliation, rather than on the shape of a name — the first version alarmed "
         "on the naming convention itself and would have cried wolf on every run.",
+        to_confirm="Whether the base entity carrying zero retail is a rule of the "
+        "consolidation or the state it happens to be in this year. One reading cleared "
+        "these seven; a rule would clear the eighth before it appears.",
     ),
     "hospitality": Measure(
         key="hospitality",
