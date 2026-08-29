@@ -309,6 +309,51 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="What the 1 312k€ the file adds is: a second export office, or the "
         "rebate and contribution accounts the invoice fact does not carry.",
     ),
+    "commercial_zones": Measure(
+        key="commercial_zones",
+        label="Commercial zone names",
+        maturity=ABSENT,
+        note="The warehouse's commercial hierarchy is a split of who manages an account, "
+        "and its labels are not geography however geographical they sound. `Europe` holds "
+        "Mongolia, Kazakhstan, Nigeria, Morocco, Martinique and New Caledonia. `Americas "
+        "and Caribbean` holds South Africa. `Continental Western Europe` holds the United "
+        "States and the Emirates. `Middle East` holds five countries of which one is in "
+        "the Middle East. `Americas` holds Switzerland and the United Kingdom. `Greater "
+        "China` holds Singapore, `South-East Asia and Pacific` holds Hong Kong.\n\n"
+        "Country names in that hierarchy are worse, because they look unambiguous: "
+        "`Department Store Spain` holds France, `Wholesale Switzerland` holds Germany, and "
+        "one German wholesale zone holds no German customer at all. A country name there "
+        "is the team that manages the account, never the country of the customer.\n\n"
+        "The rule, and it is the only safe one: nothing in that field may be read as a "
+        "place. The customer's country field is the only answer to a question about "
+        "geography. Recorded here rather than in a query comment because the next person "
+        "to write a query is the one who needs it, and the label will look correct to "
+        "them.",
+        to_confirm="Nothing. This is a fact about the referential, and the cockpit's job "
+        "is to never read those labels as places.",
+    ),
+    "china_quarter_timing": Measure(
+        key="china_quarter_timing",
+        label="How the consolidation spreads a quarter",
+        maturity=BETA,
+        note="China's retail was short by 1 610k€ after the third-party counters were "
+        "taken out, and the cause is not a missing perimeter. Every Chinese store that "
+        "sells is in the referential, the monthly series has no hole, and the stores that "
+        "closed carry 188k€ rather than 1.6m€.\n\n"
+        "What the figures show is a timing difference. The consolidation exceeds the "
+        "sell-out on the first quarter of both years — by 12.1% last year and 6.3% this "
+        "one — and then falls below it over the full year, by 3.3%. Same rates, same year, "
+        "sign reversed. The consolidation front-loads the quarter and catches up "
+        "afterwards.\n\n"
+        "That matters beyond China, because every market on the reconciliation compares a "
+        "consolidation quarter against a sell-out quarter. If the front-loading is "
+        "general, the long tail of small shortfalls across thirty markets is timing rather "
+        "than currency — and a single-quarter reconciliation is the wrong instrument, "
+        "where a year to date would be right.",
+        to_confirm="Whether the first-quarter front-loading holds across markets or is "
+        "China's alone. Four quarters, market by market, settles it — and settles what "
+        "the long tail is.",
+    ),
     "hospitality": Measure(
         key="hospitality",
         label="Hospitality, B2B and corporate gifts",
@@ -329,22 +374,34 @@ REGISTER: Dict[str, Measure] = {
         "stores do not exist in the view, so the join drops them — no error, no orphan "
         "row, just revenue that never arrives. In China that is 26 points of sale and "
         "2 318k€ in the closed quarter.\n\n"
-        "What that money is, is settled: department-store counters. China's own budget "
-        "carries them as a channel of their own, `WHOLESALE & DEPS`, at 9 226k€ for FY26 "
-        "— 2 307k€ a quarter against the 2 318k€ the warehouse drops, which is half a per "
-        "cent apart. The deck separates them from the Maison's own counters, and the "
-        "warehouse does the same thing in its own vocabulary: the point of sale belongs to "
-        "the department store, so it is not in a referential of the Maison's stores. Two "
-        "systems agreeing on a boundary, and the cockpit falling through it.\n\n"
-        "The defect is not Chinese. The same join sits in every query this cockpit runs, "
-        "so every market with third-party points of sale loses them the same way — which "
-        "is also the shape of the long tail of small shortfalls the reconciliation shows "
-        "across thirty markets, and which was being read as an exchange-rate effect. How "
-        "many markets and how many euros is not yet measured, and it must be measured "
-        "before the join is widened: changing it moves every figure on every screen at "
-        "once, including those already shown to people.",
-        to_confirm="How many markets carry third-party points of sale, and for how much. "
-        "The scale decides whether widening the join is a correction or an upheaval.",
+        "What that money is, is settled: department-store counters. China's own deck "
+        "carries them as a channel of their own, `WHOLESALE & DEPS`, and the figure to "
+        "read there is the actual through February — 8 756k€ over eleven months, so "
+        "roughly 2 390k€ a quarter — against the 2 318k€ the warehouse drops. Three per "
+        "cent apart, on actuals. The deck's full-year 9 226k€ is a last estimate and the "
+        "landing can sit well away from it, so the comparison is made on the months "
+        "already closed and not on the year the deck projects.\n\n"
+        "The deck separates these counters from the Maison's own, and the warehouse does "
+        "the same thing in its own vocabulary: the point of sale belongs to the department "
+        "store, so it is not in a referential of the Maison's stores. Two systems agreeing "
+        "on a boundary, and the cockpit falling through it.\n\n"
+        "Measured, and smaller than it looked. Five markets carry such points of sale, "
+        "not thirty: China 26 of them at 2 318k€, France 24 at 1 042k€, Thailand 9 at "
+        "385k€, Brazil 6 at 167k€, Hong Kong 1 at 28k€. Sixty-six stores out of 1 312, "
+        "3 940k€ out of 175 200k€ — 2.2% of the quarter's sell-out, and no other channel "
+        "type is excluded.\n\n"
+        "So this does not explain the long tail of small shortfalls across thirty markets, "
+        "which is what it was reached for: twenty-nine of those markets have no such store "
+        "at all. Widening the join corrects 2.2% in five markets and nothing anywhere "
+        "else — worth doing, and not the answer to the other question.\n\n"
+        "Two of the five match a budgeted department-store channel and are a plain "
+        "correction; three do not. France carries 24 external counters worth four times "
+        "what its budget shows for department stores and independent wholesale together, "
+        "and Brazil and Hong Kong have no such channel budgeted at all. Either those "
+        "points of sale are budgeted somewhere else, or they are not budgeted.",
+        to_confirm="Where France's, Brazil's and Hong Kong's third-party points of sale "
+        "sit in their budgets, if they sit anywhere. And whether the quarterly figures "
+        "annualise — a quarter multiplied by four assumes a flat year.",
     ),
 }
 
