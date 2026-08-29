@@ -518,3 +518,34 @@ def test_the_register_lives_on_one_page_only(client):
     register are two registers, and the day they disagree the reader believes neither."""
     assert "Not settled yet" not in page_text(client.get("/"))
     assert "Not settled yet" in page_text(client.get("/system"))
+
+
+def test_a_repeated_paragraph_becomes_a_badge_and_a_note(client):
+    """The rule V3 sets: a fact that changes the action is a badge, a fact that explains
+    how the number was made is a footnote. "Shipped, not sold" was printed on every channel
+    of every market — eight prints of one fact on a screen meant to be read in two minutes.
+    """
+    page = page_text(client.get("/"))
+
+    # Gone from the cards.
+    assert "Shipped, not sold (June): invoiced to a partner" not in page
+    assert "No commitment recorded against this gap" not in page
+    # And said once, where a reader who wants it can find it.
+    assert "How to read this screen" in page
+    assert page.count("Invoiced to a partner, which is when the accounts recognise it") == 1
+
+
+def test_the_screen_says_what_each_channel_actually_is(client):
+    """"China E-retailers" and "China E-commerce" look like two shades of online selling.
+    They are a partner who buys our stock and our own site, recognised at different
+    moments and answered by different people — and the platform most readers picture for
+    China sits under a third name again."""
+    page = page_text(client.get("/"))
+
+    assert "The channels on this screen" in page
+    assert "brand.com" in page          # what "E-commerce" is
+    assert "Sold when the shopper pays" in page
+
+    # Only the channels actually on the screen: a glossary of everything the taxonomy
+    # knows would be a page of definitions for figures nobody is looking at.
+    assert "Tmall or JD flagship" not in page   # no marketplace line in this dataset

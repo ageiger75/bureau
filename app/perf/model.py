@@ -466,6 +466,13 @@ class BusinessUnit:
         return CHANNEL_NAMES.get(self.channel, self.channel.title())
 
     @property
+    def channel_meaning(self) -> str:
+        """What this channel is, in one line. Empty where nobody has written one."""
+        from .mapping import CHANNEL_MEANING
+
+        return CHANNEL_MEANING.get(self.channel, "")
+
+    @property
     def is_below_budget(self) -> bool:
         return self.gap_vs_budget < 0
 

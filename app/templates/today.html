@@ -157,7 +157,13 @@
             <span class="fire-gap">{{ issue.gap | eur }}
               <span class="fire-gap-sub">vs plan · {{ issue.channels }}</span></span>
           </div>
-          <p class="issue-owner">{{ issue.owner.name }} · {{ issue.owner.role }}</p>
+          <p class="issue-owner">{{ issue.owner.name }} · {{ issue.owner.role }}
+            {% if not issue.has_commitment %}
+              {# Once for the subject, not once per channel. Repeated on each line it
+                 stopped being read, which is the opposite of what an absence is for. #}
+              <span class="badge badge-fact">NO COMMITMENT</span>
+            {% endif %}
+          </p>
         {% endif %}
       <ol class="issue-members{{ ' is-bare' if issue.is_single }}">
     {% for fire, commitment, signals in members %}
@@ -182,14 +188,18 @@
           <p class="estimate-note is-warning">{{ fire.chronic_plan }}</p>
         {% endif %}
 
-        {% if fire.unit.basis_note %}
-          {# Beside the money, never in a footnote. A shipped figure and a sold one answer
-             different questions, and a reader who cannot tell which they are looking at
-             will act on the wrong one. #}
-          <p class="estimate-note">{{ fire.unit.basis_note }}</p>
+        {% if fire.badges %}
+          {# Two words each, beside the money. The sentences they replace said the same
+             thing on every channel of every market — eight prints of one fact on a screen
+             meant to be read in two minutes. The full text is in the note at the foot. #}
+          <p class="fire-badges">
+            {% for badge in fire.badges %}<span class="badge badge-fact">{{ badge }}</span>{% endfor %}
+          </p>
         {% endif %}
 
-        <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
+        {% if fire.has_breakdown %}
+          <p class="fire-diagnosis">{{ fire.diagnosis }}</p>
+        {% endif %}
 
         {% if fire.boundary_standing %}
           {# The diagnosis above may end on a note's claim that this gap is a boundary
@@ -297,8 +307,6 @@
             {% if commitment.expected_impact %}({{ commitment.expected_impact }}){% endif %}
             {% if commitment.due_date %}· due {{ commitment.due_date }}{% endif %}
           </p>
-        {% else %}
-          <p class="linked-commitment is-missing">No commitment recorded against this gap.</p>
         {% endif %}
 
         {# Brief §31: the ranking must be inspectable, or it will not be trusted. #}
@@ -365,6 +373,7 @@
         <p class="routed-head">
           <span class="routed-name">{{ item.unit.label }}</span>
           {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} across the year</span>{% endif %}
+          {% if item.unit.basis == "shipped" %}<span class="badge badge-fact">SELL-IN</span>{% endif %}
           {% if item.base_effect %}<span class="badge badge-class">Base effect</span>{% endif %}
         </p>
         <p class="routed-why">{{ item.sentence }}</p>
@@ -714,6 +723,85 @@
     {% endfor %}
   </ul>
   {% endif %}
+</section>
+
+{# ------------------------------------------------------------ methodology #}
+
+<section class="panel panel-quiet">
+  <h2>How to read this screen</h2>
+  <details class="unsettled">
+    <summary>
+      What the badges mean, what each channel is, and how the arithmetic is built.
+    </summary>
+
+    <h3 class="kpi-pillar">Badges</h3>
+    <ul class="provenance-list">
+      <li class="provenance">
+        <div class="provenance-head"><span class="badge badge-fact">SELL-IN</span></div>
+        <p class="provenance-note">
+          Invoiced to a partner, which is when the accounts recognise it — not when a
+          shopper buys. How much of it reached a shopper, and when, is not measured by any
+          source connected here. One month of it is as much a statement about a partner's
+          ordering rhythm as about demand, which is why a shipment month is never a
+          conversation with a market's lead.
+        </p>
+      </li>
+      <li class="provenance">
+        <div class="provenance-head"><span class="badge badge-fact">CAUSE NOT MEASURED</span></div>
+        <p class="provenance-note">
+          The gap is real and nothing connected here can say why. Either there is no funnel
+          behind the figure — a partner's invoice has none — or the funnel exists and is
+          not counted, as in stores without footfall counters. Not a fault to repair on the
+          market's side, and not a reason to move the figure down the list.
+        </p>
+      </li>
+      <li class="provenance">
+        <div class="provenance-head"><span class="badge badge-fact">NO COMMITMENT</span></div>
+        <p class="provenance-note">
+          Nothing has been promised against this gap. Said once for the subject: printed on
+          every channel it stopped being read, which is the opposite of what an absence is
+          for.
+        </p>
+      </li>
+    </ul>
+
+    {% if channels_shown %}
+      <h3 class="kpi-pillar">The channels on this screen</h3>
+      <ul class="provenance-list">
+        {% for name, meaning in channels_shown %}
+          <li class="provenance">
+            <div class="provenance-head"><span class="provenance-name">{{ name }}</span></div>
+            <p class="provenance-note">{{ meaning }}</p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <h3 class="kpi-pillar">The arithmetic</h3>
+    <ul class="provenance-list">
+      <li class="provenance">
+        <p class="provenance-note">
+          <strong>Driver impacts</strong> come from a chained decomposition: each driver is
+          moved to its baseline value in turn, and the change in sales is attributed to it.
+          They are estimates of contribution, never measured causes, and they sum exactly to
+          the movement against the baseline named on the card.
+        </p>
+      </li>
+      <li class="provenance">
+        <p class="provenance-note">
+          <strong>The plan</strong> is the monthly planning workbook and nothing else. The
+          warehouse also publishes a goals fact; it has no target at all for two fifths of
+          what the group sells, and the business does not stand behind it.
+        </p>
+      </li>
+      <li class="provenance">
+        <p class="provenance-note">
+          <strong>The perimeter</strong> is every channel except hospitality and corporate
+          gifts — about 3% of the plan, measured by nothing connected here.
+        </p>
+      </li>
+    </ul>
+  </details>
 </section>
 
 {# ------------------------------------------------------------------ ask #}

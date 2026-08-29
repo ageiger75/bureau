@@ -84,6 +84,31 @@ MOVE_LABELS = {
 }
 
 
+#: Two words, and only where the fact changes what the reader does. The full sentence
+#: behind each lives once, in the methodology note at the foot of the screen.
+#:
+#: The rule that decides between a badge and a paragraph: a fact that changes the action
+#: is a badge, a fact that explains how the number was made is a footnote. "Shipped, not
+#: sold" changes the action — it is why a partner's ordering rhythm is a candidate
+#: explanation. The three sentences saying what shipping means do not, and they were
+#: printed eight times on one screen.
+SELL_IN_BADGE = "SELL-IN"
+UNMEASURED_BADGE = "CAUSE NOT MEASURED"
+STALE_BADGE = "READING STALE"
+OPEN_DEFINITION_BADGE = "DEFINITION OPEN"
+NO_COMMITMENT_BADGE = "NO COMMITMENT"
+
+
+def badges_for(unit: BusinessUnit, has_breakdown: bool = False) -> List[str]:
+    """The badges this figure earns, in reading order."""
+    found = []
+    if unit.basis == "shipped":
+        found.append(SELL_IN_BADGE)
+    if not has_breakdown:
+        found.append(UNMEASURED_BADGE)
+    return found
+
+
 class Routed:
     """One item, placed: its class, where it is answered, and by whom."""
 

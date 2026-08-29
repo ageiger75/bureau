@@ -672,3 +672,30 @@ def test_an_own_channel_is_not_sell_in():
     mapped = mapping.units_from_rows([row()], budget=budget_of(line()))
 
     assert mapped.units[0].is_sell_in is False
+
+
+def test_every_channel_the_screen_names_says_what_it_is():
+    """A name the reader cannot decode is the same defect as a warehouse code printed in
+    prose. "E-retailers" and "E-commerce" look like two shades of online selling; they are
+    a partner who buys our stock and our own site, recognised at different moments and
+    answered by different people.
+    """
+    from app.perf.mapping import CHANNEL_MEANING, CHANNEL_NAMES
+
+    assert set(CHANNEL_NAMES) <= set(CHANNEL_MEANING)
+    for channel, meaning in CHANNEL_MEANING.items():
+        assert meaning.endswith("."), channel
+        assert len(meaning) > 30, channel
+
+
+def test_the_three_online_channels_are_told_apart():
+    """The confusion this table exists to end: the platform most readers picture for China
+    is not either of the two channels whose names sound like it."""
+    from app.perf.mapping import CHANNEL_MEANING
+
+    assert "brand.com" in CHANNEL_MEANING["ecommerce"]
+    assert "Tmall" in CHANNEL_MEANING["marketplace"]
+    assert "Amazon" in CHANNEL_MEANING["webp"]
+    # And each says on which side of the invoice its euros are counted.
+    assert "shipper" not in CHANNEL_MEANING["webp"]
+    assert "when we ship" in CHANNEL_MEANING["webp"]

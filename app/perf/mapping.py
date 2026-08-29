@@ -178,6 +178,38 @@ class Mapped:
 #: How each channel is written beside a market name. Without an entry a planning code
 #: reaches the screen as "China Webp" or "Hong Kong Dis" — an abbreviation from a
 #: spreadsheet, printed where a reader expects the name of a business.
+#: What each channel actually is, in one line, and on which basis its euros are counted.
+#:
+#: Written because the names do not carry it. "China E-retailers" and "China E-commerce"
+#: look like two shades of online selling; they are a partner who buys our stock and our
+#: own site, recognised at different moments, answered by different people. A reader who
+#: has to guess which is which cannot judge either — and the guess is usually wrong, since
+#: the platform most people picture for China sits under a third name again.
+CHANNEL_MEANING = {
+    "ecommerce": "Our own site — brand.com. The one channel where the whole funnel is "
+                 "ours to read: visits, conversion, basket.",
+    "retail": "Our own stores. Sold when the shopper pays.",
+    "marketplace": "Our own store, on someone else's platform — a Tmall or JD flagship "
+                   "the Maison operates. Still sold to the shopper, but the platform owns "
+                   "the traffic, so there is no funnel of ours behind the number.",
+    "webp": "Partners who buy our stock and resell it online — Amazon and its like. "
+            "Invoiced when we ship, so what reaches a shopper afterwards is not in it.",
+    "tra": "Travel retail operators who buy to resell: airports, ferries, border shops.",
+    "dis": "Distributors who buy the range for a territory and resell it on.",
+    "dpt": "Department stores buying stock for their own floors.",
+    "whoch": "Chains buying stock for their own shelves.",
+    "whoin": "Independent shops and pharmacies buying stock.",
+    "whosp": "Spas and hotels buying product to sell on to their guests.",
+    "tvc": "Television shopping channels buying stock to sell on air.",
+    "b2b": "Hotels and businesses buying product they do not resell — put in a room, "
+           "given away. No partner takes a margin on it.",
+    "copg": "Companies buying product as gifts. Not resold.",
+    "dds": "Sold person to person, outside a shop.",
+    "spa": "Our own spas. Sold when the guest pays, treatments and product together.",
+    "cafe": "Our own cafés. Sold when the customer pays, at the counter.",
+}
+
+
 CHANNEL_NAMES = {
     ECOMMERCE: "E-commerce",
     RETAIL: "Retail",

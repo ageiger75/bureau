@@ -24,6 +24,15 @@ from ..web import render
 router = APIRouter()
 
 
+def _channels_shown(dataset) -> List:
+    """One entry per channel present, name and meaning, in alphabetical order."""
+    seen = {}
+    for unit in dataset.units:
+        if unit.channel_meaning:
+            seen[unit.channel_label] = unit.channel_meaning
+    return sorted(seen.items())
+
+
 def _commitments_by_market(items) -> Dict[str, List]:
     grouped: Dict[str, List] = {}
     for item in items:
@@ -142,6 +151,11 @@ def today(request: Request):
         ]
         return (fire, open_items[0] if open_items else None, signals)
 
+    for issue in issues:
+        issue.has_commitment = any(
+            item.status not in ("done", "cancelled")
+            for item in by_market.get(issue.market, [])
+        )
     linked = [(issue, [attach(fire) for fire in issue.fires]) for issue in issues]
 
     return render(
@@ -164,6 +178,11 @@ def today(request: Request):
                 ),
             },
             "issues": linked,
+            # The channels actually on this screen, each with what it is. A reader who
+            # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the
+            # number under it — and the guess is usually wrong, since the platform most
+            # people picture sits under a third name again.
+            "channels_shown": _channels_shown(dataset),
             "fires": [attach(fire) for fire in fires],
             "opportunities": analytics.opportunities(dataset),
             "reallocations": analytics.reallocations(dataset),

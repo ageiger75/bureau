@@ -457,19 +457,17 @@ class Trajectory:
         if self.recent is not None:
             said.append("%s ran at %s" % (self.recent_label, _pct(self.recent)))
         where = " and ".join(said)
-        side = "above" if self.is_ahead_of_record else "below"
+        side = "the plan sits above" if self.is_ahead_of_record else "the plan sits below"
         widest = max(abs(self.plan_growth - r) for r in self.records)
-        caveat = (
-            " Sell-in is shipments: a partner that ordered early reads as growth and one "
-            "that ordered late reads as collapse, so this hardens as the year fills."
-            if self.is_shipment_timed
-            else ""
-        )
+        # The sell-in caveat used to close this sentence, and the sentence appears on every
+        # line of the plan review — ten prints of one fact on one screen, on a list read
+        # top to bottom. It is carried by the SELL-IN badge now, and stated once in the
+        # note at the foot: `is_shipment_timed` is what the caller reads to place it.
         return (
-            "The plan asks for %s, where %s — the plan is %s every reading of the record, "
-            "by up to %s — %s across the year's plan, beside a monthly gap of its own.%s%s"
+            "The plan asks for %s, where %s — %s every reading of the record, by up to "
+            "%s. %s embedded across the year.%s"
             % (_pct(self.plan_growth), where, side, _points(widest),
-               _eur(abs(self.money_at_stake)), turning, caveat)
+               _eur(abs(self.money_at_stake)), turning)
         )
 
 

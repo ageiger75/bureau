@@ -868,6 +868,11 @@ input:focus, textarea:focus, select:focus {
 .routed-why { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; max-width: 74ch; line-height: 1.55; }
 .routed-who { font-size: 13px; margin: 6px 0 0; font-weight: 600; }
 .badge-class { background: var(--paper-warm); color: var(--ink-soft); }
+/* Deux mots, jamais un paragraphe. Un fait qui change l'action se porte comme une
+   étiquette ; un fait qui explique la fabrication du chiffre vit une fois, en note. */
+.badge-fact { background: var(--paper-warm); color: var(--ink-soft); letter-spacing: .04em;
+  font-size: 11px; font-weight: 600; }
+.fire-badges { margin: 6px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
 .fire-move { font-size: 13.5px; margin: 6px 0 0; max-width: 74ch; line-height: 1.55; font-weight: 600; }
 
 .provenance-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 18px; }

@@ -460,7 +460,7 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
     assert moved.plan_growth == 0.25
     assert moved.stretch == 0.25
     assert moved.is_ahead_of_record
-    assert "the plan is above every reading of the record" in moved.sentence
+    assert "the plan sits above every reading of the record" in moved.sentence
 
 
 def test_a_plan_that_merely_continues_the_trend_says_nothing():
@@ -483,7 +483,7 @@ def test_a_plan_below_what_the_business_already_delivers():
     moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
 
     assert moved.is_behind_record
-    assert "the plan is below every reading of the record" in moved.sentence
+    assert "the plan sits below every reading of the record" in moved.sentence
 
 
 def test_the_record_says_whether_the_business_is_speeding_up():
@@ -555,7 +555,7 @@ def test_the_record_reaches_the_units_and_the_question():
     )
 
     unit = mapped.units[0]
-    assert "the plan is above every reading of the record" in unit.plan_vs_record
+    assert "the plan sits above every reading of the record" in unit.plan_vs_record
     assert unit.chronic_plan == ""
 
     fire = analytics.Fire(unit)
@@ -738,7 +738,7 @@ def test_the_finding_is_stated_in_euros():
     # Labelled as the year's figure: the card also carries a monthly gap, and two very
     # different numbers side by side with nothing to tell them apart is how a reader ends
     # up quoting the wrong one.
-    assert "€2.0m across the year's plan" in moved.sentence
+    assert "€2.0m embedded across the year" in moved.sentence
 
 
 def test_a_reclassified_pair_is_not_reported_as_a_mis_set_plan():
@@ -782,8 +782,12 @@ def test_a_sell_in_finding_says_it_is_reading_shipments():
     )
 
     assert moved.is_shipment_timed
-    assert "Sell-in is shipments" in moved.sentence
-    assert "hardens as the year fills" in moved.sentence
+    # The caveat itself is no longer in the sentence: it closed every line of the plan
+    # review, ten prints of one fact on a list read top to bottom. It is carried by the
+    # SELL-IN badge now, and stated once in the note at the foot — and this flag is what
+    # the screen reads to place it.
+    assert "Sell-in is shipments" not in moved.sentence
+    assert "embedded across the year" in moved.sentence
 
 
 # ------------------------------------------------------------ shipped is not sold

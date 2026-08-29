@@ -896,6 +896,7 @@ class Fire:
         "baseline_label",
         "boundary_standing",
         "routed",
+        "badges",
     )
 
     def __init__(self, unit: BusinessUnit) -> None:
@@ -952,6 +953,9 @@ class Fire:
         #: the card rather than left implicit: a gap with no measurable cause and a gap
         #: with a diagnosis deserve the same rank and different sentences.
         self.routed = routing.classify(unit)
+        #: What this figure is, in two words each. The sentences they replace were
+        #: printed once per channel — eight times on one screen for the same fact.
+        self.badges = routing.badges_for(unit, has_breakdown=bool(self.contributions))
 
     @property
     def has_breakdown(self) -> bool:
@@ -1222,11 +1226,16 @@ class Issue:
     line rather than argued with.
     """
 
-    __slots__ = ("market", "owner", "fires", "gap", "score")
+    __slots__ = ("market", "owner", "fires", "gap", "score", "has_commitment")
 
-    def __init__(self, market: str, fires: Sequence[Fire]) -> None:
+    def __init__(self, market: str, fires: Sequence[Fire],
+                 has_commitment: bool = False) -> None:
         self.market = market
         self.fires = list(fires)
+        #: Said once for the subject rather than once per channel: "no commitment
+        #: recorded" printed on every line stopped being read, which is the opposite of
+        #: what an absence is for.
+        self.has_commitment = has_commitment
         self.owner = self.fires[0].unit.owner
         self.gap = sum(fire.gap for fire in self.fires)
         self.score = sum(fire.priority.score for fire in self.fires)
