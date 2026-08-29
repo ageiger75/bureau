@@ -845,16 +845,20 @@ def cmd_compare(argv: List[str]) -> int:
         print("porte le bulk. `refresh --kpi` puis `bulk` le mesurent, et cette")
         print("commande s'en sert.")
     else:
-        # Mesuré des deux côtés, sur le même trimestre. Le fichier sépare lui-même son
-        # bulk ; l'entrepôt le marque. Les deux tombent à cent mille euros près, et
-        # c'est ce qui autorise enfin une comparaison à périmètre égal.
-        stated = sum(amount for name, amount in ref.cleaning if _is_bulk_line(name))
-        print("Dont bulk mesuré    %.1f M€ dans le vendu, quand le fichier en sépare %.1f"
-              % (bulk_here / 1e6, stated / 1e6))
-        net = total_ours - bulk_here
-        print("À périmètre égal    %.1f M€ contre %.1f — %.1f M€ manquent, soit %.1f %%"
-              % (net / 1e6, clean / 1e6, (clean - net) / 1e6,
-                 100.0 * (clean - net) / clean if clean else 0.0))
+        # Un contrôle, pas un rapprochement. Retirer le bulk de notre côté et le comparer
+        # au total hors cleaning du fichier serait asymétrique : ce total a aussi perdu le
+        # daigou, le groupe JD et le café, et rien ici ne sait les retirer. La soustraction
+        # partielle rapprochait les deux chiffres de 3,4 M€ sans qu'aucun euro n'ait été
+        # expliqué — exactement le genre de résultat flatteur qu'on croit sur parole.
+        stated, unknown = _stated_bulk(ref.cleaning)
+        print("Contrôle du bulk    %.1f M€ mesurés dans le vendu, %.1f M€ séparés par le "
+              "fichier" % (bulk_here / 1e6, stated / 1e6))
+        if unknown:
+            print("                    (%s : ni bulk ni autre chose de connu, non compté)"
+                  % ", ".join(unknown))
+        elif stated and abs(bulk_here - stated) <= 0.1 * stated:
+            print("                    Les deux se recoupent : c'est le même argent, et")
+            print("                    le bulk n'explique donc pas ce qui manque.")
     if ref.cleaning:
         print("")
         print("Hors périmètre propre, tel que le fichier le sépare lui-même :")
@@ -865,7 +869,7 @@ def cmd_compare(argv: List[str]) -> int:
         print("  marché court de deux millions sans rien.")
     print("")
 
-    rows = reference.compare(ref, ours)
+    rows = reference.compare(ref, reference.rolled_up(ours))
     shown = rows if "--all" in argv else rows[:15]
     print("%-24s %>12s %>12s %>12s" .replace(">", "") % ("Marché", "Finance", "Cockpit", "Écart"))
     for market, theirs, here in shown:
@@ -925,23 +929,42 @@ def cmd_compare(argv: List[str]) -> int:
         for market, amount in sorted(ours_only, key=lambda pair: -pair[1]):
             print("  %-28s %9s" % (market[:28], _eur_k(amount)))
         print("  %-28s %9s" % ("total", _eur_k(sum(a for _m, a in ours_only))))
+    pairs = reference.offsetting(ours_only, rows)
+    if pairs:
+        print("")
+        print("Un nom d'un côté, un manque exactement égal de l'autre :")
+        for ours_name, theirs_name, amount in pairs:
+            print("  %-18s %9s  ↔  %s, court d'autant"
+                  % (ours_name[:18], _eur_k(amount), theirs_name))
+        print("  C'est le même argent sous deux noms, et c'est l'arithmétique qui le dit,")
+        print("  pas la ressemblance. Une fois confirmés, ces noms se replient.")
     if theirs_only and ours_only:
         print("")
-        print("Ces deux listes se répondent probablement. Tant qu'elles ne sont pas")
-        print("appariées, chaque euro y est compté d'un côté et manquant de l'autre —")
-        print("et le même euro creuse donc l'écart deux fois. Ce n'est pas une")
-        print("différence de périmètre, c'est un nom.")
+        print("Le reste des deux listes se répond peut-être. Tant que ce n'est pas")
+        print("apparié, chaque euro y est compté d'un côté et manquant de l'autre —")
+        print("et le même euro creuse donc l'écart deux fois.")
     return 0
 
 
-def _is_bulk_line(name: str) -> bool:
-    """Les lignes de cleaning que le drapeau de l'entrepôt recouvre, et elles seules.
+def _stated_bulk(cleaning) -> Tuple[float, List[str]]:
+    """`(le bulk que le fichier sépare, les lignes qu'on ne sait pas classer)`.
 
-    Le daigou, le groupe JD et le café sont retirés par la Finance pour d'autres raisons,
-    et aucun drapeau ne les marque ici. Les additionner au bulk ferait tomber la
-    comparaison juste par compensation, ce qui est la pire façon d'avoir raison.
+    Nommées et non devinées. Chercher le mot « bulk » ne trouvait qu'une des deux lignes —
+    le fichier écrit la Chine continentale `CHINA` tout court — et la commande annonçait
+    alors 1,3 M€ séparés contre 3,4 mesurés, soit deux sources en désaccord là où elles
+    s'accordent à 140 k€ près. Une ligne inconnue est rendue plutôt que rangée d'un côté
+    ou de l'autre : c'est le seul état où la réponse ne peut pas être fausse en silence.
     """
-    return "BULK" in str(name or "").upper()
+    from .perf import reference as reference_module
+
+    total, unknown = 0.0, []
+    for name, amount in cleaning:
+        key = str(name or "").strip().upper()
+        if key in reference_module.BULK_LINES:
+            total += amount
+        elif key not in reference_module.OTHER_CLEANING:
+            unknown.append(str(name or "").strip())
+    return total, unknown
 
 
 def _bulk_over(periods: Sequence[str]) -> Optional[float]:

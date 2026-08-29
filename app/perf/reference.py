@@ -48,6 +48,27 @@ DIFFERENT_CUT: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
     ),
 )
 
+#: Markets the consolidation splits finer than the file does, and where geography settles
+#: it rather than resemblance. Shanghai is in China and Hk Local is in Hong Kong; nobody
+#: has to confirm that. Anything needing a judgement stays out of this table and is
+#: reported as an unmatched name instead.
+ROLLUP: Dict[str, str] = {
+    "Shanghai": "China",
+    "Hk Local": "Hong Kong",
+}
+
+#: The cleaning lines the warehouse's bulk flag actually covers, spelled as the file
+#: spells them. Named rather than matched on the word "bulk": the file writes the mainland
+#: line as plain `CHINA`, so a substring test found one of the two and reported that the
+#: two sources disagreed when they agree to within 140 k€.
+BULK_LINES = frozenset(("CHINA", "HK BULK"))
+
+#: The rest of what the file separates, which no flag here can reproduce. Daigou is not
+#: marked in the warehouse, the JD group is invoiced rather than sold, and the café is an
+#: entity. Named so that a line matching neither list is reported instead of being
+#: silently counted as one or the other.
+OTHER_CLEANING = frozenset(("TOTAL DAIGOU", "TOTAL JD- GROUP", "CAFE 86"))
+
 #: How close a roll-up has to be to the rows under it to count as their sum. A cent on
 #: figures in the hundreds of millions: this is spotting a subtotal, not tolerating a
 #: discrepancy.
@@ -260,6 +281,45 @@ def _cleaning_lines(rows, expected: float) -> List[Tuple[str, float]]:
         running += amount * THOUSANDS
         if expected and abs(running - expected) <= SUBTOTAL_TOLERANCE * THOUSANDS:
             break
+    return found
+
+
+def rolled_up(ours: Dict[str, float]) -> Dict[str, float]:
+    """The cockpit's markets, folded into the names the file uses where geography says so.
+
+    Applied before comparing, because the alternative is a table where China is short by
+    fifteen million and Shanghai appears eight million out of nowhere — two findings, one
+    of them false, about one country.
+    """
+    folded: Dict[str, float] = {}
+    for market, amount in ours.items():
+        name = ROLLUP.get(market, market)
+        folded[name] = folded.get(name, 0.0) + amount
+    return folded
+
+
+def offsetting(theirs_only: Sequence[Tuple[str, float]],
+               rows: Sequence[Tuple[str, float, float]],
+               tolerance: float = 0.02) -> List[Tuple[str, str, float]]:
+    """`(our name, their name, amount)` where an unmatched market and a market's shortfall
+    are the same money.
+
+    Luxembourg appears here at 177 k€ and Belgium is short by 177 k€; Sweden at 172 and
+    the Nordics short by 170. Two names for one flow, and the arithmetic says so far more
+    convincingly than the names do — which is the difference between this and an alias
+    written on resemblance of size.
+    """
+    found = []
+    for name, amount in theirs_only:
+        if not amount:
+            continue
+        for market, ref_amount, our_amount in rows:
+            if market == name or not ref_amount:
+                continue
+            short = ref_amount - our_amount
+            if short > 0 and abs(short - amount) <= tolerance * amount:
+                found.append((name, market, amount))
+                break
     return found
 
 

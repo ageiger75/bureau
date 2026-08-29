@@ -78,3 +78,52 @@ def test_a_market_the_cockpit_reads_as_zero_stays_out_of_the_orphan_list():
     rows = reference.compare(ref, {"Portugal": 100.0, "Finland": 0.0})
 
     assert [market for market, _t, _o in rows] == ["Portugal"]
+
+
+def test_the_mainland_bulk_line_is_named_and_not_matched_on_the_word_bulk():
+    """Le fichier écrit la Chine continentale `CHINA` tout court.
+
+    Chercher le mot « bulk » n'en trouvait qu'une sur deux, et la commande annonçait
+    alors deux sources en désaccord là où elles s'accordent à 140 k€ près.
+    """
+    from app.cli import _stated_bulk
+
+    total, unknown = _stated_bulk([
+        ("CHINA", 2_000_000.0), ("HK BULK", 1_260_000.0),
+        ("TOTAL DAIGOU", 2_179_000.0), ("TOTAL JD- Group", 515_000.0),
+        ("CAFE 86", 737_000.0),
+    ])
+
+    assert total == 3_260_000.0
+    assert unknown == []
+
+
+def test_a_cleaning_line_nobody_has_classified_is_returned_rather_than_guessed():
+    from app.cli import _stated_bulk
+
+    total, unknown = _stated_bulk([("CHINA", 2_000.0), ("TOTAL SOMETHING NEW", 900.0)])
+
+    assert total == 2_000.0
+    assert unknown == ["TOTAL SOMETHING NEW"]
+
+
+def test_shanghai_is_folded_into_china_because_geography_says_so():
+    folded = reference.rolled_up({"Shanghai": 8_882.0, "China": 44_585.0,
+                                  "Hk Local": 26.0, "Hong Kong": 27_016.0})
+
+    assert folded == {"China": 53_467.0, "Hong Kong": 27_042.0}
+
+
+def test_a_name_on_one_side_and_an_equal_shortfall_on_the_other_are_paired():
+    """Luxembourg à 177 et la Belgique courte de 177 : c'est le même argent."""
+    rows = [("Belgium", 977.0, 800.0), ("France", 10_384.0, 10_581.0)]
+
+    pairs = reference.offsetting([("Luxembourg", 177.0)], rows)
+
+    assert pairs == [("Luxembourg", "Belgium", 177.0)]
+
+
+def test_a_shortfall_that_does_not_match_is_left_unpaired():
+    rows = [("Belgium", 977.0, 800.0)]
+
+    assert reference.offsetting([("Luxembourg", 900.0)], rows) == []
