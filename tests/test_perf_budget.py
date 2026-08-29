@@ -1173,3 +1173,15 @@ def test_travel_retail_is_not_the_country_it_is_invoiced_from():
     # est un code d'entrepôt, et l'imprimer demanderait au lecteur de connaître un nom
     # interne pour lire un chiffre.
     assert market_of("Loi Tr", "TRA") == "Travel retail international"
+
+
+def test_a_row_already_named_travel_retail_is_not_renamed_twice():
+    """Une même entité étiquette ses lignes de deux façons : `HK` sur l'une, `HK TR` sur
+    la suivante. La seconde est déjà nommée par la table d'alias, et la préfixer encore
+    a produit « Travel retail Travel retail Asia » sur un écran en service.
+    """
+    from app.perf.budget import market_of
+
+    assert market_of("HK TR", "TRA") == "Travel retail Asia"
+    assert market_of("LOI TR", "TRA") == "Travel retail international"
+    assert market_of("Travel retail Asia", "TRA") == "Travel Retail Asia"

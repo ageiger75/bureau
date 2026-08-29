@@ -110,6 +110,13 @@ TRAVEL_RETAIL_NAMES = {
     "Loi Tr": INTERNATIONAL_TRAVEL_RETAIL,
 }
 
+#: What a travel-retail market is called once named. Tested for before renaming, because
+#: the consolidation labels some of these rows with a country and others with the
+#: travel-retail name itself — `HK` on one row and `HK TR` on the next, inside one entity.
+#: The second kind is already named by the alias table, and prefixing it again produced
+#: "Travel retail Travel retail Asia" on a live screen.
+TRAVEL_RETAIL_PREFIX = "Travel retail"
+
 
 def market_of(country: str, segment: str = "") -> str:
     """The market a consolidation row belongs to, not the country that invoices it.
@@ -126,7 +133,11 @@ def market_of(country: str, segment: str = "") -> str:
     market = normalise_market(country)
     code = segment_code(segment)
     if code == TRAVEL_RETAIL_SEGMENT:
-        return TRAVEL_RETAIL_NAMES.get(market, "Travel retail %s" % market)
+        # Case-insensitively: `normalise_market` title-cases anything it does not know,
+        # so a name that arrives already spelled out comes back as "Travel Retail Asia".
+        if market.lower().startswith(TRAVEL_RETAIL_PREFIX.lower()):
+            return market
+        return TRAVEL_RETAIL_NAMES.get(market, "%s %s" % (TRAVEL_RETAIL_PREFIX, market))
     if code == DISTRIBUTOR_SEGMENT and market in DISTRIBUTOR_MARKETS:
         return DISTRIBUTOR_MARKETS[market]
     return market

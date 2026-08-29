@@ -886,10 +886,14 @@ def cmd_compare(argv: List[str]) -> int:
 
     rows = reference.compare(ref, reference.rolled_up(ours))
     shown = rows if "--all" in argv else rows[:15]
-    print("%-24s %>12s %>12s %>12s" .replace(">", "") % ("Marché", "Finance", "Cockpit", "Écart"))
+    # Assez large pour « Travel retail international », qui est le nom le plus long que
+    # ce rapprochement produise. Tronqué à vingt-quatre, il s'affichait « Travel retail
+    # internatio » — un libellé coupé au milieu d'un mot est un libellé qu'on relit deux
+    # fois avant de lire le chiffre à côté.
+    print("%-28s %12s %12s %12s" % ("Marché", "Finance", "Cockpit", "Écart"))
     for market, theirs, here in shown:
-        print("%-24s %12s %12s %12s" % (
-            market[:24], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
+        print("%-28s %12s %12s %12s" % (
+            market[:28], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
     doubled = _double_counted(entities)
