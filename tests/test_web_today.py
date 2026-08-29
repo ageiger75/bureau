@@ -578,3 +578,16 @@ def test_markets_whose_two_bases_agree_stay_off_the_screen(client):
     shown = [item.scope for item in mock.bulk_findings()]
     assert all(item.changes_the_verdict for item in mock.bulk_findings())
     assert "Japan" not in shown
+
+
+def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
+    """Le chiffre groupe passe la cible et la moitié des marchés est en dessous.
+
+    Le montrer et s'arrêter revient à afficher la seule chose qui ne demande aucune
+    action — l'inverse exact de ce que cet écran est censé faire.
+    """
+    page = page_text(client.get("/"))
+
+    assert "Units per transaction" in page
+    assert "markets are below this" in page
+    assert "New Zealand" in page

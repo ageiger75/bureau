@@ -697,6 +697,20 @@
           · {{ kpi_rules.FREQUENCY_LABELS[item.frequency] }}
           · {{ item.owner }} · {{ item.source }}
         </p>
+        {% if item.behind %}
+          {# The group figure is a ratio of sums, and it is honest. What it cannot do is
+             say how it was reached: units per transaction clears its floor at group level
+             while half the markets sit under it. Naming the worst five is the difference
+             between a number and a conversation. #}
+          <p class="kpi-behind">
+            {{ item.behind | length }} of {{ item.markets_read }} markets are below this
+            target while the group clears it:
+            {% for market, value in item.behind[:5] %}
+              {{ market }} {{ kpi_rules.format_value(item, value) }}{% if not loop.last %} · {% endif %}
+            {% endfor %}
+            {%- if item.behind | length > 5 %} · and {{ item.behind | length - 5 }} more{% endif %}
+          </p>
+        {% endif %}
         {% set question = item.question() %}
         {% if question %}
           <p class="ask">{{ question }}</p>

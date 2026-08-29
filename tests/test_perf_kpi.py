@@ -293,3 +293,36 @@ def test_value_formatting_follows_the_unit():
     assert K.format_value(kpi(unit="k clients"), 944.0) == "944k"
     assert K.format_value(kpi(unit="€"), 402.0) == "€402"
     assert K.format_value(kpi(unit="%"), None) == "—"
+
+
+def test_a_group_figure_on_target_with_markets_under_it_is_not_quiet():
+    """3,78 contre un plancher de 3, et dix-sept marchés sur trente-cinq en dessous.
+
+    Le chiffre groupe est un rapport de sommes, il est honnête, et il ne dit pas comment
+    il a été atteint. Un panneau qui l'affiche et s'arrête a montré au lecteur la seule
+    chose qui ne demande aucune action.
+    """
+    item = K.Kpi(
+        key="upt", label="UPT", definition="", scope="LOEP", owner="Marie",
+        pillar="Client", unit="", target=3.0, direction=K.UP,
+        readings=[K.Reading("2026-07", 3.78)],
+    )
+    assert item.status == K.ON_TRACK
+    assert item not in K.worth_showing([item])
+
+    item.markets_read = 35
+    item.behind = [("New Zealand", 2.07), ("India", 2.09)]
+
+    assert item.status == K.ON_TRACK
+    assert item in K.worth_showing([item])
+
+
+def test_a_market_is_judged_by_the_same_rule_as_the_group():
+    assert K.misses_target(2.07, 3.0, K.UP)
+    assert not K.misses_target(3.78, 3.0, K.UP)
+    # Une cible à ne pas dépasser se lit dans l'autre sens, et une seule règle vaut pour
+    # les deux : deux implémentations de « en dessous de la cible », c'est un marché en
+    # retard sur un écran et à l'heure sur l'autre.
+    assert K.misses_target(4.0, 3.0, K.DOWN)
+    assert not K.misses_target(None, 3.0, K.UP)
+    assert not K.misses_target(2.0, None, K.UP)

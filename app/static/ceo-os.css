@@ -779,6 +779,13 @@ input:focus, textarea:focus, select:focus {
   border-left: 3px solid var(--rule); padding-left: 14px; max-width: 62ch; font-style: italic;
 }
 
+/* A green group figure hiding red markets is not a footnote: it is the finding, and it
+   has to read as one rather than as a detail under the number that hid it. */
+.kpi-behind {
+  font-size: 13px; color: var(--warn); margin: 8px 0 0;
+  border-left: 3px solid var(--warn); padding-left: 14px; max-width: 66ch;
+}
+
 .kpi-note { font-size: 13px; color: var(--ink-soft); margin: 16px 0 0; max-width: 70ch; }
 .kpi-note-quiet { color: var(--ink-faint); font-size: 12px; }
 

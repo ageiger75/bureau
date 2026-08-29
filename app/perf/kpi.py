@@ -150,6 +150,8 @@ class Kpi:
         "last_year",
         "readings",
         "open_question",
+        "behind",
+        "markets_read",
     )
 
     def __init__(
@@ -190,6 +192,17 @@ class Kpi:
         #: What is still unsettled about the definition or the target. Shown instead of a
         #: challenge, so the reader knows why no question is being asked.
         self.open_question = open_question
+        #: `(market, value)` for the markets whose own reading misses this target, worst
+        #: first. The group figure is a ratio of sums and it is honest; what it cannot do
+        #: is say how it was reached. Units per transaction reads 3.78 against a floor of
+        #: 3, which is green — and seventeen markets out of thirty-five sit below the
+        #: floor. A panel that shows the 3.78 and stops has told the reader the one thing
+        #: that requires no action.
+        self.behind = []
+        #: How many markets carried a reading at all, so "seventeen" can be read against
+        #: something. Seventeen of thirty-five and seventeen of two hundred are different
+        #: facts.
+        self.markets_read = 0
 
     # ------------------------------------------------------------------ readings
 
@@ -410,9 +423,27 @@ def worth_showing(kpis: Sequence[Kpi], today: Optional[date] = None) -> List[Kpi
     ordered = needing_attention(kpis) + [
         item for item in kpis
         if id(item) not in off
-        and (item.freshness(today) == OVERDUE or item.status == CANNOT_JUDGE)
+        # A KPI whose group figure is on target and whose markets are not belongs here as
+        # much as one that misses outright. The group number is the average of a business
+        # that is not average, and reading it alone is how half a Maison stays invisible
+        # behind a figure that clears its floor.
+        and (item.freshness(today) == OVERDUE or item.status == CANNOT_JUDGE
+             or item.behind)
     ]
     return ordered
+
+
+def misses_target(value: Optional[float], target: Optional[float],
+                  direction: str = UP) -> bool:
+    """Whether one reading sits on the wrong side of a target.
+
+    The same rule `gap` applies, extracted so a market's reading is judged exactly as the
+    group's is. Two implementations of "is this below target" is how a market gets called
+    behind on one screen and on track on another.
+    """
+    if value is None or target is None:
+        return False
+    return value < target if direction == UP else value > target
 
 
 def provisional(kpis: Sequence[Kpi]) -> List[Kpi]:

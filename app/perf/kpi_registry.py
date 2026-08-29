@@ -255,6 +255,40 @@ def join(registry: Tracker, rows: Sequence[Sequence],
     return join_report(registry, rows, scope).kpis
 
 
+def latest_by_market(rows: Sequence[Sequence], key: str,
+                     skip: str = GROUP_SCOPE) -> Dict[str, float]:
+    """`market -> most recent value` for one key, the group roll-up left out.
+
+    One pass over the rows rather than one `readings_by_key` call per market: the readings
+    are eight thousand rows and thirty-five markets, and the quadratic version of this was
+    measurable on a page load.
+    """
+    latest: Dict[str, Tuple[str, float]] = {}
+    for row in rows:
+        if isinstance(row, dict):
+            lowered = {str(name).lower(): value for name, value in row.items()}
+            scope, row_key = lowered.get("scope"), lowered.get("kpi_key")
+            period, value = lowered.get("period"), lowered.get("value")
+        elif len(row) >= 4:
+            scope, row_key, period, value = row[0], row[1], row[2], row[3]
+        else:
+            continue
+        name = str(scope or "").strip()
+        if not name or name.upper() == skip.upper():
+            continue
+        if str(row_key or "").strip() != key or value is None:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        stamp = str(period or "").strip()
+        held = latest.get(name)
+        if held is None or stamp >= held[0]:
+            latest[name] = (stamp, number)
+    return {name: value for name, (_period, value) in latest.items()}
+
+
 def join_report(registry: Tracker, rows: Sequence[Sequence],
                 scope: str = GROUP_SCOPE) -> Join:
     readings = readings_by_key(rows, scope=scope)
@@ -269,7 +303,20 @@ def join_report(registry: Tracker, rows: Sequence[Sequence],
             # and either has not said what good is, or has said it for a whole year.
             no_target.append("%s (%s)" % (entry.label or key, refusal))
             continue
-        kpis.append(entry.to_kpi(readings.get(key, ())))
+        kpi = entry.to_kpi(readings.get(key, ()))
+        # Only where the group's own target applies to a market unchanged — a floor and a
+        # ceiling do. A target stated as an amount or as a level to reach by a date does
+        # not divide between markets, and holding a market to the group's euros would
+        # manufacture failures out of size.
+        if kpi.target is not None and key not in AMOUNT_KEYS:
+            per_market = latest_by_market(rows, key)
+            kpi.markets_read = len(per_market)
+            kpi.behind = sorted(
+                ((name, value) for name, value in per_market.items()
+                 if rules.misses_target(value, kpi.target, kpi.direction)),
+                key=lambda pair: pair[1] if kpi.direction == rules.UP else -pair[1],
+            )
+        kpis.append(kpi)
     return Join(
         kpis,
         unmatched_keys=unmatched,

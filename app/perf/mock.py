@@ -707,6 +707,32 @@ def client_kpis() -> List[Kpi]:
                 Reading("2026-07", 12.6),
             ],
         ),
+        # A green group figure with red markets underneath. Present in the mock for the
+        # same reason as the rest: the shape that only ever renders against the warehouse
+        # is the shape nobody looks at until it is wrong.
+        _behind(
+            Kpi(
+                key="group-upt",
+                label="Units per transaction",
+                definition="Articles sold per till receipt",
+                scope="Group",
+                owner="Retail",
+                pillar="Retail Excellence",
+                unit="units",
+                target=3.0,
+                frequency=MONTHLY,
+                source="Sell-out",
+                priority=P2,
+                readings=[
+                    Reading("2026-05", 3.61),
+                    Reading("2026-06", 3.93),
+                    Reading("2026-07", 3.78),
+                ],
+            ),
+            35,
+            [("New Zealand", 2.07), ("India", 2.09), ("Australia", 2.23),
+             ("Thailand", 2.43), ("Japan", 2.67), ("Spain", 2.88), ("Brazil", 2.94)],
+        ),
         Kpi(
             key="group-ntb",
             label="Net NTB acquisition",
@@ -751,3 +777,15 @@ def bulk_findings() -> List:
                                sales_before=13_300_000.0, ex_bulk_before=12_400_000.0,
                                comparable=True),
     ]
+
+
+def _behind(kpi, markets_read, behind):
+    """A KPI plus the markets its group figure is hiding.
+
+    Set after construction rather than passed in: the readings carry it in the real
+    join, and adding a constructor argument for the mock's convenience would put the
+    mock's shape into the model.
+    """
+    kpi.markets_read = markets_read
+    kpi.behind = list(behind)
+    return kpi
