@@ -63,12 +63,11 @@ def test_a_market_the_cockpit_reads_under_another_name_is_not_invisible():
     """Le fichier montrait un trou de quinze millions, le total un trou de quatorze, et
     rien ne reliait les deux : dix-huit millions lus par le cockpit sous des noms que le
     fichier n'emploie pas ne figuraient dans aucune ligne du tableau."""
-    ref = reference.Reference([reference.Line("Loi Distributors", 10_000.0, 9_000.0)])
+    ref = reference.Reference([reference.Line("Atlantis", 10_000.0, 9_000.0)])
 
-    rows = reference.compare(ref, {"Export": 8_800.0})
+    rows = reference.compare(ref, {"Lemuria": 8_800.0})
 
-    assert sorted(rows) == [("Export", 0.0, 8_800.0),
-                            ("Loi Distributors", 10_000.0, 0.0)]
+    assert sorted(rows) == [("Atlantis", 10_000.0, 0.0), ("Lemuria", 0.0, 8_800.0)]
 
 
 def test_a_market_the_cockpit_reads_as_zero_stays_out_of_the_orphan_list():
@@ -185,3 +184,21 @@ def test_a_customer_the_file_pulls_out_is_folded_into_the_entity_that_invoices_i
     rows = reference.compare(ref, {"Travel retail Asia": 21_620.0})
 
     assert rows == [("Travel retail Asia", 21_620.0, 21_620.0)]
+
+
+def test_the_distributor_business_is_one_perimeter_under_two_names():
+    """Lu une semaine comme un désaccord de périmètre, et ce n'en est pas un.
+
+    L'unité Export couvre cinquante-cinq pays de distributeurs, et les deux sources en
+    détachent le Moyen-Orient de la même façon, à l'euro près. Ce qui reste de chaque côté
+    est donc le même commerce, et l'écart est un écart à expliquer.
+    """
+    ref = reference.Reference([
+        reference.Line("Middle East", 3_378.0, 3_300.0),
+        reference.Line("Loi Distributors", 10_079.0, 10_000.0),
+    ])
+
+    rows = reference.compare(ref, {"Middle East": 3_378.0, "Export": 8_767.0})
+
+    assert sorted(rows) == [("Export", 10_079.0, 8_767.0),
+                            ("Middle East", 3_378.0, 3_378.0)]

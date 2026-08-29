@@ -35,25 +35,12 @@ CLEANING_SHEET = "CLEANING"
 #: Perimeters the two sources do not cut the same way, and that no rename would reconcile.
 #: `(what the cockpit calls it, what the file calls it, why they will not line up)`.
 #:
-#: The temptation is to write an alias and watch a line go green. It would be false, and
-#: which way it is false is not settled. The business has read the consolidation's
-#: `Export` two ways within an hour: as every distributor, Asia included, which would make
-#: it wider than the file's `Loi Distributors`; and as the distributors Europe and the
-#: Americas manage, which would make it narrower.
-#:
-#: The arithmetic favours the second. `Export` is 8 767k€ against `Loi Distributors` at
-#: 10 079k€: a superset thirteen per cent smaller than the set it contains is not a
-#: perimeter question, it is a contradiction. That is an argument and not a proof — the
-#: two sides are at different rates — so the pair is reported as one that cannot be
-#: compared at this grain, which is a smaller claim and a true one.
-DIFFERENT_CUT: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
-    (
-        "Export",
-        ("Loi Distributors",),
-        "quels distributeurs `Export` couvre n'est pas tranché — tous, ou seulement ceux "
-        "que l'Europe et les Amériques gèrent",
-    ),
-)
+#: Kept as a mechanism, empty today. The one pair that lived here — the distributor
+#: business under two names — turned out to be the same perimeter after all, and is folded
+#: below. The mechanism stays because the question recurs: two organisations cutting one
+#: business differently is the normal state, and printing such a pair side by side is
+#: better than netting it or than an alias written on resemblance of size.
+DIFFERENT_CUT: Tuple[Tuple[str, Tuple[str, ...], str], ...] = ()
 
 #: Markets the consolidation splits finer than the file does, and where geography settles
 #: it rather than resemblance. Shanghai is in China and Hk Local is in Hong Kong; nobody
@@ -80,6 +67,15 @@ ROLLUP: Dict[str, str] = {
 #: distributors, and travel retail across Asia — and `OTHER` belongs to the third.
 REFERENCE_ROLLUP: Dict[str, str] = {
     "Other": "Travel retail Asia",
+    # The distributor business, under the name the consolidation gives it. Read as a
+    # perimeter mismatch for a week and it is not one: the Export business unit covers
+    # fifty-five distributor countries across Latin America, Africa, Europe, Central Asia
+    # and the Middle East, and both sources carve the Middle East out of it the same way —
+    # `EXPORT MIDDLE EAST` in the file, `M_098_UNLOC_REG2` in the consolidation, agreeing
+    # to the euro. What is left on each side is therefore the same business, and the
+    # 1 312k€ between them is a difference to explain rather than a perimeter to argue
+    # about. The name kept is the one the business itself uses for the unit.
+    "Loi Distributors": "Export",
 }
 
 #: The cleaning lines the warehouse's bulk flag actually covers, spelled as the file

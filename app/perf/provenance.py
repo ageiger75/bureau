@@ -278,8 +278,9 @@ REGISTER: Dict[str, Measure] = {
         "the comparison now, and Hong Kong lands within 29k€.\n\n"
         "China is settled in the same reading and separately: the file's cross-border "
         "line and the consolidation's cross-border entity are the same 6 085k€ to the "
-        "euro. What remains short is mainland China alone, by 6.2m€, and that is a real "
-        "question rather than a naming one.",
+        "euro. Mainland China was then short by 6.2m€, and that has since been named to "
+        "within 13 euros: 3 928k€ of retail the store referential does not carry, "
+        "1 985k€ of B2B and 264k€ of corporate gifts that no query reads at all.",
         to_confirm="Which travel-retail customer `Other` is. The business reads it as one "
         "large enough to be shown on its own line, which fits both the arithmetic and the "
         "place the file puts it — beside the distributors, because it is a customer and "
@@ -287,30 +288,50 @@ REGISTER: Dict[str, Measure] = {
     ),
     "distributor_perimeter": Measure(
         key="distributor_perimeter",
-        label="What the distributor line covers",
-        maturity=ABSENT,
-        note="The consolidation carries one distributor line, `Export`, worth 8 767k€ in "
-        "the closed quarter. Finance carries `Loi Distributors` at 10 079k€. Whether they "
-        "hold the same business is open, and the business has read it both ways within an "
-        "hour: every distributor including Asia, which would make the consolidation's line "
-        "the wider one; or only the distributors Europe and the Americas manage, which "
-        "would make it narrower.\n\n"
-        "The arithmetic favours the second reading — a superset thirteen per cent smaller "
-        "than what it contains is a contradiction, not a perimeter difference — but the "
-        "two sides are stated at different rates, so that is an argument and not a proof. "
-        "Until it is settled the pair is printed side by side and never netted: an alias "
-        "here would make a ten-million line agree by coincidence of size.",
-        to_confirm="The distributor customers behind the consolidation's export entity, "
-        "by region. One list settles which of the two readings is right.",
+        label="The distributor business",
+        maturity=BETA,
+        note="Read for a week as two organisations cutting one business differently, and "
+        "it is not that. The Export unit's own budget names its perimeter: fifty-five "
+        "distributor countries across Latin America, Africa, Europe, Central Asia and the "
+        "Middle East. Both sources then carve the Middle East out of it the same way — "
+        "`EXPORT MIDDLE EAST` in the file, its own entity in the consolidation — and those "
+        "two agree to the euro. What is left on each side is therefore the same business "
+        "under two names, and it is folded.\n\n"
+        "That turns a ten-million perimeter argument into a 1 312k€ difference, which is "
+        "13% of the line and too large to wave at the exchange rate when the rate explains "
+        "two or three per cent everywhere else.",
+        to_confirm="What the 1 312k€ between the two distributor figures is. Currency does "
+        "not cover it on its own.",
     ),
     "hospitality": Measure(
         key="hospitality",
-        label="Hospitality and corporate gifts",
+        label="Hospitality, B2B and corporate gifts",
         maturity=ABSENT,
         note="Around 3% of the plan, read by no source connected here. Unlike the "
         "differences of base, this one is a hole: nothing in the cockpit counts it, so it "
-        "cannot be added back by changing a filter.",
-        to_confirm="Which system records hospitality and corporate gift revenue.",
+        "cannot be added back by changing a filter. It has a size now, on one market: in "
+        "China, over the closed quarter, B2B is 1 985k€ and corporate gifts 264k€ — 2.2m€ "
+        "the screen cannot see in one country in three months.",
+        to_confirm="Which system records hospitality, B2B and corporate gift revenue.",
+    ),
+    "third_party_stores": Measure(
+        key="third_party_stores",
+        label="Points of sale operated by a third party",
+        maturity=ABSENT,
+        note="The governed store referential the cockpit joins on does not carry the "
+        "points of sale a partner operates. Their sales exist in the sell-out fact; the "
+        "stores do not exist in the view, so the join drops them — no error, no orphan "
+        "row, just revenue that never arrives. In China that is 26 points of sale and "
+        "2 318k€ in the closed quarter.\n\n"
+        "The defect is not Chinese. The same join sits in every query this cockpit runs, "
+        "so every market with third-party points of sale loses them the same way — which "
+        "is also the shape of the long tail of small shortfalls the reconciliation shows "
+        "across thirty markets, and which was being read as an exchange-rate effect. How "
+        "many markets and how many euros is not yet measured, and it must be measured "
+        "before the join is widened: changing it moves every figure on every screen at "
+        "once, including those already shown to people.",
+        to_confirm="How many markets carry third-party points of sale, and for how much. "
+        "The scale decides whether widening the join is a correction or an upheaval.",
     ),
 }
 
