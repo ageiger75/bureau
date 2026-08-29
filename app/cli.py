@@ -1082,7 +1082,7 @@ def _shipped_over(periods: Sequence[str]) -> Tuple[Dict[str, float], Dict[str, f
     """
     from .config import settings
     from .perf import queries, warehouse
-    from .perf.budget import normalise_market
+    from .perf.budget import market_of
 
     if not settings.reads_warehouse or not queries.SELL_IN.strip():
         print("Sell-in non lu : la source n'est pas l'entrepôt. Le tableau ci-dessous "
@@ -1122,7 +1122,7 @@ def _shipped_over(periods: Sequence[str]) -> Tuple[Dict[str, float], Dict[str, f
             # and announced rather than apportioned by a rule this reader invented.
             straddling += float(amount)
             continue
-        market = normalise_market(str(row.get("market") or ""))
+        market = market_of(str(row.get("market") or ""), str(row.get("segment") or ""))
         found[market] = found.get(market, 0.0) + float(amount)
         code = str(row.get("entity") or "").strip()
         if code:

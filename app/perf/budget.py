@@ -56,7 +56,12 @@ MARKET_ALIASES = {
     "UK": "United Kingdom",
     "HK": "Hong Kong",
     "HK DISTRIBUTORS": "Hong Kong",
-    "HK TR": "Hong Kong",
+    # Travel retail is not the country it is invoiced from. Folded into Hong Kong, a
+    # 3.6m€ market that fell 18% sat inside a 27m€ line that is mostly airport business
+    # and barely moved — the collapse was arithmetically present and impossible to see.
+    # The file separates them too: `HK` under APAC, `HK TR` under a worldwide heading.
+    "HK TR": "Travel retail Hong Kong",
+    "LOI TR": "Travel retail international",
     "CHINA CROSS BORDER": "China",
     "NEW ZEALAND": "New Zealand",
     "CZECH REPUBLIC": "Czech Republic",
@@ -70,6 +75,35 @@ def normalise_market(name: str) -> str:
     if raw in MARKET_ALIASES:
         return MARKET_ALIASES[raw]
     return raw.title()
+
+
+#: The segment the consolidation uses for travel retail.
+TRAVEL_RETAIL_SEGMENT = "TRA"
+
+#: The entity that carries travel retail for no country in particular. Its country label
+#: is a warehouse code rather than a place, and printing it on a screen asks the reader to
+#: know an internal name to read a number.
+INTERNATIONAL_TRAVEL_RETAIL = "Travel retail international"
+
+
+def market_of(country: str, segment: str = "") -> str:
+    """The market a consolidation row belongs to, once travel retail is taken out.
+
+    Travel retail is invoiced from a country and sold in airports the world over. The
+    consolidation labels those rows with the invoicing country, so folding them in by
+    country alone put a worldwide business inside a domestic market: Hong Kong, a 3.6m€
+    market that fell 18%, sat inside a 27m€ line that is mostly airport trade and barely
+    moved. The fall was arithmetically present in the total and impossible to see.
+
+    Finance separates the two as well — the country under its region, travel retail under
+    a worldwide heading — so this is the file's reading as much as the warehouse's.
+    """
+    market = normalise_market(country)
+    if segment_code(segment) != TRAVEL_RETAIL_SEGMENT:
+        return market
+    if market in (INTERNATIONAL_TRAVEL_RETAIL, "Loi Tr"):
+        return INTERNATIONAL_TRAVEL_RETAIL
+    return "Travel retail %s" % market
 
 
 #: Three ways revenue reaches the Maison, not two. The binary split — ours or resold —

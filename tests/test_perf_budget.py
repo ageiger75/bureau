@@ -1147,3 +1147,22 @@ def test_hospitality_is_a_third_block_not_a_corner_of_sell_in():
     assert perimeter_of("RET - Retail") == "own"
     # QVC is genuinely sell-in and already covered: a TV channel buys to resell.
     assert perimeter_of("TVC - TV Channels") == "sell-in"
+
+
+def test_travel_retail_is_not_the_country_it_is_invoiced_from():
+    """Hong Kong le marché et le travel retail de Hong Kong sont deux commerces qui
+    partagent une adresse de facturation.
+
+    Repliés ensemble, un marché de 3,6 M€ qui recule de 18 % se retrouvait dans une ligne
+    de 27 M€ faite surtout d'aéroports et qui ne bougeait presque pas : la chute était
+    arithmétiquement présente dans le total et impossible à voir.
+    """
+    from app.perf.budget import market_of
+
+    assert market_of("Hong Kong", "TRA") == "Travel retail Hong Kong"
+    assert market_of("Hong Kong", "DIS") == "Hong Kong"
+    assert market_of("Hong Kong", "") == "Hong Kong"
+    # L'entité qui porte le travel retail d'aucun pays en particulier. Son libellé de pays
+    # est un code d'entrepôt, et l'imprimer demanderait au lecteur de connaître un nom
+    # interne pour lire un chiffre.
+    assert market_of("Loi Tr", "TRA") == "Travel retail international"

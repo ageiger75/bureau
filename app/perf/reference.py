@@ -67,8 +67,11 @@ ROLLUP: Dict[str, str] = {
 #: more than the file's `HK TR`, and `OTHER` is 4 826k€ — and the business reads it the
 #: same way. Unfolded, it produced two findings that cancelled: a market over by 4 855 and
 #: a line missing by 4 826, neither of them real.
+#:
+#: It folds into travel retail and not into the country. Hong Kong the market and Hong
+#: Kong travel retail are two businesses that happen to share an invoicing address.
 REFERENCE_ROLLUP: Dict[str, str] = {
-    "Other": "Hong Kong",
+    "Other": "Travel retail Hong Kong",
 }
 
 #: The cleaning lines the warehouse's bulk flag actually covers, spelled as the file

@@ -341,7 +341,7 @@ def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
     plan's segment label into the channel vocabulary, so a sell-in row joins to its own
     budget line rather than to none.
     """
-    from .budget import channel_of
+    from .budget import channel_of, market_of
 
     translated: List[Dict[str, object]] = []
     for row in rows:
@@ -350,6 +350,10 @@ def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
             continue
         merged = dict(row)
         merged["channel"] = channel_of(segment)
+        # The market, not the invoicing country. Travel retail is sold in airports and
+        # billed from somewhere; naming it after the somewhere hides a domestic market
+        # inside a worldwide one.
+        merged["market"] = market_of(str(row.get("market") or ""), segment)
         # Stated rather than inferred: a sell-in row has no web funnel and never had one,
         # which is a different thing from a site whose tagging broke.
         merged["funnel_status"] = NOT_A_WEB_CHANNEL
