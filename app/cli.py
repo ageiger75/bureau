@@ -801,18 +801,30 @@ def cmd_compare(argv: List[str]) -> int:
         ours[market] = ours.get(market, 0.0) + amount
 
     mine = sum(ours.values())
-    base = ref.total_ex_cleaning or ref.total_actual
+    whole = ref.total_actual
+    clean = ref.total_ex_cleaning or whole
     print("Mois comparés      %s  (historique lu %s)" % (", ".join(periods), read_at_text))
     print("")
     print("Le cockpit          vendu %.1f + expédié %.1f = %.1f M€"
           % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6, mine / 1e6))
-    print("La Finance          %.1f M€, dont %.1f de cleaning que le cockpit ne lit pas"
-          % (ref.total_actual / 1e6, (ref.total_actual - base) / 1e6))
-    print("Sur la même base    %.1f M€ contre %.1f — il manque %.1f M€, soit %.1f %%"
-          % (mine / 1e6, base / 1e6, (base - mine) / 1e6,
-             100.0 * (base - mine) / base if base else 0.0))
-    print("                    l'hospitality et les cadeaux d'affaires, non mesurés ici,")
-    print("                    valent environ 3 % du plan ; le reste est du change.")
+    # Two bases, and the honest answer is that nothing here knows which one this figure
+    # sits on. The sell-out view carries bulk unless something filters it, and nothing
+    # does yet — so quoting the flattering comparison alone would be picking the number
+    # that makes the cockpit look closest, which is the one habit this whole screen is
+    # built against.
+    print("La Finance          %.1f M€ tout compris · %.1f M€ hors grey et cleaning"
+          % (whole / 1e6, clean / 1e6))
+    print("Contre le tout      %.1f M€ manquent, soit %.1f %%"
+          % ((whole - mine) / 1e6, 100.0 * (whole - mine) / whole if whole else 0.0))
+    print("Contre le propre    %.1f M€ manquent, soit %.1f %%"
+          % ((clean - mine) / 1e6, 100.0 * (clean - mine) / clean if clean else 0.0))
+    print("")
+    print("Laquelle des deux est la bonne dépend d'une question non tranchée : le vendu")
+    print("lu ici porte-t-il le bulk ? La vue sémantique l'expose (FLAG_BULK 2,3,4,5) et")
+    print("rien ne le filtre pour l'instant, donc probablement oui — auquel cas c'est la")
+    print("première ligne qui compte, et l'écart est plus grand que le second chiffre.")
+    print("L'hospitality et les cadeaux d'affaires, eux, ne sont lus par aucune source :")
+    print("environ 3 % du plan, et c'est un manque, pas une différence de base.")
     if ref.cleaning:
         print("")
         print("Hors périmètre propre, tel que le fichier le sépare lui-même :")
