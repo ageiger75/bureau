@@ -739,6 +739,7 @@ def cmd_compare(argv: List[str]) -> int:
         manage.py compare REF1.xlsx --all      toutes les lignes, pas seulement les écarts
         manage.py compare REF1.xlsx --quarter 2026-07,2026-08,2026-09
         manage.py compare REF1.xlsx --sellin   les noms que la consolidation emploie
+        manage.py compare REF1.xlsx --refresh  relit l'historique au lieu du cache
 
     Deux règles valent plus que la comparaison elle-même. Seul le trimestre clos est lu :
     les colonnes suivantes d'un reforecast sont un nouvel avis sur la fin d'année, et le
@@ -782,11 +783,29 @@ def cmd_compare(argv: List[str]) -> int:
     # same fault as scoring a monthly reading against a year's target, one panel over.
     from .perf import history as history_module
 
-    stored = source_module.cached_history_rows()
+    stored = None if "--refresh" in argv else source_module.cached_history_rows()
     if stored is None:
-        print("Aucun historique en cache. Ouvrez l'écran une fois, ou "
-              "`manage.py history --refresh`.", file=sys.stderr)
-        return 2
+        # Le cache tient vingt-quatre heures, et un rapprochement se fait le lendemain
+        # aussi souvent que le jour même. Renvoyer le lecteur vers une autre commande pour
+        # qu'il revienne ensuite, c'est un aller-retour que cette commande peut s'épargner.
+        from .perf import queries, warehouse
+
+        if not queries.SALES_HISTORY.strip():
+            print("La requête SALES_HISTORY n'est pas écrite.", file=sys.stderr)
+            return 2
+        print("Aucun historique en cache — lecture de l'entrepôt, comptez quelques "
+              "minutes.")
+        try:
+            rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
+        except Exception as exc:  # noqa: BLE001 — le message importe plus que le type
+            print("Échec : %s" % exc, file=sys.stderr)
+            return 2
+        source_module.store_history_rows(rows)
+        stored = source_module.cached_history_rows()
+        if stored is None:
+            print("Lecture faite, cache non écrit. Le disque est-il en lecture seule ?",
+                  file=sys.stderr)
+            return 2
     rows, read_at_text = stored
     quarter = _option(argv, "--quarter") or "2026-04,2026-05,2026-06"
     periods = [p.strip() for p in quarter.split(",") if p.strip()]

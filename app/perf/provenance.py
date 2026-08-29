@@ -214,17 +214,20 @@ REGISTER: Dict[str, Measure] = {
         "One café was closed this year for losing money, and that one is what Finance "
         "takes out: the cleaning is about unprofitable revenue being removed from the "
         "comparison, not about cafés being outside the business.\n\n"
-        "But the split, once built, showed something else and it is not a closure. Over "
-        "twelve months the number of stores recording café sales fell from 51 to 1 while "
-        "the revenue stayed near €400k a month; then it stopped altogether after April. "
-        "Revenue holding flat while the stores recording it collapse is not a business "
-        "winding down — it is a flow moving somewhere this source cannot see, or being "
-        "booked onto a single store. Either way the key would read zero when the truth is "
-        "'we no longer see it', which is the worst thing a figure can say. So it is read "
-        "and not shown.",
-        to_confirm="Whether café sales moved to another till system or entity, or were "
-        "progressively booked onto one store. One of the two is a business change and the "
-        "other is a recording change, and they are not the same conversation.",
+        "The split, once built, was read as an anomaly and probably is not one. It "
+        "counted the stores recording a sale in the café product segments — 51, falling "
+        "to 1 over twelve months while the revenue held near €400k a month — and read the "
+        "collapse as a flow moving out of sight. But the Maison operates three or four "
+        "cafés, not fifty-one. So the count is measuring something else: any store that "
+        "sold a box of chocolates once falls inside those segments, and fifty small tails "
+        "disappearing is not the same event as a business closing.\n\n"
+        "What the money does is consistent with the plain story: the café that was closed "
+        "shut in May or June, and the revenue stops after April. A store count is the "
+        "wrong instrument here — the question is how the money is concentrated, not how "
+        "many tills touched it.",
+        to_confirm="How café revenue is distributed across those stores. If three or four "
+        "carry nearly all of it, there is no anomaly and the key can be read; if it is "
+        "genuinely spread, the segments do not mean cafés and the key is misnamed.",
     ),
     "store_count": Measure(
         key="store_count",
