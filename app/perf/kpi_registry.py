@@ -67,7 +67,22 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
     "nps_customer_service": ("nps service client", "nps customer service", "nps sav"),
     "review_rating": ("note avis", "review rating", "avis clients", "notation avis",
                       "reviews", "review"),
+    # Panier moyen et articles par panier. Longtemps déclarés incalculables au mois : la
+    # fonction `semantic_view()` ne rend pas un `count(distinct)` par mois, et la maison
+    # n'y passe pas — ses requêtes vérifiées lisent la vue directement.
+    "atv": ("panier moyen", "atv", "average transaction value", "ticket moyen",
+            "valeur transaction moyenne"),
+    "upt": ("upt", "articles par transaction", "units per transaction",
+            "produits par transaction", "articles par panier"),
 }
+
+
+#: Clés que l'entrepôt rend et qu'aucune ligne du classeur n'a vocation à revendiquer.
+#: Ce ne sont pas des KPI : ce sont des bases de calcul, publiées à côté d'un KPI pour
+#: qu'on puisse mesurer ce qui les sépare. Les compter parmi les clés non appariées les
+#: ferait lire comme « un KPI que le cockpit mesure et ne sait pas juger », ce qu'elles ne
+#: sont pas, et pousserait quelqu'un à créer une ligne pour les faire taire.
+NOT_A_KPI = frozenset(("net_sales_hors_bulk",))
 
 
 #: Level and scope spellings that mean "the whole group". A reading returned at group
@@ -170,7 +185,8 @@ def match(registry: Tracker, keys: Sequence[str], scope: str = GROUP_SCOPE
                 and entry not in fitting
             )
         if not fitting:
-            unmatched.append(key)
+            if key not in NOT_A_KPI:
+                unmatched.append(key)
             continue
         # The perimeter decides, and never the sheet's order: preferring the first row
         # would make the answer depend on how somebody sorted the spreadsheet.

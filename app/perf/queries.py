@@ -133,6 +133,24 @@ argument is lost in the room whatever the arithmetic says.
 
 Keep the grain at market × channel × period. Finer detail belongs to the Investigate
 screen, which does not exist yet.
+
+## Two things the queries below still owe the warehouse
+
+Neither changes a figure today. Both are recorded here because the person who writes the
+next query is the one who needs to know, and because "it happened to be true this year" is
+not the same as "the query says so".
+
+`FLAG_TURNOVER = 1` is the house rule for excluding samples, gifts and supplies, and the
+organisation's own verified queries apply it every time. None of the queries below do. On
+FY26, L'Occitane brand, every row already carries it — checked to the euro — so nothing
+here is wrong. But the day a query reaches a wider perimeter, another brand or an older
+year, it will count samples as turnover and nothing will say so.
+
+`SEMANTIC_VIEW()` is not the only governed door. The organisation's verified queries read
+`V_SL_AI_F_SELLOUT_SALES_DETAILS` directly, writing the governed expression out in full,
+and that path allows what the function refuses — a `count(distinct)` grouped by month,
+which is what an average basket and a units-per-transaction need. Two measures were
+declared impossible on the strength of the function's limits alone.
 """
 
 from __future__ import annotations

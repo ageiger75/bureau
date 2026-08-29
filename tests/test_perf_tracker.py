@@ -715,3 +715,33 @@ def test_the_panel_says_how_much_of_the_tracker_it_can_see():
     assert "1 of the tracker's 3 KPIs" in sentence
     assert "1 measured figure has no row claiming it" in sentence
     assert "1 matched but cannot be judged" in sentence
+
+
+def test_a_base_of_calculation_is_not_reported_as_an_unjudgeable_kpi():
+    """`net_sales_hors_bulk` n'est pas un KPI : c'est la seconde base de `net_sales`.
+
+    La compter parmi les clés non appariées la ferait lire comme « un KPI que le cockpit
+    mesure et ne sait pas juger », et pousserait quelqu'un à créer une ligne dans le
+    classeur pour la faire taire — une cible inventée pour un chiffre qui n'en demande pas.
+    """
+    registry = tracker.tracker_from_rows(sheet(
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "NPS retail", "≥ 74", 72.7],
+    ))
+
+    _matched, unmatched, _ambiguous = kpi_registry.match(
+        registry, ["nps_retail", "net_sales_hors_bulk", "refills_wob"])
+
+    assert unmatched == ["refills_wob"]
+
+
+def test_the_panier_moyen_and_the_articles_par_panier_find_their_rows():
+    """Déclarés incalculables au mois, puis calculés. Les alias étaient le reste du chemin."""
+    registry = tracker.tracker_from_rows(sheet(
+        ["K1", "Groupe", "Marie", "LOEP", "Client", "Panier moyen", "≥ 45 €", 43.05],
+        ["K2", "Groupe", "Marie", "LOEP", "Client", "UPT", "≥ 3", 3.87],
+    ))
+
+    matched, unmatched, _ambiguous = kpi_registry.match(registry, ["atv", "upt"])
+
+    assert sorted(matched) == ["atv", "upt"]
+    assert unmatched == []

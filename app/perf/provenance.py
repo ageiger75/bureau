@@ -164,6 +164,50 @@ REGISTER: Dict[str, Measure] = {
         "not list, so those markets are answered one level up.",
         to_confirm="Which countries sit in each named grouping, to route them precisely.",
     ),
+    "same_store": Measure(
+        key="same_store",
+        label="Same-store sales",
+        maturity=BETA,
+        note="The warehouse's own same-store flag decides which stores compare, and it "
+        "says nothing about refurbishment. The dimensions that would — a refurbishment "
+        "start and stop date per store — exist beside it and are not read. So two stores "
+        "can both count as comparable while one spent four months behind hoardings, and "
+        "the comparison charges its closure to the business. The target is +4.5%, which "
+        "is inside the range a few refurbishments can move.",
+        to_confirm="Should a store under refurbishment leave the comparable base, and "
+        "from which day — the works starting, or the doors closing?",
+    ),
+    "store_concept": Measure(
+        key="store_concept",
+        label="Store concept",
+        maturity=ABSENT,
+        note="Eleven concepts exist in the warehouse, and a third of the turnover — 35% — "
+        "carries none. Any count by concept therefore misses a third of the business "
+        "while looking complete, which is the one way this figure could reach a screen "
+        "and be believed. It is left unread until the blanks are explained.",
+        to_confirm="Why 35% of sales carry no store concept: stores never coded, or a "
+        "perimeter the concept was never meant to cover?",
+    ),
+    "cafes": Measure(
+        key="cafes",
+        label="Cafés and food service",
+        maturity=BETA,
+        note="Pastry, chocolate, ice cream and drinks are sold under product segments of "
+        "their own and sit inside the same net sales as the creams — roughly €5m a year. "
+        "Finance takes one café entity out of the perimeter it reports; the cockpit takes "
+        "nothing out. So the two are not counting the same business, and the difference "
+        "runs the same way as bulk: it makes the cockpit's figure the larger one.",
+        to_confirm="Is café revenue in or out of the sales the Maison steers on?",
+    ),
+    "hospitality": Measure(
+        key="hospitality",
+        label="Hospitality and corporate gifts",
+        maturity=ABSENT,
+        note="Around 3% of the plan, read by no source connected here. Unlike the "
+        "differences of base, this one is a hole: nothing in the cockpit counts it, so it "
+        "cannot be added back by changing a filter.",
+        to_confirm="Which system records hospitality and corporate gift revenue.",
+    ),
 }
 
 
