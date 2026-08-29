@@ -82,20 +82,6 @@ def normalise_market(name: str) -> str:
     return raw.title()
 
 
-#: Markets where part of the store network is run by a franchisee, and where the sell-out
-#: therefore reports a till the accounts do not recognise in full.
-#:
-#: This is not a data question, it is what the business is. A franchised store rings up
-#: the whole sale and the sell-out records it; the accounts recognise only the margin,
-#: booked under distributors and independent wholesale. So the retail figure on this
-#: screen is larger than the one the P&L carries for the same market, and the difference
-#: is not an error to reconcile away — it is the two systems answering different
-#: questions. The screen says so rather than picking one.
-#:
-#: Listed one market at a time, from what the business states. Deducing it from a gap
-#: between two figures would make the list depend on this quarter's numbers.
-FRANCHISED_RETAIL = frozenset(("France",))
-
 #: Segments the consolidation labels with an invoicing country while the business they
 #: describe is not that country's. Travel retail is sold in airports across a region;
 #: a distributor business is an export sold to someone who resells. Neither is the

@@ -373,29 +373,42 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="How the retail figure of the Chinese entity is spread between "
         "quarters. That belongs to whoever produces the Chinese consolidation.",
     ),
-    "france_retail": Measure(
-        key="france_retail",
-        label="What the French stores sell, and what the accounts recognise",
-        maturity=BETA,
-        note="France is the one market whose difference is in euros, so no exchange rate "
-        "explains it. The sell-out records a substantial retail business that the "
-        "consolidation does not recognise as retail, and the gap runs to millions a "
-        "quarter — far more than any department-store channel could hold.\n\n"
-        "The cause is ownership, not perimeter, and the business has confirmed it: part of "
-        "the French network is franchised. A franchised store rings up the whole sale and "
-        "the sell-out records it; the accounts recognise only the margin, booked under "
-        "distributors and independent wholesale.\n\n"
-        "So this is not an error to reconcile away. It is the two systems answering "
-        "different questions, and the consequence is that the French retail figure on this "
-        "screen is larger than the one the P&L carries — which means a conversation about "
-        "France held on this screen is held on a number the finance director does not "
-        "have. The screen now says so on the figure itself rather than leaving the reader "
-        "to find out in the room.\n\n"
-        "What is still missing is the split. Saying a market is partly franchised is the "
-        "minimum; separating the owned network from the franchised one would let each be "
-        "judged on its own terms, and would need the ownership status of each store.",
-        to_confirm="The ownership status of each French store, so the two networks can be "
-        "read apart — and whether any other market carries the same arrangement.",
+    "franchised_network": Measure(
+        key="franchised_network",
+        label="The franchised network",
+        maturity=ABSENT,
+        note="France has franchised stores, and they are absent from this screen. Not "
+        "understated — absent. The sell-out flow carries the owned network and the "
+        "third-party counters and nothing else, measured to a fraction of a per cent of "
+        "the market, so a franchisee's till never reaches any figure here.\n\n"
+        "Where the money does appear is the sell-in, as what the Maison invoices to the "
+        "franchisee — and mixed there with export and independent wholesale in one "
+        "channel, so it cannot be read apart. Separating it needs the list of franchised "
+        "customers, which is a business fact and not a query.\n\n"
+        "A badge saying `PARTLY FRANCHISED` sat on the French figure for an hour, on the "
+        "premise that a franchised till reaches the sell-out. It does not. The statement "
+        "was true of the business and false of the number it was printed on, which would "
+        "have had a reader discount a figure that needed no discounting.",
+        to_confirm="The list of franchised customers, so their business can be read on "
+        "its own wholesale revenue and contribution instead of inside the export channel.",
+    ),
+    "franchise_buyback": Measure(
+        key="franchise_buyback",
+        label="Stores coming back into the network",
+        maturity=ABSENT,
+        note="The Maison intends to exit franchising gradually. Each store bought back "
+        "moves its revenue from one side of the invoice to the other: what was wholesale "
+        "to a franchisee becomes a till of the Maison's own, so the sold figure of that "
+        "market steps up and its shipped figure steps down, and neither movement is "
+        "trading.\n\n"
+        "Nothing here would say so. The screen would show a French retail line jumping and "
+        "a distributor line falling, both real in the accounts and both meaningless as "
+        "performance — the exact shape the cockpit already refuses to hand anyone as a "
+        "question, and the exact reason the note mechanism exists. It only works if "
+        "somebody writes the note when a store converts.",
+        to_confirm="Who will say when a store converts, and when. A conversion recorded "
+        "the month it happens costs one line; discovered afterwards it costs a quarter of "
+        "wrong conversations.",
     ),
     "hospitality": Measure(
         key="hospitality",
