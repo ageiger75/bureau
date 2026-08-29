@@ -120,10 +120,24 @@ def test_a_name_on_one_side_and_an_equal_shortfall_on_the_other_are_paired():
 
     pairs = reference.offsetting([("Luxembourg", 177.0)], rows)
 
-    assert pairs == [("Luxembourg", "Belgium", 177.0)]
+    assert pairs == [("Luxembourg", "Belgium", 177.0, reference.MISSING_HERE)]
 
 
-def test_a_shortfall_that_does_not_match_is_left_unpaired():
+def test_a_name_on_one_side_and_an_equal_excess_on_the_other_are_also_paired():
+    """La forme qui manquait, et c'était la plus grosse ligne du tableau.
+
+    `Other` vaut 4 826 et Hong Kong est excédentaire de 4 855 : le cockpit lit bien cet
+    argent, rangé chez le voisin. Ne chercher que les manques trouvait un côté et
+    laissait l'autre passer pour une anomalie séparée.
+    """
+    rows = [("Hong Kong", 22_187.0, 27_042.0)]
+
+    pairs = reference.offsetting([("Other", 4_826.0)], rows)
+
+    assert pairs == [("Other", "Hong Kong", 4_826.0, reference.FILED_ELSEWHERE)]
+
+
+def test_a_difference_that_does_not_match_is_left_unpaired():
     rows = [("Belgium", 977.0, 800.0)]
 
     assert reference.offsetting([("Luxembourg", 900.0)], rows) == []

@@ -320,27 +320,41 @@ def rolled_up(ours: Dict[str, float]) -> Dict[str, float]:
     return folded
 
 
-def offsetting(theirs_only: Sequence[Tuple[str, float]],
+#: What an offsetting pair means, which is not the same thing in both directions.
+MISSING_HERE = "missing"
+FILED_ELSEWHERE = "filed"
+
+
+def offsetting(orphans: Sequence[Tuple[str, float]],
                rows: Sequence[Tuple[str, float, float]],
-               tolerance: float = 0.02) -> List[Tuple[str, str, float]]:
-    """`(our name, their name, amount)` where an unmatched market and a market's shortfall
+               tolerance: float = 0.02) -> List[Tuple[str, str, float, str]]:
+    """`(orphan, market, amount, kind)` where an unmatched name and a market's difference
     are the same money.
 
-    Luxembourg appears here at 177 k€ and Belgium is short by 177 k€; Sweden at 172 and
-    the Nordics short by 170. Two names for one flow, and the arithmetic says so far more
-    convincingly than the names do — which is the difference between this and an alias
-    written on resemblance of size.
+    Two directions, and they are different findings. A market **short** by the orphan's
+    amount means the cockpit does not read that money at all under any name — Luxembourg
+    at 177 k€ against a Belgium short by 177. A market **over** by it means the cockpit
+    does read it and files it under the neighbour: the file's `Other` is 4 826 k€ and
+    Hong Kong is over by 4 855, because Hong Kong's travel-retail entity carries both and
+    the file splits them.
+
+    Looking only for shortfalls found the first kind and missed the second, which was the
+    one that mattered — an anomaly on each side of the table, cancelling to the euro, read
+    as two problems for a week.
     """
     found = []
-    for name, amount in theirs_only:
+    for name, amount in orphans:
         if not amount:
             continue
         for market, ref_amount, our_amount in rows:
             if market == name or not ref_amount:
                 continue
-            short = ref_amount - our_amount
-            if short > 0 and abs(short - amount) <= tolerance * amount:
-                found.append((name, market, amount))
+            difference = ref_amount - our_amount
+            if difference > 0 and abs(difference - amount) <= tolerance * amount:
+                found.append((name, market, amount, MISSING_HERE))
+                break
+            if difference < 0 and abs(-difference - amount) <= tolerance * amount:
+                found.append((name, market, amount, FILED_ELSEWHERE))
                 break
     return found
 

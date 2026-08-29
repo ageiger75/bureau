@@ -263,6 +263,26 @@ REGISTER: Dict[str, Measure] = {
         "consolidation or the state it happens to be in this year. One reading cleared "
         "these seven; a rule would clear the eighth before it appears.",
     ),
+    "china_hong_kong_boundary": Measure(
+        key="china_hong_kong_boundary",
+        label="The China / Hong Kong / travel-retail boundary",
+        maturity=BETA,
+        note="Hong Kong is written three times in Finance's file — as an APAC country, as "
+        "distributors, and as travel retail under a worldwide heading — and the "
+        "consolidation carries all three under one entity family. Two of the three line "
+        "up to the euro. The third does not: the travel-retail entity carries 4 826k€ "
+        "more than the line the file calls Hong Kong travel retail, and the file carries "
+        "a line called `Other`, filed under European distributors, worth 4 826k€. The "
+        "same money, named twice, and read for a week as two separate anomalies — one "
+        "market unexplainedly over, one line unexplainedly missing.\n\n"
+        "China is settled in the same reading and separately: the file's cross-border "
+        "line and the consolidation's cross-border entity are the same 6 085k€ to the "
+        "euro. What remains short is mainland China alone, by 6.2m€, and that is a real "
+        "question rather than a naming one.",
+        to_confirm="That Finance's `Other` is Hong Kong travel retail and not a "
+        "coincidence of size — the entity difference and the line agree twice, which is "
+        "strong, and it is still an inference nobody at Finance has confirmed.",
+    ),
     "hospitality": Measure(
         key="hospitality",
         label="Hospitality and corporate gifts",

@@ -962,15 +962,24 @@ def cmd_compare(argv: List[str]) -> int:
         for market, amount in sorted(ours_only, key=lambda pair: -pair[1]):
             print("  %-28s %9s" % (market[:28], _eur_k(amount)))
         print("  %-28s %9s" % ("total", _eur_k(sum(a for _m, a in ours_only))))
-    pairs = reference.offsetting(ours_only, rows)
+    # Les deux listes, pas une seule. Un nom orphelin du côté Finance et un marché
+    # excédentaire du nôtre sont le même argent aussi sûrement qu'un nom orphelin du nôtre
+    # et un marché court du leur — et c'est cette seconde forme qui portait la ligne la
+    # plus grosse du tableau, lue une semaine durant comme deux anomalies distinctes.
+    pairs = reference.offsetting(ours_only, rows) + reference.offsetting(theirs_only, rows)
     if pairs:
         print("")
-        print("Un nom d'un côté, un manque exactement égal de l'autre :")
-        for ours_name, theirs_name, amount in pairs:
-            print("  %-18s %9s  ↔  %s, court d'autant"
-                  % (ours_name[:18], _eur_k(amount), theirs_name))
-        print("  C'est le même argent sous deux noms, et c'est l'arithmétique qui le dit,")
-        print("  pas la ressemblance. Une fois confirmés, ces noms se replient.")
+        print("Un nom d'un côté, une différence exactement égale de l'autre :")
+        for name, market, amount, kind in pairs:
+            if kind == reference.MISSING_HERE:
+                print("  %-18s %9s  ↔  %s, court d'autant : le cockpit ne lit"
+                      % (name[:18], _eur_k(amount), market))
+                print("  %-18s %9s     cet argent sous aucun nom." % ("", ""))
+            else:
+                print("  %-18s %9s  ↔  %s, excédentaire d'autant : le cockpit"
+                      % (name[:18], _eur_k(amount), market))
+                print("  %-18s %9s     le lit, rangé chez le voisin." % ("", ""))
+        print("  C'est l'arithmétique qui le dit, pas la ressemblance des libellés.")
     if theirs_only and ours_only:
         print("")
         print("Le reste des deux listes se répond peut-être. Tant que ce n'est pas")
