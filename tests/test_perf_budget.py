@@ -1159,9 +1159,16 @@ def test_travel_retail_is_not_the_country_it_is_invoiced_from():
     """
     from app.perf.budget import market_of
 
-    assert market_of("Hong Kong", "TRA") == "Travel retail Hong Kong"
-    assert market_of("Hong Kong", "DIS") == "Hong Kong"
+    # Une adresse de facturation, trois commerces : le marché domestique, un export
+    # vendu à des distributeurs qui revendent, et le travel retail de toute l'Asie.
+    assert market_of("Hong Kong", "TRA") == "Travel retail Asia"
+    assert market_of("Hong Kong", "DIS") == "Hong Kong distributors"
     assert market_of("Hong Kong", "") == "Hong Kong"
+    assert market_of("Hong Kong", "RET") == "Hong Kong"
+    # Et pas une règle sur le segment. Ailleurs le plan sépare déjà les distributeurs
+    # comme un canal de leur marché ; découper aussi le marché clé la ligne de sell-in
+    # sur un plan qui n'existe pas.
+    assert market_of("Japan", "DIS") == "Japan"
     # L'entité qui porte le travel retail d'aucun pays en particulier. Son libellé de pays
     # est un code d'entrepôt, et l'imprimer demanderait au lecteur de connaître un nom
     # interne pour lire un chiffre.

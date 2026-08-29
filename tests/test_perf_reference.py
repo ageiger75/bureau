@@ -178,10 +178,10 @@ def test_a_customer_the_file_pulls_out_is_folded_into_the_entity_that_invoices_i
     4 855 et une ligne manquante de 4 826, dont aucun n'était réel.
     """
     ref = reference.Reference([
-        reference.Line("Travel retail Hong Kong", 16_794.0, 16_000.0),
+        reference.Line("Travel retail Asia", 16_794.0, 16_000.0),
         reference.Line("Other", 4_826.0, 4_800.0),
     ])
 
-    rows = reference.compare(ref, {"Travel retail Hong Kong": 21_620.0})
+    rows = reference.compare(ref, {"Travel retail Asia": 21_620.0})
 
-    assert rows == [("Travel retail Hong Kong", 21_620.0, 21_620.0)]
+    assert rows == [("Travel retail Asia", 21_620.0, 21_620.0)]

@@ -54,13 +54,17 @@ SEGMENT_CHANNEL = {
 MARKET_ALIASES = {
     "USA": "United States",
     "UK": "United Kingdom",
+    # Three lines, three businesses, one invoicing address. `HK` is the domestic market.
+    # `HK DISTRIBUTORS` is an export business selling to distributors who resell. `HK TR`
+    # is travel retail across Asia, sold in airports and billed from Hong Kong.
+    #
+    # Folded into one, a 3.6m€ market that fell 18% sat inside a 27m€ line that is mostly
+    # airport trade and barely moved: the collapse was arithmetically present in the total
+    # and impossible to see. Finance separates them and always has — the country under its
+    # region, travel retail under a worldwide heading. It was the cockpit that mixed them.
     "HK": "Hong Kong",
-    "HK DISTRIBUTORS": "Hong Kong",
-    # Travel retail is not the country it is invoiced from. Folded into Hong Kong, a
-    # 3.6m€ market that fell 18% sat inside a 27m€ line that is mostly airport business
-    # and barely moved — the collapse was arithmetically present and impossible to see.
-    # The file separates them too: `HK` under APAC, `HK TR` under a worldwide heading.
-    "HK TR": "Travel retail Hong Kong",
+    "HK DISTRIBUTORS": "Hong Kong distributors",
+    "HK TR": "Travel retail Asia",
     "LOI TR": "Travel retail international",
     "CHINA CROSS BORDER": "China",
     "NEW ZEALAND": "New Zealand",
@@ -77,33 +81,55 @@ def normalise_market(name: str) -> str:
     return raw.title()
 
 
-#: The segment the consolidation uses for travel retail.
+#: Segments the consolidation labels with an invoicing country while the business they
+#: describe is not that country's. Travel retail is sold in airports across a region;
+#: a distributor business is an export sold to someone who resells. Neither is the
+#: domestic market, and neither answers the questions a domestic market answers.
 TRAVEL_RETAIL_SEGMENT = "TRA"
+DISTRIBUTOR_SEGMENT = "DIS"
+
+#: Where selling to distributors is an export business rather than a corner of the local
+#: market, named one country at a time. Not a rule over the segment: everywhere else the
+#: plan already separates distributors as a channel of their market, and splitting the
+#: market too would key a sell-in row to a plan line that does not exist — the tests said
+#: so immediately, on Japan, which is exactly what they are for.
+DISTRIBUTOR_MARKETS = {
+    "Hong Kong": "Hong Kong distributors",
+}
 
 #: The entity that carries travel retail for no country in particular. Its country label
 #: is a warehouse code rather than a place, and printing it on a screen asks the reader to
 #: know an internal name to read a number.
 INTERNATIONAL_TRAVEL_RETAIL = "Travel retail international"
 
+#: Travel retail billed from Hong Kong is the Asian region's airport trade, not Hong
+#: Kong's. Named for what it sells rather than for where the invoice is cut — a reader
+#: who sees "Hong Kong" on a 21m€ line will ask a Hong Kong question about it.
+TRAVEL_RETAIL_NAMES = {
+    "Hong Kong": "Travel retail Asia",
+    "Loi Tr": INTERNATIONAL_TRAVEL_RETAIL,
+}
+
 
 def market_of(country: str, segment: str = "") -> str:
-    """The market a consolidation row belongs to, once travel retail is taken out.
+    """The market a consolidation row belongs to, not the country that invoices it.
 
-    Travel retail is invoiced from a country and sold in airports the world over. The
-    consolidation labels those rows with the invoicing country, so folding them in by
-    country alone put a worldwide business inside a domestic market: Hong Kong, a 3.6m€
-    market that fell 18%, sat inside a 27m€ line that is mostly airport trade and barely
-    moved. The fall was arithmetically present in the total and impossible to see.
+    Three lines share Hong Kong's invoicing address and describe three businesses: the
+    domestic market, an export business selling to distributors, and travel retail across
+    Asia. Folded into one, a 3.6m€ market that fell 18% sat inside a 27m€ line that is
+    mostly airport trade and barely moved — the fall was arithmetically present in the
+    total and impossible to see.
 
-    Finance separates the two as well — the country under its region, travel retail under
-    a worldwide heading — so this is the file's reading as much as the warehouse's.
+    Finance separates them and always has, so this is the file's reading as much as the
+    warehouse's. It was the cockpit that mixed them, in an alias written here.
     """
     market = normalise_market(country)
-    if segment_code(segment) != TRAVEL_RETAIL_SEGMENT:
-        return market
-    if market in (INTERNATIONAL_TRAVEL_RETAIL, "Loi Tr"):
-        return INTERNATIONAL_TRAVEL_RETAIL
-    return "Travel retail %s" % market
+    code = segment_code(segment)
+    if code == TRAVEL_RETAIL_SEGMENT:
+        return TRAVEL_RETAIL_NAMES.get(market, "Travel retail %s" % market)
+    if code == DISTRIBUTOR_SEGMENT and market in DISTRIBUTOR_MARKETS:
+        return DISTRIBUTOR_MARKETS[market]
+    return market
 
 
 #: Three ways revenue reaches the Maison, not two. The binary split — ours or resold —
