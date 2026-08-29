@@ -29,6 +29,8 @@
     python -m app.cli kpi            ce que le cockpit lit dans le classeur de suivi
                                      --join confronte le registre aux relevés de l'entrepôt
                                      --file CHEMIN pour un autre classeur que var/
+    python -m app.cli bulk           les ventes hors bulk, à côté des ventes tout compris
+                                     bulk [MARCHÉ …] [--months N]
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -910,6 +912,109 @@ def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
 
 def _eur_k(amount: float) -> str:
     return "%+.0f k€" % (amount / 1000.0)
+
+
+
+def cmd_bulk(argv: List[str]) -> int:
+    """Les ventes hors bulk, à côté des ventes tout compris.
+
+    Sans argument : les marchés où le bulk pèse assez pour changer la lecture.
+    Avec des noms de marchés : ceux-là, matériels ou non.
+    `--months N` élargit la fenêtre comparée — trois mois par défaut.
+    """
+    from .perf import bulk as bulk_module
+    from .perf import kpi_registry
+    from .perf import source as source_module
+
+    months = bulk_module.WINDOW_MONTHS
+    wanted: List[str] = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token == "--months" and index + 1 < len(argv):
+            try:
+                months = max(1, int(argv[index + 1]))
+            except ValueError:
+                print("--months attend un nombre de mois.", file=sys.stderr)
+                return 2
+            index += 2
+            continue
+        if token.startswith("--"):
+            print(cmd_bulk.__doc__, file=sys.stderr)
+            return 2
+        wanted.append(token)
+        index += 1
+
+    rows = source_module._read_kpi_cache()
+    if rows is None:
+        from .perf import queries, warehouse
+        print("Lecture de l'entrepôt (deux minutes environ, plafond à cinq)…")
+        try:
+            rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
+        except Exception as exc:
+            print("La lecture a échoué : %s" % exc, file=sys.stderr)
+            return 2
+        source_module._write_kpi_cache(rows)
+
+    group = bulk_module.market_bulk(rows, kpi_registry.GROUP_SCOPE, months=months)
+    if group is None:
+        # Le cache de la veille a été écrit avant que la clé existe, et une lecture
+        # partielle qui rendrait « zéro bulk partout » serait pire que ce refus.
+        print("Les deux clés ne sont pas dans cette lecture. `refresh`, puis relancez : "
+              "le cache d'hier date d'avant `net_sales_hors_bulk`.", file=sys.stderr)
+        return 2
+
+    unknown: List[str] = []
+    if wanted:
+        readings = []
+        for name in wanted:
+            found = bulk_module.market_bulk(rows, name, months=months)
+            if found is None:
+                # Retenu pour la fin plutôt que rendre une liste plus courte : un nom
+                # mal orthographié et un marché sans bulk se ressemblent trop.
+                unknown.append(name)
+                continue
+            readings.append(found)
+    else:
+        readings = bulk_module.material(rows, months=months)
+
+    print("Fenêtre            %s" % ", ".join(group.periods))
+    print("Groupe             %.1f M€ hors bulk sur %.1f M€, soit %.2f %% de bulk"
+          % (group.ex_bulk / 1e6, group.sales / 1e6, 100.0 * (group.share or 0.0)))
+    print("")
+    if not readings:
+        print("Aucun marché ne porte plus de %.0f %% de bulk sur cette fenêtre."
+              % (100.0 * bulk_module.MATERIAL_SHARE))
+        return 0
+
+    print("%-18s %13s %13s %8s %10s %10s"
+          % ("Marché", "Tout compris", "Hors bulk", "Part bulk", "Évolution", "Hors bulk"))
+    for item in readings:
+        print("%-18s %10.1f M€ %10.1f M€ %6.1f %% %10s %10s" % (
+            item.scope[:18],
+            item.sales / 1e6,
+            item.ex_bulk / 1e6,
+            100.0 * (item.share or 0.0),
+            _pct_or_dash(item.growth),
+            _pct_or_dash(item.growth_ex_bulk),
+        ))
+    print("")
+    for item in readings:
+        print("  %s" % item.sentence())
+    if any(item.changes_the_verdict for item in readings):
+        print("")
+        print("Là où les deux bases divergent, c'est la colonne « hors bulk » qui dit")
+        print("comment va la marque : le bulk part en commandes, pas en clients.")
+    for name in unknown:
+        print("")
+        print("%s : aucun relevé à ce nom. `bulk` sans argument liste les marchés lus."
+              % name)
+    return 0
+
+
+def _pct_or_dash(value) -> str:
+    """Une fraction rendue en pourcentage, ou un tiret quand il n'y a rien à comparer."""
+    return "—" if value is None else "%+.1f %%" % (100.0 * value)
 
 
 def cmd_kpi(argv: List[str]) -> int:
@@ -1929,6 +2034,8 @@ def main(argv: List[str]) -> int:
         return cmd_compare(argv[1:])
     if command == "kpi":
         return cmd_kpi(argv[1:])
+    if command == "bulk":
+        return cmd_bulk(argv[1:])
     if command == "reconcile":
         return cmd_reconcile(argv[1:])
     if command == "serve":

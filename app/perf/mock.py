@@ -727,3 +727,27 @@ def client_kpis() -> List[Kpi]:
             ],
         ),
     ]
+
+
+def bulk_findings() -> List:
+    """Two markets where the bulk hides what the shoppers are doing.
+
+    Invented like the rest of this module, and present for the same reason as the year to
+    date above: a block that only ever renders against the warehouse is a block nobody
+    looks at until it is wrong, in front of the person it was built for.
+    """
+    from . import bulk as bulk_module
+
+    window = ("2026-04", "2026-05", "2026-06")
+    return [
+        # Bulk down, and the total is the only place it shows. Retail is holding.
+        bulk_module.MarketBulk("China", window,
+                               sales=52_000_000.0, ex_bulk=48_600_000.0,
+                               sales_before=55_400_000.0, ex_bulk_before=48_100_000.0,
+                               comparable=True),
+        # A sixth of the market, and it moved the wrong way for the shoppers.
+        bulk_module.MarketBulk("Hong Kong", window,
+                               sales=14_200_000.0, ex_bulk=11_700_000.0,
+                               sales_before=13_300_000.0, ex_bulk_before=12_400_000.0,
+                               comparable=True),
+    ]

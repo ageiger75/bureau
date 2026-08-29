@@ -549,3 +549,32 @@ def test_the_screen_says_what_each_channel_actually_is(client):
     # Only the channels actually on the screen: a glossary of everything the taxonomy
     # knows would be a page of definitions for figures nobody is looking at.
     assert "Tmall or JD flagship" not in page   # no marketplace line in this dataset
+
+
+# ------------------------------------------- the second base, where it changes the verdict
+
+
+def test_a_market_whose_bulk_hides_its_shoppers_says_so_on_both_bases(client):
+    """Hong Kong grows on the total and falls on the shoppers. Both figures, or neither.
+
+    One of them alone is a wrong answer to the question this screen asks, and which one is
+    wrong depends on the market — so the card carries the pair and names the difference.
+    """
+    page = page_text(client.get("/"))
+
+    assert "Where the bulk is answering for the shoppers" in page
+    assert "Hong Kong" in page
+    assert "excluding bulk" in page
+
+
+def test_markets_whose_two_bases_agree_stay_off_the_screen(client):
+    """The panel exists for the disagreement, not for the bulk.
+
+    Listing every market that carries some bulk would put the reader back to scanning for
+    the one line that matters, which is the habit this screen is built against.
+    """
+    from app.perf import mock
+
+    shown = [item.scope for item in mock.bulk_findings()]
+    assert all(item.changes_the_verdict for item in mock.bulk_findings())
+    assert "Japan" not in shown

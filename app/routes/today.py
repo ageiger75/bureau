@@ -117,6 +117,9 @@ def today(request: Request):
     except NotImplementedError:
         kpis = []
         unavailable.append("kpis")
+    # Not in `unavailable`: nothing here dims when it is empty. Empty means the two bases
+    # agree everywhere, which is a good state and not a missing panel.
+    bulk_findings = getattr(source, "bulk_findings", list)()
 
     fires = analytics.fires(dataset)
     # The subjects, which is what the reader ends up with: a market losing ground in two
@@ -212,6 +215,12 @@ def today(request: Request):
             "kpis_total": len(kpis),
             "kpis_holding": len(kpis) - len(kpi_rules.worth_showing(kpis)),
             "kpis_provisional": kpi_rules.provisional(kpis),
+            # Only the markets where taking the bulk out changes the verdict. Bulk is
+            # real turnover and it belongs in the accounts; it answers a different
+            # question from the one this screen asks, and in two markets it is large
+            # enough to answer it wrongly — a sixth of Hong Kong moves in orders, not in
+            # shoppers. Where the two bases agree, nothing appears.
+            "bulk_findings": bulk_findings,
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
             "plans_above": plans_above,

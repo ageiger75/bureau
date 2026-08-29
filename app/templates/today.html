@@ -531,6 +531,37 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------- where a second base changes the verdict #}
+
+{% if bulk_findings %}
+<section class="panel">
+  <h2>Where the bulk is answering for the shoppers</h2>
+  <p class="lede">
+    Bulk is real turnover and it belongs in the accounts. It answers a different question
+    from the one this screen asks: a pallet leaving at half price and a shopper buying a
+    cream are both revenue, but only the second says whether the brand is working, and the
+    first moves in lumps. In these markets it is large enough to answer the wrong
+    question — so the figure to read is the second one. Markets where the two bases agree
+    do not appear here.
+  </p>
+  <ul class="suspect-list">
+    {% for item in bulk_findings %}
+      <li class="suspect">
+        <p class="suspect-message">
+          <strong>{{ item.scope }}</strong> — excluding bulk
+          {{ item.growth_ex_bulk | pct }}, all in {{ item.growth | pct }}
+        </p>
+        <p class="suspect-fix">
+          bulk {{ item.bulk | eur }}, {{ item.share | share }} of the market
+          {%- if item.bulk_movement is not none %} · {{ item.bulk_movement | eur }} against
+          the same {{ item.periods | length }} months last year{% endif %}
+        </p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {# -------------------------------------------------- notes that make a testable claim #}
 
 {% if reclassifications %}

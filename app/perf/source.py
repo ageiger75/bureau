@@ -382,6 +382,9 @@ class MockSource:
     def client_kpis(self) -> List[Kpi]:
         return mock.client_kpis()
 
+    def bulk_findings(self) -> List:
+        return mock.bulk_findings()
+
 
 class SnowflakeSource:
     """Real figures, read from the warehouse through a named CLI connection.
@@ -681,6 +684,25 @@ class SnowflakeSource:
         self.kpi_judged = len(report.kpis)
         self.kpi_tracked = len(registry.entries)
         return report.kpis
+
+    def bulk_findings(self) -> List:
+        """The markets whose two bases disagree — and only those.
+
+        Read from the KPI cache and never from the warehouse: this is a second reading of
+        rows the screen already pays for, and a page load must not be able to start a
+        two-minute query. A cold cache therefore returns nothing, which is the honest
+        answer — the pair has not been read yet — and the block simply does not appear.
+
+        Only the markets where the two bases tell different stories. A market whose bulk
+        moves with the rest of it has nothing to say here, and printing it would put the
+        reader back to scanning for the one line that matters.
+        """
+        from . import bulk
+
+        rows = _read_kpi_cache()
+        if not rows:
+            return []
+        return [found for found in bulk.material(rows) if found.changes_the_verdict]
 
 
 def _kpi_coverage(report, registry) -> str:
