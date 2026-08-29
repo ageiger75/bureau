@@ -3,7 +3,8 @@
 Two things are being defended here. The first is that a series must not be invented where
 one side is missing: a month with a plan and no sales, or sales and no plan, is a finding,
 and filling either with a zero would turn it into an ordinary row. The second is the year
-to date, which on the real warehouse is where a naive sum goes badly wrong — 86 M€ of
+to date, which on the real warehouse is where a naive sum goes badly wrong — tens of
+millions of
 actual arrives with no plan against it, and adding that into a total compared against a
 plan that never covered it flatters the year by more than half.
 
@@ -623,15 +624,15 @@ def test_the_sell_in_plan_is_confronted_with_what_partners_actually_bought():
     """Built from the two queries that already exist rather than a third nobody has run.
     Both sides are stated at the plan's own rates, which is the property that makes the
     sell-in reconciliation exact and is worth carrying over."""
-    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+    closed = [{"entity": "M_103", "segment": "DIS - Distributors",
                "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
-    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+    current = [{"entity": "M_103", "segment": "DIS - Distributors",
                 "period": "2026-%02d" % n, "sales_actual": 950_000.0,
                 "sales_last_year": 1_000_000.0} for n in range(4, 8)]
 
     moved, = history.sell_in_trajectories(
         closed, current,
-        _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
+        _sell_in_plan("M_103", "Japan", "DIS - Distributors", 1_400_000.0)
     )
 
     assert moved.market == "Japan"
@@ -647,13 +648,13 @@ def test_the_sell_in_record_is_named_for_what_it_is():
     against the same month a year earlier and never what the twelve before it did. So the
     record is the fiscal year to date, and calling it anything else would be a small lie
     in the one sentence a reader takes away."""
-    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+    closed = [{"entity": "M_103", "segment": "DIS - Distributors",
                "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
-    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+    current = [{"entity": "M_103", "segment": "DIS - Distributors",
                 "period": "2026-04", "sales_actual": 900.0, "sales_last_year": 1000.0}]
 
     moved, = history.sell_in_trajectories(
-        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+        closed, current, _sell_in_plan("M_103", "Japan", "DIS - Distributors", 1400.0)
     )
 
     assert moved.growth is None
@@ -665,13 +666,13 @@ def test_the_sell_in_join_uses_the_entity_code_with_its_suffix():
     """The workbook types the same entity two ways — bare for most, suffixed for a few —
     while the consolidation always writes the suffix. Joining on a country name instead
     would drop the eleven markets billed by a hub."""
-    closed = [{"entity": "M_017_UNLOC", "segment": "DIS - Distributors",
+    closed = [{"entity": "M_102_UNLOC", "segment": "DIS - Distributors",
                "period": "2025-%02d" % n, "value": 1000.0} for n in range(1, 13)]
-    current = [{"entity": "M_017_UNLOC", "segment": "DIS - Distributors",
+    current = [{"entity": "M_102_UNLOC", "segment": "DIS - Distributors",
                 "period": "2026-04", "sales_actual": 900.0, "sales_last_year": 1000.0}]
 
     moved, = history.sell_in_trajectories(
-        closed, current, _sell_in_plan("M_017", "Korea", "DIS - Distributors", 1400.0)
+        closed, current, _sell_in_plan("M_102", "Korea", "DIS - Distributors", 1400.0)
     )
 
     assert moved.market == "Korea"
@@ -684,7 +685,7 @@ def test_a_sell_in_pair_the_plan_does_not_name_is_left_out():
                "period": "2025-01", "value": 1000.0}]
 
     assert history.sell_in_trajectories(
-        closed, [], _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1400.0)
+        closed, [], _sell_in_plan("M_103", "Japan", "DIS - Distributors", 1400.0)
     ) == []
 
 
@@ -695,13 +696,13 @@ def test_a_base_of_nothing_produces_no_growth_rate():
     """Sell-in carries returns and credit notes, so a base can be nothing or less than
     nothing. The first real run put Austria department stores at the top of the list at
     -1379% — a rounding error on a base of nothing, printed above every real finding."""
-    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+    closed = [{"entity": "M_103", "segment": "DIS - Distributors",
                "period": "2025-01", "value": -500.0}]
-    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+    current = [{"entity": "M_103", "segment": "DIS - Distributors",
                 "period": "2026-04", "sales_actual": 900.0, "sales_last_year": -500.0}]
 
     moved, = history.sell_in_trajectories(
-        closed, current, _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
+        closed, current, _sell_in_plan("M_103", "Japan", "DIS - Distributors", 1_400_000.0)
     )
 
     assert moved.plan_growth is None
@@ -748,13 +749,13 @@ def test_a_reclassified_pair_is_not_reported_as_a_mis_set_plan():
     from app.perf import context
 
     context.reset()
-    closed = [{"entity": "M_024", "segment": "WHOCH - Chains Wholesale",
+    closed = [{"entity": "M_103", "segment": "WHOCH - Chains Wholesale",
                "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
-    current = [{"entity": "M_024", "segment": "WHOCH - Chains Wholesale",
+    current = [{"entity": "M_103", "segment": "WHOCH - Chains Wholesale",
                 "period": "2026-04", "sales_actual": 900_000.0,
                 "sales_last_year": 1_000_000.0}]
     workbook = _sell_in_plan(
-        "M_024", "United States", "WHOCH - Chains Wholesale", 6_000_000.0
+        "M_103", "United States", "WHOCH - Chains Wholesale", 6_000_000.0
     )
 
     loud, = history.sell_in_trajectories(closed, current, workbook)
@@ -770,15 +771,15 @@ def test_a_sell_in_finding_says_it_is_reading_shipments():
     """A partner that ordered early shows +200% four months in and nothing has happened.
     The reading is real and weak, and it strengthens as the year fills — so it is labelled
     rather than hidden."""
-    closed = [{"entity": "M_024", "segment": "DIS - Distributors",
+    closed = [{"entity": "M_103", "segment": "DIS - Distributors",
                "period": "2025-%02d" % n, "value": 1_000_000.0} for n in range(1, 13)]
-    current = [{"entity": "M_024", "segment": "DIS - Distributors",
+    current = [{"entity": "M_103", "segment": "DIS - Distributors",
                 "period": "2026-04", "sales_actual": 900_000.0,
                 "sales_last_year": 1_000_000.0}]
 
     moved, = history.sell_in_trajectories(
         closed, current,
-        _sell_in_plan("M_024", "Japan", "DIS - Distributors", 1_400_000.0)
+        _sell_in_plan("M_103", "Japan", "DIS - Distributors", 1_400_000.0)
     )
 
     assert moved.is_shipment_timed
@@ -982,13 +983,13 @@ def test_the_year_to_date_joins_sell_in_on_the_plan_s_own_key():
     workbook = Budget([
         BudgetLine(market="Korea", region="APAC", segment="DIS - Distributors",
                    channel="dis", period="2026-04", budget=500_000.0, last_year=None,
-                   entity="M_017"),
+                   entity="M_102"),
         BudgetLine(market="Japan", region="APAC", segment="EBU - E-Business",
                    channel=ECOMMERCE, period="2026-04", budget=0.0, last_year=None),
     ])
     # The consolidation bills this through a hub and names the market differently. Only
     # the entity — with the suffix the workbook does not write — connects the two.
-    sold_in = [{"entity": "M_017_UNLOC", "market": "Asia Hub",
+    sold_in = [{"entity": "M_102_UNLOC", "market": "Asia Hub",
                 "segment": "DIS - Distributors", "period": "2026-04",
                 "sales_actual": 450_000.0}]
 
@@ -1016,8 +1017,8 @@ def test_a_row_with_no_entity_still_joins_on_its_name():
 
 
 def test_a_real_suffixed_entity_is_not_shadowed_by_an_alias():
-    """The workbook writes the same entity two ways, so `M_017` registers `M_017_UNLOC` as
-    an alias. But some workbooks carry `M_017_UNLOC` as an entity in its own right — and
+    """The workbook writes the same entity two ways, so `M_102` registers `M_102_UNLOC` as
+    an alias. But some workbooks carry `M_102_UNLOC` as an entity in its own right — and
     registered in one pass, the alias could take the key first and send that market's
     revenue to its neighbour. Exact spellings claim their keys before any alias is
     offered."""
@@ -1029,11 +1030,11 @@ def test_a_real_suffixed_entity_is_not_shadowed_by_an_alias():
                           entity=entity)
 
     # The bare entity comes first in the file, exactly as it would in a spreadsheet.
-    places = history.plan_places(Budget([line("M_017", "Korea"),
-                                         line("M_017_UNLOC", "Singapore")]))
+    places = history.plan_places(Budget([line("M_102", "Korea"),
+                                         line("M_102_UNLOC", "Singapore")]))
 
-    assert places[("M_017", "DIS - Distributors")] == ("Korea", "dis")
-    assert places[("M_017_UNLOC", "DIS - Distributors")] == ("Singapore", "dis")
+    assert places[("M_102", "DIS - Distributors")] == ("Korea", "dis")
+    assert places[("M_102_UNLOC", "DIS - Distributors")] == ("Singapore", "dis")
 
 
 def test_the_alias_still_works_where_no_real_line_claims_it():
@@ -1044,10 +1045,10 @@ def test_the_alias_still_works_where_no_real_line_claims_it():
     places = history.plan_places(Budget([
         BudgetLine(market="Korea", region="R", segment="DIS - Distributors",
                    channel="dis", period="2026-04", budget=1.0, last_year=None,
-                   entity="M_017")
+                   entity="M_102")
     ]))
 
-    assert places[("M_017_UNLOC", "DIS - Distributors")] == ("Korea", "dis")
+    assert places[("M_102_UNLOC", "DIS - Distributors")] == ("Korea", "dis")
 
 
 def test_a_shipped_figure_names_its_own_month():

@@ -57,10 +57,10 @@ ROLLUP: Dict[str, str] = {
 #: `OTHER` is a travel-retail customer large enough that Finance pulls it out on its own
 #: line, and files it beside the European distributors because it is a customer rather
 #: than a geography. The consolidation has no such line: the money sits inside Hong Kong's
-#: travel-retail entity with the rest. Two facts agree on it — `M_007_TRA` carries 4 826k€
-#: more than the file's `HK TR`, and `OTHER` is 4 826k€ — and the business reads it the
-#: same way. Unfolded, it produced two findings that cancelled: a market over by 4 855 and
-#: a line missing by 4 826, neither of them real.
+#: travel-retail entity with the rest. Two facts agree on it — the travel-retail entity
+#: carries more than the file's travel-retail line by exactly what the `OTHER` line is
+#: worth — and the business reads it the same way. Unfolded, it produced two findings
+#: that cancelled: a market over by that amount and a line missing by it, neither real.
 #:
 #: It folds into travel retail and not into the country. Hong Kong's invoicing address is
 #: shared by three businesses — the domestic market, an export business selling to
@@ -71,17 +71,17 @@ REFERENCE_ROLLUP: Dict[str, str] = {
     # perimeter mismatch for a week and it is not one: the Export business unit covers
     # fifty-five distributor countries across Latin America, Africa, Europe, Central Asia
     # and the Middle East, and both sources carve the Middle East out of it the same way —
-    # `EXPORT MIDDLE EAST` in the file, `M_098_UNLOC_REG2` in the consolidation, agreeing
-    # to the euro. What is left on each side is therefore the same business, and the
-    # 1 312k€ between them is a difference to explain rather than a perimeter to argue
-    # about. The name kept is the one the business itself uses for the unit.
+    # a line in the file, its own entity in the consolidation, agreeing to the euro.
+    # What is left on each side is therefore the same business, and what remains between
+    # them is a difference to explain rather than a perimeter to argue about. The name
+    # kept is the one the business itself uses for the unit.
     "Loi Distributors": "Export",
 }
 
 #: The cleaning lines the warehouse's bulk flag actually covers, spelled as the file
 #: spells them. Named rather than matched on the word "bulk": the file writes the mainland
 #: line as plain `CHINA`, so a substring test found one of the two and reported that the
-#: two sources disagreed when they agree to within 140 k€.
+#: two sources disagreed when in fact they agree closely.
 BULK_LINES = frozenset(("CHINA", "HK BULK"))
 
 #: The rest of what the file separates, which no flag here can reproduce. Daigou is not
@@ -354,10 +354,10 @@ def offsetting(orphans: Sequence[Tuple[str, float]],
 
     Two directions, and they are different findings. A market **short** by the orphan's
     amount means the cockpit does not read that money at all under any name — Luxembourg
-    at 177 k€ against a Belgium short by 177. A market **over** by it means the cockpit
-    does read it and files it under the neighbour: the file's `Other` is 4 826 k€ and
-    Hong Kong is over by 4 855, because Hong Kong's travel-retail entity carries both and
-    the file splits them.
+    against a Belgium short by the same amount. A market **over** by it means the cockpit
+    does read it and files it under the neighbour: the file's `Other` matches what Hong
+    Kong is over by, because Hong Kong's travel-retail entity carries both and the file
+    splits them.
 
     Looking only for shortfalls found the first kind and missed the second, which was the
     one that mattered — an anomaly on each side of the table, cancelling to the euro, read

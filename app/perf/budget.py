@@ -58,10 +58,11 @@ MARKET_ALIASES = {
     # `HK DISTRIBUTORS` is an export business selling to distributors who resell. `HK TR`
     # is travel retail across Asia, sold in airports and billed from Hong Kong.
     #
-    # Folded into one, a 3.6m€ market that fell 18% sat inside a 27m€ line that is mostly
-    # airport trade and barely moved: the collapse was arithmetically present in the total
-    # and impossible to see. Finance separates them and always has — the country under its
-    # region, travel retail under a worldwide heading. It was the cockpit that mixed them.
+    # Folded into one, a small market in steep decline sat inside a line several times
+    # its size, made mostly of airport trade and barely moving: the fall was
+    # arithmetically present in the total and impossible to see. Finance separates them
+    # and always has — the country under its region, travel retail under a worldwide
+    # heading. It was the cockpit that mixed them.
     "HK": "Hong Kong",
     "HK DISTRIBUTORS": "Hong Kong distributors",
     "HK TR": "Travel retail Asia",
@@ -104,7 +105,7 @@ INTERNATIONAL_TRAVEL_RETAIL = "Travel retail international"
 
 #: Travel retail billed from Hong Kong is the Asian region's airport trade, not Hong
 #: Kong's. Named for what it sells rather than for where the invoice is cut — a reader
-#: who sees "Hong Kong" on a 21m€ line will ask a Hong Kong question about it.
+#: who sees a country's name on a regional line will ask that country's question about it.
 TRAVEL_RETAIL_NAMES = {
     "Hong Kong": "Travel retail Asia",
     "Loi Tr": INTERNATIONAL_TRAVEL_RETAIL,
@@ -123,9 +124,9 @@ def market_of(country: str, segment: str = "") -> str:
 
     Three lines share Hong Kong's invoicing address and describe three businesses: the
     domestic market, an export business selling to distributors, and travel retail across
-    Asia. Folded into one, a 3.6m€ market that fell 18% sat inside a 27m€ line that is
-    mostly airport trade and barely moved — the fall was arithmetically present in the
-    total and impossible to see.
+    Asia. Folded into one, a small market in steep decline sat inside a line several
+    times its size, made mostly of airport trade and barely moving — the fall was
+    arithmetically present in the total and impossible to see.
 
     Finance separates them and always has, so this is the file's reading as much as the
     warehouse's. It was the cockpit that mixed them, in an alias written here.
@@ -225,7 +226,7 @@ def segment_code(segment: str) -> str:
 
 
 def entity_code(entity: str) -> str:
-    """`M_007_UNLOC - Far East` -> `M_007_UNLOC`.
+    """`M_106_UNLOC - Far East` -> `M_106_UNLOC`.
 
     The label after the dash is a human name that drifts; the code in front of it is what
     the consolidation actually keys on.
@@ -283,7 +284,7 @@ class BudgetLine:
         self.period = period
         self.budget = budget
         self.last_year = last_year
-        #: The consolidation entity the plan attributes this line to — `M_024`, `M_098`.
+        #: The consolidation entity the plan attributes this line to — `M_103`, `M_105`.
         #: It is the plan's own answer to "which market does this revenue belong to", and
         #: therefore the join key for anything that has to reproduce the plan. Reaching for
         #: a company or a customer hierarchy instead is reaching for someone else's answer

@@ -814,8 +814,8 @@ def plan_places(budget) -> Dict[Tuple[str, str], Tuple[str, str]]:
             where = (normalise_market(line.market), channel_of(line.segment))
             places.setdefault((line.entity, line.segment), where)
     # Aliases second, and only where nothing real claims the key. A workbook that carries
-    # `M_017_UNLOC` as an entity in its own right must keep it: registered in one pass, an
-    # alias derived from `M_017` could take the key first and quietly send that market's
+    # `M_102_UNLOC` as an entity in its own right must keep it: registered in one pass, an
+    # alias derived from `M_102` could take the key first and quietly send that market's
     # revenue to its neighbour. The reconciliation code says the same thing in its own
     # words — "an exact line written later overwrites the alias" — and this is what
     # copying half of it looks like.

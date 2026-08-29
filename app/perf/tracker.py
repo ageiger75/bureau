@@ -327,7 +327,7 @@ class Entry:
 
         The distinction decides whether a reading can be measured against it at all. A
         rate, a score or a ranking is the same number in July as in March — 5.3% is 5.3%.
-        An amount is a year's worth: `Net sales hors cleaning ≥ 1 259 M€` is what the
+        An amount is a year's worth: a net-sales floor stated in millions is what the
         Maison intends to sell over twelve months, and one month of sales set against it
         reads as a miss of 94%, every month, until the year ends.
         """

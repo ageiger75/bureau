@@ -225,8 +225,8 @@ def cmd_reconcile(argv: List[str]) -> int:
         if line.entity:
             month = previous_year(line.period)
             by_entity[(line.entity, line.segment, month)] = key
-            # The workbook types the same entity two ways — bare `M_002` for most,
-            # suffixed `M_017_UNLOC` for a few — while the consolidation always
+            # The workbook types the same entity two ways — bare `M_101` for most,
+            # suffixed `M_102_UNLOC` for a few — while the consolidation always
             # writes the suffixed form. Registering the suffix as an alias lets a
             # candidate join on what the warehouse actually contains, instead of
             # asking a query to know how a spreadsheet happened to be typed. An
@@ -619,10 +619,10 @@ def _resolve_combined(entries, expected, by_entity, found) -> List["Combined"]:
 
     Entries that land on the same plan cells are added up before being confronted, and
     that is not a detail. Two entities can feed one market — China is billed by both
-    `M_037` and `M_007_JDCOM` — so comparing either one alone against the market's whole
+    `M_104` and `M_106_JDCOM` — so comparing either one alone against the market's whole
     figure makes it look short by exactly the other's revenue, and the second entry then
     finds its cells already spent and is reported as having no target at all. That
-    manufactured a 3 to 6 M€ divergence on Chinese cross-border out of two entities whose
+    manufactured a divergence of several million on Chinese cross-border out of two entities whose
     annual totals both reconcile to the euro.
     """
     grouped: Dict[tuple, dict] = {}
@@ -863,8 +863,8 @@ def cmd_compare(argv: List[str]) -> int:
         # Un contrôle, pas un rapprochement. Retirer le bulk de notre côté et le comparer
         # au total hors cleaning du fichier serait asymétrique : ce total a aussi perdu le
         # daigou, le groupe JD et le café, et rien ici ne sait les retirer. La soustraction
-        # partielle rapprochait les deux chiffres de 3,4 M€ sans qu'aucun euro n'ait été
-        # expliqué — exactement le genre de résultat flatteur qu'on croit sur parole.
+        # partielle rapprochait les deux chiffres sans qu'aucun euro n'ait été expliqué —
+        # exactement le genre de résultat flatteur qu'on croit sur parole.
         stated, unknown = _stated_bulk(ref.cleaning)
         print("Contrôle du bulk    %.1f M€ mesurés dans le vendu, %.1f M€ séparés par le "
               "fichier" % (bulk_here / 1e6, stated / 1e6))
@@ -997,8 +997,9 @@ def _stated_bulk(cleaning) -> Tuple[float, List[str]]:
 
     Nommées et non devinées. Chercher le mot « bulk » ne trouvait qu'une des deux lignes —
     le fichier écrit la Chine continentale `CHINA` tout court — et la commande annonçait
-    alors 1,3 M€ séparés contre 3,4 mesurés, soit deux sources en désaccord là où elles
-    s'accordent à 140 k€ près. Une ligne inconnue est rendue plutôt que rangée d'un côté
+    alors un montant séparé bien plus petit que celui mesuré, soit deux sources en
+    désaccord là où elles s'accordent de près. Une ligne inconnue est rendue plutôt
+    que rangée d'un côté
     ou de l'autre : c'est le seul état où la réponse ne peut pas être fausse en silence.
     """
     from .perf import reference as reference_module
@@ -1037,7 +1038,7 @@ def _bulk_over(periods: Sequence[str]) -> Optional[float]:
 
 
 #: Le suffixe des entités de consolidation qui portent le retail d'un pays sous forme de
-#: total magasins. Sept d'entre elles existent, pour 168 M€.
+#: total magasins. Sept d'entre elles existent.
 #:
 #: Ce n'est pas en soi un doublon, et l'avoir cru a produit un avertissement qui criait
 #: sur une convention parfaitement saine. Dans chacun de ces pays l'entité de base porte
@@ -1216,9 +1217,10 @@ def cmd_bulk(argv: List[str]) -> int:
         readings = bulk_module.material(rows, months=months, through=through)
 
     print("Fenêtre            %s" % ", ".join(group.periods))
-    # Sans cette ligne, « Hong Kong 3,1 M€ » se lit comme le marché, alors que la Finance
-    # en annonce 22 pour le même trimestre. L'écart n'est pas une anomalie : le drapeau
-    # bulk vit dans le vendu, et le facturé aux partenaires n'est pas ici.
+    # Sans cette ligne, le chiffre d'un marché se lit comme le marché entier, alors que
+    # la Finance en annonce plusieurs fois plus pour le même trimestre. L'écart n'est pas
+    # une anomalie : le drapeau bulk vit dans le vendu, et le facturé aux partenaires
+    # n'est pas ici.
     print("Périmètre          le vendu seul. Ce que la Maison facture à ses partenaires")
     print("                   ne porte pas ce drapeau et n'est pas dans ces chiffres.")
     print("Groupe             %.1f M€ hors bulk sur %.1f M€, soit %.2f %% de bulk"
@@ -1634,7 +1636,7 @@ def _print_sell_in(plan) -> int:
     exercice clos mois par mois, aux taux du plan ; `SELL_IN` donne l'exercice en cours à
     date avec, en face de chaque mois, le même mois de l'an dernier aux mêmes taux. C'est
     cette propriété — les deux côtés énoncés aux mêmes taux — qui rend la réconciliation
-    sell-in exacte à vingt-neuf centimes sur 375 M€, et elle se transporte ici telle
+    sell-in exacte à quelques centimes sur des centaines de millions, et elle se transporte ici telle
     quelle.
     """
     if plan is None:
@@ -1827,7 +1829,7 @@ def _print_one_market(built, market: str, plan=None) -> int:
 def _print_unmatched(built) -> int:
     """Ce que le plan ne couvre pas — avec, cette fois, un dénominateur.
 
-    Un total seul ne dit rien. « 245 M€ de vente chinoise sans objectif » se lit tout
+    Un total seul ne dit rien. « telle vente sans objectif » se lit tout
     autrement selon que le marché a des objectifs onze mois sur vingt-quatre ou aucun :
     dans un cas quelqu'un a oublié des mois, dans l'autre le fait `goals` ne couvre pas ce
     marché du tout. La commande imprime donc, pour chaque couple, la part de son chiffre

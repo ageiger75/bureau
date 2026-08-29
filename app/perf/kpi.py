@@ -194,10 +194,10 @@ class Kpi:
         self.open_question = open_question
         #: `(market, value)` for the markets whose own reading misses this target, worst
         #: first. The group figure is a ratio of sums and it is honest; what it cannot do
-        #: is say how it was reached. Units per transaction reads 3.78 against a floor of
-        #: 3, which is green — and seventeen markets out of thirty-five sit below the
-        #: floor. A panel that shows the 3.78 and stops has told the reader the one thing
-        #: that requires no action.
+        #: is say how it was reached. Units per transaction can clear its floor at group
+        #: level while half the markets sit under it — a ratio of sums says nothing about
+        #: the spread beneath it. A panel that shows the group figure and stops has told
+        #: the reader the one thing that requires no action.
         self.behind = []
         #: How many markets carried a reading at all, so "seventeen" can be read against
         #: something. Seventeen of thirty-five and seventeen of two hundred are different

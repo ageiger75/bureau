@@ -553,7 +553,7 @@ def test_a_store_is_not_told_its_web_tracking_broke():
 # segment is what the plan commits to.
 
 
-def sell_in(entity="M_024", market="Japan", segment="DIS - Distributors", **overrides):
+def sell_in(entity="M_103", market="Japan", segment="DIS - Distributors", **overrides):
     base = {
         "entity": entity,
         "market": market,
@@ -645,7 +645,7 @@ def test_a_planning_code_never_becomes_a_market_label():
     expects the name of a business."""
     mapped = mapping.units_from_rows(
         mapping.sell_in_rows([
-            {"entity": "M_007", "market": "China", "region": "CHINA",
+            {"entity": "M_106", "market": "China", "region": "CHINA",
              "segment": "WEBP - Web Partners", "period": PERIOD,
              "sales_actual": 1_000_000.0, "sales_last_year": 900_000.0},
         ]),
@@ -658,7 +658,7 @@ def test_a_planning_code_never_becomes_a_market_label():
 def test_a_sell_in_unit_knows_it_is_sell_in():
     mapped = mapping.units_from_rows(
         mapping.sell_in_rows([
-            {"entity": "M_024", "market": "Japan", "region": "APAC",
+            {"entity": "M_103", "market": "Japan", "region": "APAC",
              "segment": "DIS - Distributors", "period": PERIOD,
              "sales_actual": 480_000.0, "sales_last_year": 430_000.0},
         ]),

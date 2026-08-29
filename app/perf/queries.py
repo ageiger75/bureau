@@ -584,14 +584,14 @@ order by market, channel, period
 #: It comes from the management consolidation rather than from the sell-out warehouse,
 #: which is not a workaround: the consolidation *is* where the plan's own actuals come
 #: from, so the two reconcile by construction rather than by coincidence. The plan
-#: designates its markets by a consolidation entity — `M_024`, `M_098_TRA` — and that code
+#: designates its markets by a consolidation entity — `M_103`, `M_105_TRA` — and that code
 #: is the join key. A company code or a customer hierarchy is someone else's answer to the
 #: same question, and the two do not agree: eleven markets are billed by a hub and vanish
 #: entirely under a company-based attribution.
 #:
 #: One row per entity, segment and month:
 #:
-#:     entity            text     -- 'M_024', 'M_098_TRA' — the plan's own key
+#:     entity            text     -- 'M_103', 'M_105_TRA' — the plan's own key
 #:     market            text     -- for display; the entity is what joins
 #:     region            text
 #:     segment           text     -- the plan's segment label, e.g. 'DIS - Distributors'
@@ -744,7 +744,7 @@ order by s.snapshot_date, s.sales_actual desc nulls last
 #:
 #: One row per entity, segment and month, over the last complete fiscal year:
 #:
-#:     entity            text     -- 'M_024', 'M_098_TRA'
+#:     entity            text     -- 'M_103', 'M_105_TRA'
 #:     segment           text     -- the plan's segment label
 #:     period            text     -- 'YYYY-MM', or 'YYYY-MM..YYYY-MM' for months the
 #:                                   source cannot separate. Never split by a rule of
@@ -891,10 +891,10 @@ order by s.entity_code, s.segment, s.snapshot_date
 #: * **Niveau de discount** — `EXPLICIT_DISCOUNT_EUR` and `IMPLICIT_DISCOUNT_EUR` exist in
 #:   the raw fact and are not exposed by the semantic view. Reading round the governed
 #:   layer to fill a column is the trade this repository has already refused once.
-#: * **ATV** and **UPT** — `NB_TICKETS` counts sales *lines*, not tickets: 54.9m against
-#:   roughly 17.9m transactions over FY26. Any ratio built on it is wrong by a factor of
-#:   three — 15.23 € against a governed ATV of 46.63 €, and 1.39 units against a target of
-#:   three. The governed `ATV_EUR` divides by `COUNT(DISTINCT TRANSACTION_NUMBER)`, which
+#: * **ATV** and **UPT** — `NB_TICKETS` counts sales *lines*, not tickets, roughly three
+#:   for every transaction. Any ratio built on it is wrong by that factor, which turns a
+#:   basket into a third of itself and a units-per-transaction below its floor. The
+#:   governed `ATV_EUR` divides by `COUNT(DISTINCT TRANSACTION_NUMBER)`, which
 #:   the view computes correctly only at the grain it is asked for, and it exposes no month
 #:   dimension. Twenty-four monthly reads would be needed; one statement cannot do it.
 #: * **ARC** and **Acquisition NTB nette** — the tracker states them as "sur croissance
@@ -1084,15 +1084,14 @@ governed as (
                            f.transaction_number, null))            as transactions,
         sum(f.net_sales_eur)                                       as net_all,
         sum(iff(p.product_segment = 'HOME', f.net_sales_eur, 0))   as home_sales,
-        -- One café, not the café business. 99.68% of this lands on a single store —
-        -- Concept Store 86 Champs, `86Cr` in the Finance reforecast and `CAFE 86` in
-        -- the cleaning restatement, all the same site, which the consolidation even
-        -- carries as a pseudo-country named '86 CHAMPS'. The Maison runs three or four
-        -- cafés; sell-out sees one. Hence the key's name: one called `cafes` would
-        -- promise a perimeter it does not cover, and the next reader would take five
-        -- million euros for the whole activity.
+        -- One café, not the café business. Almost all of this lands on a single store,
+        -- which the reforecast, the cleaning restatement and the consolidation each call
+        -- by a different name — one of them a pseudo-country. The Maison runs a handful
+        -- of cafés; sell-out sees one. Hence the key's name: one called `cafes` would
+        -- promise a perimeter it does not cover, and the next reader would take the whole
+        -- activity for what one site does.
         --
-        -- The other 0.32% is confectionery sold occasionally in ordinary boutiques. A
+        -- The remainder is confectionery sold occasionally in ordinary boutiques. A
         -- box of chocolates in an outlet is not a café, which is why counting stores
         -- rather than money once suggested fifty-one of them.
         --

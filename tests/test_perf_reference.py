@@ -83,7 +83,7 @@ def test_the_mainland_bulk_line_is_named_and_not_matched_on_the_word_bulk():
     """Le fichier écrit la Chine continentale `CHINA` tout court.
 
     Chercher le mot « bulk » n'en trouvait qu'une sur deux, et la commande annonçait
-    alors deux sources en désaccord là où elles s'accordent à 140 k€ près.
+    alors deux sources en désaccord là où elles s'accordent de près.
     """
     from app.cli import _stated_bulk
 
@@ -151,22 +151,22 @@ def test_a_store_total_that_is_the_only_carrier_of_its_country_is_not_a_double_c
     """
     from app.cli import _double_counted
 
-    assert _double_counted({"M_004_STR_TOT": 80_973.0, "M_002_STR_TOT": 28_144.0}) == []
+    assert _double_counted({"M_110_STR_TOT": 80_973.0, "M_101_STR_TOT": 28_144.0}) == []
 
 
 def test_a_country_carrying_both_a_total_and_its_detail_is_named():
     from app.cli import _double_counted
 
-    found = _double_counted({"M_004_STR_TOT": 80_973.0, "M_004_UNLOC": 12_000.0})
+    found = _double_counted({"M_110_STR_TOT": 80_973.0, "M_110_UNLOC": 12_000.0})
 
-    assert found == [("004", ["M_004_STR_TOT", "M_004_UNLOC"])]
+    assert found == [("110", ["M_110_STR_TOT", "M_110_UNLOC"])]
 
 
 def test_an_entity_carrying_nothing_never_raises_the_alarm():
     """Une entité à zéro coexiste avec le total sans rien doubler."""
     from app.cli import _double_counted
 
-    assert _double_counted({"M_004_STR_TOT": 80_973.0, "M_004_UNLOC": 0.0}) == []
+    assert _double_counted({"M_110_STR_TOT": 80_973.0, "M_110_UNLOC": 0.0}) == []
 
 
 def test_a_customer_the_file_pulls_out_is_folded_into_the_entity_that_invoices_it():

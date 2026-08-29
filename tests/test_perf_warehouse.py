@@ -716,7 +716,7 @@ def test_sell_in_is_read_when_its_query_exists(monkeypatch):
         asked.append(sql)
         if sql == "SELL IN SQL":
             return [{
-                "entity": "M_024", "market": "Japan", "region": "APAC",
+                "entity": "M_103", "market": "Japan", "region": "APAC",
                 "segment": "DIS - Distributors", "period": "2026-07",
                 "sales_actual": 480_000.0, "sales_last_year": 430_000.0,
             }]
@@ -784,7 +784,7 @@ def test_a_cached_read_does_not_count_sell_in_twice(monkeypatch):
     from app.perf.source import SnowflakeSource
 
     sell_in = {
-        "entity": "M_024",
+        "entity": "M_103",
         "market": "Japan",
         "region": "JAPAN",
         "segment": "DIS - Distributors",

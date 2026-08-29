@@ -590,4 +590,4 @@ def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
 
     assert "Units per transaction" in page
     assert "markets are below this" in page
-    assert "New Zealand" in page
+    assert "Finland" in page

@@ -676,7 +676,7 @@ def test_the_spec_and_the_check_count_the_same_cells(tmp_path, capsys, monkeypat
 
 # ------------------------------------------------------- the key the plan itself uses
 #
-# The plan designates its markets by a consolidation entity — M_024, M_098_TRA. That code
+# The plan designates its markets by a consolidation entity — M_103, M_105_TRA. That code
 # is the plan's own answer to "which market does this revenue belong to". Reaching for a
 # company code or a customer hierarchy instead is reaching for someone else's answer to
 # the same question, and the two do not agree: eleven markets are billed by a hub and
@@ -686,8 +686,8 @@ def test_the_spec_and_the_check_count_the_same_cells(tmp_path, capsys, monkeypat
 def test_the_entity_code_is_read_off_its_label():
     """The name after the dash drifts; the code in front of it is what consolidation
     keys on."""
-    assert budget_module.entity_code("M_007_UNLOC - Far East") == "M_007_UNLOC"
-    assert budget_module.entity_code("M_024 - OCC JAPAN - Total") == "M_024"
+    assert budget_module.entity_code("M_106_UNLOC - Far East") == "M_106_UNLOC"
+    assert budget_module.entity_code("M_103 - OCC JAPAN - Total") == "M_103"
     assert budget_module.entity_code("") == ""
 
 
@@ -697,7 +697,7 @@ def test_the_spec_carries_the_join_key(tmp_path, monkeypatch):
 
     plan = Budget([
         BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
-                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+                   "2026-07", 500_000.0, 430_000.0, entity="M_103"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -708,7 +708,7 @@ def test_the_spec_carries_the_join_key(tmp_path, monkeypatch):
     lines = target.read_text().strip().splitlines()
 
     assert lines[0].startswith("entity,")
-    assert lines[1].startswith("M_024,")
+    assert lines[1].startswith("M_103,")
 
 
 def test_a_candidate_can_join_on_the_entity_instead_of_the_market(tmp_path, capsys, monkeypatch):
@@ -721,7 +721,7 @@ def test_a_candidate_can_join_on_the_entity_instead_of_the_market(tmp_path, caps
 
     plan = Budget([
         BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
-                   "2026-07", 500_000.0, 430_000.0, entity="M_098_TRA"),
+                   "2026-07", 500_000.0, 430_000.0, entity="M_105_TRA"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -731,7 +731,7 @@ def test_a_candidate_can_join_on_the_entity_instead_of_the_market(tmp_path, caps
         writer = csv.writer(handle)
         writer.writerow(["entity", "segment", "period", "value"])
         # No market column at all: the entity carries the attribution on its own.
-        writer.writerow(["M_098_TRA", "TRA - Travel retail", "2025-07", "430000"])
+        writer.writerow(["M_105_TRA", "TRA - Travel retail", "2025-07", "430000"])
 
     assert cmd_reconcile([str(path)]) == 0
     assert "Jointes par entité  1" in capsys.readouterr().out
@@ -746,7 +746,7 @@ def test_a_candidate_without_an_entity_still_joins_on_the_market(tmp_path, monke
 
     plan = Budget([
         BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
-                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+                   "2026-07", 500_000.0, 430_000.0, entity="M_103"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -770,7 +770,7 @@ def test_an_unknown_entity_falls_back_rather_than_vanishing(tmp_path, capsys, mo
 
     plan = Budget([
         BudgetLine("Japan", "APAC", "DIS - Distributors", "dis",
-                   "2026-07", 500_000.0, 430_000.0, entity="M_024"),
+                   "2026-07", 500_000.0, 430_000.0, entity="M_103"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -796,11 +796,11 @@ def test_an_unknown_entity_falls_back_rather_than_vanishing(tmp_path, capsys, mo
 def _pair_plan():
     return Budget([
         BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
-                   "2026-04", 0.0, 300_000.0, entity="M_098_TRA"),
+                   "2026-04", 0.0, 300_000.0, entity="M_105_TRA"),
         BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
-                   "2026-05", 0.0, 200_000.0, entity="M_098_TRA"),
+                   "2026-05", 0.0, 200_000.0, entity="M_105_TRA"),
         BudgetLine("Hong Kong", "APAC", "TRA - Travel retail", "tra",
-                   "2026-06", 0.0, 250_000.0, entity="M_098_TRA"),
+                   "2026-06", 0.0, 250_000.0, entity="M_105_TRA"),
     ])
 
 
@@ -841,8 +841,8 @@ def test_two_inseparable_months_are_checked_against_their_sum(tmp_path, capsys, 
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
-        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-06", "250000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 0
@@ -856,8 +856,8 @@ def test_a_grouped_figure_that_disagrees_is_named(tmp_path, capsys, pair):
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
-        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-06", "250000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 1
@@ -873,8 +873,8 @@ def test_grouped_months_are_not_also_counted_as_missing(tmp_path, capsys, pair):
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
-        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-06", "250000"],
     ])
 
     cmd_reconcile([str(path)])
@@ -886,7 +886,7 @@ def test_a_range_covering_nothing_expected_is_reported_not_silent(tmp_path, caps
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2024-01..2024-02", "500000"],
+        ["M_105_TRA", "TRA - Travel retail", "2024-01..2024-02", "500000"],
     ])
 
     cmd_reconcile([str(path)])
@@ -901,8 +901,8 @@ def test_a_grouped_disagreement_is_not_called_usable(tmp_path, capsys, pair):
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
-        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-04..2025-05", "100000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-06", "250000"],
     ])
 
     assert cmd_reconcile([str(path)]) == 1
@@ -915,8 +915,8 @@ def test_grouped_months_count_towards_the_rate(tmp_path, capsys, pair):
     from app.cli import cmd_reconcile
 
     path = _combined_candidate(tmp_path, [
-        ["M_098_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
-        ["M_098_TRA", "TRA - Travel retail", "2025-06", "250000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-04..2025-05", "500000"],
+        ["M_105_TRA", "TRA - Travel retail", "2025-06", "250000"],
     ])
 
     cmd_reconcile([str(path)])
@@ -967,9 +967,9 @@ def test_la_verification_depuis_lentrepot_confronte_les_lignes_lues(monkeypatch,
     monkeypatch.setattr(budget_module, "load", lambda path: _pair_plan())
     monkeypatch.setattr(queries, "SELL_IN_HISTORY", "SELECT 1")
     monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label="": [
-        {"entity": "M_098_TRA", "segment": "TRA - Travel retail",
+        {"entity": "M_105_TRA", "segment": "TRA - Travel retail",
          "period": "2025-04..2025-05", "value": 500_000.0},
-        {"entity": "M_098_TRA", "segment": "TRA - Travel retail",
+        {"entity": "M_105_TRA", "segment": "TRA - Travel retail",
          "period": "2025-06", "value": 250_000.0},
     ])
 
@@ -1000,8 +1000,8 @@ def test_un_echec_de_lecture_ne_fait_pas_tomber_la_commande(monkeypatch, capsys)
 
 
 def test_the_warehouse_suffix_joins_to_a_plan_that_omits_it(tmp_path, capsys, monkeypatch):
-    """The workbook types the same entity two ways: bare `M_002` for most of them,
-    suffixed `M_017_UNLOC` for a few. The consolidation always writes the suffixed
+    """The workbook types the same entity two ways: bare `M_101` for most of them,
+    suffixed `M_102_UNLOC` for a few. The consolidation always writes the suffixed
     form, so an exact match alone loses five markets — France, Germany, Hong Kong,
     New Zealand and the United States, 165 cells of real revenue. The suffix is an
     alias rather than a rule in the query: how a spreadsheet was typed is not
@@ -1014,7 +1014,7 @@ def test_the_warehouse_suffix_joins_to_a_plan_that_omits_it(tmp_path, capsys, mo
 
     plan = Budget([
         BudgetLine("France", "EMEA", "DIS - Distributors", "dis",
-                   "2026-07", 300_000.0, 250_000.0, entity="M_002"),
+                   "2026-07", 300_000.0, 250_000.0, entity="M_101"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -1023,7 +1023,7 @@ def test_the_warehouse_suffix_joins_to_a_plan_that_omits_it(tmp_path, capsys, mo
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["entity", "segment", "period", "value"])
-        writer.writerow(["M_002_UNLOC", "DIS - Distributors", "2025-07", "250000"])
+        writer.writerow(["M_101_UNLOC", "DIS - Distributors", "2025-07", "250000"])
 
     assert cmd_reconcile([str(path)]) == 0
     out = capsys.readouterr().out
@@ -1041,9 +1041,9 @@ def test_the_plans_own_spelling_wins_over_the_alias(tmp_path, capsys, monkeypatc
 
     plan = Budget([
         BudgetLine("Australia", "APAC", "DPT - Department Stores", "dpt",
-                   "2026-07", 90_000.0, 80_000.0, entity="M_017_UNLOC"),
+                   "2026-07", 90_000.0, 80_000.0, entity="M_102_UNLOC"),
         BudgetLine("Elsewhere", "APAC", "DPT - Department Stores", "dpt",
-                   "2026-07", 10_000.0, 5_000.0, entity="M_017"),
+                   "2026-07", 10_000.0, 5_000.0, entity="M_102"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -1052,7 +1052,7 @@ def test_the_plans_own_spelling_wins_over_the_alias(tmp_path, capsys, monkeypatc
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["entity", "segment", "period", "value"])
-        writer.writerow(["M_017_UNLOC", "DPT - Department Stores", "2025-07", "80000"])
+        writer.writerow(["M_102_UNLOC", "DPT - Department Stores", "2025-07", "80000"])
 
     assert cmd_reconcile([str(path)]) == 1  # the other cell is still missing
     out = capsys.readouterr().out
@@ -1077,13 +1077,13 @@ def test_two_entities_on_one_market_are_added_before_being_confronted(
 
     plan = Budget([
         BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
-                   "2026-04", 0.0, 1_500_000.0, entity="M_037"),
+                   "2026-04", 0.0, 1_500_000.0, entity="M_104"),
         BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
-                   "2026-05", 0.0, 3_000_000.0, entity="M_037"),
+                   "2026-05", 0.0, 3_000_000.0, entity="M_104"),
         BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
-                   "2026-04", 0.0, 1_500_000.0, entity="M_007_JDCOM"),
+                   "2026-04", 0.0, 1_500_000.0, entity="M_106_JDCOM"),
         BudgetLine("China", "CHINA", "WEBP - Web Partners", "webp",
-                   "2026-05", 0.0, 1_500_000.0, entity="M_007_JDCOM"),
+                   "2026-05", 0.0, 1_500_000.0, entity="M_106_JDCOM"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -1093,8 +1093,8 @@ def test_two_entities_on_one_market_are_added_before_being_confronted(
         writer = csv.writer(handle)
         writer.writerow(["entity", "segment", "period", "value"])
         # The same market and the same inseparable pair, reached by two entities.
-        writer.writerow(["M_037", "WEBP - Web Partners", "2025-04..2025-05", "4500000"])
-        writer.writerow(["M_007_JDCOM", "WEBP - Web Partners", "2025-04..2025-05", "3000000"])
+        writer.writerow(["M_104", "WEBP - Web Partners", "2025-04..2025-05", "4500000"])
+        writer.writerow(["M_106_JDCOM", "WEBP - Web Partners", "2025-04..2025-05", "3000000"])
 
     exit_code = cmd_reconcile([str(path)])
     out = capsys.readouterr().out
@@ -1114,9 +1114,9 @@ def test_a_single_entity_figure_is_not_labelled_as_shared(tmp_path, capsys, monk
 
     plan = Budget([
         BudgetLine("Japan", "JAPAN", "DIS - Distributors", "dis",
-                   "2026-04", 0.0, 100_000.0, entity="M_024"),
+                   "2026-04", 0.0, 100_000.0, entity="M_103"),
         BudgetLine("Japan", "JAPAN", "DIS - Distributors", "dis",
-                   "2026-05", 0.0, 200_000.0, entity="M_024"),
+                   "2026-05", 0.0, 200_000.0, entity="M_103"),
     ])
     monkeypatch.setattr(type(settings), "has_budget_file", property(lambda self: True))
     monkeypatch.setattr(budget_module, "load", lambda path: plan)
@@ -1125,7 +1125,7 @@ def test_a_single_entity_figure_is_not_labelled_as_shared(tmp_path, capsys, monk
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["entity", "segment", "period", "value"])
-        writer.writerow(["M_024", "DIS - Distributors", "2025-04..2025-05", "300000"])
+        writer.writerow(["M_103", "DIS - Distributors", "2025-04..2025-05", "300000"])
 
     assert cmd_reconcile([str(path)]) == 0
     out = capsys.readouterr().out
@@ -1153,8 +1153,9 @@ def test_travel_retail_is_not_the_country_it_is_invoiced_from():
     """Hong Kong le marché et le travel retail de Hong Kong sont deux commerces qui
     partagent une adresse de facturation.
 
-    Repliés ensemble, un marché de 3,6 M€ qui recule de 18 % se retrouvait dans une ligne
-    de 27 M€ faite surtout d'aéroports et qui ne bougeait presque pas : la chute était
+    Repliés ensemble, un petit marché en fort recul se retrouvait dans une ligne
+    plusieurs fois plus grosse, faite surtout d'aéroports et qui ne bougeait presque
+    pas : la chute était
     arithmétiquement présente dans le total et impossible à voir.
     """
     from app.perf.budget import market_of

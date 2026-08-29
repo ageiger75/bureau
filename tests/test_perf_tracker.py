@@ -446,10 +446,10 @@ REAL = ["ID", "Niveau", "Propriétaire", "Périmètre", "Pilier", "KPI", "Défin
 
 def real_row(**over):
     row = {
-        "ID": 2.0, "Niveau": "Maison", "Propriétaire": "Julie", "Périmètre": "LOEP",
+        "ID": 2.0, "Niveau": "Maison", "Propriétaire": "Alix", "Périmètre": "LOEP",
         "Pilier": "3P Profit", "KPI": "Net sales hors cleaning",
-        "Définition / base": "Périmètre healthy", "Réel FY26": "1 209",
-        "Cible FY27": "1 259 (+4%)", "Cible (num)": 1259.0, "Unité": "M€", "Sens": "↑",
+        "Définition / base": "Périmètre healthy", "Réel FY26": "1 830",
+        "Cible FY27": "1 900 (+4%)", "Cible (num)": 1900.0, "Unité": "M€", "Sens": "↑",
         "Fréquence": "Mensuel", "Source": "Finance / Revenue", "Déf.": "Verrouillé",
     }
     row.update(over)
@@ -457,14 +457,14 @@ def real_row(**over):
 
 
 def test_the_numeric_target_column_wins_over_the_sentence_beside_it():
-    """"1 259 (+4%)" is a sentence about a target. `Cible (num)` is the target."""
+    """"1 900 (+4%)" is a sentence about a target. `Cible (num)` is the target."""
     registry = tracker.tracker_from_rows([REAL, real_row()])
 
     entry = registry.entries[0]
-    assert entry.target == 1259.0
+    assert entry.target == 1900.0
     assert entry.unit == "M€"
     assert entry.priority == rules.P1  # "Maison" is a board-level KPI
-    assert entry.last_year == 1209.0  # read through the thin space
+    assert entry.last_year == 1830.0  # read through the thin space
 
 
 def test_the_arrow_column_settles_the_direction():
@@ -576,12 +576,12 @@ def test_the_labels_this_tracker_actually_uses_are_claimed():
     `Net sales hors cleaning`, `Same-store sales Groupe`. An alias list is only worth
     what the file it is pointed at says."""
     registry = tracker.tracker_from_rows(sheet(
-        ["1", "Maison", "Julie", "LOEP", "3P", "Net sales hors cleaning", "≥ 1259", 1209.0],
-        ["2", "Maison", "Julie", "LOEP", "3P", "Same-store sales Groupe", "≥ 4,5", 3.0],
-        ["3", "Maison", "Julie", "LOEP", "Client", "Traffic", "≥ 2", 1.0],
-        ["4", "Maison", "Julie", "LOEP", "Client", "Reviews sur relances", "≥ 4,6", 4.5],
-        ["5", "Maison", "Julie", "LOEP", "Client", "Heroes WOB", "≥ 30", 28.9],
-        ["6", "Maison", "Julie", "LOEP", "Client", "Refills", "≥ 5,3", 5.0],
+        ["1", "Maison", "Alix", "LOEP", "3P", "Net sales hors cleaning", "≥ 900", 870.0],
+        ["2", "Maison", "Alix", "LOEP", "3P", "Same-store sales Groupe", "≥ 6,0", 4.2],
+        ["3", "Maison", "Alix", "LOEP", "Client", "Traffic", "≥ 2", 1.0],
+        ["4", "Maison", "Alix", "LOEP", "Client", "Reviews sur relances", "≥ 4,6", 4.5],
+        ["5", "Maison", "Alix", "LOEP", "Client", "Heroes WOB", "≥ 30", 28.9],
+        ["6", "Maison", "Alix", "LOEP", "Client", "Refills", "≥ 5,3", 5.0],
     ))
 
     matched, unmatched, _ = kpi_registry.match(registry, [
@@ -599,7 +599,7 @@ def test_the_labels_this_tracker_actually_uses_are_claimed():
 
 
 def test_an_annual_amount_is_never_scored_against_one_month():
-    """`Net sales hors cleaning ≥ 1 259 M€` is what the Maison intends to sell over
+    """A net-sales floor stated in millions is what the Maison intends to sell over
     twelve months. Set against one month of sales it reads as a miss of ninety-four
     percent — every month, until the year ends — and it would sit at the top of a panel
     whose whole job is to show only what is genuinely off.
@@ -608,7 +608,7 @@ def test_an_annual_amount_is_never_scored_against_one_month():
     panel is for the signals that lead them.
     """
     registry = tracker.tracker_from_rows([REAL,
-        real_row(),  # Net sales hors cleaning, 1259 M€
+        real_row(),  # Net sales hors cleaning, an amount
         real_row(KPI="Refills", **{"Cible (num)": 5.3, "Unité": "%"}),
     ])
 
