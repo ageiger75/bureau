@@ -1013,6 +1013,40 @@ reviews as (
     ) r cross join period p
     where r.month between p.first_month and p.last_month
     group by grouping sets ((review_country, month), (month))
+),
+governed as (
+    -- A second read path, on the semantic-layer fact view rather than through the
+    -- `SEMANTIC_VIEW()` function. This is the pattern the organisation's own verified
+    -- queries use, and it is what makes ATV and UPT possible at all: their governed
+    -- definitions divide by `COUNT(DISTINCT TRANSACTION_NUMBER)`, which is only correct
+    -- when this query owns the GROUP BY. Read through the function, the month grain was
+    -- unreachable and the additive facts gave answers wrong by a factor of three.
+    --
+    -- `FLAG_TURNOVER = 1` is applied here, as those verified queries do, so samples,
+    -- gifts-with-purchase and supplies never count as revenue. The brand filter is not
+    -- optional either: this view carries every brand, and without it FY26 reads 859m
+    -- instead of 836m.
+    select
+        iff(grouping(s.store_country) = 1, 'LOEP',
+            coalesce(s.store_country, '(sans pays)'))     as scope,
+        to_char(date_trunc('month', f.transaction_date), 'YYYY-MM') as period,
+        sum(iff(f.flag_zero_sales_ticket = 0, f.net_sales_eur, 0)) as net_non_zero,
+        sum(iff(f.flag_zero_sales_ticket = 0, f.quantity, 0))      as qty_non_zero,
+        count(distinct iff(f.flag_zero_sales_ticket = 0,
+                           f.transaction_number, null))            as transactions,
+        sum(f.net_sales_eur)                                       as net_all,
+        sum(iff(p.product_segment = 'HOME', f.net_sales_eur, 0))   as home_sales
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores   s on s.store_skey   = f.store_skey
+    join dwh.semantic_layer.v_sl_ai_d_products p on p.product_skey = f.product_skey
+    cross join period pr
+    where f.flag_turnover = 1
+      and s.store_brand = 'L''OCCITANE'
+      and f.transaction_date >= dateadd(month, -26, current_date)
+      and date_trunc('month', f.transaction_date) between pr.first_month and pr.last_month
+    group by grouping sets (
+        (s.store_country, date_trunc('month', f.transaction_date)),
+        (date_trunc('month', f.transaction_date)))
 )
 select scope, 'net_sales'   as kpi_key, period, net_sales as value from sales_keys
 union all
@@ -1049,6 +1083,17 @@ select scope, 'nps_customer_service', period,
 from surveys where nps_type = 'NPS_CS'
 union all
 select scope, 'review_rating', period, review_rating from reviews
+union all
+-- The governed definitions, written out rather than approximated.
+select scope, 'atv', period, net_non_zero / nullif(transactions, 0) from governed
+union all
+select scope, 'upt', period, qty_non_zero / nullif(transactions, 0) from governed
+union all
+-- A share, not an amount: the tracker states the Home category in percent, and a figure
+-- in euros could not be scored against it. The amount is available beside it if ever
+-- wanted, never instead of it.
+select scope, 'home_wob', period,
+       100.0 * home_sales / nullif(net_all, 0) from governed
 """
 
 #: Published market growth per market, used to test "the market is difficult" rather than
