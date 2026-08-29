@@ -26,7 +26,7 @@
                                      --spec FICHIER.csv exporte les réalisés de l'an dernier
                                      --perimeter sell-in|own|other|all (défaut sell-in)
     python -m app.cli compare        confronte le trimestre clos au reforecast Finance
-                                     compare REF1.xlsx [--all] [--sellin]
+                                     compare REF1.xlsx [--all] [--sellin] [--entities]
     python -m app.cli kpi            ce que le cockpit lit dans le classeur de suivi
                                      --join confronte le registre aux relevés de l'entrepôt
                                      --file CHEMIN pour un autre classeur que var/
@@ -739,6 +739,7 @@ def cmd_compare(argv: List[str]) -> int:
         manage.py compare REF1.xlsx --all      toutes les lignes, pas seulement les écarts
         manage.py compare REF1.xlsx --quarter 2026-07,2026-08,2026-09
         manage.py compare REF1.xlsx --sellin   les noms que la consolidation emploie
+        manage.py compare REF1.xlsx --entities les codes d'entité, pour le double comptage
         manage.py compare REF1.xlsx --refresh  relit l'historique au lieu du cache
 
     Deux règles valent plus que la comparaison elle-même. Seul le trimestre clos est lu :
@@ -816,9 +817,9 @@ def cmd_compare(argv: List[str]) -> int:
     # — so a first run set shop sales against Finance's total and found every market with
     # a partner business short by exactly its shipments. That is not a data fault, it is
     # two perimeters, and only one of them was named.
-    shipped = {}
+    shipped, entities = {}, {}
     if "--sold-only" not in argv:
-        shipped = _shipped_over(periods)
+        shipped, entities = _shipped_over(periods)
     ours = dict(sold)
     for market, amount in shipped.items():
         ours[market] = ours.get(market, 0.0) + amount
@@ -877,6 +878,24 @@ def cmd_compare(argv: List[str]) -> int:
             market[:24], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
+    doubled = [(code, amount) for code, amount in entities.items()
+               if any(code.upper().endswith(mark) for mark in ROLLUP_ENTITY_MARKS)]
+    if doubled:
+        # Bruyant, et à raison : une entité qui totalise un pays déjà lu ligne à ligne
+        # gonfle un marché sans rendre le total invraisemblable, donc rien ne l'attrape
+        # sauf ceci.
+        print("")
+        print("Attention — des entités de consolidation qui totalisent un pays sont")
+        print("comptées ici, en plus des lignes de ce pays :")
+        for code, amount in sorted(doubled, key=lambda pair: -pair[1]):
+            print("  %-24s %9s" % (code[:24], _eur_k(amount)))
+    if "--entities" in argv:
+        # Le code d'entité, jamais le nom du marché. Deux entités peuvent porter le même
+        # pays, et c'est précisément le cas qu'on cherche.
+        print("")
+        print("Le sell-in par entité de consolidation :")
+        for code, amount in sorted(entities.items(), key=lambda pair: -pair[1]):
+            print("  %-24s %9s" % (code[:24], _eur_k(amount)))
     if "--sellin" in argv:
         # Le nom, tel que la consolidation l'écrit. Trois lignes du fichier Finance ne
         # trouvent rien en face dans le cockpit, et il y a deux causes possibles qui ne
@@ -990,8 +1009,19 @@ def _bulk_over(periods: Sequence[str]) -> Optional[float]:
     return group.bulk
 
 
-def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
-    """What was invoiced to partners over these months, by market.
+#: Le suffixe des entités de consolidation qui totalisent un pays déjà présent ligne à
+#: ligne. Cinq d'entre elles portent 116 M€ de retail en doublon des marchés
+#: correspondants ; une lecture qui les additionne compte deux fois, et rien ne le dirait.
+ROLLUP_ENTITY_MARKS = ("_STR_TOT", "_TOT")
+
+
+def _shipped_over(periods: Sequence[str]) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """`(par marché, par entité)` — ce qui a été facturé aux partenaires sur ces mois.
+
+    L'entité est rendue en plus du marché parce que le marché seul ne permet pas de
+    répondre à la question qui compte ici : la consolidation porte des entités qui
+    totalisent un pays déjà présent ligne à ligne, et une lecture qui les additionne
+    compte deux fois sans que le total ait l'air faux.
 
     Read straight from the warehouse rather than from a cache: the query is half a second,
     and the alternative is a comparison that quietly leaves out two fifths of what the
@@ -1005,17 +1035,18 @@ def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
     if not settings.reads_warehouse or not queries.SELL_IN.strip():
         print("Sell-in non lu : la source n'est pas l'entrepôt. Le tableau ci-dessous "
               "ne porte que le vendu.", file=sys.stderr)
-        return {}
+        return {}, {}
     from .perf.history import _months_in
 
     wanted = set(periods)
     found: Dict[str, float] = {}
+    by_entity: Dict[str, float] = {}
     try:
         rows = warehouse.rows(queries.SELL_IN, label="SELL_IN")
     except Exception as exc:
         print("Sell-in non lu (%s). Le tableau ne porte que le vendu." % exc,
               file=sys.stderr)
-        return {}
+        return {}, {}
 
     straddling = 0.0
     for row in rows:
@@ -1041,11 +1072,14 @@ def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
             continue
         market = normalise_market(str(row.get("market") or ""))
         found[market] = found.get(market, 0.0) + float(amount)
+        code = str(row.get("entity") or "").strip()
+        if code:
+            by_entity[code] = by_entity.get(code, 0.0) + float(amount)
 
     if straddling:
         print("Sell-in à cheval : %.1f M€ sur des périodes qui débordent le trimestre, "
               "inséparables et donc non comptés." % (straddling / 1e6), file=sys.stderr)
-    return found
+    return found, by_entity
 
 
 def _eur_k(amount: float) -> str:

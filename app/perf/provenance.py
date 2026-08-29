@@ -240,6 +240,22 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Which system records an opening and a closing, if the store "
         "referential does not.",
     ),
+    "consolidation_rollups": Measure(
+        key="consolidation_rollups",
+        label="Store-total entities in the consolidation",
+        maturity=BETA,
+        note="Five entities in the management consolidation total a country's retail that "
+        "is already present line by line — 116m€ a year between them, the largest being "
+        "the United States at 81m€. Adding them to their countries would double-count "
+        "without making any total look wrong, which is the only kind of error this "
+        "comparison cannot catch by looking at the bottom line. The market-by-market "
+        "check says they are not being added today: no market is over by anything like "
+        "the right magnitude, and the two that are over — Hong Kong by 4.8m€ — are over "
+        "by too little and in the wrong place. The reconciliation now names any entity "
+        "whose code marks it as a roll-up, so this stays checked rather than remembered.",
+        to_confirm="Which countries the two unidentified store-total entities belong to. "
+        "One of them landing on Hong Kong would explain the only over-count left.",
+    ),
     "hospitality": Measure(
         key="hospitality",
         label="Hospitality and corporate gifts",
