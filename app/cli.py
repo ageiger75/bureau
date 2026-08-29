@@ -786,8 +786,26 @@ def cmd_compare(argv: List[str]) -> int:
     rows, read_at_text = stored
     quarter = _option(argv, "--quarter") or "2026-04,2026-05,2026-06"
     periods = [p.strip() for p in quarter.split(",") if p.strip()]
-    ours = history_module.from_rows(rows).summed(periods)
+    sold = history_module.from_rows(rows).summed(periods)
+
+    # Both sides of the invoice, or the comparison answers a question nobody asked. The
+    # history is sell-out only — the consolidation publishes a comparison and not a series
+    # — so a first run set shop sales against Finance's total and found every market with
+    # a partner business short by exactly its shipments. That is not a data fault, it is
+    # two perimeters, and only one of them was named.
+    shipped = {}
+    if "--sold-only" not in argv:
+        shipped = _shipped_over(periods)
+    ours = dict(sold)
+    for market, amount in shipped.items():
+        ours[market] = ours.get(market, 0.0) + amount
+
     print("Mois comparés      %s  (historique lu %s)" % (", ".join(periods), read_at_text))
+    print("Périmètre          vendu %.1f M€ + expédié %.1f M€ = %.1f M€"
+          % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6,
+             sum(ours.values()) / 1e6))
+    print("                   la Finance en annonce %.1f M€ pour le même trimestre, "
+          "cleaning compris" % (ref.total_actual / 1e6))
     print("")
 
     rows = reference.compare(ref, ours)
@@ -803,6 +821,41 @@ def cmd_compare(argv: List[str]) -> int:
         print("")
         print("Absents du cockpit : %s" % ", ".join(missing))
     return 0
+
+
+def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
+    """What was invoiced to partners over these months, by market.
+
+    Read straight from the warehouse rather than from a cache: the query is half a second,
+    and the alternative is a comparison that quietly leaves out two fifths of what the
+    Maison sells. Returns nothing, loudly, when the warehouse is not the source — a check
+    run against invented figures would agree with nothing and say so too late.
+    """
+    from .config import settings
+    from .perf import queries, warehouse
+    from .perf.budget import normalise_market
+
+    if not settings.reads_warehouse or not queries.SELL_IN.strip():
+        print("Sell-in non lu : la source n'est pas l'entrepôt. Le tableau ci-dessous "
+              "ne porte que le vendu.", file=sys.stderr)
+        return {}
+    wanted = set(periods)
+    found: Dict[str, float] = {}
+    try:
+        rows = warehouse.rows(queries.SELL_IN, label="SELL_IN")
+    except Exception as exc:
+        print("Sell-in non lu (%s). Le tableau ne porte que le vendu." % exc,
+              file=sys.stderr)
+        return {}
+    for row in rows:
+        if str(row.get("period") or "") not in wanted:
+            continue
+        amount = row.get("sales_actual")
+        if amount is None:
+            continue
+        market = normalise_market(str(row.get("market") or ""))
+        found[market] = found.get(market, 0.0) + float(amount)
+    return found
 
 
 def _eur_k(amount: float) -> str:

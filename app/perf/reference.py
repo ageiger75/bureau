@@ -102,9 +102,19 @@ def read_reference(path) -> Reference:
         read.append((name, actual, budget))
 
     leaves, skipped = _leaves(read)
+    # Summed per market after normalising, not one line per source row. The file writes
+    # China twice — the mainland and cross-border — and Hong Kong three times, and every
+    # one of them normalises to the same market the cockpit knows. Compared row by row,
+    # each fragment was set against the market's whole figure, so one market produced
+    # three findings and none of them was true.
+    per_market: Dict[str, Tuple[float, float]] = {}
+    for name, actual, budget in leaves:
+        market = normalise_market(name)
+        had = per_market.get(market, (0.0, 0.0))
+        per_market[market] = (had[0] + actual * THOUSANDS, had[1] + budget * THOUSANDS)
     lines = [
-        Line(normalise_market(name), actual * THOUSANDS, budget * THOUSANDS)
-        for name, actual, budget in leaves
+        Line(market, values[0], values[1])
+        for market, values in sorted(per_market.items())
     ]
 
     total_actual, total_budget = 0.0, 0.0
