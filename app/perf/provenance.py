@@ -298,18 +298,20 @@ REGISTER: Dict[str, Measure] = {
         "entities. So it is the business Europe and the Americas manage, not the Maison's "
         "distributor business, and the file's line is the same perimeter under Finance's "
         "name for it. Folded.\n\n"
-        "An argument about a whole perimeter becomes a difference of a few per cent. The "
-        "invoice fact and the consolidation agree closely with each other, so what is left "
-        "sits between the consolidation and Finance's file rather than inside the "
-        "warehouse — which points at something the file adds rather than something the "
-        "warehouse loses.\n\n"
+        "An argument about a whole perimeter became a difference of a few per cent, and "
+        "then nothing at all. What was missing was not a second export office nor a "
+        "rebate account: the entity carries two channels and only one was being read. "
+        "Both together reconcile with Finance's line to a few hundred euros.\n\n"
+        "Worth keeping as a habit rather than as a fact. An entity is not a figure — it "
+        "can hold several channels, and a query that reads one of them looks complete.\n\n"
         "One trap to carry: the zone called Europe in that commercial hierarchy is a "
         "management perimeter and not a continent. It contains Kazakhstan, Mongolia, "
         "Uzbekistan, Georgia, Nigeria, Mauritius, Martinique and New Caledonia. Anyone "
         "filtering on Europe expecting Europe is wrong by twenty countries — the same kind "
         "of label this screen exists to decode, one level further down.",
-        to_confirm="What the file adds that the consolidation does not: a second export "
-        "office, or the rebate and contribution accounts the invoice fact does not carry.",
+        to_confirm="That it still reconciles on the next closed quarter. One quarter "
+        "agreeing is a good sign; the plan earned its standing over a year and a pack the "
+        "organisation publishes, and this has not.",
     ),
     "commercial_zones": Measure(
         key="commercial_zones",
@@ -334,26 +336,61 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Nothing. This is a fact about the referential, and the cockpit's job "
         "is to never read those labels as places.",
     ),
+    "rate_effect": Measure(
+        key="rate_effect",
+        label="The difference the exchange rate accounts for",
+        maturity=BETA,
+        note="Most of the market-by-market differences in the reconciliation are the "
+        "currency, and that is now demonstrated rather than assumed. Two readings were "
+        "wrong along the way and both were mine to relay: that the long tail was a missing "
+        "perimeter, and then that it was the consolidation front-loading its first "
+        "quarter.\n\n"
+        "What settled it is a method worth keeping. The consolidation restates last year "
+        "at this year's rates in a column of its own, so comparing that column against the "
+        "same quarter of sell-out removes the rate entirely and leaves whatever else there "
+        "is. Done that way most markets land inside a point, and the few that do not are "
+        "the real findings.\n\n"
+        "The tell was in the shape all along: a difference that holds at the same "
+        "percentage across four quarters and then vanishes is a multiplier, and only a "
+        "rate behaves like that. A calendar effect does not.",
+        to_confirm="The full year at constant rates, which needs the March snapshot. Until "
+        "then the quarter is the only window where both sides can be put on one rate.",
+    ),
     "china_quarter_timing": Measure(
         key="china_quarter_timing",
-        label="How the consolidation spreads a quarter",
+        label="How the consolidation spreads China's quarter",
         maturity=BETA,
-        note="China's retail was still short after the third-party counters were taken out, "
-        "and the cause is not a missing perimeter. Every Chinese store that sells is in "
-        "the referential, the monthly series has no hole, and the stores that closed carry "
-        "a small fraction of what is missing.\n\n"
-        "What the figures show is a timing difference. The consolidation exceeds the "
-        "sell-out on the first quarter of both years, and then falls below it over the "
-        "full year. Same rates, same year, sign reversed. The consolidation front-loads "
-        "the quarter and catches up afterwards.\n\n"
-        "That matters beyond China, because every market on the reconciliation compares a "
-        "consolidation quarter against a sell-out quarter. If the front-loading is "
-        "general, the long tail of small shortfalls across thirty markets is timing rather "
-        "than currency — and a single-quarter reconciliation is the wrong instrument, "
-        "where a year to date would be right.",
-        to_confirm="Whether the first-quarter front-loading holds across markets or is "
-        "China's alone. Four quarters, market by market, settles it — and settles what "
-        "the long tail is.",
+        note="China's retail was still short after the third-party counters were taken "
+        "out, and the cause is not a missing perimeter. Every Chinese store that sells is "
+        "in the referential, the monthly series has no hole, and the stores that closed "
+        "carry a small fraction of what is missing.\n\n"
+        "At constant rates the consolidation exceeds the sell-out on the first quarter of "
+        "both years, by a similar margin each time. Stable, not fading — an earlier "
+        "reading that had it shrinking was comparing two rate bases and said nothing. "
+        "China is alone in this: every other market of any size lands inside a point once "
+        "the rate is taken out. So it is one market's accounting question, not a property "
+        "of the instrument, and the quarterly reconciliation stands.",
+        to_confirm="How the retail figure of the Chinese entity is spread between "
+        "quarters. That belongs to whoever produces the Chinese consolidation.",
+    ),
+    "france_retail": Measure(
+        key="france_retail",
+        label="What the French stores sell, and what the accounts recognise",
+        maturity=BETA,
+        note="France is the one market whose difference is in euros, so no exchange rate "
+        "explains it. The sell-out records a substantial retail business that the "
+        "consolidation does not recognise as retail, and the gap runs to millions a "
+        "quarter — far more than any department-store channel could hold.\n\n"
+        "The shape of it suggests ownership rather than perimeter: if part of the French "
+        "network is affiliated or franchised, the till reports in full to the sell-out "
+        "while the accounts recognise only the margin, booked under distributors and "
+        "independent wholesale. That is a hypothesis with a cheap test — the ownership "
+        "status of each French store — and it is not yet measured.\n\n"
+        "It matters more than a reconciliation line. If it holds, the French retail figure "
+        "on this screen is not the figure the P&L recognises, and a conversation about "
+        "France would be held on a number the finance director does not have.",
+        to_confirm="The ownership status of the French stores: which are operated by the "
+        "Maison and which by an affiliate or franchisee.",
     ),
     "hospitality": Measure(
         key="hospitality",
