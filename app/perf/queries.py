@@ -810,9 +810,18 @@ order by s.entity_code, s.segment, s.snapshot_date
 #: KPI readings only — scope, kpi_key, period, value. Definitions, targets, direction and
 #: cadence come from the tracker, not from here.
 #:
-#: Eleven keys, twenty-four months, at market scope and rolled up to `LOEP`. Every
+#: Twelve keys, twenty-four months, at market scope and rolled up to `LOEP`. Every
 #: percentage is a ratio of two sums, never an average of ratios, so the group figure is
 #: the group's own and not the mean of its markets.
+#:
+#: `net_sales_hors_bulk` sits beside `net_sales`, never in place of it: the pair is what
+#: measures bulk, and either figure alone measures nothing. The exclusion is
+#: `FLAG_BULK IN (2, 3, 4, 5)` — the view's own `BULK_SALES` definition, not "anything
+#: non-zero". The five other non-zero values (1, 6, 7, 8, 9) stay in, and that is a
+#: reading rather than a default: every bulk row sits in `TRANSACTION_CHANNEL = 'OTHER'`
+#: while all five sit in `'RETAIL'`, and two of them carry a unit price above the
+#: ordinary retail one rather than below it. Nobody has named what they are, so the
+#: choice is reversible in one line if the referential ever says.
 #:
 #: Five of the tracker's monthly KPIs are deliberately absent, and their absence is the
 #: reading:
@@ -866,6 +875,7 @@ sellout as (
         store_samestore_ty,
         is_hero,
         is_refill,
+        flag_bulk,
         date_trunc('month', transaction_date) as month,
         net_sales_eur,
         quantity,
@@ -879,6 +889,7 @@ sellout as (
             d_stores.store_samestore_ty,
             d_products.is_hero,
             d_products.is_refill,
+            f_sellout_sales_details.flag_bulk,
             f_sellout_sales_details.transaction_date
         metrics
             sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur,
@@ -903,6 +914,13 @@ sales_keys as (
             coalesce(store_country, '(sans pays)'))    as scope,
         to_char(month, 'YYYY-MM')                      as period,
         sum(net_sales_eur)                             as net_sales,
+        -- Bulk excluded exactly as the view's own `BULK_SALES` fact defines it:
+        -- FLAG_BULK IN (2,3,4,5). The five other non-zero values — 1, 6, 7, 8, 9 —
+        -- are outside that definition and are therefore kept in, which is the
+        -- reading their evidence supports: they sit in TRANSACTION_CHANNEL =
+        -- 'RETAIL' where every bulk row sits in 'OTHER', and two of them carry a
+        -- unit price above the ordinary retail one rather than below it.
+        sum(iff(flag_bulk in (2, 3, 4, 5), 0, net_sales_eur)) as net_sales_ex_bulk,
         sum(iff(is_hero = 1, net_sales_eur, 0))        as hero_sales,
         sum(iff(is_refill = 1, net_sales_eur, 0))      as refill_sales,
         sum(iff(store_samestore_ty = 'yes', net_sales_eur, 0)) as same_store_sales,
@@ -979,6 +997,10 @@ reviews as (
     group by grouping sets ((review_country, month), (month))
 )
 select scope, 'net_sales'   as kpi_key, period, net_sales as value from sales_keys
+union all
+-- Returned beside `net_sales`, never instead of it: the two together are what measure
+-- bulk, and either one alone measures nothing.
+select scope, 'net_sales_hors_bulk', period, net_sales_ex_bulk from sales_keys
 union all
 select scope, 'same_store_sales', period, same_store_sales from sales_keys
 union all
