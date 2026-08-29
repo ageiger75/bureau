@@ -243,18 +243,18 @@ REGISTER: Dict[str, Measure] = {
     "consolidation_rollups": Measure(
         key="consolidation_rollups",
         label="Store-total entities in the consolidation",
-        maturity=BETA,
-        note="Five entities in the management consolidation total a country's retail that "
-        "is already present line by line — 116m€ a year between them, the largest being "
-        "the United States at 81m€. Adding them to their countries would double-count "
-        "without making any total look wrong, which is the only kind of error this "
-        "comparison cannot catch by looking at the bottom line. The market-by-market "
-        "check says they are not being added today: no market is over by anything like "
-        "the right magnitude, and the two that are over — Hong Kong by 4.8m€ — are over "
-        "by too little and in the wrong place. The reconciliation now names any entity "
-        "whose code marks it as a roll-up, so this stays checked rather than remembered.",
-        to_confirm="Which countries the two unidentified store-total entities belong to. "
-        "One of them landing on Hong Kong would explain the only over-count left.",
+        maturity=VALIDATED,
+        note="Seven entities in the consolidation carry a country's retail as a store "
+        "total — 168m€ a year, the largest being the United States at 81m€. They were "
+        "briefly taken for duplicates of their countries, and they are not: in every one "
+        "of those countries the base entity carries zero retail, so the store total is "
+        "the sole carrier, exactly as Japan and the United Kingdom carry theirs without "
+        "the suffix. Adding them gives the right figure.\n\n"
+        "The check that survives is narrower and it is the one that matters: a market "
+        "receiving both a total and its own detail lines would be inflated without any "
+        "total looking wrong. That condition is tested on the rows read, at every "
+        "reconciliation, rather than on the shape of a name — the first version alarmed "
+        "on the naming convention itself and would have cried wolf on every run.",
     ),
     "hospitality": Measure(
         key="hospitality",

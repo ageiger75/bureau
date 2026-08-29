@@ -878,17 +878,17 @@ def cmd_compare(argv: List[str]) -> int:
             market[:24], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
-    doubled = [(code, amount) for code, amount in entities.items()
-               if any(code.upper().endswith(mark) for mark in ROLLUP_ENTITY_MARKS)]
+    doubled = _double_counted(entities)
     if doubled:
-        # Bruyant, et à raison : une entité qui totalise un pays déjà lu ligne à ligne
-        # gonfle un marché sans rendre le total invraisemblable, donc rien ne l'attrape
-        # sauf ceci.
+        # Bruyant, et à raison quand la condition est réellement remplie : un marché qui
+        # reçoit un total et son détail est gonflé sans que le total général paraisse
+        # faux, donc rien ne l'attrape sauf ceci. Le test porte sur la coexistence des
+        # deux, jamais sur la forme du nom — un total qui est le seul porteur de son pays
+        # est la convention de la consolidation, pas une erreur.
         print("")
-        print("Attention — des entités de consolidation qui totalisent un pays sont")
-        print("comptées ici, en plus des lignes de ce pays :")
-        for code, amount in sorted(doubled, key=lambda pair: -pair[1]):
-            print("  %-24s %9s" % (code[:24], _eur_k(amount)))
+        print("Attention — un total et son détail sur le même marché :")
+        for market, codes in doubled:
+            print("  %-18s %s" % (market[:18], " + ".join(codes)))
     if "--entities" in argv:
         # Le code d'entité, jamais le nom du marché. Deux entités peuvent porter le même
         # pays, et c'est précisément le cas qu'on cherche.
@@ -1009,10 +1009,39 @@ def _bulk_over(periods: Sequence[str]) -> Optional[float]:
     return group.bulk
 
 
-#: Le suffixe des entités de consolidation qui totalisent un pays déjà présent ligne à
-#: ligne. Cinq d'entre elles portent 116 M€ de retail en doublon des marchés
-#: correspondants ; une lecture qui les additionne compte deux fois, et rien ne le dirait.
+#: Le suffixe des entités de consolidation qui portent le retail d'un pays sous forme de
+#: total magasins. Sept d'entre elles existent, pour 168 M€.
+#:
+#: Ce n'est pas en soi un doublon, et l'avoir cru a produit un avertissement qui criait
+#: sur une convention parfaitement saine. Dans chacun de ces pays l'entité de base porte
+#: *zéro* retail : le total magasins en est le seul porteur, exactement comme le Japon et
+#: le Royaume-Uni portent le leur sans suffixe. Les additionner donne le bon chiffre.
+#:
+#: Le suffixe seul ne dit donc rien. Ce qui compte est de savoir si un même marché reçoit
+#: à la fois un total et des lignes de détail — et cela se vérifie sur les données lues
+#: plutôt que sur la forme d'un nom.
 ROLLUP_ENTITY_MARKS = ("_STR_TOT", "_TOT")
+
+
+def _double_counted(entities: Dict[str, float]) -> List[Tuple[str, List[str]]]:
+    """Les marchés qui reçoivent à la fois une entité de total et des entités de détail.
+
+    Un suffixe de total n'est pas une faute : dans les pays concernés l'entité de base
+    porte zéro retail et le total en est le seul porteur. La faute serait de recevoir les
+    deux, et c'est cela qu'on cherche — sur les données lues et non sur la forme d'un nom.
+    """
+    by_market: Dict[str, List[Tuple[str, bool]]] = {}
+    for code, amount in entities.items():
+        if not amount:
+            continue
+        market = code.upper().split("_")[1] if "_" in code else code.upper()
+        is_total = any(code.upper().endswith(mark) for mark in ROLLUP_ENTITY_MARKS)
+        by_market.setdefault(market, []).append((code, is_total))
+    found = []
+    for market, codes in sorted(by_market.items()):
+        if any(total for _code, total in codes) and len(codes) > 1:
+            found.append((market, [code for code, _total in codes]))
+    return found
 
 
 def _shipped_over(periods: Sequence[str]) -> Tuple[Dict[str, float], Dict[str, float]]:

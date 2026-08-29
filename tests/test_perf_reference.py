@@ -127,3 +127,30 @@ def test_a_shortfall_that_does_not_match_is_left_unpaired():
     rows = [("Belgium", 977.0, 800.0)]
 
     assert reference.offsetting([("Luxembourg", 900.0)], rows) == []
+
+
+def test_a_store_total_that_is_the_only_carrier_of_its_country_is_not_a_double_count():
+    """Le suffixe seul ne dit rien.
+
+    Dans ces pays l'entité de base porte zéro retail et le total en est le seul porteur,
+    exactement comme d'autres pays portent le leur sans suffixe. Crier sur la forme du nom
+    revenait à alerter sur une convention saine, à chaque exécution.
+    """
+    from app.cli import _double_counted
+
+    assert _double_counted({"M_004_STR_TOT": 80_973.0, "M_002_STR_TOT": 28_144.0}) == []
+
+
+def test_a_country_carrying_both_a_total_and_its_detail_is_named():
+    from app.cli import _double_counted
+
+    found = _double_counted({"M_004_STR_TOT": 80_973.0, "M_004_UNLOC": 12_000.0})
+
+    assert found == [("004", ["M_004_STR_TOT", "M_004_UNLOC"])]
+
+
+def test_an_entity_carrying_nothing_never_raises_the_alarm():
+    """Une entité à zéro coexiste avec le total sans rien doubler."""
+    from app.cli import _double_counted
+
+    assert _double_counted({"M_004_STR_TOT": 80_973.0, "M_004_UNLOC": 0.0}) == []
