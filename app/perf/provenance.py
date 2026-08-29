@@ -399,41 +399,48 @@ REGISTER: Dict[str, Measure] = {
         "coming, and a planned closure that surprises the screen costs the same as an "
         "unplanned one.",
     ),
-    "franchise_buyback": Measure(
-        key="franchise_buyback",
-        label="Stores coming back into the network",
+    "franchise_exit": Measure(
+        key="franchise_exit",
+        label="Leaving the concession channel",
         maturity=BETA,
-        note="The Maison intends to exit franchising gradually. Each store bought back "
-        "moves its revenue from one side of the invoice to the other: what was wholesale "
-        "to a franchisee becomes a till of the Maison's own, so the sold figure of that "
-        "market steps up and its shipped figure steps down, and neither movement is "
-        "trading.\n\n"
-        "Nothing here would say so. The screen would show a French retail line jumping and "
-        "a distributor line falling, both real in the accounts and both meaningless as "
-        "performance — the exact shape the cockpit already refuses to hand anyone as a "
-        "question, and the exact reason the note mechanism exists.\n\n"
-        "It turns out the warehouse can see it coming, which changes this from a hope "
-        "that somebody remembers into a thing the cockpit can watch. A buy-back leaves "
-        "three traces in the same month: the invoicing of a profit centre marked as "
-        "franchised steps down durably, one or more stores record their first sale in "
-        "that country, and the consolidation moves money from distributors to retail. Two "
-        "of the three raise the question; all three name the conversion. None is enough "
-        "alone.\n\n"
-        "The rule earned its keep first by refusing a conclusion, then by producing one. "
-        "Franchise invoicing halved and the distributor line in the consolidation halved "
-        "with it — one trace, moving convincingly. The other two stayed silent: no store "
-        "entered the sell-out, and retail recovered none of it. Anyone watching only the "
-        "falling trace would have called that a buy-back.\n\n"
-        "It is a closure, and the business confirms closures are under way. That is the "
-        "second shape a franchise exit takes, and the traces tell the two apart cleanly: "
-        "a buy-back moves volume into retail, a closure makes it disappear. Same first "
-        "trace, opposite meanings — one is the network being taken back, the other is "
-        "revenue leaving. Both are exits from franchising and both are the plan; neither "
-        "is a commercial failure of the market, and the screen must say so rather than "
-        "rank it.",
-        to_confirm="Who says when a store converts, and when. A conversion recorded the "
-        "month it happens costs one line; discovered afterwards it costs a quarter of "
-        "wrong conversations.",
+        note="The decline the reconciliation found in France is not an anomaly. It is the "
+        "plan. The channel is budgeted to zero this year — a stated number of concessions "
+        "closing, plus the end of two partnerships — after a year that had already taken "
+        "it down by a fifth. What the warehouse showed as a franchise line collapsing is "
+        "the Maison doing what it decided to do.\n\n"
+        "So the question changes shape entirely. It is not whether to note the fall, nor "
+        "which kind of exit it is: it is whether the plan this cockpit reads carries the "
+        "closure at the same grain the actual does. If it does, the gap against plan is "
+        "already near zero and nothing here needs saying — the screen is right without "
+        "help. If the workbook books the closure elsewhere, or later, or in one line "
+        "rather than a channel, then the screen shows a market failing at something it "
+        "was told to do.\n\n"
+        "That is one check on the planning workbook, not an investigation, and it decides "
+        "between doing nothing and writing a note. Doing nothing is the better outcome "
+        "and is the more likely one.",
+        to_confirm="Whether the planning workbook carries the concession closure on the "
+        "French distributor channel, month by month. The answer decides whether a note is "
+        "needed at all.",
+    ),
+    "closed_store_customers": Measure(
+        key="closed_store_customers",
+        label="Where a closed store's customers go",
+        maturity=ABSENT,
+        note="Closing a point of sale is done to fund the ones that work, and the customer "
+        "file follows — that is the intent, and it is what makes the closure worth doing. "
+        "It also sets a trap for this screen.\n\n"
+        "A customer who bought from a closed concession and later buys in an owned store "
+        "arrives in the sell-out as growth. It is real revenue and it is not new demand: "
+        "the same shopper moved. A market closing points of sale would therefore show its "
+        "remaining network accelerating, and nothing here would distinguish that from "
+        "winning customers — which is the one comparison the whole closure programme will "
+        "be judged on.\n\n"
+        "Nothing measures it today. The recruitment figure counts customers new to the "
+        "brand, so a transferred one is not counted as recruited; that helps, and it does "
+        "not separate transferred revenue from won revenue inside a store's takings.",
+        to_confirm="Whether a transferred customer can be identified as such — the closed "
+        "store's customer file matched against the receiving store's sales. Without it, "
+        "the programme's own success measure is not readable.",
     ),
     "plan_rate": Measure(
         key="plan_rate",
