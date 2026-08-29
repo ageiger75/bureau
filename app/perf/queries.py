@@ -452,6 +452,8 @@ order by sales_actual desc nulls last
 #:     period            text     -- 'YYYY-MM'
 #:     sales_actual      number   -- euros, tax excluded
 #:     sales_budget      number   -- euros, from the goals fact; null where none is set
+#:     upt               number   -- units per ticket, governed definition; null where
+#:                                   the month has no non-zero transaction
 #:
 #: Both sides are joined with a full outer join on purpose. A month with a plan and no
 #: sales is not an empty row: it is a market that stopped selling while still carrying a
@@ -531,16 +533,47 @@ budget as (
     from goals_day g cross join period p
     where date_trunc('month', g.goals_date) between p.first_month and p.last_month
     group by 1, 2, 3
+),
+baskets as (
+    -- Units per ticket, at the grain this query already has. It belongs here rather
+    -- than in `KPI_READINGS`, whose contract is `scope · kpi_key · period · value`
+    -- with no room for a channel: encoding one into `scope` would dirty the key the
+    -- registry joins on.
+    --
+    -- Read on the semantic-layer fact view, because the governed definition divides by
+    -- `COUNT(DISTINCT TRANSACTION_NUMBER)` and that is only right when this query owns
+    -- the GROUP BY. `FLAG_TURNOVER = 1` and the brand filter are both required: the
+    -- view carries every brand, and samples are not revenue.
+    select
+        s.store_country                              as market,
+        s.store_sub_channel                          as channel,
+        date_trunc('month', f.transaction_date)      as month,
+        sum(iff(f.flag_zero_sales_ticket = 0, f.quantity, 0))
+            / nullif(count(distinct iff(f.flag_zero_sales_ticket = 0,
+                                        f.transaction_number, null)), 0) as upt
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores s on s.store_skey = f.store_skey
+    cross join period p
+    where f.flag_turnover = 1
+      and s.store_brand = 'L''OCCITANE'
+      and f.transaction_date >= dateadd(month, -26, current_date)
+      and date_trunc('month', f.transaction_date) between p.first_month and p.last_month
+    group by 1, 2, 3
 )
 select
     coalesce(s.market, b.market)                        as market,
     coalesce(s.channel, b.channel)                      as channel,
     to_char(coalesce(s.month, b.month), 'YYYY-MM')      as period,
     s.sales_actual                                      as sales_actual,
-    b.sales_budget                                      as sales_budget
+    b.sales_budget                                      as sales_budget,
+    u.upt                                               as upt
 from sales s
 full outer join budget b
     on b.market = s.market and b.channel = s.channel and b.month = s.month
+left join baskets u
+    on u.market = coalesce(s.market, b.market)
+   and u.channel = coalesce(s.channel, b.channel)
+   and u.month = coalesce(s.month, b.month)
 order by market, channel, period
 """
 
@@ -885,7 +918,11 @@ KPI_READINGS = """
 with period as (
     select
         date_trunc('month', add_months(anchor, -1))  as last_month,
-        date_trunc('month', add_months(anchor, -24)) as first_month
+        date_trunc('month', add_months(anchor, -24)) as first_month,
+        -- A shorter window for the keys only ever read year on year. Two years is what
+        -- persistence needs — telling a gap that has settled in from an accident — and
+        -- ATV, UPT and the Home share are never asked that question.
+        date_trunc('month', add_months(anchor, -13)) as first_month_yoy
     from (
         -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
         select max(max_sales_date) as anchor
@@ -1046,15 +1083,35 @@ governed as (
         count(distinct iff(f.flag_zero_sales_ticket = 0,
                            f.transaction_number, null))            as transactions,
         sum(f.net_sales_eur)                                       as net_all,
-        sum(iff(p.product_segment = 'HOME', f.net_sales_eur, 0))   as home_sales
+        sum(iff(p.product_segment = 'HOME', f.net_sales_eur, 0))   as home_sales,
+        -- One café, not the café business. 99.68% of this lands on a single store —
+        -- Concept Store 86 Champs, `86Cr` in the Finance reforecast and `CAFE 86` in
+        -- the cleaning restatement, all the same site, which the consolidation even
+        -- carries as a pseudo-country named '86 CHAMPS'. The Maison runs three or four
+        -- cafés; sell-out sees one. Hence the key's name: one called `cafes` would
+        -- promise a perimeter it does not cover, and the next reader would take five
+        -- million euros for the whole activity.
+        --
+        -- The other 0.32% is confectionery sold occasionally in ordinary boutiques. A
+        -- box of chocolates in an outlet is not a café, which is why counting stores
+        -- rather than money once suggested fifty-one of them.
+        --
+        -- It reads zero from May 2026. That is a closure, not an outage: the café shut
+        -- in May or June, and the series stopping after April is that closure being
+        -- seen. Nine of the thirteen months are usable.
+        sum(iff(p.product_segment in ('MACARON', 'PATISSERIE', 'CHOCOLATS',
+                                      'CHOCOLAT EVENEMENTIEL', 'CAKES', 'GLACE',
+                                      'FOOD', 'BOISSONS', 'CONFISERIE'),
+                f.net_sales_eur, 0))                               as cafe_sales
     from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
     join dwh.semantic_layer.v_sl_ai_d_stores   s on s.store_skey   = f.store_skey
     join dwh.semantic_layer.v_sl_ai_d_products p on p.product_skey = f.product_skey
     cross join period pr
     where f.flag_turnover = 1
       and s.store_brand = 'L''OCCITANE'
-      and f.transaction_date >= dateadd(month, -26, current_date)
-      and date_trunc('month', f.transaction_date) between pr.first_month and pr.last_month
+      and f.transaction_date >= dateadd(month, -15, current_date)
+      and date_trunc('month', f.transaction_date)
+          between pr.first_month_yoy and pr.last_month
     group by grouping sets (
         (s.store_country, date_trunc('month', f.transaction_date)),
         (date_trunc('month', f.transaction_date)))
@@ -1105,6 +1162,9 @@ union all
 -- wanted, never instead of it.
 select scope, 'home_wob', period,
        100.0 * home_sales / nullif(net_all, 0) from governed
+union all
+-- Beside `net_sales`, never instead of it, exactly as `net_sales_hors_bulk` is.
+select scope, 'net_sales_cafe_86champs', period, cafe_sales from governed
 """
 
 #: Published market growth per market, used to test "the market is difficult" rather than
