@@ -1095,3 +1095,13 @@ def test_a_market_with_no_month_in_the_quarter_is_absent_rather_than_zero():
     built = history.from_rows([row(period="2026-07", actual=1_000_000.0)])
 
     assert built.summed(["2026-04"]) == {}
+
+
+def test_a_range_period_names_every_month_it_covers():
+    """The consolidation cannot always separate two months, and the row then names a
+    range. Matched against a single month it looks like no month at all — which dropped
+    two thirds of a quarter's shipments out of a perimeter check, silently.
+    """
+    assert history._months_in("2026-04") == ["2026-04"]
+    assert history._months_in("2026-04..2026-06") == ["2026-04", "2026-05", "2026-06"]
+    assert history._months_in("") == []

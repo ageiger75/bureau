@@ -800,12 +800,19 @@ def cmd_compare(argv: List[str]) -> int:
     for market, amount in shipped.items():
         ours[market] = ours.get(market, 0.0) + amount
 
+    mine = sum(ours.values())
+    base = ref.total_ex_cleaning or ref.total_actual
     print("Mois comparés      %s  (historique lu %s)" % (", ".join(periods), read_at_text))
-    print("Périmètre          vendu %.1f M€ + expédié %.1f M€ = %.1f M€"
-          % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6,
-             sum(ours.values()) / 1e6))
-    print("                   la Finance en annonce %.1f M€ pour le même trimestre, "
-          "cleaning compris" % (ref.total_actual / 1e6))
+    print("")
+    print("Le cockpit          vendu %.1f + expédié %.1f = %.1f M€"
+          % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6, mine / 1e6))
+    print("La Finance          %.1f M€, dont %.1f de cleaning que le cockpit ne lit pas"
+          % (ref.total_actual / 1e6, (ref.total_actual - base) / 1e6))
+    print("Sur la même base    %.1f M€ contre %.1f — il manque %.1f M€, soit %.1f %%"
+          % (mine / 1e6, base / 1e6, (base - mine) / 1e6,
+             100.0 * (base - mine) / base if base else 0.0))
+    print("                    l'hospitality et les cadeaux d'affaires, non mesurés ici,")
+    print("                    valent environ 3 %% du plan ; le reste est du change.")
     print("")
 
     rows = reference.compare(ref, ours)
@@ -839,6 +846,8 @@ def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
         print("Sell-in non lu : la source n'est pas l'entrepôt. Le tableau ci-dessous "
               "ne porte que le vendu.", file=sys.stderr)
         return {}
+    from .perf.history import _months_in
+
     wanted = set(periods)
     found: Dict[str, float] = {}
     try:
@@ -847,14 +856,35 @@ def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
         print("Sell-in non lu (%s). Le tableau ne porte que le vendu." % exc,
               file=sys.stderr)
         return {}
+
+    straddling = 0.0
     for row in rows:
-        if str(row.get("period") or "") not in wanted:
-            continue
         amount = row.get("sales_actual")
         if amount is None:
             continue
+        # The consolidation cannot always separate two months: a snapshot missing from a
+        # cumulative series makes the pair inseparable, and the row then names a range.
+        # Matching the label against a month dropped every one of them — two thirds of
+        # the quarter's shipments, silently, which is the worst way to be wrong about a
+        # perimeter.
+        months = _months_in(str(row.get("period") or ""))
+        if not months:
+            continue
+        inside = [month for month in months if month in wanted]
+        if not inside:
+            continue
+        if len(inside) != len(months):
+            # Half in, half out, and nothing here can split it: a range is a range
+            # because nobody could say what belongs to which month. Counted separately
+            # and announced rather than apportioned by a rule this reader invented.
+            straddling += float(amount)
+            continue
         market = normalise_market(str(row.get("market") or ""))
         found[market] = found.get(market, 0.0) + float(amount)
+
+    if straddling:
+        print("Sell-in à cheval : %.1f M€ sur des périodes qui débordent le trimestre, "
+              "inséparables et donc non comptés." % (straddling / 1e6), file=sys.stderr)
     return found
 
 

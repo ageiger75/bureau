@@ -55,10 +55,12 @@ class Line:
 class Reference:
     """The closed quarter, by market and in total."""
 
-    __slots__ = ("lines", "total_actual", "total_budget", "skipped")
+    __slots__ = ("lines", "total_actual", "total_budget", "skipped",
+                 "total_ex_cleaning")
 
     def __init__(self, lines: Sequence[Line], total_actual: float = 0.0,
-                 total_budget: float = 0.0, skipped: Sequence[str] = ()) -> None:
+                 total_budget: float = 0.0, skipped: Sequence[str] = (),
+                 total_ex_cleaning: float = 0.0) -> None:
         self.lines = list(lines)
         #: Read from the summary sheet rather than summed from the lines: the two are
         #: produced by different pivots, and a total this reader computed itself would
@@ -67,6 +69,11 @@ class Reference:
         self.total_budget = total_budget
         #: Roll-up rows passed over, named so nobody wonders where a region went.
         self.skipped = list(skipped)
+        #: The same quarter without the cleaning business, which the file separates for
+        #: itself. Read rather than derived: the two totals sit side by side on the
+        #: summary sheet, and a difference this reader computed would be a guess at which
+        #: of them the cockpit's perimeter matches.
+        self.total_ex_cleaning = total_ex_cleaning
 
     def by_market(self) -> Dict[str, Line]:
         return {line.market: line for line in self.lines}
@@ -117,11 +124,14 @@ def read_reference(path) -> Reference:
         for market, values in sorted(per_market.items())
     ]
 
-    total_actual, total_budget = 0.0, 0.0
+    total_actual, total_budget, ex_cleaning = 0.0, 0.0, 0.0
     for row in totals:
         if len(row) > 2 and str(row[0] or "").strip().upper() == "Q1":
             total_actual = (_number(row[1]) or 0.0) * MILLIONS
             total_budget = (_number(row[2]) or 0.0) * MILLIONS
+            # The summary sheet repeats the quarter without cleaning, further along the
+            # same row. Column seven by the file's own layout.
+            ex_cleaning = (_number(row[7] if len(row) > 7 else None) or 0.0) * MILLIONS
             break
 
     # Checked against the figure the file states for itself, on a different sheet built by
@@ -136,7 +146,7 @@ def read_reference(path) -> Reference:
             "against a total this reader cannot reproduce."
             % (summed / MILLIONS, total_actual / MILLIONS)
         )
-    return Reference(lines, total_actual, total_budget, skipped)
+    return Reference(lines, total_actual, total_budget, skipped, ex_cleaning)
 
 
 def _leaves(read: Sequence[Tuple[str, float, float]]):
