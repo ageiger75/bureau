@@ -274,14 +274,16 @@ REGISTER: Dict[str, Measure] = {
         "more than the line the file calls Hong Kong travel retail, and the file carries "
         "a line called `Other`, filed under European distributors, worth 4 826k€. The "
         "same money, named twice, and read for a week as two separate anomalies — one "
-        "market unexplainedly over, one line unexplainedly missing.\n\n"
+        "market unexplainedly over, one line unexplainedly missing. It is folded before "
+        "the comparison now, and Hong Kong lands within 29k€.\n\n"
         "China is settled in the same reading and separately: the file's cross-border "
         "line and the consolidation's cross-border entity are the same 6 085k€ to the "
         "euro. What remains short is mainland China alone, by 6.2m€, and that is a real "
         "question rather than a naming one.",
-        to_confirm="That Finance's `Other` is Hong Kong travel retail and not a "
-        "coincidence of size — the entity difference and the line agree twice, which is "
-        "strong, and it is still an inference nobody at Finance has confirmed.",
+        to_confirm="Which travel-retail customer `Other` is. The business reads it as one "
+        "large enough to be shown on its own line, which fits both the arithmetic and the "
+        "place the file puts it — beside the distributors, because it is a customer and "
+        "not a geography. Naming it would close this for good; nobody at Finance has yet.",
     ),
     "hospitality": Measure(
         key="hospitality",

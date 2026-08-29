@@ -57,6 +57,20 @@ ROLLUP: Dict[str, str] = {
     "Hk Local": "Hong Kong",
 }
 
+#: Lines the file names for itself that the consolidation invoices from one entity, and
+#: that therefore have to be folded before the two are compared. `(file line, market)`.
+#:
+#: `OTHER` is a travel-retail customer large enough that Finance pulls it out on its own
+#: line, and files it beside the European distributors because it is a customer rather
+#: than a geography. The consolidation has no such line: the money sits inside Hong Kong's
+#: travel-retail entity with the rest. Two facts agree on it — `M_007_TRA` carries 4 826k€
+#: more than the file's `HK TR`, and `OTHER` is 4 826k€ — and the business reads it the
+#: same way. Unfolded, it produced two findings that cancelled: a market over by 4 855 and
+#: a line missing by 4 826, neither of them real.
+REFERENCE_ROLLUP: Dict[str, str] = {
+    "Other": "Hong Kong",
+}
+
 #: The cleaning lines the warehouse's bulk flag actually covers, spelled as the file
 #: spells them. Named rather than matched on the word "bulk": the file writes the mainland
 #: line as plain `CHINA`, so a substring test found one of the two and reported that the
@@ -372,11 +386,15 @@ def compare(reference: Reference, ours: Dict[str, float]) -> List[Tuple[str, flo
     showed a hole of fifteen million, the total showed a hole of fourteen, and nothing
     on the screen connected the two. Eighteen million were being compared to nothing.
     """
-    named = {line.market for line in reference.lines}
-    found = [
-        (line.market, line.actual, ours.get(line.market, 0.0))
-        for line in reference.lines
-    ]
+    #: Folded first, so a line the file separates and the consolidation does not is never
+    #: compared against a market that does not exist on our side.
+    theirs: Dict[str, float] = {}
+    for line in reference.lines:
+        name = REFERENCE_ROLLUP.get(line.market, line.market)
+        theirs[name] = theirs.get(name, 0.0) + line.actual
+    named = set(theirs)
+    found = [(market, amount, ours.get(market, 0.0))
+             for market, amount in theirs.items()]
     found.extend(
         (market, 0.0, amount)
         for market, amount in ours.items()

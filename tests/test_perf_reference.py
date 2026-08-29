@@ -168,3 +168,20 @@ def test_an_entity_carrying_nothing_never_raises_the_alarm():
     from app.cli import _double_counted
 
     assert _double_counted({"M_004_STR_TOT": 80_973.0, "M_004_UNLOC": 0.0}) == []
+
+
+def test_a_customer_the_file_pulls_out_is_folded_into_the_entity_that_invoices_it():
+    """`OTHER` est un client travel retail que la Finance isole, rangé chez les
+    distributeurs européens parce que c'est un client et non une géographie.
+
+    Déplié, il produisait deux constats qui s'annulaient : un marché excédentaire de
+    4 855 et une ligne manquante de 4 826, dont aucun n'était réel.
+    """
+    ref = reference.Reference([
+        reference.Line("Hong Kong", 22_187.0, 22_000.0),
+        reference.Line("Other", 4_826.0, 4_800.0),
+    ])
+
+    rows = reference.compare(ref, {"Hong Kong": 27_042.0})
+
+    assert rows == [("Hong Kong", 27_013.0, 27_042.0)]
