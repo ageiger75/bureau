@@ -429,6 +429,49 @@ REGISTER: Dict[str, Measure] = {
         "month it happens costs one line; discovered afterwards it costs a quarter of "
         "wrong conversations.",
     ),
+    "plan_rate": Measure(
+        key="plan_rate",
+        label="Which rate the plan is stated at",
+        maturity=BETA,
+        note="One reassurance and one open question, and they belong together.\n\n"
+        "The reassurance: the sell-out converts at a rate that does not move between "
+        "years, so a growth rate computed from it is already a growth rate in local "
+        "currency. Every trend on this screen that comes from the sell-out is therefore "
+        "rate-free without anyone having done anything — which is why a market can be "
+        "read for what it is doing rather than for what its currency did.\n\n"
+        "The open question: the planning workbook is stated in euros, and nobody here "
+        "knows at which rates. If it uses the same budget set as the sell-out, every "
+        "plan-versus-actual figure on this screen is clean and the whole rate problem is "
+        "confined to the reconciliation against the consolidation. If it uses another "
+        "set, then a market can miss its plan for having a currency rather than for "
+        "trading — and the screen would be sending someone to explain a rate.\n\n"
+        "This is the largest unexamined assumption left under the main number, and it is "
+        "one question to one person, not a query.",
+        to_confirm="At which exchange rates the planning workbook states its euros, and "
+        "whether that is the same set the sell-out is converted at.",
+    ),
+    "brazil_price": Measure(
+        key="brazil_price",
+        label="More units, less money",
+        maturity=BETA,
+        note="The first thing this reconciliation has found that is about the business "
+        "rather than about itself. In local currency, over the closed quarter, Brazil's "
+        "own network sold measurably more units for measurably less money: volume up a "
+        "few per cent, revenue down eight, average price down close to eleven. No rate "
+        "assumption stands behind any of those three — they are one currency compared "
+        "with itself.\n\n"
+        "Ten points of price in a quarter is not a promotional accident. It is either a "
+        "mix moving towards cheaper products or a discount that has become structural, "
+        "and the two call for opposite answers. The screen cannot yet say which: average "
+        "selling price is one of the drivers it knows how to decompose, and this market's "
+        "drivers are not fed.\n\n"
+        "Worth noting how it was found. Against the euro figures Brazil looked slightly "
+        "ahead and asked no question at all. It took comparing growth in local currency "
+        "to see it — which is the argument for that instrument, made better than any "
+        "argument about rates.",
+        to_confirm="Whether the price fall is mix or discount. The product-segment split "
+        "for that market answers it, and the two readings need different actions.",
+    ),
     "hospitality": Measure(
         key="hospitality",
         label="Hospitality, B2B and corporate gifts",
