@@ -450,27 +450,32 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="At which exchange rates the planning workbook states its euros, and "
         "whether that is the same set the sell-out is converted at.",
     ),
-    "brazil_price": Measure(
-        key="brazil_price",
-        label="More units, less money",
+    "brazil_tax": Measure(
+        key="brazil_tax",
+        label="Money per unit, when the yardstick moved",
         maturity=BETA,
-        note="The first thing this reconciliation has found that is about the business "
-        "rather than about itself. In local currency, over the closed quarter, Brazil's "
-        "own network sold measurably more units for measurably less money: volume up a "
-        "few per cent, revenue down eight, average price down close to eleven. No rate "
-        "assumption stands behind any of those three — they are one currency compared "
-        "with itself.\n\n"
-        "Ten points of price in a quarter is not a promotional accident. It is either a "
-        "mix moving towards cheaper products or a discount that has become structural, "
-        "and the two call for opposite answers. The screen cannot yet say which: average "
-        "selling price is one of the drivers it knows how to decompose, and this market's "
-        "drivers are not fed.\n\n"
-        "Worth noting how it was found. Against the euro figures Brazil looked slightly "
-        "ahead and asked no question at all. It took comparing growth in local currency "
-        "to see it — which is the argument for that instrument, made better than any "
-        "argument about rates.",
-        to_confirm="Whether the price fall is mix or discount. The product-segment split "
-        "for that market answers it, and the two readings need different actions.",
+        note="Brazil's own network sold more units for less money over the closed "
+        "quarter, in local currency: volume up, revenue down, money per unit down by "
+        "around ten points. The reconciliation reached that on its own, and read it as "
+        "either a mix moving cheaper or a discount turning structural.\n\n"
+        "It is neither, and the answer was already written into this repository. Tax rose "
+        "in the market, overnight and after the plan was committed. Net sales are gross "
+        "less tax, so a larger tax slice moves net sales without moving gross sales or "
+        "the basket a shopper fills — which is exactly the shape observed: units "
+        "untouched, money per unit down. The decomposition is arithmetically exact and "
+        "says the movement comes from price. True, and useless as a management signal.\n\n"
+        "This is the case the note mechanism was built for and it is named in its opening "
+        "lines. Everything needed is present: the shape is predicted, the note kind "
+        "exists, the screen knows how to withhold a commercial question and ask another. "
+        "The only missing piece is that nobody has recorded the note on the market, so "
+        "the cockpit will keep offering a country manager a question about a government "
+        "decision.\n\n"
+        "Gross sales would settle it beyond argument and cannot be read: the discount and "
+        "tax columns exist in the raw fact and the governed layer does not expose them. "
+        "That was checked and refused earlier rather than worked around.",
+        to_confirm="Nothing about the cause. What is outstanding is an action: record the "
+        "note against the market, dated to the month the tax changed, so the gap stops "
+        "being ranked as a commercial failure.",
     ),
     "hospitality": Measure(
         key="hospitality",
