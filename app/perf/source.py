@@ -97,6 +97,19 @@ def cache_forget() -> None:
             pass
 
 
+def kpi_cache_forget() -> None:
+    """Drop the KPI reading alone, and leave the rest of the day's work in place.
+
+    A new key in `KPI_READINGS` makes yesterday's KPI cache incomplete without making it
+    stale, and the whole-cache reset would pay for the history read again to fix it —
+    minutes of warehouse time, and a screen that opens empty in the meantime.
+    """
+    try:
+        _cache_path(KPI_CACHE_FILE).unlink()
+    except OSError:
+        pass
+
+
 def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None):
     """The last warehouse read, if it is still young enough to use.
 

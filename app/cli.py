@@ -14,6 +14,7 @@
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
                                      reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
+                                     --kpi n'oublie que les relevés KPI
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans pour ce qui n'a ni budget ni ventes en face
@@ -1227,15 +1228,23 @@ def _print_kpi_columns(path: str, show: str = "") -> int:
     return 0
 
 
-def cmd_refresh() -> int:
+def cmd_refresh(argv: List[str] = ()) -> int:
     """Oublie la lecture gardée sur le disque.
 
     La requête prend des minutes, donc elle est mise en cache une heure et survit aux
     redémarrages — sans quoi chaque relance la repaye. Reste à pouvoir dire « non, relis
     maintenant » quand l'entrepôt a bougé.
+
+    `--kpi` n'oublie que les relevés KPI. Une clé ajoutée à `KPI_READINGS` rend le cache
+    de la veille incomplet sans le rendre périmé, et tout jeter ferait repayer
+    l'historique pour corriger cela.
     """
     from .perf import source
 
+    if "--kpi" in tuple(argv):
+        source.kpi_cache_forget()
+        print("Relevés KPI oubliés. L'historique reste en cache.")
+        return 0
     source.cache_forget()
     print("Cache oublié. La prochaine lecture ira à l'entrepôt.")
     return 0
@@ -2025,7 +2034,7 @@ def main(argv: List[str]) -> int:
     if command == "budget":
         return cmd_budget(argv[1:])
     if command == "refresh":
-        return cmd_refresh()
+        return cmd_refresh(argv[1:])
     if command == "history":
         return cmd_history(argv[1:])
     if command == "note":
