@@ -798,9 +798,12 @@ def cmd_compare(argv: List[str]) -> int:
     # le taux fixe tombe près de celui de cet exercice se compare bien, une autre non, et
     # rien dans le tableau ne dit laquelle est laquelle.
     print("Deux régimes de taux, pas seulement deux taux : le vendu convertit à un taux")
-    print("fixe par devise, la consolidation à un jeu de taux par exercice. Une ligne")
-    print("n'est donc lisible que là où les deux coïncident, et le tableau ne dit pas où.")
-    print("Le rapprochement juste se ferait en devise locale ; celui-ci est provisoire.")
+    print("fixe par devise, la consolidation à un jeu de taux par exercice qui n'est ni")
+    print("celui-là ni un taux de marché, et qui n'est pas dans les tables. Les niveaux")
+    print("ne sont donc pas rapprochables — ce tableau borne l'écart, il ne le mesure pas.")
+    print("Ce qui se rapproche exactement, c'est la croissance : une année et la")
+    print("précédente sont aux mêmes taux des deux côtés, donc comparer deux taux de")
+    print("croissance ne suppose aucun change.")
     print("")
 
     # The quarter, never the month on screen. `sales_actual` is July alone, and setting a

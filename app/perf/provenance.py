@@ -338,25 +338,27 @@ REGISTER: Dict[str, Measure] = {
     ),
     "rate_effect": Measure(
         key="rate_effect",
-        label="Two rate regimes, not two rates",
-        maturity=ABSENT,
-        note="The two sides of the reconciliation do not merely use different exchange "
-        "rates. They use different kinds of rate. The sell-out converts at a fixed rate "
-        "per currency — the same figure on every quarter of every year, and the ratio "
-        "between two pegged currencies comes out at the peg exactly. The consolidation "
-        "applies a rate set per fiscal year, and those are not market rates: the same two "
-        "currencies do not respect their peg in it.\n\n"
-        "So no consolidation year is comparable to the sell-out for every market at once. "
-        "A currency whose fixed rate happens to sit near this year's set compares "
-        "cleanly; the next one does not, and nothing in a euro table says which is "
-        "which. Two findings were manufactured this way and then withdrawn — a long tail "
-        "across thirty markets, and a residual on one market that turned out to be the "
-        "arithmetic of the comparison rather than anything in the business.\n\n"
-        "The reconciliation that would be sound is in local currency, where the question "
-        "does not arise. The sell-out carries a local-currency figure; nothing reads it "
-        "yet. Until it does, the market-by-market table is provisional and says so.",
-        to_confirm="Reading net sales in local currency on both sides. It removes the "
-        "question rather than answering it, which is the only durable fix.",
+        label="Levels cannot be reconciled; growth can",
+        maturity=BETA,
+        note="The two sides use different kinds of rate, not merely different rates. The "
+        "sell-out converts at the group's budget rate — one figure per currency, the same "
+        "on every quarter of every year, and two pegged currencies come out at their peg "
+        "exactly. The consolidation uses a third set, belonging to planning: neither the "
+        "budget rates nor the real accounting ones, and not respecting the peg. That set "
+        "is not in the tables, and the consolidation carries no amount in original "
+        "currency. So the levels are not reconcilable, and no amount of care makes them "
+        "so.\n\n"
+        "Growth is, exactly. This year and last year inside one consolidation year are "
+        "stated at the same rates, and the sell-out's rate is invariant across years, so "
+        "comparing a growth rate to a growth rate assumes no rate at all. Done that way "
+        "most markets agree inside a point and several agree exactly — and the handful "
+        "that do not are findings rather than artefacts.\n\n"
+        "That is the instrument to publish, and it is better than the fallback of "
+        "printing both rates and letting the reader judge: it gives an answer that can be "
+        "checked everywhere instead of a caveat that can be checked nowhere. Two findings "
+        "were manufactured by comparing levels today and both were withdrawn.",
+        to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
+        "market by market, so the reconciliation compares growth instead of levels.",
     ),
     "china_quarter_timing": Measure(
         key="china_quarter_timing",
@@ -382,17 +384,18 @@ REGISTER: Dict[str, Measure] = {
         note="France has franchised stores, and they are absent from this screen. Not "
         "understated — absent. The sell-out flow carries the owned network and the "
         "third-party counters and nothing else, measured to a fraction of a per cent of "
-        "the market, so a franchisee's till never reaches any figure here.\n\n"
+        "the market, so a franchisee's till never reaches any figure here. France is the "
+        "only market with this arrangement.\n\n"
         "Where the money does appear is the sell-in, as what the Maison invoices to the "
-        "franchisee — and mixed there with export and independent wholesale in one "
-        "channel, so it cannot be read apart. Separating it needs the list of franchised "
-        "customers, which is a business fact and not a query.\n\n"
-        "A badge saying `PARTLY FRANCHISED` sat on the French figure for an hour, on the "
-        "premise that a franchised till reaches the sell-out. It does not. The statement "
-        "was true of the business and false of the number it was printed on, which would "
-        "have had a reader discount a figure that needed no discounting.",
-        to_confirm="The list of franchised customers, so their business can be read on "
-        "its own wholesale revenue and contribution instead of inside the export channel.",
+        "franchisee, under profit centres explicitly marked as franchised. Those can be "
+        "read, and they say something the retail figures cannot: the franchised business "
+        "is falling hard, and the fall is concentrated rather than general — one customer "
+        "leaving accounts for about half of it while a good third of the others grew.\n\n"
+        "A badge saying `PARTLY FRANCHISED` sat on the French retail figure for an hour, "
+        "on the premise that a franchised till reaches the sell-out. It does not. The "
+        "statement was true of the business and false of the number it was printed on.",
+        to_confirm="Whether the departing franchisee closed, was taken back, or changed "
+        "supplier. The warehouse can say it left; only the business can say why.",
     ),
     "franchise_buyback": Measure(
         key="franchise_buyback",
@@ -414,15 +417,17 @@ REGISTER: Dict[str, Measure] = {
         "that country, and the consolidation moves money from distributors to retail. Two "
         "of the three raise the question; all three name the conversion. None is enough "
         "alone.\n\n"
-        "The first trace is already moving, and the second is not — franchise invoicing "
-        "is well down year on year while no French store has appeared in the sell-out for "
-        "over a year. Those two together are not a conversion: they are either "
-        "destocking before one, or a commercial decline. The two readings are opposite "
-        "and only the pair of series distinguishes them, which is why the cockpit has to "
-        "carry both rather than either.",
-        to_confirm="Which of the two the franchise decline is. And who says when a store "
-        "converts — a conversion recorded the month it happens costs one line; discovered "
-        "afterwards it costs a quarter of wrong conversations.",
+        "The rule has already earned its keep by refusing a conclusion. Franchise "
+        "invoicing halved and the distributor line in the consolidation halved with it — "
+        "one trace, moving convincingly. The other two stayed silent: no store entered "
+        "the sell-out, and retail recovered none of it. So it is not a buy-back, and it "
+        "was not destocking either. A franchisee left and its volume did not reappear "
+        "anywhere.\n\n"
+        "One trace out of three would have read as a conversion to anyone watching only "
+        "the falling one, which is exactly what the rule exists to prevent.",
+        to_confirm="Who says when a store converts, and when. A conversion recorded the "
+        "month it happens costs one line; discovered afterwards it costs a quarter of "
+        "wrong conversations.",
     ),
     "hospitality": Measure(
         key="hospitality",
