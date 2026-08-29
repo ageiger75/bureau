@@ -35,16 +35,23 @@ CLEANING_SHEET = "CLEANING"
 #: Perimeters the two sources do not cut the same way, and that no rename would reconcile.
 #: `(what the cockpit calls it, what the file calls it, why they will not line up)`.
 #:
-#: The temptation is to write an alias and watch a line go green. It would be false: the
-#: consolidation's `Export` covers the distributors the file calls `Loi Distributors` and
-#: others besides — Asia, and possibly elsewhere — so the two amounts are close by
-#: coincidence of size, not because they hold the same business. Reported as a pair that
-#: cannot be compared at this grain, which is a smaller claim and a true one.
+#: The temptation is to write an alias and watch a line go green. It would be false, and
+#: which way it is false is not settled. The business has read the consolidation's
+#: `Export` two ways within an hour: as every distributor, Asia included, which would make
+#: it wider than the file's `Loi Distributors`; and as the distributors Europe and the
+#: Americas manage, which would make it narrower.
+#:
+#: The arithmetic favours the second. `Export` is 8 767k€ against `Loi Distributors` at
+#: 10 079k€: a superset thirteen per cent smaller than the set it contains is not a
+#: perimeter question, it is a contradiction. That is an argument and not a proof — the
+#: two sides are at different rates — so the pair is reported as one that cannot be
+#: compared at this grain, which is a smaller claim and a true one.
 DIFFERENT_CUT: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
     (
         "Export",
         ("Loi Distributors",),
-        "the consolidation groups every distributor here, the file splits them by region",
+        "quels distributeurs `Export` couvre n'est pas tranché — tous, ou seulement ceux "
+        "que l'Europe et les Amériques gèrent",
     ),
 )
 

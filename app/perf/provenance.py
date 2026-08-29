@@ -285,6 +285,24 @@ REGISTER: Dict[str, Measure] = {
         "place the file puts it — beside the distributors, because it is a customer and "
         "not a geography. Naming it would close this for good; nobody at Finance has yet.",
     ),
+    "distributor_perimeter": Measure(
+        key="distributor_perimeter",
+        label="What the distributor line covers",
+        maturity=ABSENT,
+        note="The consolidation carries one distributor line, `Export`, worth 8 767k€ in "
+        "the closed quarter. Finance carries `Loi Distributors` at 10 079k€. Whether they "
+        "hold the same business is open, and the business has read it both ways within an "
+        "hour: every distributor including Asia, which would make the consolidation's line "
+        "the wider one; or only the distributors Europe and the Americas manage, which "
+        "would make it narrower.\n\n"
+        "The arithmetic favours the second reading — a superset thirteen per cent smaller "
+        "than what it contains is a contradiction, not a perimeter difference — but the "
+        "two sides are stated at different rates, so that is an argument and not a proof. "
+        "Until it is settled the pair is printed side by side and never netted: an alias "
+        "here would make a ten-million line agree by coincidence of size.",
+        to_confirm="The distributor customers behind the consolidation's export entity, "
+        "by region. One list settles which of the two readings is right.",
+    ),
     "hospitality": Measure(
         key="hospitality",
         label="Hospitality and corporate gifts",
