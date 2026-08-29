@@ -173,20 +173,24 @@ REGISTER: Dict[str, Measure] = {
         "start and stop date per store — exist beside it and are not read. So two stores "
         "can both count as comparable while one spent four months behind hoardings, and "
         "the comparison charges its closure to the business. The target is +4.5%, which "
-        "is inside the range a few refurbishments can move.",
-        to_confirm="Should a store under refurbishment leave the comparable base, and "
-        "from which day — the works starting, or the doors closing?",
+        "is inside the range a few refurbishments can move. The rule is now decided: a "
+        "store under refurbishment leaves the comparable base, counted from the day its "
+        "doors close and not from the day the works are scheduled. What remains is "
+        "applying it — the figure on the screen is still the flag's.",
+        to_confirm="Are the closure dates filled in reliably enough to apply the rule, or "
+        "would applying it drop stores that never actually shut?",
     ),
     "store_concept": Measure(
         key="store_concept",
         label="Store concept",
         maturity=ABSENT,
-        note="Eleven concepts exist in the warehouse, and a third of the turnover — 35% — "
-        "carries none. Any count by concept therefore misses a third of the business "
-        "while looking complete, which is the one way this figure could reach a screen "
-        "and be believed. It is left unread until the blanks are explained.",
-        to_confirm="Why 35% of sales carry no store concept: stores never coded, or a "
-        "perimeter the concept was never meant to cover?",
+        note="Eleven concepts exist in the warehouse and a third of the turnover — 35% — "
+        "carries none. The business has answered why: the field is not maintained, and "
+        "carries no meaning today. So this is not a gap waiting to be filled by a query. "
+        "Nothing is counted by concept, and the KPI that would be — the count of trendy "
+        "places — has no readable source until somebody owns the coding.",
+        to_confirm="Who would own coding store concepts, on the day the Maison wants to "
+        "steer by them. Until then there is nothing here to chase.",
     ),
     "cafes": Measure(
         key="cafes",
@@ -194,10 +198,14 @@ REGISTER: Dict[str, Measure] = {
         maturity=BETA,
         note="Pastry, chocolate, ice cream and drinks are sold under product segments of "
         "their own and sit inside the same net sales as the creams — roughly €5m a year. "
-        "Finance takes one café entity out of the perimeter it reports; the cockpit takes "
-        "nothing out. So the two are not counting the same business, and the difference "
-        "runs the same way as bulk: it makes the cockpit's figure the larger one.",
-        to_confirm="Is café revenue in or out of the sales the Maison steers on?",
+        "One café was closed this year for losing money, and that one is what Finance "
+        "takes out: the cleaning is about unprofitable revenue being removed from the "
+        "comparison, not about cafés being outside the business. The others stay in, and "
+        "they are ordinary sales. What they are not is comparable to the rest — a "
+        "pâtisserie and a face cream do not answer the same question — so they are worth "
+        "reading apart rather than netting out.",
+        to_confirm="A product-segment split, so café revenue can be read beside the "
+        "creams instead of inside them.",
     ),
     "hospitality": Measure(
         key="hospitality",

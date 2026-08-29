@@ -31,7 +31,7 @@
                                      --join confronte le registre aux relevés de l'entrepôt
                                      --file CHEMIN pour un autre classeur que var/
     python -m app.cli bulk           les ventes hors bulk, à côté des ventes tout compris
-                                     bulk [MARCHÉ …] [--months N]
+                                     bulk [MARCHÉ …] [--months N] [--through AAAA-MM]
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -922,12 +922,15 @@ def cmd_bulk(argv: List[str]) -> int:
     Sans argument : les marchés où le bulk pèse assez pour changer la lecture.
     Avec des noms de marchés : ceux-là, matériels ou non.
     `--months N` élargit la fenêtre comparée — trois mois par défaut.
+    `--through AAAA-MM` la termine sur un mois choisi, pour l'aligner sur un
+    trimestre que la Finance a clos au lieu des trois mois les plus frais.
     """
     from .perf import bulk as bulk_module
     from .perf import kpi_registry
     from .perf import source as source_module
 
     months = bulk_module.WINDOW_MONTHS
+    through = ""
     wanted: List[str] = []
     index = 0
     while index < len(argv):
@@ -938,6 +941,10 @@ def cmd_bulk(argv: List[str]) -> int:
             except ValueError:
                 print("--months attend un nombre de mois.", file=sys.stderr)
                 return 2
+            index += 2
+            continue
+        if token == "--through" and index + 1 < len(argv):
+            through = argv[index + 1].strip()
             index += 2
             continue
         if token.startswith("--"):
@@ -957,7 +964,8 @@ def cmd_bulk(argv: List[str]) -> int:
             return 2
         source_module._write_kpi_cache(rows)
 
-    group = bulk_module.market_bulk(rows, kpi_registry.GROUP_SCOPE, months=months)
+    group = bulk_module.market_bulk(rows, kpi_registry.GROUP_SCOPE, months=months,
+                                    through=through)
     if group is None:
         # Le cache de la veille a été écrit avant que la clé existe, et une lecture
         # partielle qui rendrait « zéro bulk partout » serait pire que ce refus.
@@ -969,7 +977,8 @@ def cmd_bulk(argv: List[str]) -> int:
     if wanted:
         readings = []
         for name in wanted:
-            found = bulk_module.market_bulk(rows, name, months=months)
+            found = bulk_module.market_bulk(rows, name, months=months,
+                                            through=through)
             if found is None:
                 # Retenu pour la fin plutôt que rendre une liste plus courte : un nom
                 # mal orthographié et un marché sans bulk se ressemblent trop.
@@ -977,9 +986,14 @@ def cmd_bulk(argv: List[str]) -> int:
                 continue
             readings.append(found)
     else:
-        readings = bulk_module.material(rows, months=months)
+        readings = bulk_module.material(rows, months=months, through=through)
 
     print("Fenêtre            %s" % ", ".join(group.periods))
+    # Sans cette ligne, « Hong Kong 3,1 M€ » se lit comme le marché, alors que la Finance
+    # en annonce 22 pour le même trimestre. L'écart n'est pas une anomalie : le drapeau
+    # bulk vit dans le vendu, et le facturé aux partenaires n'est pas ici.
+    print("Périmètre          le vendu seul. Ce que la Maison facture à ses partenaires")
+    print("                   ne porte pas ce drapeau et n'est pas dans ces chiffres.")
     print("Groupe             %.1f M€ hors bulk sur %.1f M€, soit %.2f %% de bulk"
           % (group.ex_bulk / 1e6, group.sales / 1e6, 100.0 * (group.share or 0.0)))
     print("")

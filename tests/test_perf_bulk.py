@@ -145,3 +145,22 @@ def test_a_cold_cache_shows_nothing_rather_than_starting_a_two_minute_query(monk
     monkeypatch.setattr(source, "_read_kpi_cache", lambda: None)
     # `self` n'est pas utilisé : la méthode ne lit que le cache, et c'est le propos.
     assert source.SnowflakeSource.bulk_findings(None) == []
+
+
+def test_the_window_can_be_ended_on_a_chosen_month():
+    """Les trois mois les plus frais et le trimestre clos par la Finance ne sont pas les
+    mêmes mois. Sommer les uns en croyant lire les autres se lirait comme un écart."""
+    months = ["2026-04", "2026-05", "2026-06", "2026-07"]
+    read = market("China", months, [10.0, 20.0, 30.0, 40.0], [9.0, 18.0, 27.0, 36.0])
+
+    fresh = bulk.market_bulk(read, "China", months=3)
+    quarter = bulk.market_bulk(read, "China", months=3, through="2026-06")
+
+    assert list(fresh.periods) == ["2026-05", "2026-06", "2026-07"]
+    assert list(quarter.periods) == ["2026-04", "2026-05", "2026-06"]
+    assert quarter.sales == 60.0
+
+
+def test_a_window_ending_before_anything_read_answers_nothing():
+    read = market("China", THIS_YEAR, [10.0] * 3, [9.0] * 3)
+    assert bulk.market_bulk(read, "China", through="2020-01") is None

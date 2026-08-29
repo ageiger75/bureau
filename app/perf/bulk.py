@@ -184,12 +184,18 @@ def _sums(readings, periods) -> Optional[float]:
     return total
 
 
-def market_bulk(rows: Sequence, scope: str,
-                months: int = WINDOW_MONTHS) -> Optional[MarketBulk]:
+def market_bulk(rows: Sequence, scope: str, months: int = WINDOW_MONTHS,
+                through: str = "") -> Optional[MarketBulk]:
     """Both bases for one market, or None when the pair is not there.
 
     None means the question cannot be answered for this market, which is a different
     answer from zero bulk and has to stay distinguishable from it.
+
+    `through` ends the window on a chosen month instead of the last one read. The default
+    window is the freshest three months, which is the right one for "how is this market
+    doing"; it is the wrong one for reconciling against a quarter Finance has closed,
+    because the two would be summing different months and the difference would be read as
+    a discrepancy.
     """
     readings = kpi_registry.readings_by_key(rows, scope=scope)
     sales = readings.get(SALES_KEY) or []
@@ -197,6 +203,8 @@ def market_bulk(rows: Sequence, scope: str,
     if not sales or not ex_bulk:
         return None
     shared = sorted(set(r.period for r in sales) & set(r.period for r in ex_bulk))
+    if through:
+        shared = [period for period in shared if period <= through]
     if not shared:
         return None
     window = shared[-months:]
@@ -233,7 +241,8 @@ def scopes(rows: Sequence) -> List[str]:
     return found
 
 
-def material(rows: Sequence, months: int = WINDOW_MONTHS) -> List[MarketBulk]:
+def material(rows: Sequence, months: int = WINDOW_MONTHS,
+             through: str = "") -> List[MarketBulk]:
     """The markets where bulk is big enough to change what the reader concludes.
 
     Ordered by euros of bulk, not by share: a sixth of a small market and a twentieth of a
@@ -243,7 +252,7 @@ def material(rows: Sequence, months: int = WINDOW_MONTHS) -> List[MarketBulk]:
     for scope in scopes(rows):
         if scope.upper() == kpi_registry.GROUP_SCOPE.upper():
             continue
-        reading = market_bulk(rows, scope, months=months)
+        reading = market_bulk(rows, scope, months=months, through=through)
         if reading is not None and reading.is_material:
             found.append(reading)
     found.sort(key=lambda item: item.bulk, reverse=True)
