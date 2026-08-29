@@ -164,3 +164,27 @@ def test_the_window_can_be_ended_on_a_chosen_month():
 def test_a_window_ending_before_anything_read_answers_nothing():
     read = market("China", THIS_YEAR, [10.0] * 3, [9.0] * 3)
     assert bulk.market_bulk(read, "China", through="2020-01") is None
+
+
+def test_the_reconciliation_refuses_a_window_that_is_not_the_quarter_compared():
+    """Soustraire le bulk d'un autre trimestre répondrait à une autre question.
+
+    La commande préfère ne rien soustraire et le dire : un rapprochement faux par un mois
+    de décalage tombe juste de temps en temps, ce qui est la pire façon d'avoir raison.
+    """
+    from app import cli
+    from app.perf import source
+
+    read = (market("LOEP", ["2026-04", "2026-05", "2026-06", "2026-07"],
+                   [100.0] * 4, [90.0] * 4))
+    monkeypatched = list(read)
+    source_cache = source._read_kpi_cache
+    try:
+        source._read_kpi_cache = lambda: monkeypatched
+        assert cli._bulk_over(["2026-04", "2026-05", "2026-06"]) == 30.0
+        # Deux mois demandés, trois lus : la fenêtre ne tombe pas sur le trimestre.
+        assert cli._bulk_over(["2026-04", "2026-06"]) is None
+        source._read_kpi_cache = lambda: None
+        assert cli._bulk_over(["2026-04"]) is None
+    finally:
+        source._read_kpi_cache = source_cache

@@ -57,3 +57,24 @@ def test_the_same_money_cut_twice_is_counted_once():
 
     assert sum(amount for _n, amount in found) == pytest.approx(3_997_400.0)
     assert [n for n, _a in found] == ["CHINA", "HK BULK", "CAFE 86"]
+
+
+def test_a_market_the_cockpit_reads_under_another_name_is_not_invisible():
+    """Le fichier montrait un trou de quinze millions, le total un trou de quatorze, et
+    rien ne reliait les deux : dix-huit millions lus par le cockpit sous des noms que le
+    fichier n'emploie pas ne figuraient dans aucune ligne du tableau."""
+    ref = reference.Reference([reference.Line("Loi Distributors", 10_000.0, 9_000.0)])
+
+    rows = reference.compare(ref, {"Export": 8_800.0})
+
+    assert sorted(rows) == [("Export", 0.0, 8_800.0),
+                            ("Loi Distributors", 10_000.0, 0.0)]
+
+
+def test_a_market_the_cockpit_reads_as_zero_stays_out_of_the_orphan_list():
+    """Zéro n'est pas un nom orphelin : c'est un marché apparié qui n'a rien vendu."""
+    ref = reference.Reference([reference.Line("Portugal", 100.0, 100.0)])
+
+    rows = reference.compare(ref, {"Portugal": 100.0, "Finland": 0.0})
+
+    assert [market for market, _t, _o in rows] == ["Portugal"]

@@ -253,9 +253,21 @@ def compare(reference: Reference, ours: Dict[str, float]) -> List[Tuple[str, flo
     A market the reference names and the cockpit does not returns `ours = 0.0` rather than
     being dropped: a market missing from our side is the finding, and skipping it would
     hide exactly the fault this comparison exists to catch.
+
+    And the same in the other direction, which is the half this was missing. Iterating the
+    reference alone made a market the cockpit reads under a name the file does not use
+    disappear from the table while still sitting in the cockpit's total — so the file
+    showed a hole of fifteen million, the total showed a hole of fourteen, and nothing
+    on the screen connected the two. Eighteen million were being compared to nothing.
     """
+    named = {line.market for line in reference.lines}
     found = [
         (line.market, line.actual, ours.get(line.market, 0.0))
         for line in reference.lines
     ]
+    found.extend(
+        (market, 0.0, amount)
+        for market, amount in ours.items()
+        if market not in named and amount
+    )
     return sorted(found, key=lambda item: -abs(item[1] - item[2]))

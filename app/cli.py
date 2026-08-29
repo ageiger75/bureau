@@ -804,31 +804,38 @@ def cmd_compare(argv: List[str]) -> int:
     for market, amount in shipped.items():
         ours[market] = ours.get(market, 0.0) + amount
 
-    mine = sum(ours.values())
+    total_ours = sum(ours.values())
     whole = ref.total_actual
     clean = ref.total_ex_cleaning or whole
+    bulk_here = _bulk_over(periods)
     print("Mois comparés      %s  (historique lu %s)" % (", ".join(periods), read_at_text))
     print("")
     print("Le cockpit          vendu %.1f + expédié %.1f = %.1f M€"
-          % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6, mine / 1e6))
-    # Two bases, and the honest answer is that nothing here knows which one this figure
-    # sits on. The sell-out view carries bulk unless something filters it, and nothing
-    # does yet — so quoting the flattering comparison alone would be picking the number
-    # that makes the cockpit look closest, which is the one habit this whole screen is
-    # built against.
+          % (sum(sold.values()) / 1e6, sum(shipped.values()) / 1e6, total_ours / 1e6))
     print("La Finance          %.1f M€ tout compris · %.1f M€ hors grey et cleaning"
           % (whole / 1e6, clean / 1e6))
     print("Contre le tout      %.1f M€ manquent, soit %.1f %%"
-          % ((whole - mine) / 1e6, 100.0 * (whole - mine) / whole if whole else 0.0))
-    print("Contre le propre    %.1f M€ manquent, soit %.1f %%"
-          % ((clean - mine) / 1e6, 100.0 * (clean - mine) / clean if clean else 0.0))
-    print("")
-    print("Laquelle des deux est la bonne dépend d'une question non tranchée : le vendu")
-    print("lu ici porte-t-il le bulk ? La vue sémantique l'expose (FLAG_BULK 2,3,4,5) et")
-    print("rien ne le filtre pour l'instant, donc probablement oui — auquel cas c'est la")
-    print("première ligne qui compte, et l'écart est plus grand que le second chiffre.")
-    print("L'hospitality et les cadeaux d'affaires, eux, ne sont lus par aucune source :")
-    print("environ 3 % du plan, et c'est un manque, pas une différence de base.")
+          % ((whole - total_ours) / 1e6,
+             100.0 * (whole - total_ours) / whole if whole else 0.0))
+    if bulk_here is None:
+        # Sans la lecture du bulk, la seule comparaison honnête est celle du tout contre
+        # le tout : opposer notre vendu, qui porte le bulk, à un total dont il a été
+        # retiré serait choisir le chiffre le plus flatteur sans le dire.
+        print("")
+        print("Le total hors cleaning n'est pas comparable tel quel : le vendu lu ici")
+        print("porte le bulk. `refresh --kpi` puis `bulk` le mesurent, et cette")
+        print("commande s'en sert.")
+    else:
+        # Mesuré des deux côtés, sur le même trimestre. Le fichier sépare lui-même son
+        # bulk ; l'entrepôt le marque. Les deux tombent à cent mille euros près, et
+        # c'est ce qui autorise enfin une comparaison à périmètre égal.
+        stated = sum(amount for name, amount in ref.cleaning if _is_bulk_line(name))
+        print("Dont bulk mesuré    %.1f M€ dans le vendu, quand le fichier en sépare %.1f"
+              % (bulk_here / 1e6, stated / 1e6))
+        net = total_ours - bulk_here
+        print("À périmètre égal    %.1f M€ contre %.1f — %.1f M€ manquent, soit %.1f %%"
+              % (net / 1e6, clean / 1e6, (clean - net) / 1e6,
+                 100.0 * (clean - net) / clean if clean else 0.0))
     if ref.cleaning:
         print("")
         print("Hors périmètre propre, tel que le fichier le sépare lui-même :")
@@ -842,9 +849,9 @@ def cmd_compare(argv: List[str]) -> int:
     rows = reference.compare(ref, ours)
     shown = rows if "--all" in argv else rows[:15]
     print("%-24s %>12s %>12s %>12s" .replace(">", "") % ("Marché", "Finance", "Cockpit", "Écart"))
-    for market, theirs, mine in shown:
+    for market, theirs, here in shown:
         print("%-24s %12s %12s %12s" % (
-            market[:24], _eur_k(theirs), _eur_k(mine), _eur_k(mine - theirs)))
+            market[:24], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
     if "--sellin" in argv:
@@ -859,22 +866,65 @@ def cmd_compare(argv: List[str]) -> int:
             print("  %-28s %9s" % (market[:28], _eur_k(amount)))
         print("")
 
-    missing = [(market, theirs) for market, theirs, mine in rows if not mine]
-    if missing:
+    # Les deux sens, et c'est la moitié qui manquait. Un marché que la Finance nomme et
+    # que le cockpit ne lit pas se voyait ; un marché que le cockpit lit sous un nom que
+    # le fichier n'emploie pas ne se voyait pas du tout, alors qu'il pesait autant. Les
+    # deux listes côte à côte disent en une lecture si le problème est une donnée absente
+    # ou un nom qui ne s'associe pas.
+    theirs_only = [(market, amount) for market, amount, here in rows if not here]
+    ours_only = [(market, here) for market, amount, here in rows if not amount]
+    if theirs_only:
         print("")
-        print("Absents du cockpit : %s" % ", ".join(name for name, _t in missing))
-        blind = sum(amount for _name, amount in missing)
-        # Le rapprochement passait des heures sur des différences de base — bulk, grey,
-        # cleaning, change — en laissant cette ligne à la fin comme un détail. Or ces
-        # marchés ne sont pas lus du tout, et à eux seuls ils pèsent l'ordre de grandeur
-        # de l'écart. Une différence de base se discute ; un marché absent se branche.
-        print("                    %s au total, quand il manque %s en tout."
-              % (_eur_k(blind), _eur_k(whole - mine)))
-        if blind >= 0.5 * (whole - mine):
-            print("                    L'essentiel de l'écart n'est donc pas une")
-            print("                    différence de périmètre : ce sont des lignes que")
-            print("                    rien ne fait entrer dans le cockpit.")
+        print("Nommés par la Finance, lus nulle part ici :")
+        for market, amount in sorted(theirs_only, key=lambda pair: -pair[1]):
+            print("  %-28s %9s" % (market[:28], _eur_k(amount)))
+        print("  %-28s %9s" % ("total", _eur_k(sum(a for _m, a in theirs_only))))
+    if ours_only:
+        print("")
+        print("Lus ici, sous un nom que le fichier n'emploie pas :")
+        for market, amount in sorted(ours_only, key=lambda pair: -pair[1]):
+            print("  %-28s %9s" % (market[:28], _eur_k(amount)))
+        print("  %-28s %9s" % ("total", _eur_k(sum(a for _m, a in ours_only))))
+    if theirs_only and ours_only:
+        print("")
+        print("Ces deux listes se répondent probablement. Tant qu'elles ne sont pas")
+        print("appariées, chaque euro y est compté d'un côté et manquant de l'autre —")
+        print("et le même euro creuse donc l'écart deux fois. Ce n'est pas une")
+        print("différence de périmètre, c'est un nom.")
     return 0
+
+
+def _is_bulk_line(name: str) -> bool:
+    """Les lignes de cleaning que le drapeau de l'entrepôt recouvre, et elles seules.
+
+    Le daigou, le groupe JD et le café sont retirés par la Finance pour d'autres raisons,
+    et aucun drapeau ne les marque ici. Les additionner au bulk ferait tomber la
+    comparaison juste par compensation, ce qui est la pire façon d'avoir raison.
+    """
+    return "BULK" in str(name or "").upper()
+
+
+def _bulk_over(periods: Sequence[str]) -> Optional[float]:
+    """Le bulk contenu dans le vendu sur ces mois, ou None s'il n'a pas été lu.
+
+    Lu dans le cache des relevés et jamais dans l'entrepôt : un rapprochement ne doit pas
+    pouvoir déclencher une requête de deux minutes, et un cache antérieur à la clé rend
+    None — ce qui fait dire à la commande qu'elle ne sait pas, au lieu de compter zéro.
+    """
+    from .perf import bulk as bulk_module
+    from .perf import kpi_registry
+    from .perf import source as source_module
+
+    rows = source_module._read_kpi_cache()
+    if not rows or not periods:
+        return None
+    group = bulk_module.market_bulk(rows, kpi_registry.GROUP_SCOPE,
+                                    months=len(periods), through=max(periods))
+    if group is None or list(group.periods) != sorted(periods):
+        # Une fenêtre qui ne tombe pas exactement sur les mois comparés répondrait à une
+        # autre question. Mieux vaut ne rien soustraire que soustraire le mauvais mois.
+        return None
+    return group.bulk
 
 
 def _shipped_over(periods: Sequence[str]) -> Dict[str, float]:
