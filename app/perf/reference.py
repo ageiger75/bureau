@@ -32,6 +32,22 @@ TOTAL_SHEET = "OVERALL BY QUARTER"
 #: number under a heading nobody chose.
 CLEANING_SHEET = "CLEANING"
 
+#: Perimeters the two sources do not cut the same way, and that no rename would reconcile.
+#: `(what the cockpit calls it, what the file calls it, why they will not line up)`.
+#:
+#: The temptation is to write an alias and watch a line go green. It would be false: the
+#: consolidation's `Export` covers the distributors the file calls `Loi Distributors` and
+#: others besides — Asia, and possibly elsewhere — so the two amounts are close by
+#: coincidence of size, not because they hold the same business. Reported as a pair that
+#: cannot be compared at this grain, which is a smaller claim and a true one.
+DIFFERENT_CUT: Tuple[Tuple[str, Tuple[str, ...], str], ...] = (
+    (
+        "Export",
+        ("Loi Distributors",),
+        "the consolidation groups every distributor here, the file splits them by region",
+    ),
+)
+
 #: How close a roll-up has to be to the rows under it to count as their sum. A cent on
 #: figures in the hundreds of millions: this is spotting a subtotal, not tolerating a
 #: discrepancy.

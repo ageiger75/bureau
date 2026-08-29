@@ -873,6 +873,27 @@ def cmd_compare(argv: List[str]) -> int:
     # ou un nom qui ne s'associe pas.
     theirs_only = [(market, amount) for market, amount, here in rows if not here]
     ours_only = [(market, here) for market, amount, here in rows if not amount]
+    # Sorties des deux listes avant impression : ce ne sont pas des orphelins, ce sont
+    # deux découpages différents du même argent. Les laisser parmi les noms non appariés
+    # inviterait à écrire un alias, et l'alias serait faux — `Export` couvre les
+    # distributeurs que le fichier range par région, pas seulement ceux d'une ligne.
+    paired = []
+    for ours_name, theirs_names, why in reference.DIFFERENT_CUT:
+        here = [(name, amount) for name, amount in ours_only if name == ours_name]
+        there = [(name, amount) for name, amount in theirs_only if name in theirs_names]
+        if here and there:
+            paired.append((here, there, why))
+            ours_only = [pair for pair in ours_only if pair[0] != ours_name]
+            theirs_only = [pair for pair in theirs_only if pair[0] not in theirs_names]
+    for here, there, why in paired:
+        print("")
+        print("Découpé autrement des deux côtés — %s :" % why)
+        for name, amount in here:
+            print("  cockpit  %-20s %9s" % (name[:20], _eur_k(amount)))
+        for name, amount in there:
+            print("  Finance  %-20s %9s" % (name[:20], _eur_k(amount)))
+        print("  Les deux montants se ressemblent, et ce n'est pas la même chose :")
+        print("  un alias les ferait tomber juste par coïncidence de taille.")
     if theirs_only:
         print("")
         print("Nommés par la Finance, lus nulle part ici :")

@@ -213,12 +213,18 @@ REGISTER: Dict[str, Measure] = {
         "their own and sit inside the same net sales as the creams — roughly €5m a year. "
         "One café was closed this year for losing money, and that one is what Finance "
         "takes out: the cleaning is about unprofitable revenue being removed from the "
-        "comparison, not about cafés being outside the business. The others stay in, and "
-        "they are ordinary sales. What they are not is comparable to the rest — a "
-        "pâtisserie and a face cream do not answer the same question — so they are worth "
-        "reading apart rather than netting out.",
-        to_confirm="A product-segment split, so café revenue can be read beside the "
-        "creams instead of inside them.",
+        "comparison, not about cafés being outside the business.\n\n"
+        "But the split, once built, showed something else and it is not a closure. Over "
+        "twelve months the number of stores recording café sales fell from 51 to 1 while "
+        "the revenue stayed near €400k a month; then it stopped altogether after April. "
+        "Revenue holding flat while the stores recording it collapse is not a business "
+        "winding down — it is a flow moving somewhere this source cannot see, or being "
+        "booked onto a single store. Either way the key would read zero when the truth is "
+        "'we no longer see it', which is the worst thing a figure can say. So it is read "
+        "and not shown.",
+        to_confirm="Whether café sales moved to another till system or entity, or were "
+        "progressively booked onto one store. One of the two is a business change and the "
+        "other is a recording change, and they are not the same conversation.",
     ),
     "store_count": Measure(
         key="store_count",
