@@ -291,17 +291,23 @@ REGISTER: Dict[str, Measure] = {
         label="The distributor business",
         maturity=BETA,
         note="Read for a week as two organisations cutting one business differently, and "
-        "it is not that. The Export unit's own budget names its perimeter: fifty-five "
-        "distributor countries across Latin America, Africa, Europe, Central Asia and the "
-        "Middle East. Both sources then carve the Middle East out of it the same way — "
-        "`EXPORT MIDDLE EAST` in the file, its own entity in the consolidation — and those "
-        "two agree to the euro. What is left on each side is therefore the same business "
-        "under two names, and it is folded.\n\n"
-        "That turns a ten-million perimeter argument into a 1 312k€ difference, which is "
-        "13% of the line and too large to wave at the exchange rate when the rate explains "
-        "two or three per cent everywhere else.",
-        to_confirm="What the 1 312k€ between the two distributor figures is. Currency does "
-        "not cover it on its own.",
+        "it is not that. The consolidation's export entity holds 45 distributor customers, "
+        "all of them filed under two commercial zones — Europe, and the Americas and "
+        "Caribbean — and none under Asia or the Middle East. Those live in three other "
+        "entities. So it is the business Europe and the Americas manage, not the Maison's "
+        "distributor business, and the file's line is the same perimeter under Finance's "
+        "name for it. Folded.\n\n"
+        "A ten-million perimeter argument becomes a 1 312k€ difference. The invoice fact "
+        "and the consolidation agree with each other to 0.4%, so the difference is between "
+        "the consolidation and Finance's file rather than inside the warehouse — which "
+        "points at something the file adds rather than something the warehouse loses.\n\n"
+        "One trap to carry: the zone called Europe in that commercial hierarchy is a "
+        "management perimeter and not a continent. It contains Kazakhstan, Mongolia, "
+        "Uzbekistan, Georgia, Nigeria, Mauritius, Martinique and New Caledonia. Anyone "
+        "filtering on Europe expecting Europe is wrong by twenty countries — the same kind "
+        "of label this screen exists to decode, one level further down.",
+        to_confirm="What the 1 312k€ the file adds is: a second export office, or the "
+        "rebate and contribution accounts the invoice fact does not carry.",
     ),
     "hospitality": Measure(
         key="hospitality",
