@@ -381,16 +381,21 @@ REGISTER: Dict[str, Measure] = {
         "explains it. The sell-out records a substantial retail business that the "
         "consolidation does not recognise as retail, and the gap runs to millions a "
         "quarter — far more than any department-store channel could hold.\n\n"
-        "The shape of it suggests ownership rather than perimeter: if part of the French "
-        "network is affiliated or franchised, the till reports in full to the sell-out "
-        "while the accounts recognise only the margin, booked under distributors and "
-        "independent wholesale. That is a hypothesis with a cheap test — the ownership "
-        "status of each French store — and it is not yet measured.\n\n"
-        "It matters more than a reconciliation line. If it holds, the French retail figure "
-        "on this screen is not the figure the P&L recognises, and a conversation about "
-        "France would be held on a number the finance director does not have.",
-        to_confirm="The ownership status of the French stores: which are operated by the "
-        "Maison and which by an affiliate or franchisee.",
+        "The cause is ownership, not perimeter, and the business has confirmed it: part of "
+        "the French network is franchised. A franchised store rings up the whole sale and "
+        "the sell-out records it; the accounts recognise only the margin, booked under "
+        "distributors and independent wholesale.\n\n"
+        "So this is not an error to reconcile away. It is the two systems answering "
+        "different questions, and the consequence is that the French retail figure on this "
+        "screen is larger than the one the P&L carries — which means a conversation about "
+        "France held on this screen is held on a number the finance director does not "
+        "have. The screen now says so on the figure itself rather than leaving the reader "
+        "to find out in the room.\n\n"
+        "What is still missing is the split. Saying a market is partly franchised is the "
+        "minimum; separating the owned network from the franchised one would let each be "
+        "judged on its own terms, and would need the ownership status of each store.",
+        to_confirm="The ownership status of each French store, so the two networks can be "
+        "read apart — and whether any other market carries the same arrangement.",
     ),
     "hospitality": Measure(
         key="hospitality",

@@ -97,13 +97,24 @@ UNMEASURED_BADGE = "CAUSE NOT MEASURED"
 STALE_BADGE = "READING STALE"
 OPEN_DEFINITION_BADGE = "DEFINITION OPEN"
 NO_COMMITMENT_BADGE = "NO COMMITMENT"
+#: Part of this market's stores are franchised. It changes the action twice over: the
+#: revenue is not the Maison's to steer the way an owned store's is, and the accounts
+#: recognise only the margin — so a conversation held on this figure is held on a number
+#: the finance director does not have.
+FRANCHISED_BADGE = "PARTLY FRANCHISED"
 
 
 def badges_for(unit: BusinessUnit, has_breakdown: bool = False) -> List[str]:
     """The badges this figure earns, in reading order."""
+    from .budget import FRANCHISED_RETAIL
+
     found = []
     if unit.basis == "shipped":
         found.append(SELL_IN_BADGE)
+    # Only on the sold side: what is invoiced to a partner is already flagged as sell-in,
+    # and saying a shipped figure is partly franchised would name the same fact twice.
+    elif unit.market in FRANCHISED_RETAIL:
+        found.append(FRANCHISED_BADGE)
     if not has_breakdown:
         found.append(UNMEASURED_BADGE)
     return found

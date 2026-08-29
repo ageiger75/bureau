@@ -360,3 +360,31 @@ def test_a_market_whose_figures_are_already_noted_cannot_carry_a_comparison():
     found, = routing.plan_reviews(dataset_of(noted), above=False)
 
     assert found.base_effect
+
+
+def test_a_market_with_franchised_stores_says_so_on_its_sold_figure():
+    """Le vendu y enregistre une caisse que les comptes ne reconnaissent qu'en marge.
+
+    Ce n'est pas une erreur à rapprocher : c'est deux systèmes qui répondent à deux
+    questions. L'écran le dit plutôt que d'en choisir un.
+    """
+    sold = unit(market="France", channel="retail", perimeter="own")
+
+    assert routing.FRANCHISED_BADGE in routing.badges_for(sold, has_breakdown=True)
+
+
+def test_a_market_without_franchises_carries_no_such_badge():
+    sold = unit(market="Japan", channel="retail", perimeter="own")
+
+    assert routing.FRANCHISED_BADGE not in routing.badges_for(sold, has_breakdown=True)
+
+
+def test_a_shipped_figure_is_not_told_twice_that_it_is_not_a_till():
+    """« Expédié » dit déjà que ce n'est pas une caisse. Ajouter « partiellement
+    franchisé » par-dessus nomme le même fait deux fois."""
+    shipped = unit(market="France", channel="dis", perimeter="sell-in")
+
+    badges = routing.badges_for(shipped, has_breakdown=True)
+
+    assert routing.SELL_IN_BADGE in badges
+    assert routing.FRANCHISED_BADGE not in badges
