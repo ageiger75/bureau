@@ -22,6 +22,7 @@ puts it — what changes is the move, from "challenge the market" to "find out w
 
 from __future__ import annotations
 
+import re
 from typing import List, Optional, Sequence, Tuple
 
 from . import context
@@ -180,25 +181,51 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
     )
 
 
+#: Beyond this, a growth rate is a statement about the base and not about the business.
+#: A line that ran at +15962% did not grow by fifteen thousand percent; it started from
+#: nearly nothing — a new listing, a first shipment, a boundary already noted. Left in, it
+#: opens the list, and the first item of a Finance review has to survive Finance.
+BASE_EFFECT_GROWTH = 3.0
+
+
 class PlanReview:
-    """A plan that asks for what this business has never delivered.
+    """A plan the record does not support, in one of the two directions.
 
     A separate item from the month's miss, and separately measured: the month's gap is
     what was lost in July, this is what the rest of the year still embeds. Finance and the
     BU answer it; the market's lead cannot fix a number they did not set.
+
+    Two directions, and they are two different conversations. A plan *above* everything
+    the business has delivered is a credibility risk: it will be missed every month and
+    the misses are not news. A plan *below* what the business is already doing is a
+    forecast to redo — apparent sandbagging or deliberate caution, either way a question
+    for Finance. Mixed into one list they cancel each other out: the reader sees fourteen
+    lines and cannot tell which half is which.
     """
 
-    __slots__ = ("unit", "sentence", "amount")
+    __slots__ = ("unit", "sentence", "amount", "above", "base_effect")
 
-    def __init__(self, unit: BusinessUnit, sentence: str, amount: float) -> None:
+    def __init__(self, unit: BusinessUnit, sentence: str, amount: float,
+                 above: bool, base_effect: bool = False) -> None:
         self.unit = unit
         self.sentence = sentence
         #: The year's embedded gap, not the month's.
         self.amount = amount
+        #: True when the plan asks for more than the record has ever shown.
+        self.above = above
+        #: True when the record it is measured against is a base effect rather than a
+        #: performance. Kept and annotated rather than dropped: the plan may still be
+        #: wrong, but nobody can tell from this comparison.
+        self.base_effect = base_effect
 
 
-def plan_reviews(dataset: Dataset) -> List[PlanReview]:
-    """Every unit whose plan the record does not support, largest first."""
+def plan_reviews(dataset: Dataset, above: Optional[bool] = None) -> List[PlanReview]:
+    """Plans the record does not support, largest first.
+
+    `above=True` returns the credibility list, `above=False` the re-forecast list, and
+    `None` both. Base effects sort last within their list rather than being hidden: the
+    figure is real, what it cannot do is carry a comparison.
+    """
     found = []
     for unit in dataset.units:
         if unit.is_aggregate:
@@ -206,8 +233,32 @@ def plan_reviews(dataset: Dataset) -> List[PlanReview]:
         sentence = unit.plan_vs_record or unit.chronic_plan
         if not sentence:
             continue
-        found.append(PlanReview(unit, sentence, _embedded_amount(unit)))
-    return sorted(found, key=lambda item: -item.amount)
+        item = PlanReview(
+            unit, sentence, _embedded_amount(unit),
+            above="above every reading" in sentence,
+            base_effect=_is_base_effect(unit, sentence),
+        )
+        if above is None or item.above == above:
+            found.append(item)
+    return sorted(found, key=lambda item: (item.base_effect, -item.amount))
+
+
+def _is_base_effect(unit: BusinessUnit, sentence: str) -> bool:
+    """Is the record this plan is measured against a base effect rather than a result?
+
+    Three ways it can be, and any one of them makes the percentage meaningless: the growth
+    itself is beyond what a business does, last year was nearly nothing, or the market
+    already carries a note saying its figures are filed on the wrong side of a boundary.
+    """
+    if unit.context_notes:
+        return True
+    for match in re.finditer(r"([+-]?\d[\d ]*)%", sentence):
+        try:
+            if abs(float(match.group(1).replace(" ", ""))) / 100.0 > BASE_EFFECT_GROWTH:
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def _embedded_amount(unit: BusinessUnit) -> float:

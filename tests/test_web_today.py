@@ -235,7 +235,7 @@ def test_the_screen_lists_what_is_not_settled():
     from app.main import app
 
     with TestClient(app) as client:
-        page = page_text(client.get("/"))
+        page = page_text(client.get("/system"))
 
     assert "Not settled yet" in page
     assert "Sell-in" in page
@@ -247,7 +247,7 @@ def test_each_unsettled_line_carries_the_question_that_would_close_it():
     from app.main import app
 
     with TestClient(app) as client:
-        page = page_text(client.get("/"))
+        page = page_text(client.get("/system"))
 
     assert "To confirm" in page
 
@@ -412,7 +412,7 @@ def test_a_panel_with_no_source_is_still_listed(monkeypatch):
     )
 
     with TestClient(app) as client:
-        page = page_text(client.get("/"))
+        page = page_text(client.get("/system"))
 
     assert "No source connected" in page
 
@@ -511,3 +511,10 @@ def test_the_plumbing_is_one_click_away_and_not_on_the_decision_screen(client):
     assert "PREPARE" in status
     assert "loopback" in status
     assert "writes nothing back" in status
+
+
+def test_the_register_lives_on_one_page_only(client):
+    """It was on both: moved to System status, and left where it was. Two copies of a
+    register are two registers, and the day they disagree the reader believes neither."""
+    assert "Not settled yet" not in page_text(client.get("/"))
+    assert "Not settled yet" in page_text(client.get("/system"))

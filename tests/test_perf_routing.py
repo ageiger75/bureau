@@ -306,3 +306,57 @@ def test_only_two_moves_put_a_commercial_owner_in_the_room():
     # Only one of them is a conversation.
     pushes = analytics.people_to_push(found)
     assert [p.fire.unit.label for p in pushes] == ["Measured"]
+
+
+# ------------------------------------------------------- the plan review, in two lists
+
+
+def planned(label, sentence, market="M", notes=()):
+    return unit(key=label.lower(), label=label, market=market, notes=notes,
+                plan_vs_record=sentence)
+
+
+def test_the_two_directions_are_two_lists():
+    """A plan above everything the record shows will be missed every month, and the misses
+    will not be news. A plan below what the business is already doing is a forecast to
+    redo. Mixed into one list they cancel out: fourteen lines and no way to tell which
+    half is which."""
+    above = planned("Japan EC", "the plan is above every reading of the record — €5.0m "
+                                "across the year's plan", market="Japan")
+    below = planned("HK Travel", "ran at +21% — the plan is below every reading of the "
+                                 "record — €12.6m across the year's plan", market="HK")
+    dataset = dataset_of(above, below)
+
+    assert [i.unit.label for i in routing.plan_reviews(dataset, above=True)] == ["Japan EC"]
+    assert [i.unit.label for i in routing.plan_reviews(dataset, above=False)] == ["HK Travel"]
+
+
+def test_a_base_effect_never_opens_the_list():
+    """"+15962%" is not growth, it is a base. A new listing, a first shipment, an
+    accounting boundary already noted — any of them makes the percentage a statement about
+    last year's emptiness. The first line of a Finance review has to survive Finance.
+    """
+    base = planned("UK Chain", "ran at +15962% — the plan is below every reading of the "
+                               "record — €44.5m across the year's plan", market="UK")
+    real = planned("HK Travel", "ran at +21% — the plan is below every reading of the "
+                                "record — €12.6m across the year's plan", market="HK")
+
+    found = routing.plan_reviews(dataset_of(base, real), above=False)
+
+    assert [i.unit.label for i in found] == ["HK Travel", "UK Chain"]
+    assert found[0].base_effect is False
+    assert found[1].base_effect is True   # kept and marked, never silently dropped
+    # And the larger amount is the one demoted: this is not a materiality filter.
+    assert found[1].amount > found[0].amount
+
+
+def test_a_market_whose_figures_are_already_noted_cannot_carry_a_comparison():
+    """The American boundary is the case: a channel whose revenue is filed on the wrong
+    side is not a business that grew, and its growth rate says nothing about its plan."""
+    noted = planned("US Chain", "ran at +40% — the plan is below every reading of the "
+                                "record — €9.0m across the year's plan", market="US",
+                    notes=[note(context.RECLASSIFIED)])
+
+    found, = routing.plan_reviews(dataset_of(noted), above=False)
+
+    assert found.base_effect

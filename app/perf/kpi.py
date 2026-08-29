@@ -17,7 +17,8 @@ losing a CEO's trust:
 
 from __future__ import annotations
 
-from datetime import date
+import re
+from datetime import date, timedelta
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import fiscal
@@ -82,6 +83,43 @@ STATUS_LABELS = {
     ALERT: "Alert",
     CANNOT_JUDGE: "Cannot judge",
 }
+
+
+#: `2026-07` -> the last day it covers; `Q1 FY27` -> the last day of that quarter. Used
+#: only to compare two periods that were written in different grains — never to relabel
+#: one as the other, which would put a figure under a heading it does not belong to.
+_MONTH_PERIOD = re.compile(r"^(\d{4})-(\d{2})$")
+_QUARTER_PERIOD = re.compile(r"^Q([1-4]) FY(\d{2})$")
+_HALF_PERIOD = re.compile(r"^H([12]) FY(\d{2})$")
+_YEAR_PERIOD = re.compile(r"^FY(\d{2})$")
+
+
+def _period_end(label: str) -> Optional[date]:
+    """The last day a period label covers, or None when it is not a period this reads."""
+    text = (label or "").strip()
+    match = _MONTH_PERIOD.match(text)
+    if match:
+        year, month = int(match.group(1)), int(match.group(2))
+        return date(year + month // 12, month % 12 + 1, 1) - timedelta(days=1)
+    match = _QUARTER_PERIOD.match(text)
+    if match:
+        return _fiscal_period_end(int(match.group(2)), int(match.group(1)) * 3)
+    match = _HALF_PERIOD.match(text)
+    if match:
+        return _fiscal_period_end(int(match.group(2)), int(match.group(1)) * 6)
+    match = _YEAR_PERIOD.match(text)
+    if match:
+        return _fiscal_period_end(int(match.group(1)), 12)
+    return None
+
+
+def _fiscal_period_end(short_year: int, months_in: int) -> date:
+    """`FY27`, three months in -> 30 June 2026. The year runs April to March."""
+    start_year = 2000 + short_year - 1
+    month = 3 + months_in
+    year = start_year + (month - 1) // 12
+    month = (month - 1) % 12 + 1
+    return date(year + month // 12, month % 12 + 1, 1) - timedelta(days=1)
 
 
 class Reading:
@@ -253,13 +291,29 @@ class Kpi:
         return None
 
     def freshness(self, today: Optional[date] = None) -> str:
-        """Whether the figure that exists is the one that should exist by now."""
+        """Whether the figure that exists is the one that should exist by now.
+
+        Compared as periods and not as labels. The tracker states a cadence and the
+        warehouse returns whatever grain its query runs at, and the two need not agree: a
+        KPI the sheet calls quarterly, fed a July figure, was marked overdue every day of
+        its life — its reading is finer than required, which is the opposite of late.
+
+        Where the two cannot be compared at all, the answer is that no figure is due
+        rather than that one is missing. A cadence nobody can line up with the readings is
+        a fact about the tracker; printing it as a market's lateness would be a verdict
+        drawn from a mismatch.
+        """
         expected = self.expected_period(today)
         if expected is None:
             return NOT_DUE
-        if self.latest is None or self.latest.period != expected:
+        if self.latest is None:
             return OVERDUE
-        return FRESH
+        if self.latest.period == expected:
+            return FRESH
+        covered, wanted = _period_end(self.latest.period), _period_end(expected)
+        if covered is None or wanted is None:
+            return NOT_DUE
+        return FRESH if covered >= wanted else OVERDUE
 
     def freshness_label(self, today: Optional[date] = None) -> str:
         return FRESHNESS_LABELS[self.freshness(today)]

@@ -838,6 +838,10 @@ input:focus, textarea:focus, select:focus {
 .issue-owner { font-size: 13.5px; color: var(--ink-soft); margin: 2px 0 0; }
 .issue-members { list-style: none; margin: 12px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule-soft); display: grid; gap: 20px; }
 .issue-members > .fire h3 { font-size: 15px; }
+/* Un sujet à un seul canal n'a pas de sous-liste : la numérotation imbriquée affichait un
+   « 1. » orphelin au-dessus de la carte, et le lecteur cherchait le 2. */
+.issue-members.is-bare { margin: 0; padding: 0; border-left: none; }
+.fire-list > .issue.is-single { list-style: decimal; }
 
 /* Un incident, son diagnostic, et ses marchés repliés. La liste par marché est un détail
    du fait, pas une seconde explication du même fait. */
@@ -857,6 +861,7 @@ input:focus, textarea:focus, select:focus {
 
 .routed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
 .routed { border-left: 2px solid var(--rule); padding-left: 14px; }
+.routed.is-base-effect { opacity: .72; }
 .routed-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0; }
 .routed-name { font-weight: 600; font-size: 15px; }
 .routed-amount { font-variant-numeric: tabular-nums; color: var(--ink-soft); }

@@ -147,7 +147,7 @@
   {% else %}
   <ol class="fire-list">
     {% for issue, members in issues %}
-      <li class="issue">
+      <li class="issue{{ ' is-single' if issue.is_single }}">
         {% if not issue.is_single %}
           {# The subject's own line, above its channels. Without it the reader adds two
              cards in their head to find what the market is actually losing — and the
@@ -159,7 +159,7 @@
           </div>
           <p class="issue-owner">{{ issue.owner.name }} · {{ issue.owner.role }}</p>
         {% endif %}
-      <ol class="issue-members">
+      <ol class="issue-members{{ ' is-bare' if issue.is_single }}">
     {% for fire, commitment, signals in members %}
       <li class="fire">
         <div class="fire-head">
@@ -358,26 +358,46 @@
 
 {# ------------------------------------------------- routed off the CEO surface #}
 
-{% if plan_reviews %}
-<section class="panel">
-  <h2>For the plan review</h2>
-  <p class="lede">
-    Plans asking for growth the record has never delivered. Not the month's miss — what
-    the rest of the year still embeds, which is a different amount and a different
-    conversation. A market's lead cannot correct a number they did not set: this is
-    Finance and the BU.
-  </p>
+{% macro plan_list(items) %}
   <ul class="routed-list">
-    {% for item in plan_reviews %}
-      <li class="routed">
+    {% for item in items %}
+      <li class="routed{{ ' is-base-effect' if item.base_effect }}">
         <p class="routed-head">
           <span class="routed-name">{{ item.unit.label }}</span>
           {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} across the year</span>{% endif %}
+          {% if item.base_effect %}<span class="badge badge-class">Base effect</span>{% endif %}
         </p>
         <p class="routed-why">{{ item.sentence }}</p>
       </li>
     {% endfor %}
   </ul>
+{% endmacro %}
+
+{% if plans_above %}
+<section class="panel">
+  <h2>Plans the record does not support</h2>
+  <p class="lede">
+    Plans asking for more than this business has ever delivered. Not the month's miss —
+    what the rest of the year still embeds, which is a different amount and a different
+    conversation. They will be missed every month, and the misses will not be news. A
+    market's lead cannot correct a number they did not set: this is Finance and the BU.
+  </p>
+  {{ plan_list(plans_above) }}
+</section>
+{% endif %}
+
+{% if plans_below %}
+<section class="panel">
+  <h2>Plans to re-forecast</h2>
+  <p class="lede">
+    The other direction, and a different conversation: plans below what the business is
+    already doing. Apparent sandbagging or deliberate caution — Finance requalifies which.
+    Never mixed with the list above, where the two would cancel each other out.
+    <em>Base effect</em> marks a line whose comparison rests on a near-empty base or an
+    accounting boundary already noted: the plan may still be wrong, but nobody can tell
+    from this percentage.
+  </p>
+  {{ plan_list(plans_below) }}
 </section>
 {% endif %}
 
@@ -695,46 +715,6 @@
   </ul>
   {% endif %}
 </section>
-
-{# --------------------------------------------------- what is not settled yet #}
-
-{% if unsettled %}
-<section class="panel panel-quiet">
-  {# Folded shut. It is the longest block on the screen and none of it is a decision to
-     take this week — it is read once, when someone asks how far a figure can be trusted.
-     Left open it competed for attention with the five findings that do need it. The
-     summary keeps the count in view, because "some figures are unsettled" and "seven
-     are" are different facts, and the beta badges upstairs already mark which. #}
-  <h2>Not settled yet</h2>
-  <details class="unsettled">
-    <summary>
-      {{ unsettled | length }} figure{{ '' if unsettled | length == 1 else 's' }} on this
-      screen {{ 'is' if unsettled | length == 1 else 'are' }} not fully checked —
-      {{ unsettled | selectattr("maturity", "equalto", "absent") | list | length }} not
-      measured at all, the rest in beta. Open to see which, and what would settle each.
-    </summary>
-  <p class="lede">
-    This screen is being read before the data behind it is finished, which is the right
-    call — but it means a checked figure and an unchecked one would otherwise look
-    identical. Each line below says which it is, and what would settle it.
-  </p>
-  <ul class="provenance-list">
-    {% for item in unsettled %}
-      <li class="provenance provenance-{{ item.maturity }}">
-        <div class="provenance-head">
-          <span class="provenance-name">{{ item.label }}</span>
-          <span class="badge badge-{{ item.maturity }}">{{ item.badge }}</span>
-        </div>
-        <p class="provenance-note">{{ item.note }}</p>
-        {% if item.to_confirm %}
-          <p class="provenance-ask"><strong>To confirm:</strong> {{ item.to_confirm }}</p>
-        {% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-  </details>
-</section>
-{% endif %}
 
 {# ------------------------------------------------------------------ ask #}
 

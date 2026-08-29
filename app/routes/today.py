@@ -117,7 +117,12 @@ def today(request: Request):
     # question belongs to consolidation, to finance or to the data team — and a reader who
     # simply stopped seeing them would have no way to tell a routed item from a lost one.
     elsewhere = analytics.routed_elsewhere(dataset)
-    plan_reviews = routing.plan_reviews(dataset)
+    # Two lists, never one. A plan above everything the record shows will be missed every
+    # month and the misses are not news; a plan below what the business is already doing
+    # is a forecast to redo. Mixed, they cancel out — fourteen lines and no way to tell
+    # which half is which.
+    plans_above = routing.plan_reviews(dataset, above=True)
+    plans_below = routing.plan_reviews(dataset, above=False)
     suspects = analytics.suspects(dataset)
     by_market = _commitments_by_market(commitments.items)
 
@@ -190,7 +195,8 @@ def today(request: Request):
             "kpis_provisional": kpi_rules.provisional(kpis),
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
-            "plan_reviews": plan_reviews,
+            "plans_above": plans_above,
+            "plans_below": plans_below,
             # One incident, one diagnosis. The panel used to state the shape and then
             # list markets underneath, each repeating a fix for the same fault — two
             # accounts of one fact, and the second undoes the first.
