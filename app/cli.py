@@ -26,7 +26,7 @@
                                      --spec FICHIER.csv exporte les réalisés de l'an dernier
                                      --perimeter sell-in|own|other|all (défaut sell-in)
     python -m app.cli compare        confronte le trimestre clos au reforecast Finance
-                                     compare REF1.xlsx [--all]
+                                     compare REF1.xlsx [--all] [--sellin]
     python -m app.cli kpi            ce que le cockpit lit dans le classeur de suivi
                                      --join confronte le registre aux relevés de l'entrepôt
                                      --file CHEMIN pour un autre classeur que var/
@@ -738,6 +738,7 @@ def cmd_compare(argv: List[str]) -> int:
         manage.py compare REF1.xlsx            le trimestre clos, marché par marché
         manage.py compare REF1.xlsx --all      toutes les lignes, pas seulement les écarts
         manage.py compare REF1.xlsx --quarter 2026-07,2026-08,2026-09
+        manage.py compare REF1.xlsx --sellin   les noms que la consolidation emploie
 
     Deux règles valent plus que la comparaison elle-même. Seul le trimestre clos est lu :
     les colonnes suivantes d'un reforecast sont un nouvel avis sur la fin d'année, et le
@@ -846,6 +847,18 @@ def cmd_compare(argv: List[str]) -> int:
             market[:24], _eur_k(theirs), _eur_k(mine), _eur_k(mine - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
+    if "--sellin" in argv:
+        # Le nom, tel que la consolidation l'écrit. Trois lignes du fichier Finance ne
+        # trouvent rien en face dans le cockpit, et il y a deux causes possibles qui ne
+        # se corrigent pas au même endroit : la consolidation ne rend pas ces entités, ou
+        # elle les rend sous une orthographe que le rapprochement n'associe pas. Les
+        # imprimer telles quelles tranche entre les deux en une lecture.
+        print("")
+        print("Le sell-in, marché par marché, tel que la consolidation le nomme :")
+        for market, amount in sorted(shipped.items(), key=lambda pair: -pair[1]):
+            print("  %-28s %9s" % (market[:28], _eur_k(amount)))
+        print("")
+
     missing = [(market, theirs) for market, theirs, mine in rows if not mine]
     if missing:
         print("")
