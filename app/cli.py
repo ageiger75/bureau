@@ -846,10 +846,21 @@ def cmd_compare(argv: List[str]) -> int:
             market[:24], _eur_k(theirs), _eur_k(mine), _eur_k(mine - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
-    missing = [market for market, _t, mine in rows if not mine]
+    missing = [(market, theirs) for market, theirs, mine in rows if not mine]
     if missing:
         print("")
-        print("Absents du cockpit : %s" % ", ".join(missing))
+        print("Absents du cockpit : %s" % ", ".join(name for name, _t in missing))
+        blind = sum(amount for _name, amount in missing)
+        # Le rapprochement passait des heures sur des différences de base — bulk, grey,
+        # cleaning, change — en laissant cette ligne à la fin comme un détail. Or ces
+        # marchés ne sont pas lus du tout, et à eux seuls ils pèsent l'ordre de grandeur
+        # de l'écart. Une différence de base se discute ; un marché absent se branche.
+        print("                    %s au total, quand il manque %s en tout."
+              % (_eur_k(blind), _eur_k(whole - mine)))
+        if blind >= 0.5 * (whole - mine):
+            print("                    L'essentiel de l'écart n'est donc pas une")
+            print("                    différence de périmètre : ce sont des lignes que")
+            print("                    rien ne fait entrer dans le cockpit.")
     return 0
 
 

@@ -167,18 +167,31 @@ REGISTER: Dict[str, Measure] = {
     "same_store": Measure(
         key="same_store",
         label="Same-store sales",
-        maturity=BETA,
-        note="The warehouse's own same-store flag decides which stores compare, and it "
-        "says nothing about refurbishment. The dimensions that would — a refurbishment "
-        "start and stop date per store — exist beside it and are not read. So two stores "
-        "can both count as comparable while one spent four months behind hoardings, and "
-        "the comparison charges its closure to the business. The target is +4.5%, which "
-        "is inside the range a few refurbishments can move. The rule is now decided: a "
-        "store under refurbishment leaves the comparable base, counted from the day its "
-        "doors close and not from the day the works are scheduled. What remains is "
-        "applying it — the figure on the screen is still the flag's.",
-        to_confirm="Are the closure dates filled in reliably enough to apply the rule, or "
-        "would applying it drop stores that never actually shut?",
+        maturity=ABSENT,
+        note="Two sources disagree about the direction, not the decimal. The tracker "
+        "carries +2.0%; every definition the warehouse can compute for the same year is "
+        "negative — the finance rule gives -0.8%, a constant perimeter of stores selling "
+        "in both years gives -2.8%, and the unfiltered sell-out total gives -2.8% as "
+        "well. Currency was tested and explains none of it; so was the channel "
+        "perimeter. Three to five points, and the sign changes.\n\n"
+        "The gap between the two warehouse definitions is understood, and it is not "
+        "refurbishment. The finance rule drops 213 stores that sold in both years and "
+        "that fell 10.6%, which lifts the headline by two points on its own. "
+        "Refurbishment turned out to work the other way: the 136 refurbished stores grew "
+        "0.4% against -3.4% for the rest, so taking them out of the comparison would make "
+        "the figure worse, not better. That is worth knowing on its own — refurbished "
+        "stores outperform by nearly four points.\n\n"
+        "The rule is decided anyway — a store leaves the comparable base from the day its "
+        "doors close — and it cannot be applied: refurbishment dates cover 49% of the "
+        "estate, absence is not interpretable (coverage runs from 30% to 81% by country "
+        "with no country at zero or a hundred), and the opening and closing dates that "
+        "would settle it are empty on every store. The known contamination is 14 stores "
+        "with works inside the year, 1.3% of the comparable base; that is a floor with no "
+        "ceiling. Nothing is shown until the two sources are reconciled: a same-store "
+        "figure whose sign depends on which system you ask is not a figure.",
+        to_confirm="Which perimeter the reported +2.0% is computed on — what its "
+        "'ex-cleaning' removes, and whether it composes monthly rates rather than "
+        "dividing two yearly totals.",
     ),
     "store_concept": Measure(
         key="store_concept",
@@ -206,6 +219,17 @@ REGISTER: Dict[str, Measure] = {
         "reading apart rather than netting out.",
         to_confirm="A product-segment split, so café revenue can be read beside the "
         "creams instead of inside them.",
+    ),
+    "store_count": Measure(
+        key="store_count",
+        label="Points of sale opened and closed",
+        maturity=ABSENT,
+        note="`STORE_OPENING_DATE` and `STORE_CLOSING_DATE` are empty on every store in "
+        "the referential — not sparse, empty. So the KPI that counts the network down by "
+        "112 points of sale has no readable source here, and neither has any question of "
+        "the form 'how old is this store'. It was briefly thought readable; it is not.",
+        to_confirm="Which system records an opening and a closing, if the store "
+        "referential does not.",
     ),
     "hospitality": Measure(
         key="hospitality",

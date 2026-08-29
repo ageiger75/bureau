@@ -150,7 +150,18 @@ year, it will count samples as turnover and nothing will say so.
 `V_SL_AI_F_SELLOUT_SALES_DETAILS` directly, writing the governed expression out in full,
 and that path allows what the function refuses — a `count(distinct)` grouped by month,
 which is what an average basket and a units-per-transaction need. Two measures were
-declared impossible on the strength of the function's limits alone.
+declared impossible on the strength of the function's limits alone. That path carries all
+brands, so it needs the brand filter written out too: without it FY26 reads €859m instead
+of €836m.
+
+## One flag that does not mean what it is called
+
+`YEAR_TO_DATE = 1` does not mean the current year to date, whatever the view's own
+documentation says. It marks the same date interval in eight successive fiscal years, so a
+query using it alone returns eight years stacked — €557m where the year to date is €276m.
+It is a year-on-year comparison flag. `YEAR_TO_DATE = 1 AND CURRENT_YEAR = 0` is the real
+year to date, and it is the better cut because the closing day is the house's rather than
+ours. `CURRENT_YEAR` on its own is exact, checked to the euro against the dates.
 """
 
 from __future__ import annotations
