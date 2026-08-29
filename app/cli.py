@@ -24,6 +24,8 @@
                                      --segments pour la vue par segment et par périmètre
                                      --spec FICHIER.csv exporte les réalisés de l'an dernier
                                      --perimeter sell-in|own|other|all (défaut sell-in)
+    python -m app.cli compare        confronte le trimestre clos au reforecast Finance
+                                     compare REF1.xlsx [--all]
     python -m app.cli kpi            ce que le cockpit lit dans le classeur de suivi
                                      --join confronte le registre aux relevés de l'entrepôt
                                      --file CHEMIN pour un autre classeur que var/
@@ -725,6 +727,86 @@ def _print_notes(rows, path) -> int:
         print("")
     print("Pour en retirer une : manage.py note --forget N")
     return 0
+
+
+def cmd_compare(argv: List[str]) -> int:
+    """Confronte le trimestre clos du cockpit au reforecast de la Finance.
+
+        manage.py compare REF1.xlsx            le trimestre clos, marché par marché
+        manage.py compare REF1.xlsx --all      toutes les lignes, pas seulement les écarts
+        manage.py compare REF1.xlsx --quarter 2026-07,2026-08,2026-09
+
+    Deux règles valent plus que la comparaison elle-même. Seul le trimestre clos est lu :
+    les colonnes suivantes d'un reforecast sont un nouvel avis sur la fin d'année, et le
+    plan de cet écran reste le budget — le principe d'un plan est justement qu'il ne bouge
+    pas quand l'année devient dure. Et les cours ne sont pas les mêmes : le reforecast est
+    aux taux du budget, l'entrepôt rend ce qui a été facturé. Chaque ligne différera de ce
+    qu'a fait la devise, et une comparaison qui ne le dit pas fait passer un mouvement de
+    change pour une erreur de donnée.
+    """
+    from .perf import reference, source as source_module
+    from .perf.xlsx import WorkbookError
+
+    positional = [a for a in argv if not a.startswith("--")]
+    if not positional:
+        print(cmd_compare.__doc__, file=sys.stderr)
+        return 2
+    path = positional[0]
+    if not Path(path).exists():
+        print("Fichier introuvable : %s" % path, file=sys.stderr)
+        return 2
+
+    try:
+        ref = reference.read_reference(path)
+    except WorkbookError as exc:
+        print("%s" % exc, file=sys.stderr)
+        return 2
+
+    print("Fichier            %s" % path)
+    print("Marchés lus        %d  (%d totaux écartés : %s)"
+          % (len(ref.lines), len(set(ref.skipped)), ", ".join(sorted(set(ref.skipped)))))
+    print("Trimestre clos     %.3f M€ réalisé · %.3f M€ budget · %+.0f k€"
+          % (ref.total_actual / 1e6, ref.total_budget / 1e6,
+             (ref.total_actual - ref.total_budget) / 1000))
+    print("")
+    print("Aux taux du budget dans ce fichier, à ce qui a été facturé dans l'entrepôt :")
+    print("l'écart de chaque ligne contient le mouvement de change.")
+    print("")
+
+    # The quarter, never the month on screen. `sales_actual` is July alone, and setting a
+    # month beside a quarter produces a difference that is three quarters calendar — the
+    # same fault as scoring a monthly reading against a year's target, one panel over.
+    from .perf import history as history_module
+
+    stored = source_module.cached_history_rows()
+    if stored is None:
+        print("Aucun historique en cache. Ouvrez l'écran une fois, ou "
+              "`manage.py history --refresh`.", file=sys.stderr)
+        return 2
+    rows, read_at_text = stored
+    quarter = _option(argv, "--quarter") or "2026-04,2026-05,2026-06"
+    periods = [p.strip() for p in quarter.split(",") if p.strip()]
+    ours = history_module.from_rows(rows).summed(periods)
+    print("Mois comparés      %s  (historique lu %s)" % (", ".join(periods), read_at_text))
+    print("")
+
+    rows = reference.compare(ref, ours)
+    shown = rows if "--all" in argv else rows[:15]
+    print("%-24s %>12s %>12s %>12s" .replace(">", "") % ("Marché", "Finance", "Cockpit", "Écart"))
+    for market, theirs, mine in shown:
+        print("%-24s %12s %12s %12s" % (
+            market[:24], _eur_k(theirs), _eur_k(mine), _eur_k(mine - theirs)))
+    if len(rows) > len(shown):
+        print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
+    missing = [market for market, _t, mine in rows if not mine]
+    if missing:
+        print("")
+        print("Absents du cockpit : %s" % ", ".join(missing))
+    return 0
+
+
+def _eur_k(amount: float) -> str:
+    return "%+.0f k€" % (amount / 1000.0)
 
 
 def cmd_kpi(argv: List[str]) -> int:
@@ -1740,6 +1822,8 @@ def main(argv: List[str]) -> int:
         return cmd_history(argv[1:])
     if command == "note":
         return cmd_note(argv[1:])
+    if command == "compare":
+        return cmd_compare(argv[1:])
     if command == "kpi":
         return cmd_kpi(argv[1:])
     if command == "reconcile":

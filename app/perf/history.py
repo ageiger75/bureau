@@ -642,6 +642,22 @@ class History:
     def latest_period(self) -> str:
         return self.periods[-1] if self.periods else ""
 
+    def summed(self, periods: Sequence[str]) -> Dict[str, float]:
+        """Actual sales per market over exactly these months.
+
+        Written for the check against Finance's own quarter, and the reason it exists is
+        that the obvious shortcut is wrong: the screen's `sales_actual` is one month, and
+        setting a month beside a quarter produces a difference that is three quarters
+        calendar and no part of it a finding.
+        """
+        wanted = set(periods)
+        found: Dict[str, float] = {}
+        for (market, _channel), track in self.tracks.items():
+            for month in track.months:
+                if month.period in wanted and month.actual is not None:
+                    found[market] = found.get(market, 0.0) + month.actual
+        return found
+
     def ytd(self, anchor: str = "", budget=None, sell_in=()) -> Optional[Ytd]:
         """The fiscal year to date, ending at `anchor` (the last complete month).
 

@@ -189,11 +189,13 @@ CHANNEL_MEANING = {
     "ecommerce": "Our own site — brand.com. The one channel where the whole funnel is "
                  "ours to read: visits, conversion, basket.",
     "retail": "Our own stores. Sold when the shopper pays.",
-    "marketplace": "Our own store, on someone else's platform — a Tmall or JD flagship "
-                   "the Maison operates. Still sold to the shopper, but the platform owns "
-                   "the traffic, so there is no funnel of ours behind the number.",
-    "webp": "Partners who buy our stock and resell it online — Amazon and its like. "
-            "Invoiced when we ship, so what reaches a shopper afterwards is not in it.",
+    "marketplace": "Our own store, on someone else's platform — the Tmall flagship the "
+                   "Maison operates. Still sold to the shopper, but the platform owns the "
+                   "traffic, so there is no funnel of ours behind the number. In China "
+                   "Tmall is the only platform on this side of the invoice.",
+    "webp": "Partners who buy our stock and resell it online — Amazon in the West, and in "
+            "China JD, Douyin or VIP. Invoiced when we ship, so what reaches a shopper "
+            "afterwards is not in it. Not Tmall, which we operate ourselves.",
     "tra": "Travel retail operators who buy to resell: airports, ferries, border shops.",
     "dis": "Distributors who buy the range for a territory and resell it on.",
     "dpt": "Department stores buying stock for their own floors.",

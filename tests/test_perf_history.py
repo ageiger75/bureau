@@ -1065,3 +1065,33 @@ def test_a_shipped_figure_names_its_own_month():
     assert "Shipped, not sold (June)" in unit.basis_note
     # And it no longer repeats the clause the basis note already carries.
     assert "Invoiced to a partner" not in unit.no_breakdown_reason
+
+
+def test_a_quarter_is_summed_over_its_months_and_not_taken_from_one():
+    """Written for the check against Finance's own quarter, and it exists because the
+    obvious shortcut is wrong: the screen's headline is one month, and setting a month
+    beside a quarter produces a difference that is three quarters calendar and no part of
+    it a finding — the same fault as scoring a monthly reading against a year's target.
+    """
+    built = history.from_rows([
+        row(period="2026-04", actual=1_000_000.0),
+        row(period="2026-05", actual=1_100_000.0),
+        row(period="2026-06", actual=900_000.0),
+        row(period="2026-07", actual=5_000_000.0),
+        row(market="Korea", period="2026-04", actual=400_000.0),
+    ])
+
+    quarter = built.summed(["2026-04", "2026-05", "2026-06"])
+
+    assert round(quarter["Japan"], 2) == 3_000_000.0
+    assert round(quarter["Korea"], 2) == 400_000.0
+    # July is outside the quarter and stays outside it.
+    assert quarter["Japan"] != 8_000_000.0
+
+
+def test_a_market_with_no_month_in_the_quarter_is_absent_rather_than_zero():
+    """Absent and zero are different findings: one says nothing was reported, the other
+    that nothing was sold. The caller decides which to print."""
+    built = history.from_rows([row(period="2026-07", actual=1_000_000.0)])
+
+    assert built.summed(["2026-04"]) == {}

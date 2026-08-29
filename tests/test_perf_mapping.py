@@ -694,8 +694,13 @@ def test_the_three_online_channels_are_told_apart():
     from app.perf.mapping import CHANNEL_MEANING
 
     assert "brand.com" in CHANNEL_MEANING["ecommerce"]
+    # Tmall we operate: sold to the shopper. JD, Douyin and VIP buy our stock: shipped.
+    # The two sit under names that sound alike and fall on opposite sides of the invoice,
+    # which is the confusion this table exists to end.
     assert "Tmall" in CHANNEL_MEANING["marketplace"]
-    assert "Amazon" in CHANNEL_MEANING["webp"]
+    assert "JD" in CHANNEL_MEANING["webp"]
+    assert "Not Tmall" in CHANNEL_MEANING["webp"]
+    assert "JD" not in CHANNEL_MEANING["marketplace"]
     # And each says on which side of the invoice its euros are counted.
     assert "shipper" not in CHANNEL_MEANING["webp"]
     assert "when we ship" in CHANNEL_MEANING["webp"]
