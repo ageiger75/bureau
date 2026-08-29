@@ -133,6 +133,28 @@ def _number(value) -> Optional[float]:
     return None
 
 
+def read_rows(path) -> List[Tuple[str, float, float]]:
+    """The country sheet as written, before any subtotal is removed.
+
+    For looking at the file's own hierarchy rather than at what this reader made of it.
+    Whether Hong Kong sits inside the file's China grouping is a question about the
+    spreadsheet, and the spreadsheet is the only place that can answer it.
+    """
+    with Workbook(path) as book:
+        rows = list(book.rows(COUNTRY_SHEET))
+    read = []
+    for row in rows:
+        name = str(row[0] or "").strip() if row else ""
+        if not name:
+            continue
+        actual = _number(row[1] if len(row) > 1 else None)
+        budget = _number(row[2] if len(row) > 2 else None)
+        if actual is None or budget is None:
+            continue
+        read.append((name, actual * THOUSANDS, budget * THOUSANDS))
+    return read
+
+
 def read_reference(path) -> Reference:
     """Read the closed quarter out of a reforecast workbook."""
     with Workbook(path) as book:

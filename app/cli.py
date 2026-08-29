@@ -740,6 +740,7 @@ def cmd_compare(argv: List[str]) -> int:
         manage.py compare REF1.xlsx --quarter 2026-07,2026-08,2026-09
         manage.py compare REF1.xlsx --sellin   les noms que la consolidation emploie
         manage.py compare REF1.xlsx --entities les codes d'entité, pour le double comptage
+        manage.py compare REF1.xlsx --structure la feuille pays telle qu'elle est écrite
         manage.py compare REF1.xlsx --refresh  relit l'historique au lieu du cache
 
     Deux règles valent plus que la comparaison elle-même. Seul le trimestre clos est lu :
@@ -767,6 +768,19 @@ def cmd_compare(argv: List[str]) -> int:
     except WorkbookError as exc:
         print("%s" % exc, file=sys.stderr)
         return 2
+
+    if "--structure" in argv:
+        # La feuille telle qu'elle est écrite, dans son ordre, avec ce que ce lecteur a
+        # pris pour un sous-total. Une question de périmètre — Hong Kong est-il passé
+        # sous la Chine à ce reforecast ? — se répond dans le classeur et nulle part
+        # ailleurs, et sûrement pas en demandant à quelqu'un de s'en souvenir.
+        skipped = set(ref.skipped)
+        print("")
+        print("La feuille pays, dans son ordre, sous-totaux marqués :")
+        for name, actual, _budget in reference.read_rows(path):
+            mark = "  (somme)" if name in skipped else ""
+            print("  %-28s %9s%s" % (name[:28], _eur_k(actual), mark))
+        print("")
 
     print("Fichier            %s" % path)
     print("Marchés lus        %d  (%d totaux écartés : %s)"
