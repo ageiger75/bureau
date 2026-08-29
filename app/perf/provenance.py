@@ -394,8 +394,10 @@ REGISTER: Dict[str, Measure] = {
         "A badge saying `PARTLY FRANCHISED` sat on the French retail figure for an hour, "
         "on the premise that a franchised till reaches the sell-out. It does not. The "
         "statement was true of the business and false of the number it was printed on.",
-        to_confirm="Whether the departing franchisee closed, was taken back, or changed "
-        "supplier. The warehouse can say it left; only the business can say why.",
+        to_confirm="The schedule of closures, so a step down is expected rather than "
+        "discovered. The warehouse sees an exit the month it happens; it cannot see one "
+        "coming, and a planned closure that surprises the screen costs the same as an "
+        "unplanned one.",
     ),
     "franchise_buyback": Measure(
         key="franchise_buyback",
@@ -417,38 +419,40 @@ REGISTER: Dict[str, Measure] = {
         "that country, and the consolidation moves money from distributors to retail. Two "
         "of the three raise the question; all three name the conversion. None is enough "
         "alone.\n\n"
-        "The rule has already earned its keep by refusing a conclusion. Franchise "
-        "invoicing halved and the distributor line in the consolidation halved with it — "
-        "one trace, moving convincingly. The other two stayed silent: no store entered "
-        "the sell-out, and retail recovered none of it. So it is not a buy-back, and it "
-        "was not destocking either. A franchisee left and its volume did not reappear "
-        "anywhere.\n\n"
-        "One trace out of three would have read as a conversion to anyone watching only "
-        "the falling one, which is exactly what the rule exists to prevent.",
+        "The rule earned its keep first by refusing a conclusion, then by producing one. "
+        "Franchise invoicing halved and the distributor line in the consolidation halved "
+        "with it — one trace, moving convincingly. The other two stayed silent: no store "
+        "entered the sell-out, and retail recovered none of it. Anyone watching only the "
+        "falling trace would have called that a buy-back.\n\n"
+        "It is a closure, and the business confirms closures are under way. That is the "
+        "second shape a franchise exit takes, and the traces tell the two apart cleanly: "
+        "a buy-back moves volume into retail, a closure makes it disappear. Same first "
+        "trace, opposite meanings — one is the network being taken back, the other is "
+        "revenue leaving. Both are exits from franchising and both are the plan; neither "
+        "is a commercial failure of the market, and the screen must say so rather than "
+        "rank it.",
         to_confirm="Who says when a store converts, and when. A conversion recorded the "
         "month it happens costs one line; discovered afterwards it costs a quarter of "
         "wrong conversations.",
     ),
     "plan_rate": Measure(
         key="plan_rate",
-        label="Which rate the plan is stated at",
-        maturity=BETA,
-        note="One reassurance and one open question, and they belong together.\n\n"
-        "The reassurance: the sell-out converts at a rate that does not move between "
-        "years, so a growth rate computed from it is already a growth rate in local "
-        "currency. Every trend on this screen that comes from the sell-out is therefore "
-        "rate-free without anyone having done anything — which is why a market can be "
-        "read for what it is doing rather than for what its currency did.\n\n"
-        "The open question: the planning workbook is stated in euros, and nobody here "
-        "knows at which rates. If it uses the same budget set as the sell-out, every "
-        "plan-versus-actual figure on this screen is clean and the whole rate problem is "
-        "confined to the reconciliation against the consolidation. If it uses another "
-        "set, then a market can miss its plan for having a currency rather than for "
-        "trading — and the screen would be sending someone to explain a rate.\n\n"
-        "This is the largest unexamined assumption left under the main number, and it is "
-        "one question to one person, not a query.",
-        to_confirm="At which exchange rates the planning workbook states its euros, and "
-        "whether that is the same set the sell-out is converted at.",
+        label="The plan and the actual are on one rate set",
+        maturity=VALIDATED,
+        note="The largest unexamined assumption under the main number, and it holds.\n\n"
+        "The planning workbook is stated in euros and nobody here knew at which rates. "
+        "The group's own budget-rate table answers it: the rates it fixes for the year "
+        "are, currency by currency, the same ones the sell-out converts at — checked on "
+        "every currency where the sell-out's implicit rate had been measured "
+        "independently, and matching each time.\n\n"
+        "Two consequences, and both are reassuring. Plan versus actual on this screen is "
+        "already a local-currency comparison, so a market misses its plan for trading and "
+        "never for its currency. And because that rate set does not move between years, "
+        "every trend the sell-out produces is a local-currency trend too — the screen was "
+        "rate-clean without anyone arranging it.\n\n"
+        "The odd one out is the consolidation, whose set is neither the budget rates nor "
+        "market rates. So the rate problem is confined exactly where it was found: the "
+        "reconciliation against Finance, and nowhere else on this screen.",
     ),
     "brazil_tax": Measure(
         key="brazil_tax",
@@ -459,7 +463,9 @@ REGISTER: Dict[str, Measure] = {
         "around ten points. The reconciliation reached that on its own, and read it as "
         "either a mix moving cheaper or a discount turning structural.\n\n"
         "It is neither, and the answer was already written into this repository. Tax rose "
-        "in the market, overnight and after the plan was committed. Net sales are gross "
+        "in the market, overnight and after the plan was committed — the first wave "
+        "landing on one state at the start of the fiscal year, with other states "
+        "following at rates of their own. Net sales are gross "
         "less tax, so a larger tax slice moves net sales without moving gross sales or "
         "the basket a shopper fills — which is exactly the shape observed: units "
         "untouched, money per unit down. The decomposition is arithmetically exact and "
@@ -472,10 +478,14 @@ REGISTER: Dict[str, Measure] = {
         "decision.\n\n"
         "Gross sales would settle it beyond argument and cannot be read: the discount and "
         "tax columns exist in the raw fact and the governed layer does not expose them. "
-        "That was checked and refused earlier rather than worked around.",
+        "That was checked and refused earlier rather than worked around.\n\n"
+        "One thing about it is unusual and the note has to carry it: this is not a step "
+        "but a rolling change. Each state that follows widens the effect, so a gap that "
+        "is explained this quarter is explained by more next quarter, and a note written "
+        "as though it were a single event will look wrong within two quarters.",
         to_confirm="Nothing about the cause. What is outstanding is an action: record the "
-        "note against the market, dated to the month the tax changed, so the gap stops "
-        "being ranked as a commercial failure.",
+        "note against the market, dated to the month the first wave landed, and revisit "
+        "it as further states follow rather than filing it as settled.",
     ),
     "hospitality": Measure(
         key="hospitality",

@@ -53,11 +53,20 @@ def test_a_measure_is_promoted_only_when_something_attests_to_it():
 
 
 def test_nothing_is_validated_on_the_strength_of_working():
-    """Only the plan carries that standing, because it is checked against a pack the
-    organisation publishes. Everything else is at best beta."""
-    validated = [m.key for m in provenance.REGISTER.values() if m.is_settled]
+    """Two measures carry that standing, and each is checked against a document the
+    organisation publishes rather than against itself.
 
-    assert validated == ["sales_budget"]
+    The plan reconciles with the consolidated pack. The rate the plan is stated at
+    reconciles with the group's own budget-rate table, currency by currency, against
+    rates that had been measured independently from the sell-out — a document on one
+    side, a measurement on the other, agreeing without either being adjusted.
+
+    The list is written out so that promoting a third costs somebody a deliberate edit
+    here. A measure that reaches this state because it works is a measure nobody checked.
+    """
+    validated = sorted(m.key for m in provenance.REGISTER.values() if m.is_settled)
+
+    assert validated == ["plan_rate", "sales_budget"]
 
 
 # ------------------------------------------------------- the caveat on the big number
