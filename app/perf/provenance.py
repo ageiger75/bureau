@@ -415,12 +415,24 @@ REGISTER: Dict[str, Measure] = {
         "help. If the workbook books the closure elsewhere, or later, or in one line "
         "rather than a channel, then the screen shows a market failing at something it "
         "was told to do.\n\n"
-        "That is one check on the planning workbook, not an investigation, and it decides "
-        "between doing nothing and writing a note. Doing nothing is the better outcome "
-        "and is the more likely one.",
-        to_confirm="Whether the planning workbook carries the concession closure on the "
-        "French distributor channel, month by month. The answer decides whether a note is "
-        "needed at all.",
+        "The check is done and the plan carries it. Two channels move: the wholesale "
+        "chains channel is planned to nothing at all, and the distributor channel is "
+        "planned down by roughly a fifth. Together their decline matches, to within a "
+        "rounding, the impact the budget deck states for the closures. The plan and the "
+        "presentation are the same decision written twice.\n\n"
+        "So there is nothing to note. The fall the reconciliation found is not a market "
+        "failing; it is a market doing what was planned, and the screen judges against "
+        "the plan rather than against last year — which is exactly why it needs no help "
+        "here. The alarm came from comparing to last year, and last year is not the "
+        "yardstick.\n\n"
+        "One thing does not quite line up and is left standing rather than smoothed: over "
+        "the months measured, the franchised profit centre alone invoices more than the "
+        "whole distributor channel is planned to. Either that channel's plan is tight, or "
+        "the profit centre spans more than one channel. It does not change the conclusion "
+        "and it is not established.",
+        to_confirm="Whether the franchised profit centre sits entirely inside the "
+        "distributor channel. The aggregate agrees with the budget deck either way; the "
+        "monthly detail does not, and only one of the two can be right.",
     ),
     "closed_store_customers": Measure(
         key="closed_store_customers",
