@@ -360,6 +360,30 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
         "market by market, so the reconciliation compares growth instead of levels.",
     ),
+    "rate_band": Measure(
+        key="rate_band",
+        label="Which gaps the exchange rate can honestly carry",
+        maturity=BETA,
+        note="The reconciliation warns that every line carries a currency move, and that "
+        "is true. It is also the sentence under which a sales channel nobody reads can sit "
+        "unexamined for a month, because a gap filed under change is a gap nobody looks "
+        "for.\n\n"
+        "Two properties separate the populations from outside. A market sharing the euro "
+        "with the consolidation has no rate between the two sides at all, so anything left "
+        "there is perimeter or fault by construction — one such market is short by "
+        "most of itself while every other euro market lands inside a point. And a "
+        "rate moves a market by a few points, not by a third: the budget rates are set "
+        "months ahead, the widest genuine drift here sits comfortably inside the band, and "
+        "the two markets shown by independent means to be perimeter rather than rate both "
+        "fall outside it.\n\n"
+        "The band is a convention and it is doing a modest job: it sorts what deserves a "
+        "question from what deserves a shrug. It does not measure anything, and it is not "
+        "a substitute for comparing growth to growth, which is the instrument that needs "
+        "no rate at all.",
+        to_confirm="Whether Treasury's own tolerance between budget and realised rates is "
+        "near ten points, and what the flagged markets sell through that the sell-out and "
+        "the sell-in both miss.",
+    ),
     "china_quarter_timing": Measure(
         key="china_quarter_timing",
         label="How the consolidation spreads China's quarter",

@@ -342,6 +342,67 @@ def rolled_up(ours: Dict[str, float]) -> Dict[str, float]:
 
 
 #: What an offsetting pair means, which is not the same thing in both directions.
+#: Markets whose money is already in euro on both sides of this comparison. Named for
+#: one reason: the whole table is prefaced by "each line differs by whatever the currency
+#: did", and in these countries that sentence is simply false. There is no rate between
+#: the two sides, so whatever remains is a perimeter, a channel nobody reads, or a fault —
+#: and it deserves to be read as one rather than waved through with the others.
+EURO_MARKETS = frozenset((
+    "Austria", "Belgium", "Croatia", "Cyprus", "Estonia", "Finland", "France",
+    "Germany", "Greece", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg",
+    "Malta", "Netherlands", "Portugal", "Slovakia", "Slovenia", "Spain",
+))
+
+#: How wide a gap a quarter's currency move can plausibly open, as a fraction of the
+#: market. A convention, and a deliberately generous one: the budget rates are set months
+#: ahead, so a few points of drift is the normal state and several markets sit at six or
+#: seven. Past ten, the rate is being asked to carry more than a rate can carry, and
+#: calling it change is a way of not looking. The two markets whose gaps were shown by
+#: other means to be perimeter rather than rate both land beyond this band, which is the
+#: only test this number has passed.
+RATE_BAND = 0.10
+
+#: Below this, a wide percentage is arithmetic on a small number rather than a finding.
+#: A market short by a tenth of a hundred thousand euros says nothing anybody should act
+#: on, and printing it would bury the four lines that do.
+RATE_FLOOR = 250000.0
+
+#: A country sharing the euro with the consolidation: no rate exists to explain anything.
+NO_CURRENCY = "no currency between the two sides"
+#: A gap too wide for a quarter's drift against a budget rate.
+TOO_WIDE = "wider than a rate can move"
+
+
+def beyond_the_rates(rows: Sequence[Tuple[str, float, float]],
+                     band: float = RATE_BAND,
+                     floor: float = RATE_FLOOR,
+                     ) -> List[Tuple[str, float, float, str]]:
+    """`(market, gap, share, why)` for the gaps the exchange rate cannot account for.
+
+    The comparison's own caveat — every line carries a currency move — is true, and it is
+    also the sentence under which a missing sales channel hides for a month. This separates
+    the two populations by the only property that distinguishes them from outside: a rate
+    moves a market by a few points, and a channel nobody reads moves it by a third.
+
+    Markets present on one side only are left out. They are already reported as unmatched
+    names, and a market read as zero is not a market off by a hundred per cent.
+    """
+    found = []
+    for market, theirs, here in rows:
+        if not theirs or not here:
+            continue
+        gap = here - theirs
+        if abs(gap) < floor:
+            continue
+        share = gap / theirs
+        if market in EURO_MARKETS:
+            found.append((market, gap, share, NO_CURRENCY))
+        elif abs(share) > band:
+            found.append((market, gap, share, TOO_WIDE))
+    found.sort(key=lambda item: -abs(item[1]))
+    return found
+
+
 MISSING_HERE = "missing"
 FILED_ELSEWHERE = "filed"
 

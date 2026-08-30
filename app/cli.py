@@ -910,6 +910,22 @@ def cmd_compare(argv: List[str]) -> int:
             market[:28], _eur_k(theirs), _eur_k(here), _eur_k(here - theirs)))
     if len(rows) > len(shown):
         print("… et %d autres. `--all` pour tout voir." % (len(rows) - len(shown)))
+    # Lu après le tableau parce que c'est une lecture du tableau, et imprimé même sans
+    # `--all` : ces lignes-là ne doivent pas dépendre d'un drapeau. L'avertissement en
+    # tête — chaque ligne porte un mouvement de change — est vrai, et c'est aussi la
+    # phrase sous laquelle un canal non lu passe inaperçu pendant un mois. Ici on retire
+    # de cette phrase ce qu'elle ne peut pas couvrir.
+    unrateable = reference.beyond_the_rates(rows)
+    if unrateable:
+        print("")
+        print("Ce que le change ne peut pas porter :")
+        for market, gap, share, why in unrateable:
+            print("  %-22s %9s  %7.1f %%  %s"
+                  % (market[:22], _eur_k(gap), 100.0 * share, why))
+        print("  %-22s %9s" % ("total", _eur_k(sum(g for _m, g, _s, _w in unrateable))))
+        print("  Un écart de change se lit en points, pas en dizaines de points. Ces")
+        print("  lignes demandent un canal que personne ne lit ici, pas un taux — et")
+        print("  tant qu'elles sont comptées avec le change, elles ne sont pas cherchées.")
     doubled = _double_counted(entities)
     if doubled:
         # Bruyant, et à raison quand la condition est réellement remplie : un marché qui

@@ -202,3 +202,43 @@ def test_the_distributor_business_is_one_perimeter_under_two_names():
 
     assert sorted(rows) == [("Export", 10_079.0, 8_767.0),
                             ("Middle East", 3_378.0, 3_378.0)]
+
+
+def test_a_euro_market_cannot_have_a_currency_gap():
+    """No rate exists between two euro sides, so the gap is a finding, not a caveat."""
+    rows = [("Austria", 4_000_000.0, 1_000_000.0)]
+    found = reference.beyond_the_rates(rows)
+    assert [(name, why) for name, _gap, _share, why in found] == [
+        ("Austria", reference.NO_CURRENCY)]
+
+
+def test_a_plausible_currency_move_is_not_a_finding():
+    """Seven points against a rate set months ahead is the normal state of the world."""
+    rows = [("Japan", 10_000_000.0, 9_300_000.0)]
+    assert reference.beyond_the_rates(rows) == []
+
+
+def test_a_gap_wider_than_a_rate_can_move_is_flagged():
+    rows = [("Mexico", 5_000_000.0, 4_000_000.0)]
+    found = reference.beyond_the_rates(rows)
+    assert [(name, why) for name, _gap, _share, why in found] == [
+        ("Mexico", reference.TOO_WIDE)]
+
+
+def test_a_small_market_does_not_flag_on_a_wide_percentage():
+    """A third of nothing is arithmetic, and printing it would bury the real lines."""
+    rows = [("Portugal", 500_000.0, 300_000.0)]
+    assert reference.beyond_the_rates(rows) == []
+
+
+def test_a_market_read_on_one_side_only_is_left_to_the_unmatched_names():
+    """Absent is not off by a hundred per cent, and it is already reported elsewhere."""
+    rows = [("Nowhere", 9_000_000.0, 0.0), ("Elsewhere", 0.0, 9_000_000.0)]
+    assert reference.beyond_the_rates(rows) == []
+
+
+def test_the_widest_gap_is_read_first():
+    rows = [("Mexico", 5_000_000.0, 4_000_000.0),
+            ("China", 40_000_000.0, 30_000_000.0)]
+    assert [name for name, _g, _s, _w in reference.beyond_the_rates(rows)] == [
+        "China", "Mexico"]
