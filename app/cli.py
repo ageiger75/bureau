@@ -21,6 +21,7 @@
                                      --sell-in confronte le sell-in à son plan
                                      --refresh pour relire l'entrepôt au lieu du cache
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
+                                     --market NOM déroule un marché par canal et par mois
                                      --period AAAA-MM pour détailler un mois
                                      --segments pour la vue par segment et par périmètre
                                      --spec FICHIER.csv exporte les réalisés de l'an dernier
@@ -1961,6 +1962,10 @@ def cmd_budget(argv: List[str]) -> int:
         _print_segments(plan)
         return 0
 
+    market = _option(argv, "--market")
+    if market:
+        return _print_planned_market(plan, market)
+
     wanted = _option(argv, "--period")
     if wanted:
         if wanted not in periods:
@@ -1979,6 +1984,52 @@ def cmd_budget(argv: List[str]) -> int:
             _eur(plan.total_budget(period)),
             _eur(plan.total_last_year(period)),
         ))
+    return 0
+
+
+def _print_planned_market(plan, market: str) -> int:
+    """Un marché du plan, mois par mois et canal par canal.
+
+    Une décision commerciale qui s'étale — un canal qu'on ferme, une reprise qu'on
+    programme — ne se lit pas dans un total annuel : elle se lit dans la forme de la
+    série. Un canal budgété à zéro en fin d'année et plein au début dit une sortie
+    planifiée ; le même canal plat dit que le plan ne la porte pas, et l'écran montrera
+    alors un marché en échec sur ce qu'on lui a demandé de faire.
+    """
+    from .perf.budget import normalise_market
+
+    wanted = normalise_market(market)
+    lines = [line for line in plan.lines if normalise_market(line.market) == wanted]
+    if not lines:
+        # Nommer ce qui existe plutôt que rendre une page vide : un marché mal
+        # orthographié et un marché absent du plan se ressemblent trop.
+        known = sorted({normalise_market(line.market) for line in plan.lines})
+        print("Aucun marché « %s » dans le classeur." % market, file=sys.stderr)
+        print("Marchés du plan : %s" % ", ".join(known), file=sys.stderr)
+        return 2
+
+    channels = sorted({line.channel for line in lines})
+    periods = sorted({line.period for line in lines})
+    print("")
+    print("%s — le plan, mois par mois et par canal" % wanted)
+    print("")
+    print("%-10s %s" % ("Période", " ".join("%14s" % c[:14] for c in channels)))
+    for period in periods:
+        cells = []
+        for channel in channels:
+            total = sum(
+                line.budget or 0.0 for line in lines
+                if line.period == period and line.channel == channel
+            )
+            cells.append("%14s" % (_eur(total) if total else "—"))
+        print("%-10s %s" % (period, " ".join(cells)))
+    print("")
+    print("%-10s %s" % ("An dernier", " ".join(
+        "%14s" % _eur(sum(line.last_year or 0.0 for line in lines if line.channel == c))
+        for c in channels)))
+    print("%-10s %s" % ("Budget", " ".join(
+        "%14s" % _eur(sum(line.budget or 0.0 for line in lines if line.channel == c))
+        for c in channels)))
     return 0
 
 

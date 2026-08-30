@@ -1186,3 +1186,60 @@ def test_a_row_already_named_travel_retail_is_not_renamed_twice():
     assert market_of("HK TR", "TRA") == "Travel retail Asia"
     assert market_of("LOI TR", "TRA") == "Travel retail international"
     assert market_of("Travel retail Asia", "TRA") == "Travel Retail Asia"
+
+
+def test_a_market_drilldown_names_what_exists_instead_of_rendering_nothing():
+    """Un marché mal orthographié et un marché absent du plan se ressemblent trop.
+
+    Le drapeau était accepté et ignoré en silence : la commande imprimait le total du
+    groupe, et le lecteur croyait regarder un marché. Un drapeau ignoré sans un mot est
+    pire qu'un drapeau refusé.
+    """
+    import io
+    import contextlib
+
+    from app.cli import _print_planned_market
+    from app.perf.budget import Budget, BudgetLine
+
+    plan = Budget([BudgetLine(market="France", region="EMEA", segment="RET - Retail",
+                              channel="retail", period="2026-04", budget=100.0,
+                              last_year=90.0, entity="M_101")])
+
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+        code = _print_planned_market(plan, "Atlantide")
+
+    assert code == 2
+    assert "France" in err.getvalue()
+
+
+def test_a_market_drilldown_shows_each_channel_month_by_month():
+    """Une sortie de canal planifiée se lit dans la forme de la série, pas dans un total.
+
+    Un canal plein en début d'année et vide à la fin dit une fermeture programmée ; le
+    même canal plat dit que le plan ne la porte pas — et l'écran montrerait alors un
+    marché en échec sur ce qu'on lui a demandé de faire.
+    """
+    import io
+    import contextlib
+
+    from app.cli import _print_planned_market
+    from app.perf.budget import Budget, BudgetLine
+
+    def line(channel, period, amount):
+        return BudgetLine(market="France", region="EMEA", segment="X", channel=channel,
+                          period=period, budget=amount, last_year=amount, entity="M_101")
+
+    plan = Budget([
+        line("retail", "2026-04", 100.0), line("retail", "2026-05", 110.0),
+        line("dis", "2026-04", 50.0), line("dis", "2026-05", 0.0),
+    ])
+
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        code = _print_planned_market(plan, "France")
+
+    printed = out.getvalue()
+    assert code == 0
+    assert "dis" in printed and "retail" in printed
+    assert "2026-04" in printed and "2026-05" in printed
