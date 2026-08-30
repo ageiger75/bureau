@@ -365,23 +365,52 @@ REGISTER: Dict[str, Measure] = {
         label="Counters the sell-out referential does not carry",
         maturity=BETA,
         note="The sell-out reads its shops through the modelled store dimension, and a "
-        "population of department-store counters exists in the warehouse's fuller store "
-        "table without appearing in that one. They sell, the consolidation carries them, "
-        "and no query here sees them. On the largest market they are the single biggest "
-        "nameable piece of the gap; across the group they touch several markets and "
-        "roughly two per cent of the quarter.\n\n"
-        "They belong inside retail rather than beside it: the counters are worth more "
-        "than that market's whole department-store channel in the consolidation, so "
-        "filing them there would make that channel overbook while retail stayed short — "
-        "one placement leaves a residue, the other manufactures a second fault.\n\n"
-        "Reading them is not a filter change. The sell-out goes through the governed "
-        "semantic view, and the fuller store table is outside it, so widening the "
-        "perimeter means leaving the certified path for this population — and every "
-        "denominator resting on the shop count moves with it: store count, same-store, "
-        "the transaction averages. Worth doing, not worth doing quietly.",
-        to_confirm="Whether the counters can be read inside the governed view under some "
-        "flag, and what the store count, same-store and per-transaction measures become "
-        "once they are in.",
+        "population of department-store counters sells outside it. They are the country's "
+        "most prestigious houses, they match the consolidation's own department-store "
+        "customers name for name, and they trade every day of the quarter. Nothing about "
+        "them is marginal except their absence.\n\n"
+        "The exclusion is deliberate rather than accidental: the dimension's own filter is "
+        "a whitelist of one value, and this population is left out of it by omission. "
+        "Whoever wrote that made a choice, and the reason for it is not recorded anywhere "
+        "we can read.\n\n"
+        "One measurement decides how far they can be brought in, and it is not the "
+        "perimeter but the counting. Across two comparable years the transaction count "
+        "falls by two fifths while the units sold barely move, and the rows carrying no "
+        "transaction at all rise from a handful to several hundred. A basket cannot "
+        "deepen by half in a year on the same shops: the ticket counter has degraded, not "
+        "the behaviour. So money and quantities are readable here and the per-transaction "
+        "averages are not — and folding this population into those averages would corrupt "
+        "two measures that work today in order to widen one that does not depend on "
+        "them.\n\n"
+        "The perimeter itself is sound for a trend: all but one shop carry the same "
+        "identifier across both years, one leaves and one enters, and the sales movement "
+        "is therefore a reading rather than a churn artefact.",
+        to_confirm="Why the whitelist excludes them, and whether the transaction counter "
+        "can be repaired — that repair, not the perimeter, is what would let them into "
+        "the per-transaction measures.",
+    ),
+    "certified_path_exclusions": Measure(
+        key="certified_path_exclusions",
+        label="What the governed store dimension leaves out, by construction",
+        maturity=BETA,
+        note="The dimension every sell-out query passes through carries three filters, "
+        "and only one of them was known here. Reading them changes what a group figure on "
+        "this screen can be said to mean.\n\n"
+        "The first excludes the third-party counters, deliberately and by omission from a "
+        "whitelist. The second excludes an activity zone that is inert today — the shops "
+        "under it exist and sold nothing this quarter — which costs nothing now and "
+        "becomes a silent hole the day one of them opens. The third is the one with reach "
+        "beyond this cockpit: the dimension is filtered to a single brand, so every "
+        "sell-out reading here is one Maison's and not the group's, however group-shaped "
+        "the label above it looks.\n\n"
+        "That third filter is correct for this screen and dangerous for the next question "
+        "asked of it. A brand-level dimension answering what reads as a group question "
+        "gives a right number to a wrong reader, and nothing in the number says which it "
+        "is. A dormant set of several hundred shops under a second brand label was briefly "
+        "taken for a missing perimeter on the strength of that filter and was not one — "
+        "the shops record no sales in either year.",
+        to_confirm="Whether any query on this screen is labelled at group level while "
+        "reading a single brand, and what the inert activity zone is reserved for.",
     ),
     "absent_markets": Measure(
         key="absent_markets",
