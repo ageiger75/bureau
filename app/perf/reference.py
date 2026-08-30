@@ -367,6 +367,20 @@ RATE_BAND = 0.10
 #: on, and printing it would bury the four lines that do.
 RATE_FLOOR = 250000.0
 
+#: Markets where the two sides do not carry the same share of the same business. A joint
+#: venture is consolidated at one share by the accounts and read at another by the till,
+#: and the difference is neither a rate nor a missing channel — it is the two sides
+#: answering different questions. Named here so the comparison stops presenting it as a
+#: hole to be found: there is nothing to find, and the level is simply not comparable.
+#:
+#: The tell is arithmetic rather than resemblance. One market's own retail is read at
+#: roughly half of what the consolidation carries for it, while its unread channels
+#: account for the rest of the gap exactly — two different faults would not add up to the
+#: total, and one share applied twice does.
+PART_OWNED: Dict[str, str] = {
+    "Austria": "part-owned: the two sides carry different shares",
+}
+
 #: A country sharing the euro with the consolidation: no rate exists to explain anything.
 NO_CURRENCY = "no currency between the two sides"
 #: A gap too wide for a quarter's drift against a budget rate.
@@ -395,7 +409,12 @@ def beyond_the_rates(rows: Sequence[Tuple[str, float, float]],
         if abs(gap) < floor:
             continue
         share = gap / theirs
-        if market in EURO_MARKETS:
+        if market in PART_OWNED:
+            # Toujours imprimé, et c'est voulu : le niveau n'est pas comparable ici, ce
+            # qui est une information et non un silence. Ce qui change est l'action —
+            # rien à brancher, une part à énoncer.
+            found.append((market, gap, share, PART_OWNED[market]))
+        elif market in EURO_MARKETS:
             found.append((market, gap, share, NO_CURRENCY))
         elif abs(share) > band:
             found.append((market, gap, share, TOO_WIDE))
