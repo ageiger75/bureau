@@ -368,17 +368,26 @@ RATE_BAND = 0.10
 RATE_FLOOR = 250000.0
 
 #: Markets where the two sides do not carry the same share of the same business. A joint
-#: venture is consolidated at one share by the accounts and read at another by the till,
-#: and the difference is neither a rate nor a missing channel — it is the two sides
-#: answering different questions. Named here so the comparison stops presenting it as a
-#: hole to be found: there is nothing to find, and the level is simply not comparable.
+#: venture is consolidated at one share by the accounts and read at another by the till.
 #:
-#: The tell is arithmetic rather than resemblance. One market's own retail is read at
-#: roughly half of what the consolidation carries for it, while its unread channels
-#: account for the rest of the gap exactly — two different faults would not add up to the
-#: total, and one share applied twice does.
-PART_OWNED: Dict[str, str] = {
-    "Austria": "part-owned: the two sides carry different shares",
+#: Kept as a mechanism, empty today. One market was filed here on an arithmetic that
+#: looked decisive — its retail read at almost exactly half of what the consolidation
+#: carried, against a half-owned business — and the reading was a coincidence of size. The
+#: half was not a share of anything; the market simply has no shop in the referential at
+#: all, and what the cockpit reads there is its invoiced channels to the euro. A ratio
+#: near a known share is a hypothesis, never a finding: the finding is the count.
+PART_OWNED: Dict[str, str] = {}
+
+#: Markets with no point of sale in the sell-out referential. Not a market read partially
+#: — a market whose shops are not there under any label — so what the cockpit shows is
+#: whatever the Maison invoices to third parties, and its own retail is missing whole.
+#:
+#: This is worth its own name because it fails silently in the most convincing way. The
+#: market has a figure, the figure is exact, and it answers a different question from the
+#: one on the screen beside it. Nothing about a market being short by two-thirds says
+#: which of the two it is; only counting the shops does.
+ABSENT_FROM_REFERENTIAL: Dict[str, str] = {
+    "Austria": "no shop in the referential: only what is invoiced is read",
 }
 
 #: A country sharing the euro with the consolidation: no rate exists to explain anything.
@@ -409,7 +418,9 @@ def beyond_the_rates(rows: Sequence[Tuple[str, float, float]],
         if abs(gap) < floor:
             continue
         share = gap / theirs
-        if market in PART_OWNED:
+        if market in ABSENT_FROM_REFERENTIAL:
+            found.append((market, gap, share, ABSENT_FROM_REFERENTIAL[market]))
+        elif market in PART_OWNED:
             # Toujours imprimé, et c'est voulu : le niveau n'est pas comparable ici, ce
             # qui est une information et non un silence. Ce qui change est l'action —
             # rien à brancher, une part à énoncer.

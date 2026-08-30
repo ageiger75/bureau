@@ -360,6 +360,46 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
         "market by market, so the reconciliation compares growth instead of levels.",
     ),
+    "third_party_counters": Measure(
+        key="third_party_counters",
+        label="Counters the sell-out referential does not carry",
+        maturity=BETA,
+        note="The sell-out reads its shops through the modelled store dimension, and a "
+        "population of department-store counters exists in the warehouse's fuller store "
+        "table without appearing in that one. They sell, the consolidation carries them, "
+        "and no query here sees them. On the largest market they are the single biggest "
+        "nameable piece of the gap; across the group they touch several markets and "
+        "roughly two per cent of the quarter.\n\n"
+        "They belong inside retail rather than beside it: the counters are worth more "
+        "than that market's whole department-store channel in the consolidation, so "
+        "filing them there would make that channel overbook while retail stayed short — "
+        "one placement leaves a residue, the other manufactures a second fault.\n\n"
+        "Reading them is not a filter change. The sell-out goes through the governed "
+        "semantic view, and the fuller store table is outside it, so widening the "
+        "perimeter means leaving the certified path for this population — and every "
+        "denominator resting on the shop count moves with it: store count, same-store, "
+        "the transaction averages. Worth doing, not worth doing quietly.",
+        to_confirm="Whether the counters can be read inside the governed view under some "
+        "flag, and what the store count, same-store and per-transaction measures become "
+        "once they are in.",
+    ),
+    "absent_markets": Measure(
+        key="absent_markets",
+        label="Markets whose shops are not in the referential at all",
+        maturity=BETA,
+        note="One market has no point of sale in the sell-out referential under any "
+        "label. What the cockpit shows for it is what the Maison invoices to third "
+        "parties, to the euro, and its own retail — the majority of the country — is "
+        "missing whole rather than partly.\n\n"
+        "This fails in the most convincing way available: the market has a figure, the "
+        "figure is exact, and it answers a different question from the one on the screen "
+        "next to it. A market short by two-thirds looks identical whether a channel is "
+        "unread, a share differs, or the shops are simply not there, and only counting "
+        "the shops separates them. A ratio landing near a known ownership share was "
+        "taken for the cause here and was a coincidence of size.",
+        to_confirm="Whether other markets have no shop in the referential, by counting "
+        "points of sale per market rather than by reading the size of a gap.",
+    ),
     "rate_band": Measure(
         key="rate_band",
         label="Which gaps the exchange rate can honestly carry",

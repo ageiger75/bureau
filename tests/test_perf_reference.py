@@ -212,19 +212,26 @@ def test_a_euro_market_cannot_have_a_currency_gap():
         ("Ireland", reference.NO_CURRENCY)]
 
 
-def test_a_part_owned_market_is_named_rather_than_hunted():
-    """Nothing to find here: the two sides carry different shares of one business."""
-    market = sorted(reference.PART_OWNED)[0]
+def test_a_market_with_no_shop_is_named_rather_than_hunted():
+    """Its own retail is not partly read, it is missing whole. Different action."""
+    market = sorted(reference.ABSENT_FROM_REFERENTIAL)[0]
     rows = [(market, 4_000_000.0, 1_000_000.0)]
     found = reference.beyond_the_rates(rows)
-    assert [why for _n, _g, _s, why in found] == [reference.PART_OWNED[market]]
+    assert [why for _n, _g, _s, why in found] == [
+        reference.ABSENT_FROM_REFERENTIAL[market]]
 
 
-def test_being_part_owned_outranks_sharing_the_currency():
-    """A part-owned euro market is not a missing channel, and must not read as one."""
-    for market in reference.PART_OWNED:
-        found = reference.beyond_the_rates([(market, 4_000_000.0, 1_000_000.0)])
-        assert found and found[0][3] != reference.NO_CURRENCY
+def test_a_known_cause_outranks_sharing_the_currency():
+    """A named cause must not be re-read every morning as a missing channel."""
+    for table in (reference.ABSENT_FROM_REFERENTIAL, reference.PART_OWNED):
+        for market in table:
+            found = reference.beyond_the_rates([(market, 4_000_000.0, 1_000_000.0)])
+            assert found and found[0][3] == table[market]
+
+
+def test_no_market_claims_two_causes_at_once():
+    """One market, one reason. Two would mean the register has stopped being read."""
+    assert not (set(reference.PART_OWNED) & set(reference.ABSENT_FROM_REFERENTIAL))
 
 
 def test_a_plausible_currency_move_is_not_a_finding():
