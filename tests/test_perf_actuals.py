@@ -108,7 +108,7 @@ def test_the_screen_says_how_much_of_it_the_accounts_cover():
 
     assert [u.market for u in data.reported] == ["France"]
     assert round(data.reported_share, 2) == 0.90
-    assert data.units[0].figure_source == "the accounts"
+    assert data.units[0].figure_source == "the consolidation"
     assert data.units[1].figure_source == "the warehouse"
 
 

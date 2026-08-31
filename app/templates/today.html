@@ -64,11 +64,15 @@
          from the first can never disagree with the figure the house recognises — which is
          the whole reason it is here. #}
       <p class="cockpit-caveat">
-        {{ (dataset.reported_share * 100) | round(0) | int }}% of the figures below are the
-        accounts' own — the monthly file, one source and one set of rates, so the variance
-        is the one the house publishes. The rest is read from the warehouse and marked on
-        its card. What every driver breakdown explains is measured in the warehouse either
-        way: the gap is reported, the reason for it is not.
+        Both systems measure the same sales and neither is an estimate. The consolidation
+        closes the group's books from SAP and TM1 — one perimeter, one set of rates, and the
+        figure the house quotes. The warehouse counts transactions, which is the only place
+        a reason for a gap exists.
+        <br>{{ (dataset.reported_share * 100) | round(0) | int }}% of the money below is
+        measured against plan by the consolidation, so those variances cannot disagree with
+        what the house publishes. The rest is measured by the warehouse and says so on its
+        card. Every driver breakdown comes from the warehouse either way: the gap is
+        closed by one, explained by the other.
       </p>
     {% endif %}
     {% if dataset.unbudgeted_sales %}

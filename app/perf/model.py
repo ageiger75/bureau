@@ -420,8 +420,16 @@ class BusinessUnit:
 
     @property
     def figure_source(self) -> str:
-        """Named on the card. A screen with two sources owes its reader the one speaking."""
-        return "the accounts" if self.is_reported else "the warehouse"
+        """Which of the two systems measured this figure.
+
+        Named by what it is rather than by what it means, because the first labels here —
+        "the accounts" against "the warehouse" — were read as an opinion against a fact.
+        They are not: both are the real sales, measured twice by two machines that start
+        from different places. One closes the group's books; the other counts transactions.
+        The house quotes the first, so a variance belongs to it; only the second knows why,
+        so an explanation belongs to that one.
+        """
+        return "the consolidation" if self.is_reported else "the warehouse"
 
     @property
     def is_sell_in(self) -> bool:
