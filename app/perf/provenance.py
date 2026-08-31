@@ -383,9 +383,15 @@ REGISTER: Dict[str, Measure] = {
         "or outside it, carries an amount in original currency. One of them is worse than "
         "the others — it states a euro amount with no rate-year at all, so not even which "
         "set converted it can be recovered. The rate-free instrument is not a preference "
-        "here; it is the only exact method available.",
+        "here; it is the only exact method available.\n\n"
+        "It has since been run across every market where both sides exist. Ten land on "
+        "exactly zero, twelve more inside a point, and seven separate by more than that. "
+        "Ten exact zeros is the demonstration: a method that agrees to the decimal on a "
+        "third of the estate is measuring, not approximating, and the spreads it leaves "
+        "are findings rather than noise. The levels bounded the gap; this measures it.",
         to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
-        "market by market, so the reconciliation compares growth instead of levels.",
+        "market by market, and what the remaining spreads are, now that the method itself "
+        "is demonstrated rather than proposed.",
     ),
     "third_party_counters": Measure(
         key="third_party_counters",
@@ -488,6 +494,33 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Whether these fillers are historic residue or current convention — "
         "which decides whether they are corrected at the source or documented where they "
         "are.",
+    ),
+    "growth_spreads": Measure(
+        key="growth_spreads",
+        label="What the rate-free comparison leaves behind",
+        maturity=BETA,
+        note="Run market by market, the growth comparison closes most of the estate and "
+        "isolates a short list. Two of the spreads were already suspected and are now "
+        "sized; one is new and covered by nothing found so far; the rest sit just above "
+        "the threshold.\n\n"
+        "The most valuable reading is not on the list but about it. The largest market\'s "
+        "growth agrees within about a point while its level gap is substantial. A large "
+        "level gap with agreeing growth is a **stable structural difference, not a "
+        "drift** — something booked systematically on one side, in the same proportion in "
+        "both years. That is a far better description than residue, and it moves the "
+        "question from the data to the accounts: not what is missing, but what the "
+        "consolidation includes here that the till does not, every year alike.\n\n"
+        "One market reverses sign between the two sources, which no reading gathered this "
+        "week explains. One is where a tax change was recorded as a basis note, and the "
+        "shape of its spread is the shape that change predicts — the accounts falling "
+        "further than the till, by whatever the tax took. That is a hypothesis with an "
+        "obvious test and not a conclusion: the spread must open at the month the tax "
+        "changed and be absent before it. A spread of the right size in the wrong month "
+        "would mean something else entirely.",
+        to_confirm="Whether the tax-change spread opens at the month the tax changed; what "
+        "the sign-reversing market sells that one source sees and the other does not; and "
+        "whether the smallest markets on the list are stable or an artefact of counting "
+        "growth over very few shops.",
     ),
     "window_comparability": Measure(
         key="window_comparability",
