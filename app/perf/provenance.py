@@ -367,27 +367,50 @@ REGISTER: Dict[str, Measure] = {
         note="The sell-out reads its shops through the modelled store dimension, and a "
         "population of department-store counters sells outside it. They are the country's "
         "most prestigious houses, they match the consolidation's own department-store "
-        "customers name for name, and they trade every day of the quarter. Nothing about "
-        "them is marginal except their absence.\n\n"
-        "The exclusion is deliberate rather than accidental: the dimension's own filter is "
-        "a whitelist of one value, and this population is left out of it by omission. "
-        "Whoever wrote that made a choice, and the reason for it is not recorded anywhere "
-        "we can read.\n\n"
-        "One measurement decides how far they can be brought in, and it is not the "
-        "perimeter but the counting. Across two comparable years the transaction count "
-        "falls by two fifths while the units sold barely move, and the rows carrying no "
-        "transaction at all rise from a handful to several hundred. A basket cannot "
-        "deepen by half in a year on the same shops: the ticket counter has degraded, not "
-        "the behaviour. So money and quantities are readable here and the per-transaction "
-        "averages are not — and folding this population into those averages would corrupt "
-        "two measures that work today in order to widen one that does not depend on "
-        "them.\n\n"
-        "The perimeter itself is sound for a trend: all but one shop carry the same "
-        "identifier across both years, one leaves and one enters, and the sales movement "
-        "is therefore a reading rather than a churn artefact.",
-        to_confirm="Why the whitelist excludes them, and whether the transaction counter "
-        "can be repaired — that repair, not the perimeter, is what would let them into "
-        "the per-transaction measures.",
+        "customers name for name, and they trade every day of the quarter.\n\n"
+        "Why they are outside now has a structural answer rather than a guess. The store "
+        "grading attribute is fed by an outer join onto the operated-network reference, "
+        "and no counter of this kind anywhere in the group carries a grade — the "
+        "classification stops exactly at the boundary of the network the Maison runs "
+        "itself. These are not our staff and not our till; the business reads them as "
+        "shipments to a partner, and the referential agrees. Their absence from the "
+        "sell-out is a consequence of what they are, not an oversight.\n\n"
+        "What can be read of them, and what cannot, is not settled. Money and quantities "
+        "hold together across two comparable years — the implied unit price moves a few "
+        "points and no more. The transaction count does not: it falls by two fifths while "
+        "quantities barely move, so the basket appears to deepen by half in a year on the "
+        "same shops. That is far more likely to be a change in how tickets are numbered "
+        "than in how people shop, but it has not been demonstrated, and an earlier reading "
+        "that treated it as demonstrated rested on a detail its own author withdrew. The "
+        "test is the shape of the change: a numbering change arrives on a date and lands "
+        "on every shop at once, a trading change arrives gradually and unevenly.",
+        to_confirm="Whether the transaction count changes as a step on one date across "
+        "all these shops, or gradually and unevenly — the first says the counter changed, "
+        "the second says the basket did. Until then money and quantities are the readable "
+        "part and the per-transaction averages are not.",
+    ),
+    "door_grades": Measure(
+        key="door_grades",
+        label="The network's own grading of its shops",
+        maturity=BETA,
+        note="The store dimension carries a grade per shop — a flagship tier, a top tier, "
+        "an ordinary tier, outlets — and it is already inside the certified path, so the "
+        "screen can read it without leaving the governed door. Nothing here reads it "
+        "today, which is a missing view rather than a missing number.\n\n"
+        "Two properties shape what it can be asked. The high grades exist for the main "
+        "Maison only, while the ordinary tier is carried across every brand: a grouped "
+        "reading of the top of the network is therefore one Maison's by construction, and "
+        "saying so is part of showing it. And a large share of shops carry no grade at "
+        "all, structurally, because the grading is joined onto the operated network — so "
+        "the ungraded population is not a data hole to be filled but a different kind of "
+        "point of sale.\n\n"
+        "The reading worth building from it is a ratio rather than a total: what a top "
+        "door turns over against what an ordinary one does, market by market. That is a "
+        "question about where the upside sits, and it is the sort of thing a plan is "
+        "argued with.",
+        to_confirm="Whether the grade is exposed on the semantic sell-out view itself or "
+        "only on the dimension, and whether a shop's grade is stable across years — a "
+        "grade that is restated each year would make any trend on it a reclassification.",
     ),
     "certified_path_exclusions": Measure(
         key="certified_path_exclusions",
