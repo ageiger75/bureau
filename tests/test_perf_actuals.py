@@ -51,3 +51,20 @@ def test_a_missing_file_reports_rather_than_raises():
     read = actuals.load("/nowhere/at/all.xlsx")
     assert not read.usable
     assert read.faults
+
+
+def test_the_variance_column_is_the_one_at_budget_rates():
+    """The published flash quotes the actual at real rates and computes its percentages on
+    the actual at budget rates. Both are presented as constant-rate figures and only the
+    percentages are.
+
+    Dividing the quoted value by the quoted percentage therefore mixes two bases — and this
+    repository did exactly that, concluded the planning workbook held a different budget
+    several points away, and set out to find a perimeter that does not exist. The columns
+    are named here so the next reader inherits the answer rather than the mistake.
+    """
+    assert actuals.ACTUAL_AT == 13
+    assert actuals.LAST_YEAR_AT == 14
+    assert actuals.BUDGET_AT == 15
+    # The real-rate column sits at 11 and is deliberately not read for the variance.
+    assert actuals.ACTUAL_AT != 11

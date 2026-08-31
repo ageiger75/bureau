@@ -53,9 +53,20 @@ ACTUAL_AT, LAST_YEAR_AT, BUDGET_AT = 13, 14, 15
 #: a screen showing nothing looks like a business doing nothing.
 BRAND_CANDIDATES = (4, 5)
 
-#: Both amounts are stated at the budget's own rates, which is what makes plan and actual
-#: comparable here without any conversion at all — the property the warehouse could not
-#: offer, and the reason levels were never reconcilable there.
+#: `ACTUAL_AT` is deliberately the column stated **at the budget's own rates**, and not the
+#: one beside it. That choice is the difference between a right answer and a plausible one,
+#: and it was found the hard way.
+#:
+#: The published flash quotes the neighbouring column — the actual at real rates — as its
+#: headline value, while computing every percentage on this one. Both are labelled as being
+#: at constant rates, and only the percentages are. Deriving a budget by dividing the
+#: quoted value by the quoted percentage therefore mixes two bases, and this register did
+#: exactly that: it concluded that the planning workbook and Finance held different budgets,
+#: several points apart, and named a perimeter to go and find. They hold the same budget,
+#: to the euro, every month checked.
+#:
+#: The columns chosen here reproduce the published percentage exactly on two independent
+#: months. That is the test any replacement has to pass.
 THOUSANDS = 1000.0
 
 #: The file's channel codes, in the cockpit's vocabulary. Sixteen on each side, and they
