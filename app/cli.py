@@ -1970,6 +1970,20 @@ def cmd_budget(argv: List[str]) -> int:
     print("Périodes            %d, de %s à %s" % (
         len(periods), periods[0] if periods else "?", periods[-1] if periods else "?"))
 
+    if "--scopes" in argv:
+        # Le vocabulaire exact, et rien d'autre. Cette liste part chez un tiers qui doit
+        # rendre un jugement marché par marché : lui laisser deviner les noms produirait
+        # une table qui ne se raccorde à rien, et une table qui ne se raccorde à rien se
+        # découvre à l'import, après le travail.
+        print("")
+        print("Les couples marché × canal du plan, tels qu'il les écrit :")
+        for market, channel in plan.scopes():
+            print("  %s,%s" % (market, channel))
+        print("")
+        print("%d couples, %d marchés, %d canaux."
+              % (len(plan.scopes()), len(markets), len(plan.channels())))
+        return 0
+
     destination = _option(argv, "--spec")
     if destination:
         return _write_actuals_spec(plan, destination, _option(argv, "--perimeter") or "sell-in")

@@ -352,6 +352,18 @@ class Budget:
     def periods(self) -> List[str]:
         return sorted({line.period for line in self.lines})
 
+    def channels(self) -> List[str]:
+        return sorted({line.channel for line in self.lines if line.channel})
+
+    def scopes(self) -> List[Tuple[str, str]]:
+        """Every `(market, channel)` the plan actually carries, in reading order.
+
+        Not the product of the two lists. A market that sells through four channels has
+        four scopes and not eleven, and handing someone the full grid would invite a
+        judgement on business that does not exist.
+        """
+        return sorted({(line.market, line.channel) for line in self.lines if line.channel})
+
     def total_budget(self, period: str) -> float:
         return sum(l.budget or 0.0 for l in self.lines if l.period == period)
 

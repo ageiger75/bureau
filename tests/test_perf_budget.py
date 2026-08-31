@@ -1243,3 +1243,20 @@ def test_a_market_drilldown_shows_each_channel_month_by_month():
     assert code == 0
     assert "dis" in printed and "retail" in printed
     assert "2026-04" in printed and "2026-05" in printed
+
+
+def test_the_plan_lists_the_pairs_it_carries_not_the_grid():
+    """A market selling through two channels has two scopes, never every channel.
+
+    The list leaves this machine for someone who must judge each pair, so a grid would
+    ask them to rule on business that does not exist.
+    """
+    plan = Budget([
+        BudgetLine("France", "EMEA", "RET", "retail", "2026-04", 10.0, 9.0),
+        BudgetLine("France", "EMEA", "EBU", "ecommerce", "2026-04", 20.0, 19.0),
+        BudgetLine("Japan", "APAC", "RET", "retail", "2026-04", 30.0, 29.0),
+        BudgetLine("Japan", "APAC", "RET", "retail", "2026-05", 31.0, 30.0),
+    ])
+    assert plan.scopes() == [
+        ("France", "ecommerce"), ("France", "retail"), ("Japan", "retail")]
+    assert plan.channels() == ["ecommerce", "retail"]
