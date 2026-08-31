@@ -910,10 +910,17 @@ REGISTER: Dict[str, Measure] = {
         "The consequence for the screen is narrow and worth stating: a year-end comparison "
         "between the two sources is the least informative one available, and a divergence "
         "measured there should never be read as a market's instrument being broken. It is "
-        "the calendar of the close, and it repeats every March.",
-        to_confirm="Whether the same concentration appears in the prior year's twelve "
-        "months. If it does, the closing month can be excluded from the grading window by "
-        "rule rather than by judgement.",
+        "the calendar of the close, and it repeats every March.\n\n"
+        "It has since been tested by removal rather than argued, and the result is larger "
+        "than expected. Regrading on the eleven months without the close moves three "
+        "markets out of the unstable group entirely — one of them falls from over a point "
+        "of movement to a third of a point. So a real share of what was being read as "
+        "markets behaving erratically belonged to the month, and was being charged to the "
+        "countries. The grading window now excludes the closing month, and the close is "
+        "reported on its own terms instead of contaminating eleven other months.",
+        to_confirm="Whether the same concentration appears in the prior year. One year "
+        "makes the exclusion a measurement of this close; two make it a property of closes, "
+        "which is what would justify writing it as a permanent rule.",
     ),
     "door_filed_twice": Measure(
         key="door_filed_twice",
@@ -935,7 +942,11 @@ REGISTER: Dict[str, Measure] = {
         "one shouts. And the arithmetic that found it is the one to keep: the country was "
         "recomputed without the door and the divergence fell to nothing, which is a "
         "demonstration rather than an explanation. Naming a plausible cause proves nothing; "
-        "removing it and watching the gap close proves it.",
+        "removing it and watching the gap close proves it.\n\n"
+        "The removal has now been run on both sides across the whole window, and the market "
+        "that led the divergence table by a wide margin sits in the aligned group — an "
+        "average distance near zero and a spread under a point. One door, correctly filed "
+        "in each system and filed differently between them, was the entire finding.",
         to_confirm="Which other doors carry an entity in one system and a different one in "
         "the other — asked as a list from the referential, not discovered one closure at a "
         "time.",

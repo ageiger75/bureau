@@ -111,3 +111,27 @@ def test_every_grade_says_what_the_screen_may_do():
     for grade in (divergence.ALIGNED, divergence.OFFSET, divergence.UNSTABLE,
                   divergence.NOT_GRADED):
         assert divergence.SPEED[grade].strip()
+
+
+def test_an_average_near_zero_is_not_agreement():
+    """A market swinging several points either way averages to nothing and agrees with
+    nobody. The movement is the finding and the mean hides it — which is why a grade rests
+    on both terms and never on the average alone. One real market sits exactly here."""
+    cancelling = _row(mean=0.0066, sigma=0.043, low=-0.061, high=0.050)
+
+    assert abs(cancelling.mean) < 0.01
+    assert cancelling.grade == divergence.UNSTABLE
+    assert not cancelling.sign_holds
+
+
+def test_a_displacement_larger_than_the_movement_is_its_own_state():
+    """Two causes can sit on one market. The close explains what moves month to month; it
+    does not explain a floor that never lifts. When the average exceeds its own spread the
+    displacement is the dominant term, it is a perimeter question, and it is answerable
+    without waiting for any close."""
+    both = _row(mean=0.051, sigma=0.043, low=-0.053, high=0.102)
+    only_moving = _row(mean=0.0066, sigma=0.043, low=-0.061, high=0.050)
+
+    assert both.grade == only_moving.grade == divergence.UNSTABLE
+    assert both.displaced
+    assert not only_moving.displaced

@@ -29,6 +29,19 @@ twelve months is not a closing decision that lands differently each time — it 
 perimeter that one side counts and the other does not, and it grows as that perimeter
 grows. That reads as instability in a standard deviation and is a different thing entirely.
 
+Two readings of an average are refused here, and both were met in the real data.
+
+An average near zero is not agreement. A market swinging six points either way averages to
+nothing and agrees with nobody; the movement is the finding and the mean hides it. So a
+grade never rests on the mean alone — a distance has to be both small *and* steady to be
+called aligned.
+
+And a displacement larger than the movement around it is its own state. A market can be
+unstable and, underneath that, systematically apart by more than it moves: the close
+explains what changes month to month, and something else explains the part that never
+goes away. One market is in exactly that position, and it needs both questions asked of
+two different people.
+
 Like the weights and the plan, the measurements live outside the repository: they are
 readings of the house's own business.
 """
@@ -110,6 +123,17 @@ class Market:
         Same spread, different question, different person to ask.
         """
         return self.low * self.high > 0
+
+    @property
+    def displaced(self) -> bool:
+        """Whether the systematic distance is larger than the month-to-month movement.
+
+        Two causes can sit on one market. The close explains what moves; it does not
+        explain a floor that never lifts. When the average exceeds its own spread, the
+        displacement is the dominant term and it is a perimeter question — asked of
+        different people, and answerable without waiting for any close.
+        """
+        return abs(self.mean) > self.sigma
 
     @property
     def speed(self) -> str:

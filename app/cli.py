@@ -2185,8 +2185,12 @@ def cmd_divergence(argv: List[str]) -> int:
         print("")
         print("%s  (%d)" % (title, len(rows)))
         for row in rows:
-            mark = ("  signe constant" if row.sign_holds
-                    and grade != divergence_module.ALIGNED else "")
+            marks = []
+            if row.sign_holds and grade != divergence_module.ALIGNED:
+                marks.append("signe constant")
+            if row.displaced and grade == divergence_module.UNSTABLE:
+                marks.append("décalage > mouvement")
+            mark = ("  " + ", ".join(marks)) if marks else ""
             if "--all" in argv or grade != divergence_module.ALIGNED:
                 print("  %-24s moyenne %+6.1f pt   variation %5.1f pt   %2d mois%s"
                       % (row.market[:24], 100.0 * row.mean, 100.0 * row.sigma,
@@ -2194,6 +2198,15 @@ def cmd_divergence(argv: List[str]) -> int:
             else:
                 print("  %s" % row.market)
     unstable = grouped.get(divergence_module.UNSTABLE, [])
+    displaced = [row for row in unstable if row.displaced]
+    if displaced:
+        print("")
+        print("Sur %d d'entre eux le décalage moyen dépasse le mouvement autour de lui."
+              % len(displaced))
+        print("Deux causes tiennent sur le même marché : la clôture explique ce qui bouge")
+        print("d'un mois à l'autre, elle n'explique pas un plancher qui ne remonte jamais.")
+        print("Cette part-là est une question de périmètre, et elle se répond sans attendre")
+        print("aucune clôture.")
     holding = [row for row in unstable if row.sign_holds]
     if holding:
         print("")
