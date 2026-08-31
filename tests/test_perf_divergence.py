@@ -239,3 +239,22 @@ def test_a_loaded_row_carries_the_screen_s_name(tmp_path):
     assert read.usable, read.faults
     assert read.grade_of("Hong Kong") == divergence.ALIGNED
     assert read.grade_of("HK LOCAL") == divergence.NOT_GRADED
+
+
+def test_a_general_caveat_never_sits_next_to_a_specific_one():
+    """Asking which markets the grading does not cover found nine, and every one of them
+    already had a reason of its own — a shipped perimeter the sell-out never sees, a market
+    absent from the referential, a market that changed commercial model. None of the
+    reasons is "unmeasured".
+
+    So the general note stays quiet there. A reader takes the vaguer of two notes as the
+    ceiling of what is known, which would turn a precise statement into a doubt.
+    """
+    shipped = _unit(divergence.NOT_GRADED)
+    shipped.perimeter = "sell-in"
+    unreadable = _unit(divergence.NOT_GRADED)
+    unreadable.not_read_reason = "no shop in the sell-out referential"
+
+    assert shipped.warehouse_speed_note == ""
+    assert unreadable.warehouse_speed_note == ""
+    assert _unit(divergence.NOT_GRADED).warehouse_speed_note != ""

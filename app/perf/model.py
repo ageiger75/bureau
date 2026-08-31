@@ -540,8 +540,24 @@ class BusinessUnit:
         Silent too wherever the figure already comes from the accounts. There the
         divergence is somebody else's problem: the number on the card is the number the
         house publishes.
+
+        And silent on three further cases, all found by asking which markets the grading
+        does *not* cover. Every one of them turned out to be a market with a reason of its
+        own, and none of the reasons is "unmeasured":
+
+        * **A shipped figure** is read from the management consolidation, not from the
+          sell-out warehouse. Telling its reader that the warehouse might disagree with
+          the accounts describes a comparison this card is not making.
+        * **A market the sell-out cannot read at all** already says so, precisely, in its
+          own words. A vague note beside a precise one weakens the precise one.
+        * **A market whose year-on-year is withheld** likewise.
+
+        The rule underneath: a general caveat may never sit next to a specific one. The
+        reader takes the vaguer of the two as the ceiling of what is known.
         """
         if self.is_reported or not self.divergence_grade:
+            return ""
+        if self.basis == "shipped" or self.not_read_reason or self.year_on_year_withheld:
             return ""
         from .divergence import NOT_GRADED, UNSTABLE
 
