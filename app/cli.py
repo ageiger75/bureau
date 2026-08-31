@@ -1970,6 +1970,36 @@ def cmd_budget(argv: List[str]) -> int:
     print("Périodes            %d, de %s à %s" % (
         len(periods), periods[0] if periods else "?", periods[-1] if periods else "?"))
 
+    if "--regions" in argv:
+        # Une variance est un rapport entre deux nombres, et le plan en est un. Quand un
+        # état publié et cet écran ne disent pas la même chose, la question « nos actuals
+        # sont-ils courts ? » ne suffit pas : il faut aussi savoir si les deux plans sont
+        # le même plan. Par région, parce que c'est la maille des états publiés, et parce
+        # qu'un trou de périmètre se voit sur une région quand une version différente se
+        # voit sur toutes.
+        wanted = _option(argv, "--period")
+        periods = [wanted] if wanted else plan.periods()
+        by_region = {}
+        for line in plan.lines:
+            if line.period not in periods:
+                continue
+            key = line.region or "(sans région)"
+            by_region[key] = by_region.get(key, 0.0) + (line.budget or 0.0)
+        print("")
+        print("Le plan par région, sur %s :"
+              % (wanted if wanted else "%s → %s" % (periods[0], periods[-1])))
+        total = 0.0
+        for region in sorted(by_region, key=lambda r: -by_region[r]):
+            total += by_region[region]
+            print("  %-24s %14s" % (region[:24], "%.0f k€" % (by_region[region] / 1000)))
+        print("  %-24s %14s" % ("total", "%.0f k€" % (total / 1000)))
+        print("")
+        print("  À confronter au plan de l'état publié pour les mêmes mois. Un écart")
+        print("  concentré sur une région est un trou de périmètre ; un écart réparti")
+        print("  sur toutes est une autre version du plan. Les deux se corrigent")
+        print("  ailleurs, et il vaut mieux savoir lequel avant de corriger.")
+        return 0
+
     if "--scopes" in argv:
         # Le vocabulaire exact, et rien d'autre. Cette liste part chez un tiers qui doit
         # rendre un jugement marché par marché : lui laisser deviner les noms produirait

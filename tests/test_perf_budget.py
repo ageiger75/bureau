@@ -1260,3 +1260,18 @@ def test_the_plan_lists_the_pairs_it_carries_not_the_grid():
     assert plan.scopes() == [
         ("France", "ecommerce"), ("France", "retail"), ("Japan", "retail")]
     assert plan.channels() == ["ecommerce", "retail"]
+
+
+def test_the_plan_totals_by_region_over_chosen_periods():
+    """A variance has two terms, and this exposes the one nobody checks."""
+    plan = Budget([
+        BudgetLine("France", "EMEA", "RET", "retail", "2026-04", 10.0, 9.0),
+        BudgetLine("France", "EMEA", "EBU", "ecommerce", "2026-04", 20.0, 19.0),
+        BudgetLine("Japan", "APAC", "RET", "retail", "2026-04", 30.0, 29.0),
+        BudgetLine("Japan", "APAC", "RET", "retail", "2026-05", 31.0, 30.0),
+    ])
+    one = {}
+    for line in plan.lines:
+        if line.period == "2026-04":
+            one[line.region] = one.get(line.region, 0.0) + (line.budget or 0.0)
+    assert one == {"EMEA": 30.0, "APAC": 30.0}
