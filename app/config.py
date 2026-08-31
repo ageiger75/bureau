@@ -78,6 +78,8 @@ DEFAULT_OWNERS_FILE = "var/owners.xlsx"
 #: Ce que les chiffres ne peuvent pas dire : un changement de taxes, un événement isolé.
 #: Connaissance d'entreprise, pas mesure — donc hors du dépôt, comme le reste.
 DEFAULT_CONTEXT_FILE = "var/context.csv"
+#: Le jugement du lecteur, relu quelques fois par an et édité à la main.
+DEFAULT_WEIGHTS_FILE = "var/weights.csv"
 
 #: The KPI tracker the business maintains: definitions, targets, cadence, owners. Beside
 #: the plan workbook and gitignored with it, because it names people and states targets.
@@ -95,6 +97,7 @@ class Settings:
     budget_file: str = DEFAULT_BUDGET_FILE
     owners_file: str = DEFAULT_OWNERS_FILE
     context_file: str = DEFAULT_CONTEXT_FILE
+    weights_file: str = DEFAULT_WEIGHTS_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
@@ -132,6 +135,15 @@ class Settings:
     @property
     def has_kpi_file(self) -> bool:
         return self.kpi_path.exists()
+
+    @property
+    def weights_path(self) -> Path:
+        path = Path(self.weights_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_weights_file(self) -> bool:
+        return self.weights_path.exists()
 
     @property
     def has_context_file(self) -> bool:

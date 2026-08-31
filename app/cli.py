@@ -1940,6 +1940,78 @@ def _share(part: float, whole: float) -> str:
     return "%.0f %%" % (100.0 * part / whole)
 
 
+def cmd_weights(argv: List[str]) -> int:
+    """Le jugement du lecteur : ce que le fichier dit, et ce qu'il a de faux.
+
+        manage.py weights              ce qui est chargé, et les fautes s'il y en a
+        manage.py weights --all        toutes les lignes, neutres comprises
+
+    Le poids est le seul terme du classement qui ne sorte pas de la donnée. Il multiplie
+    des euros, donc une faute de frappe déplace un sujet dans la liste du lundi matin :
+    cette commande existe pour que le fichier se vérifie avant d'être cru, et non après.
+    """
+    from .perf import weights as weights_module
+
+    loaded = weights_module.current()
+    print("Fichier             %s" % loaded.path)
+
+    if loaded.faults:
+        # Toutes les fautes, jamais la première : quelqu'un qui vient d'éditer un tableur
+        # veut les corriger en une passe.
+        print("")
+        print("Refusé — le classement reste neutre tant que ceci n'est pas corrigé :",
+              file=sys.stderr)
+        for fault in loaded.faults:
+            print("  %s" % fault, file=sys.stderr)
+        return 1
+
+    shown = [row for row in loaded.rows if "--all" in argv or not row.is_neutral]
+    counts = {}
+    for row in loaded.rows:
+        counts[row.confidence] = counts.get(row.confidence, 0) + 1
+    print("Lignes              %d sur %d marchés" % (len(loaded.rows), len(loaded.markets)))
+    print("Preuve              %s"
+          % " · ".join("%s %d" % (name, counts[name]) for name in sorted(counts)))
+    print("Bornes              %.2f à %.2f" % (weights_module.FLOOR, weights_module.CEILING))
+    print("")
+    print("%-32s %7s  %-9s %s" % ("Périmètre", "Poids", "Preuve", "Pourquoi"))
+    for row in sorted(shown, key=lambda r: (-r.weight, r.scope)):
+        print("%-32s %7.2f  %-9s %s"
+              % (row.scope[:32], row.weight, row.confidence, row.reasoning[:60]))
+    if not "--all" in argv:
+        neutral = len(loaded.rows) - len(shown)
+        if neutral:
+            print("")
+            print("%d lignes à 1,00 ne sont pas montrées. Ce n'est pas un trou : le "
+                  "silence" % neutral)
+            print("de la stratégie est une réponse, et `--all` les affiche.")
+
+    if settings.has_budget_file:
+        # Un poids sur un périmètre qui n'existe pas est un jugement qui ne s'appliquera
+        # jamais. Moins grave qu'une faute, plus agaçant à découvrir six mois plus tard.
+        from .perf import budget as budget_module
+
+        try:
+            plan = budget_module.load(settings.budget_path)
+        except Exception:  # noqa: BLE001 — le contrôle est un bonus, pas la commande
+            plan = None
+        if plan is not None:
+            orphans = loaded.unknown_scopes(tuple(plan.scopes()))
+            covered = {row.market for row in loaded.rows}
+            silent = sorted({market for market in plan.markets() if market not in covered})
+            if orphans:
+                print("")
+                print("Pesés ici, absents du plan :")
+                for scope in orphans:
+                    print("  %s" % scope)
+            if silent:
+                print("")
+                print("Dans le plan, non pesés — donc à 1,00 par défaut :")
+                for market in silent:
+                    print("  %s" % market)
+    return 0
+
+
 def cmd_budget(argv: List[str]) -> int:
     """Lit le classeur de planification et dit ce qu'il contient.
 
@@ -2406,6 +2478,8 @@ def main(argv: List[str]) -> int:
         return cmd_warehouse(argv[1:])
     if command == "budget":
         return cmd_budget(argv[1:])
+    if command == "weights":
+        return cmd_weights(argv[1:])
     if command == "refresh":
         return cmd_refresh(argv[1:])
     if command == "history":

@@ -434,6 +434,12 @@ def units_from_rows(
     worth knowing about long before anyone noticed it on a screen.
     """
     from .budget import is_aggregate_market, perimeter_of
+    from . import weights as weights_module
+
+    # Read once per build, from the file the reader edits. A missing or faulty file gives
+    # a neutral judgement everywhere, which is exactly the state this screen was in before
+    # the file existed — degraded, never wrong.
+    weights = weights_module.current()
 
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
@@ -536,6 +542,7 @@ def units_from_rows(
                 # Budget and last year carry no drivers: they are commitments and history,
                 # not measured funnels. A gap against them is still exact.
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
+                strategic_weight=weights.weight_for(market, channel),
                 budget_known=budget_value is not None,
                 reads_actual=not_read_reason(market, channel) == "",
                 not_read_reason=not_read_reason(market, channel),
