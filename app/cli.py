@@ -17,7 +17,8 @@
                                      --kpi n'oublie que les relevés KPI
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
-                                     --plans pour ce qui n'a ni budget ni ventes en face
+                                     --plans ce que le plan ne couvre pas (--goals : le
+                                     fait `goals` de l'entrepôt au lieu du classeur)
                                      --sell-in confronte le sell-in à son plan
                                      --refresh pour relire l'entrepôt au lieu du cache
     python -m app.cli budget         lit le classeur de planification et dit ce qu'il couvre
@@ -1596,7 +1597,12 @@ def cmd_history(argv: List[str]) -> int:
     if market:
         return _print_one_market(built, market, plan)
     if "--plans" in argv:
-        return _print_unmatched(built)
+        if "--goals" in argv:
+            return _print_unmatched(built)
+        if plan is None:
+            print("Classeur de plan absent : %s" % settings.budget_path, file=sys.stderr)
+            return 2
+        return _print_unplanned(built, plan)
 
     ytd = built.ytd(budget=plan)
     if ytd is not None:
@@ -1870,6 +1876,79 @@ def _print_one_market(built, market: str, plan=None) -> int:
     return 0
 
 
+def _print_unplanned(built, plan) -> int:
+    """Le chiffre que l'écran laisse hors de la comparaison, et pourquoi.
+
+    L'écran compare marché × canal × mois. Le budget se fait par pays. Les deux sont vrais
+    en même temps, et c'est ce qui rend la ligne « sans plan » incompréhensible : un pays
+    entièrement budgété peut porter des couples sans ligne de plan, et ces ventes sortent
+    alors de la comparaison — des deux côtés, ce qui est correct, mais sans que personne
+    puisse voir ce qui est sorti.
+
+    Trois causes se ressemblent à l'écran et n'appellent pas la même chose. Un canal dont
+    on n'attendait rien ce mois-là et pour lequel le classeur ne porte pas de ligne du
+    tout. Un canal qui a bien un plan, sous un autre nom — et là c'est une jointure ratée,
+    la seule des trois qui soit un défaut. Un canal que le marché vend et que le budget
+    n'avait pas prévu, ce qui est une information.
+
+    Ce rapport ne tranche pas entre les trois : il donne la liste, avec l'argent et le
+    nombre de mois, pour que le métier tranche en la lisant. Un canal marginal à quelques
+    milliers d'euros est le premier cas. Du retail ou de l'e-commerce sur un gros marché
+    est le second, et il se corrige.
+    """
+    from .perf.history import _fiscal_start
+
+    last = built.latest_period
+    first = _fiscal_start(last)
+    planned_scopes = {"%s/%s" % pair for pair in plan.scopes()}
+
+    rows = []
+    total = unplanned = 0.0
+    for track in built.tracks.values():
+        scope = "%s/%s" % (track.market, track.channel)
+        sold = 0.0
+        months = 0
+        no_line = 0
+        for month in track.months:
+            if month.actual is None or not (first <= month.period <= last):
+                continue
+            sold += month.actual
+            months += 1
+            if plan.budget_for(track.market, track.channel, month.period) is None:
+                no_line += month.actual
+        total += sold
+        if no_line:
+            unplanned += no_line
+            rows.append((scope, no_line, sold, months, scope in planned_scopes))
+
+    print("")
+    print("Exercice à date (%s → %s), vendu contre le classeur de plan :" % (first, last))
+    print("  vendu au total              %15s" % _eur(total))
+    print("  hors comparaison, sans plan %15s   %s"
+          % (_eur(unplanned), _share(unplanned, total)))
+    if not rows:
+        print("")
+        print("Chaque couple vendu porte une ligne de plan. Rien n'est laissé de côté.")
+        return 0
+
+    # Le marché est au plan mais ce couple-là n'y est pas : c'est le cas qui se corrige,
+    # et il est imprimé en premier parce que c'est le seul qui soit peut-être un défaut.
+    known = [r for r in rows if r[4]]
+    unknown = [r for r in rows if not r[4]]
+    for title, group in (
+        ("Le marché est au plan, ce canal n'y est pas — jointure à vérifier", known),
+        ("Ni le marché ni ce canal ne sont au plan — vendu hors budget", unknown),
+    ):
+        if not group:
+            continue
+        print("")
+        print("%s :" % title)
+        for scope, amount, sold, months, _known in sorted(group, key=lambda r: -r[1])[:30]:
+            print("  %-38s %14s  %5s de son chiffre  %2d mois"
+                  % (scope[:38], _eur(amount), _share(amount, sold), months))
+    return 0
+
+
 def _print_unmatched(built) -> int:
     """Ce que le plan ne couvre pas — avec, cette fois, un dénominateur.
 
@@ -1891,10 +1970,15 @@ def _print_unmatched(built) -> int:
             if month.actual is not None:
                 sold += month.actual
                 months_sold += 1
-            if month.has_goal:
+            if month.has_goal and month.actual is not None:
                 paired += month.actual
+            elif month.has_goal:
+                # Une cible sans vente en face. Elle plantait ce rapport en étant
+                # additionnée comme un zéro — exactement la règle que ce rapport existe
+                # pour vérifier, enfreinte par le rapport lui-même.
+                without_sales[name] = without_sales.get(name, 0.0) + month.goal
             elif month.is_zero_goal:
-                zeroed += month.actual
+                zeroed += month.actual or 0.0
                 months_missing += 1
             elif month.goal is None and month.actual is not None:
                 missing += month.actual

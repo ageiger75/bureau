@@ -1166,3 +1166,37 @@ def test_a_scope_the_file_does_not_cover_keeps_the_warehouse_and_the_workbook():
     assert mixed.budget == pytest.approx(155_000.0)
     assert mixed.reported_actual == pytest.approx(110_000.0)
     assert mixed.reported_lines == 1
+
+
+def test_the_coverage_report_does_not_add_an_absent_month_as_zero():
+    """A real crash, and the ugly kind: the report that exists to check the absence rule
+    broke it itself. A month carrying a target and no sales was added straight into the
+    paired total, and a warehouse where that happens once takes the whole command down.
+
+    It is not a zero. It is a plan with nothing sold against it, which is its own bucket
+    and its own conversation — someone committed to something that did not trade.
+    """
+    from app.cli import _print_unmatched
+
+    built = history.from_rows([
+        row(period="2026-04", actual=100_000.0, goal=90_000.0),
+        row(period="2026-05", actual=None, goal=90_000.0),
+    ])
+
+    assert _print_unmatched(built) == 0
+
+
+def test_the_unplanned_report_separates_a_missed_join_from_a_market_off_plan():
+    """Three causes look identical on screen and call for different things. The one worth
+    correcting is a market that *is* planned carrying a channel that is not — that is a
+    join to check. A market absent from the plan altogether is information, not a defect.
+    """
+    from app.cli import _print_unplanned
+
+    built = history.from_rows([
+        row(market="Japan", channel="E-COMMERCE", period="2026-04", actual=100_000.0),
+        row(market="Japan", channel="RETAIL", period="2026-04", actual=40_000.0),
+    ])
+    workbook = plan(("2026-04", 90_000.0), market="Japan", channel=ECOMMERCE)
+
+    assert _print_unplanned(built, workbook) == 0
