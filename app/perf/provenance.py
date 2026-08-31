@@ -387,6 +387,33 @@ REGISTER: Dict[str, Measure] = {
         "any perimeter this screen does read, which the operated network's own ratio "
         "answers for the market checked and for no other.",
     ),
+    "window_comparability": Measure(
+        key="window_comparability",
+        label="A sound instrument does not make two periods comparable",
+        maturity=BETA,
+        note="A fixed calendar window was compared across two years and showed a "
+        "collapse in transactions large enough to eclipse everything else on the table. "
+        "The reading had been screened for the fault that had just been caught elsewhere: "
+        "the ratio of lines to transactions was stable, so the counter had not been "
+        "renumbered, so the fall was taken as real. Widened to the whole quarter, the "
+        "transactions are flat. The promotional peak had moved by two weeks, and the "
+        "window had been laid across the gap.\n\n"
+        "The lesson generalises past this market. Two independent questions hide inside "
+        "one comparison — is the instrument trustworthy, and do the two periods hold the "
+        "same event — and passing the first reads exactly like passing both. Ratio "
+        "stability answers only the first. Nothing about a correctly measured period "
+        "says it describes the same commercial moment as the one beside it.\n\n"
+        "This screen is exposed to it by construction: it sets a calendar month against "
+        "the same month last year. Wherever the commercial calendar is keyed to something "
+        "other than the Gregorian month — a lunar new year that moves between two months, "
+        "a festival on a moving date, a promotional peak scheduled by a partner — that "
+        "comparison silently sets one event against another. The context register now "
+        "carries a note for it, and a note is a reader's device rather than a fix: what "
+        "would fix it is a window that follows the event.",
+        to_confirm="Which markets have a commercial calendar that moves against the "
+        "Gregorian month, and by how much — the answer decides whether a note per "
+        "occurrence is enough or whether the comparison window itself has to move.",
+    ),
     "semantic_descriptions": Measure(
         key="semantic_descriptions",
         label="Where the semantic layer's own descriptions are wrong",

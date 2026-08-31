@@ -1045,3 +1045,16 @@ def test_a_note_can_say_the_action_is_not_the_market_s():
     assert analytics.Fire(reclassified).action_owner.startswith("Consolidation")
     # Silent where nobody else was named: the market keeps its own question.
     assert analytics.Fire(ordinary).action_owner == ""
+
+
+def test_a_moved_calendar_is_not_a_statement_about_trading():
+    """Both periods measured right, and the comparison between them still meaningless."""
+    assert context.MOVED_CALENDAR in context.NOT_TRADING
+    assert context.MOVED_CALENDAR in context.KINDS
+
+
+def test_every_kind_says_what_it_means_and_what_to_ask():
+    """A kind with no meaning and no question is a label, and a label changes nothing."""
+    for kind in context.KINDS:
+        assert context.KIND_MEANING.get(kind), kind
+        assert context.KIND_QUESTION.get(kind), kind

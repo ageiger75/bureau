@@ -50,13 +50,28 @@ RECLASSIFIED = "reclassified"
 #: and the credibility of the screen. The question is what unblocks it and what is owed.
 ON_HOLD = "on_hold"
 
-KINDS = (BASIS_CHANGE, ONE_OFF, RECLASSIFIED, ON_HOLD)
+#: The two periods being compared do not hold the same commercial event. A promotional
+#: peak that fell in one week last year and two weeks later this year, a new year that
+#: moves between January and February, a festival keyed to a lunar date.
+#:
+#: The subtlest kind here, because nothing about the figures looks wrong. Both periods are
+#: correctly measured, both counters are sound, and the comparison between them is still
+#: meaningless — a market can show a collapse and a market can show a surge from the same
+#: shift, in the same quarter, and neither is trading.
+#:
+#: It earns its own kind rather than folding into `one_off` because the event did not
+#: happen once: it happens every year and merely lands elsewhere. Filing it as a one-off
+#: would invite someone to set it aside, when what it needs is a window that follows the
+#: event instead of the calendar.
+MOVED_CALENDAR = "moved_calendar"
+
+KINDS = (BASIS_CHANGE, ONE_OFF, RECLASSIFIED, ON_HOLD, MOVED_CALENDAR)
 
 #: Kinds where the gap is not a statement about trading, so nobody is asked to answer for
 #: it. A gap that is real in the accounts and belongs to no one's performance must never
 #: reach "People to push": handing it over would be this product's most expensive kind of
 #: mistake — confidently wrong, about a named human being.
-NOT_TRADING = frozenset({BASIS_CHANGE, RECLASSIFIED})
+NOT_TRADING = frozenset({BASIS_CHANGE, RECLASSIFIED, MOVED_CALENDAR})
 
 #: What each kind means for the reader, and — more usefully — what it means for the ask.
 KIND_MEANING = {
@@ -76,6 +91,11 @@ KIND_MEANING = {
         "The plan and the accounts file this revenue under different segments, so the gap "
         "here is a boundary rather than a result. The market total is unaffected."
     ),
+    MOVED_CALENDAR: (
+        "The commercial calendar moved between the two periods compared here, so this "
+        "figure sets one event against a different one. Both periods are measured "
+        "correctly and the comparison between them is not a result."
+    ),
 }
 
 KIND_QUESTION = {
@@ -88,6 +108,10 @@ KIND_QUESTION = {
     ON_HOLD: (
         "What has to happen for this to resume, how much is owed, and what does the delay "
         "cost by the time it does?"
+    ),
+    MOVED_CALENDAR: (
+        "What do the two periods say when the window follows the event rather than the "
+        "calendar — and does the season as a whole still hold?"
     ),
 }
 
