@@ -57,6 +57,20 @@
     {# A month is the loudest number on this screen and the least reliable one: a shipment
        that slips across a month end shows here as a collapse. The year to date is the
        same business read without that noise. #}
+    {% if dataset.reported %}
+      {# Which source is speaking, said once at the top rather than on every card. The
+         screen carries two and they answer different questions: the accounts say what
+         happened and how far it is from plan, the warehouse says why. A variance taken
+         from the first can never disagree with the figure the house recognises — which is
+         the whole reason it is here. #}
+      <p class="cockpit-caveat">
+        {{ (dataset.reported_share * 100) | round(0) | int }}% of the figures below are the
+        accounts' own — the monthly file, one source and one set of rates, so the variance
+        is the one the house publishes. The rest is read from the warehouse and marked on
+        its card. What every driver breakdown explains is measured in the warehouse either
+        way: the gap is reported, the reason for it is not.
+      </p>
+    {% endif %}
     {% if dataset.unbudgeted_sales %}
       {# The mirror of the block below, and the bigger of the two. Sales with no
          commitment used to count in the month's numerator while their absent plan

@@ -243,6 +243,9 @@ class BusinessUnit:
         "budget_known",
         "reads_actual",
         "not_read_reason",
+        "reported_actual",
+        "reported_budget",
+        "reported_last_year",
         "funnel_status",
         "context_notes",
         "perimeter",
@@ -278,6 +281,9 @@ class BusinessUnit:
         budget_known: bool = True,
         reads_actual: bool = True,
         not_read_reason: str = "",
+        reported_actual: Optional[float] = None,
+        reported_budget: Optional[float] = None,
+        reported_last_year: Optional[float] = None,
         funnel_status: str = "",
         context_notes=(),
         perimeter: str = "",
@@ -339,6 +345,21 @@ class BusinessUnit:
         #: Why, in words a reader can act on. A flag with no reason is a
         #: figure removed without explanation, which is its own defect.
         self.not_read_reason = not_read_reason
+        #: What the accounts publish for this business, when the published file covers it.
+        #:
+        #: The screen has two sources and they answer different questions. The house's own
+        #: monthly file says **what happened and how far it is from the plan** — one source,
+        #: one set of rates, the perimeter the group quotes — so a variance taken from it
+        #: can never disagree with the number the house recognises. The warehouse says
+        #: **why**: visits, conversion, basket, the shop behind the market. It is the only
+        #: place the explanation exists, and it was never the right place for the verdict.
+        #:
+        #: So the gap below is reported and the decomposition beside it is measured. They
+        #: are not in competition and the card says which is which — a screen carrying two
+        #: sources owes its reader the name of the one that is speaking.
+        self.reported_actual = reported_actual
+        self.reported_budget = reported_budget
+        self.reported_last_year = reported_last_year
         #: What the query established about this market's funnel: measured, never tracked,
         #: tracking lost, or no own site at all. Four states with four different remedies,
         #: which is why they are not collapsed into one word for "missing".
@@ -370,15 +391,37 @@ class BusinessUnit:
 
     @property
     def sales_actual(self) -> float:
+        """What the accounts published, where they cover this unit; otherwise what was read.
+
+        Never a blend: a unit takes both terms of its variance from the same source or
+        neither, because a reported actual against a warehouse plan would be a ratio
+        across two perimeters — the exact fault this screen spent weeks measuring.
+        """
+        if self.is_reported:
+            return self.reported_actual
         return self.actual.sales
 
     @property
     def sales_budget(self) -> float:
+        if self.is_reported:
+            return self.reported_budget
         return self.budget.sales
 
     @property
     def sales_last_year(self) -> float:
+        if self.is_reported and self.reported_last_year is not None:
+            return self.reported_last_year
         return self.last_year.sales
+
+    @property
+    def is_reported(self) -> bool:
+        """Whether both sides of this unit's variance come from the published file."""
+        return self.reported_actual is not None and self.reported_budget is not None
+
+    @property
+    def figure_source(self) -> str:
+        """Named on the card. A screen with two sources owes its reader the one speaking."""
+        return "the accounts" if self.is_reported else "the warehouse"
 
     @property
     def is_sell_in(self) -> bool:
@@ -575,6 +618,24 @@ class Dataset:
         """
         return sum(u.sales_budget for u in self.units
                    if u.budget_known and not u.reads_actual)
+
+    @property
+    def reported(self) -> List["BusinessUnit"]:
+        """Units whose variance comes from the published accounts rather than the warehouse."""
+        return [u for u in self.units if u.is_reported]
+
+    @property
+    def reported_share(self) -> Optional[float]:
+        """How much of the group figure the accounts cover.
+
+        Printed, because it decides how much of the screen a reader may quote in a meeting.
+        A cockpit half on one source and half on another is honest only if it says where
+        the line falls.
+        """
+        total = sum(abs(u.sales_actual) for u in self.units)
+        if not total:
+            return None
+        return sum(abs(u.sales_actual) for u in self.reported) / total
 
     @property
     def unreadable(self) -> List["BusinessUnit"]:

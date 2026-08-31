@@ -1946,6 +1946,7 @@ def cmd_actuals(argv: List[str]) -> int:
         manage.py actuals FICHIER.xlsx            le mois
         manage.py actuals FICHIER.xlsx --ytd      l'exercice à date
         manage.py actuals FICHIER.xlsx --markets  le détail par marché
+        manage.py actuals FICHIER.xlsx --coverage ce que le fichier couvre du plan
 
     Ce fichier porte, sur une même ligne : la Maison, l'entité, vendu ou expédié, le pays,
     le canal — puis le réalisé, l'an dernier et le budget côte à côte, au même jeu de taux.
@@ -1968,6 +1969,37 @@ def cmd_actuals(argv: List[str]) -> int:
     if not Path(path).exists():
         print("Fichier introuvable : %s" % path, file=sys.stderr)
         return 2
+
+    if "--coverage" in argv:
+        # À lancer avant de se fier à l'écran : combien de couples du plan le fichier
+        # couvre, et lesquels il ne couvre pas. Un écran à deux sources se juge d'abord
+        # sur l'endroit où passe la frontière.
+        from .perf import budget as budget_module
+
+        read = actuals_module.load(path, actuals_module.MONTH_SHEET)
+        published = actuals_module.by_scope(read)
+        if not settings.has_budget_file:
+            print("Classeur de plan absent : %s" % settings.budget_path, file=sys.stderr)
+            return 2
+        plan = budget_module.load(settings.budget_path)
+        scopes = plan.scopes()
+        covered = [pair for pair in scopes if "%s/%s" % pair in published]
+        missing = [pair for pair in scopes if "%s/%s" % pair not in published]
+        extra = sorted(set(published) - {"%s/%s" % pair for pair in scopes})
+        print("Couples au plan               %d" % len(scopes))
+        print("Couverts par la Finance       %d  (%.0f %%)"
+              % (len(covered), 100.0 * len(covered) / len(scopes) if scopes else 0))
+        print("")
+        if missing:
+            print("Au plan, absents du fichier — ces unités gardent l'entrepôt :")
+            for market, channel in missing:
+                print("  %s/%s" % (market, channel))
+        if extra:
+            print("")
+            print("Au fichier, absents du plan — lus, jamais comparés :")
+            for scope in extra:
+                print("  %s" % scope)
+        return 0
 
     sheet = actuals_module.YTD_SHEET if "--ytd" in argv else actuals_module.MONTH_SHEET
     read = actuals_module.load(path, sheet)

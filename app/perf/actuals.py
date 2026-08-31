@@ -243,3 +243,42 @@ def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
     if not lines:
         faults.append("aucune ligne %s dans %r" % (brand, sheet))
     return Actuals(lines, faults, path, sheet)
+
+
+def by_scope(read: "Actuals") -> Dict[str, "Line"]:
+    """`market/channel` → the published line, folded where a market splits a channel.
+
+    The file can carry several rows for one market and channel — different entities, or
+    the same channel on two bases — and the plan carries one. They are summed rather than
+    picked between: a screen that silently chose a row would show part of a business under
+    a heading naming all of it.
+    """
+    folded: Dict[str, Line] = {}
+    for line in read.lines:
+        key = "%s/%s" % (line.market, line.channel)
+        held = folded.get(key)
+        if held is None:
+            folded[key] = Line(line.market, line.region, line.channel, line.basis,
+                               line.actual, line.last_year, line.budget)
+            continue
+        held.actual += line.actual
+        held.last_year += line.last_year
+        held.budget += line.budget
+        if held.basis != line.basis:
+            # Two bases under one heading is a fact about the business, not a fault: a
+            # market may sell a channel and ship it. Named so nothing reads it as one.
+            held.basis = "MIXED"
+    return folded
+
+
+def current(month: bool = True) -> "Actuals":
+    """The published file as it sits on disk right now, or an empty reading.
+
+    Absent, the screen falls back to the warehouse exactly as before — degraded, never
+    wrong. The one thing it must not do is show a variance from one source under a label
+    naming the other.
+    """
+    from ..config import settings
+
+    path = str(settings.actuals_path)
+    return load(path, MONTH_SHEET if month else YTD_SHEET)

@@ -68,3 +68,62 @@ def test_the_variance_column_is_the_one_at_budget_rates():
     assert actuals.BUDGET_AT == 15
     # The real-rate column sits at 11 and is deliberately not read for the variance.
     assert actuals.ACTUAL_AT != 11
+
+
+def _unit(market, channel, actual, budget, reported=None):
+    from app.perf.model import BusinessUnit, Drivers, Owner
+
+    kwargs = {}
+    if reported is not None:
+        kwargs = {"reported_actual": reported[0], "reported_budget": reported[1]}
+    return BusinessUnit(
+        key="%s-%s" % (market, channel), label=market, market=market, region="EMEA",
+        channel=channel, owner=Owner("A", "B", "c@d"),
+        actual=Drivers.sales_only(actual), budget=Drivers.sales_only(budget),
+        last_year=Drivers.sales_only(0.0), forecast_sales=0.0, **kwargs)
+
+
+def test_a_unit_takes_both_sides_from_one_source_or_neither():
+    """A reported actual against a warehouse plan would be a ratio across two perimeters —
+    the exact fault this screen spent weeks measuring in the other direction."""
+    reported = _unit("France", "retail", 900.0, 1000.0, reported=(980.0, 1000.0))
+    warehouse = _unit("Spain", "retail", 900.0, 1000.0)
+
+    assert reported.is_reported
+    assert reported.sales_actual == 980.0 and reported.sales_budget == 1000.0
+    assert reported.gap_vs_budget == -20.0
+    assert not warehouse.is_reported
+    assert warehouse.gap_vs_budget == -100.0
+
+
+def test_the_screen_says_how_much_of_it_the_accounts_cover():
+    """A cockpit half on one source and half on another is honest only if it says where the
+    line falls — the share decides how much of the screen may be quoted in a meeting."""
+    from app.perf.model import Dataset
+
+    data = Dataset(period_label="Sales MTD", as_of="2026-07-31", units=[
+        _unit("France", "retail", 900.0, 1000.0, reported=(900.0, 1000.0)),
+        _unit("Spain", "retail", 100.0, 100.0),
+    ])
+
+    assert [u.market for u in data.reported] == ["France"]
+    assert round(data.reported_share, 2) == 0.90
+    assert data.units[0].figure_source == "the accounts"
+    assert data.units[1].figure_source == "the warehouse"
+
+
+def test_several_published_rows_for_one_scope_are_summed_never_picked():
+    """One market and channel can carry more than one row — two entities, or a channel sold
+    and shipped. Choosing between them would show part of a business under a heading naming
+    all of it."""
+    read = actuals.Actuals([
+        actuals.Line("China", "CHINA", "webp", actuals.SHIPPED, 100.0, 90.0, 120.0),
+        actuals.Line("China", "CHINA", "webp", actuals.SOLD, 50.0, 40.0, 60.0),
+    ], [])
+
+    folded = actuals.by_scope(read)
+
+    assert folded["China/webp"].actual == 150.0
+    assert folded["China/webp"].budget == 180.0
+    # Two bases under one heading is a fact about the business, and it is named.
+    assert folded["China/webp"].basis == "MIXED"

@@ -419,6 +419,16 @@ def _history_for(history, market, channel, budget):
     )
 
 
+def _reported(published, market: str, channel: str, field: str):
+    """One published figure for this unit, or None when the file does not cover it.
+
+    None rather than zero, and the three fields move together: a unit is reported on both
+    sides of its variance or on neither.
+    """
+    line = published.get("%s/%s" % (market, channel))
+    return getattr(line, field) if line is not None else None
+
+
 def units_from_rows(
     rows: Sequence[Dict[str, object]],
     budget: Optional[Budget] = None,
@@ -440,6 +450,14 @@ def units_from_rows(
     # a neutral judgement everywhere, which is exactly the state this screen was in before
     # the file existed — degraded, never wrong.
     weights = weights_module.current()
+
+    # The published file, when it is on disk. Where it covers a unit, both terms of that
+    # unit's variance come from it; where it does not, the unit keeps the warehouse's — and
+    # the card says which. Never a blend inside one unit: a reported actual against a
+    # warehouse plan is a ratio across two perimeters.
+    from . import actuals as actuals_module
+
+    published = actuals_module.by_scope(actuals_module.current())
 
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
@@ -543,6 +561,9 @@ def units_from_rows(
                 # not measured funnels. A gap against them is still exact.
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
                 strategic_weight=weights.weight_for(market, channel),
+                reported_actual=_reported(published, market, channel, "actual"),
+                reported_budget=_reported(published, market, channel, "budget"),
+                reported_last_year=_reported(published, market, channel, "last_year"),
                 budget_known=budget_value is not None,
                 reads_actual=not_read_reason(market, channel) == "",
                 not_read_reason=not_read_reason(market, channel),
