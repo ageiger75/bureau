@@ -407,25 +407,51 @@ REGISTER: Dict[str, Measure] = {
         label="The consolidation, readable one store at a time",
         maturity=BETA,
         note="The consolidation was read as a country total for months, and a view exists "
-        "carrying it at store grain. It ties out — its rows sum to the euro on the country "
-        "table\'s retail line for the market checked, which is a calibration and not a "
-        "resemblance.\n\n"
-        "Three things follow. The residue left in that market\'s retail after the unread "
-        "counters are placed becomes traceable shop by shop instead of being argued about "
-        "in aggregate. The comparable-base status the accounts actually use becomes "
-        "readable rather than inferred. And the opening, closing and refurbishment dates "
-        "this register had declared empty are present throughout — they were empty in the "
-        "dimension, which is a different object.\n\n"
-        "Nothing is read from it yet, and three properties have to be handled first: the "
-        "net sales account is not the one the country table uses, the store grain is a "
-        "consolidation identifier with no referential store id, and the current fiscal "
-        "year carries few snapshots with one dated in the future. The store count on the "
-        "non-closed statuses is also close to, and not equal to, the count the sell-out "
-        "carries for the same market — near-equality is the reading this register has "
-        "twice been caught by, so it is the first thing the join has to settle rather "
-        "than the reassurance it looks like.",
-        to_confirm="How a consolidation store identifier maps to the sell-out referential, "
-        "and why the two store counts differ by a handful for one market.",
+        "carrying it at store grain. It ties out to the euro on the country table\'s "
+        "retail line, and the join to the sell-out turned out to need no bridge at all: "
+        "the consolidation\'s entity key and the sell-out\'s store-group code are the same "
+        "string.\n\n"
+        "Joined, it decomposes the market\'s retail residue completely — every euro placed, "
+        "the whole falling within single digits of the gap measured from the other "
+        "direction. What it decomposes into is the finding: a bulk pseudo-entity worth "
+        "most of it, a set of dormant road-show pseudo-entities, one shop opening after "
+        "the quarter, six shops that closed inside it, and the unmatched counters.\n\n"
+        "The near-equality of the two store counts, flagged here as a hypothesis rather "
+        "than a finding, was neither a match nor a five-shop discrepancy. Both counts were "
+        "right and neither counted what the other counted: eleven entities carrying no "
+        "sale on one side, six live shops on the other whose closing dates fall inside the "
+        "quarter and which therefore sell legitimately in both sources. **A difference of "
+        "five between two counts does not mean five items differ** — the lesson is worth "
+        "more than the reconciliation it settled.\n\n"
+        "What is left is a genuine gap on an identical, named perimeter, traceable shop by "
+        "shop where this morning it was a lump. It is stated in euros, so the two rate "
+        "regimes still bound it rather than measure it: reading it properly means redoing "
+        "this confrontation on growth, or in local currency against two consolidation "
+        "years.",
+        to_confirm="What the gap on the common perimeter becomes once it is read on "
+        "growth rather than on levels, and whether the entity key holds as the join "
+        "outside the one market tested.",
+    ),
+    "store_grain_is_not_only_stores": Measure(
+        key="store_grain_is_not_only_stores",
+        label="What sits in the consolidation at store grain, that is not a store",
+        maturity=BETA,
+        note="The consolidation\'s store grain carries entities that are not points of "
+        "sale, and they are not marked as such — only their names distinguish them. A "
+        "bulk pseudo-entity, a family of road-show pseudo-entities, and they sit inside "
+        "the retail line under the comparable-base status meaning \"other\".\n\n"
+        "Two consequences. Anyone dividing that retail line by its store count divides by "
+        "a denominator holding things that have no floor and no staff. And the bulk this "
+        "screen has spent weeks separating — because the sell-out mixes it with shop "
+        "sales — is sitting inside the consolidation\'s retail too, at a size matching "
+        "what the reforecast pulls out on its own cleaning sheet. Neither source keeps it "
+        "out of retail; one of them names it, in a field nobody reads.\n\n"
+        "The counters excluded from the modelled dimension carry the literal string used "
+        "for \"not applicable\" as their store-group code — a deliberate filler rather "
+        "than a null. They are therefore unmatchable by design and not by omission, which "
+        "is a different problem with a different fix.",
+        to_confirm="Whether other markets carry the same kind of pseudo-entity, and "
+        "whether the bulk pseudo-entity is the same money the reforecast separates.",
     ),
     "window_comparability": Measure(
         key="window_comparability",
