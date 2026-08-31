@@ -557,6 +557,41 @@ REGISTER: Dict[str, Measure] = {
         "whether the smallest markets on the list are stable or an artefact of counting "
         "growth over very few shops.",
     ),
+    "why_not_rules": Measure(
+        key="why_not_rules",
+        label="Why a rule set cannot make the warehouse equal the consolidation",
+        maturity=BETA,
+        note="The obvious question, and it deserves a real answer: if the gap between the "
+        "two systems has been named market by market, why not encode the rules and compute "
+        "the published figure from the warehouse?\n\n"
+        "Part of the gap is mechanical and rules do close it. Counters a dimension omits, "
+        "pseudo-entities filed inside retail, a market absent from the referential, zone "
+        "labels that are not geographies, the cleaning lines a reforecast separates — all "
+        "of it is deterministic, all of it repeats, and most of it is already written "
+        "down here.\n\n"
+        "The rest is decided rather than derived, and no rule reaches it. The rate set the "
+        "consolidation applies is in no table anyone can query, and it changes by exercise. "
+        "A provision estimated through the year and trued up at close moves a quarter by "
+        "over a million on one market, on a date a person chose. A customer reclassified "
+        "between two channels is a decision taken once and applied from a date. Accruals "
+        "and eliminations exist in one system by construction and in the other not at all. "
+        "**A rule can only exist where a relationship is deterministic**, and a close is "
+        "the opposite of that — it is where judgement is applied on purpose.\n\n"
+        "And the argument that settles it is about timing, not accuracy. Suppose the rules "
+        "were perfect on three months: there would still be no way to know they held on "
+        "the fourth until the accounts published it. The rule set therefore never delivers "
+        "the figure *earlier* — it delivers a figure that still has to be checked against "
+        "the one it was meant to replace. What it delivers instead is the explanation of "
+        "the difference, which is worth building and is worth more to the people who own "
+        "both systems than to this screen.\n\n"
+        "So the screen runs at two speeds, and says which one it is on. Before the close: "
+        "the warehouse, directional, in its own terms, useful the next morning. After the "
+        "close: the accounts, once, and that is the figure to quote. Neither is an estimate "
+        "of the other.",
+        to_confirm="Whether the residual left after every known rule is applied shrinks "
+        "month on month — a shrinking residual is a maturing pipeline, and one that jumps "
+        "is a closing decision worth asking about by name.",
+    ),
     "window_comparability": Measure(
         key="window_comparability",
         label="A sound instrument does not make two periods comparable",
