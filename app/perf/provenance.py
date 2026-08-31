@@ -866,6 +866,33 @@ REGISTER: Dict[str, Measure] = {
         "states everything at the budget rates and holds them fixed all year. See "
         "`fixed_rates` — what this measure discovered, that one settles.",
     ),
+    "model_change": Measure(
+        key="model_change",
+        label="A market that changed model has no last year",
+        maturity=BETA,
+        note="A country served through a distributor is invoiced once, at wholesale, when "
+        "the goods leave. The same country run as a subsidiary is counted when a shopper "
+        "pays, at retail. Nothing about the demand has to move for the recorded revenue to "
+        "change by the whole distance between those two prices.\n\n"
+        "So a year-on-year across the switch measures a change of accounting and presents "
+        "it as growth — and it fails in the direction nobody checks. A market showing a "
+        "collapse gets a question within the day; a market showing a surge gets "
+        "congratulated, and this produces a surge. The screen therefore withholds the "
+        "comparison instead of footnoting it: a caveat under a number invites the reader "
+        "to use the number, and there is no honest number here to use.\n\n"
+        "It was very nearly filed as something else. Read from the data alone the market "
+        "looks like an opening — last year absent on both sides, this year present — and "
+        "an opening is a different fact with the same shape in a table of two columns. "
+        "Nothing measurable separates them. The distinction came from the business "
+        "knowing it, which is the argument for this register existing at all.\n\n"
+        "The comparison returns on its own once twelve months exist on the new model. "
+        "Until then the market is read on its level and its plan, both of which are "
+        "stated on today's basis and are sound.",
+        to_confirm="Which other markets changed model in the last two years, and on which "
+        "month each switched — a switch mid-year splits a single year across two bases and "
+        "is worse than one at the year boundary, because the annual total is then on "
+        "neither.",
+    ),
     "fixed_rates": Measure(
         key="fixed_rates",
         label="One rate set, fixed for the year, decided rather than discovered",

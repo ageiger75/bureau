@@ -264,3 +264,26 @@ def test_the_widest_gap_is_read_first():
             ("China", 40_000_000.0, 30_000_000.0)]
     assert [name for name, _g, _s, _w in reference.beyond_the_rates(rows)] == [
         "China", "Mexico"]
+
+
+def test_a_market_that_changed_model_has_no_year_on_year():
+    """A country served through a distributor is invoiced once at wholesale; run as a
+    subsidiary it is counted when a shopper pays, at retail. The recorded revenue moves by
+    the distance between two prices with no change in demand at all.
+
+    Withheld rather than footnoted, and the reason is about which errors get caught. A
+    market showing a collapse is questioned the same day; a market showing a surge is
+    congratulated — and this produces a surge. A caveat under such a number would be read
+    by nobody, so there is no number.
+    """
+    assert reference.model_changed("Vietnam")
+    assert reference.model_changed("Somewhere else") == ""
+
+
+def test_a_change_of_model_is_not_an_opening():
+    """The two look identical in a table of two columns — last year absent, this year
+    present — and they are different facts. Nothing measurable separates them; the business
+    knowing it is what separates them, which is why this register is written by hand."""
+    reason = reference.model_changed("Vietnam")
+    assert "distributor" in reason and "subsidiary" in reason
+    assert "opened" not in reason and "opening" not in reason

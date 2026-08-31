@@ -390,6 +390,34 @@ ABSENT_FROM_REFERENTIAL: Dict[str, str] = {
     "Austria": "no shop in the referential: only what is invoiced is read",
 }
 
+#: Markets that changed commercial model between the two years being compared. Not a
+#: market that opened, and the distinction is the whole point.
+#:
+#: A country served through a distributor is invoiced once, at wholesale, when the goods
+#: ship. The same country run as a subsidiary is counted when a shopper pays, at retail.
+#: Nothing about the demand has to move for the recorded revenue to change by the whole
+#: distance between those two prices — so a year-on-year across the switch measures a
+#: change of accounting, and measures it as growth.
+#:
+#: It fails in the direction nobody checks. A market showing a collapse gets a question; a
+#: market showing a surge gets congratulated, and this produces a surge. So the comparison
+#: is withheld rather than annotated: there is no honest number to print, and printing one
+#: with a footnote invites the reader to use it anyway.
+#:
+#: Read as a change of model rather than as an opening — an opening has no last year at
+#: all, which looks identical in a table of two columns and is a different fact. The
+#: comparison returns once twelve months exist on the new model.
+MODEL_CHANGED: Dict[str, str] = {
+    "Vietnam": "distributor until last year, subsidiary since: last year is invoiced at "
+               "wholesale and this year is sold at retail, so no year-on-year exists",
+}
+
+
+def model_changed(market: str) -> str:
+    """Why this market has no comparable last year, or empty if it has one."""
+    return MODEL_CHANGED.get(market, "")
+
+
 #: A country sharing the euro with the consolidation: no rate exists to explain anything.
 NO_CURRENCY = "no currency between the two sides"
 #: A gap too wide for a quarter's drift against a budget rate.

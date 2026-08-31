@@ -518,6 +518,35 @@ class BusinessUnit:
         return self.sales_actual - self.sales_last_year
 
     @property
+    def year_on_year_withheld(self) -> str:
+        """Why this market has no comparable last year, or empty if it has one.
+
+        One case so far and it is structural: a market that changed commercial model
+        between the two years. Invoiced once at wholesale to a distributor last year, sold
+        at retail to shoppers this year — the recorded revenue moves by the distance
+        between two prices without the demand moving at all.
+        """
+        from .reference import model_changed
+
+        return model_changed(self.market)
+
+    @property
+    def year_on_year(self) -> Optional[float]:
+        """Growth against last year, or nothing where no honest comparison exists.
+
+        Withheld rather than annotated, which is the unusual choice and the deliberate
+        one. A footnote under a number invites the reader to use the number; this returns
+        no number, so there is nothing to use. The case it guards fails upwards — a change
+        of accounting basis shows as a surge, and a surge is the one direction nobody
+        audits — so a caveat beside it would be read by exactly nobody.
+        """
+        if self.year_on_year_withheld:
+            return None
+        if not self.sales_last_year:
+            return None
+        return (self.sales_actual - self.sales_last_year) / self.sales_last_year
+
+    @property
     def channel_label(self) -> str:
         """The channel as the screen writes it: `webp` -> `E-retailers`.
 

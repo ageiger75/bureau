@@ -285,7 +285,20 @@ def check_explanation(unit: BusinessUnit) -> Optional[ExplanationCheck]:
     if not unit.management_explanation:
         return None
 
-    sales_pct = variance(unit.sales_actual, unit.sales_last_year).pct
+    withheld = unit.year_on_year_withheld
+    if withheld:
+        # Nothing here is testable: the two years are not on the same basis, so the
+        # residual against a market index would measure the change of model and read as
+        # a verdict on the explanation. Said rather than computed.
+        return ExplanationCheck(
+            unit.management_explanation,
+            ExplanationCheck.INSUFFICIENT,
+            "No comparable last year on this market — %s. Nothing can be tested against "
+            "a growth that does not exist." % withheld,
+            None,
+        )
+
+    sales_pct = unit.year_on_year
     if unit.market_index_pct is None or sales_pct is None:
         return ExplanationCheck(
             unit.management_explanation,

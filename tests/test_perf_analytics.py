@@ -1482,3 +1482,25 @@ def test_the_fix_is_asked_once_per_incident():
 
     assert one.fix
     assert len({item.fix for item in one.members}) == 1
+
+
+def test_no_explanation_is_tested_against_a_growth_that_does_not_exist():
+    """Testing a stated cause means measuring a residual against a market index. On a
+    market that changed commercial model between the two years, that residual measures the
+    change of accounting and returns it as a verdict on the manager's explanation.
+
+    So the check declines instead, and says why. Declining is a result here: the reader
+    learns that nothing was tested, which is the one thing a plausible-looking residual
+    would have hidden.
+    """
+    switched = unit(
+        key="vietnam", market="Vietnam",
+        actual=ecom(2_000_000), budget=ecom(1_800_000), last_year=ecom(400_000),
+        management_explanation="Le marché est porteur.",
+        market_index_pct=0.02,
+    )
+    check = analytics.check_explanation(switched)
+    assert check is not None
+    assert check.verdict == analytics.ExplanationCheck.INSUFFICIENT
+    assert check.residual_pct is None
+    assert "distributor" in check.evidence
