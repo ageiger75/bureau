@@ -181,18 +181,28 @@ REGISTER: Dict[str, Measure] = {
         "grew while the rest fell, so taking them out of the comparison would make the "
         "figure worse, not better. That is worth knowing on its own — refurbished stores "
         "outperform the rest by several points.\n\n"
-        "The rule is decided anyway — a store leaves the comparable base from the day its "
-        "doors close — and it cannot be applied: refurbishment dates cover about half the "
-        "estate, absence is not interpretable (coverage varies widely by country with no "
-        "country at zero or a hundred), and the opening and closing dates that would "
-        "settle it are empty on every store. The known contamination is a handful of "
-        "stores with works inside the year, about a point of the comparable base; that is "
-        "a floor with no ceiling. Nothing is shown until the two sources are reconciled: "
-        "a same-store "
-        "figure whose sign depends on which system you ask is not a figure.",
-        to_confirm="Which perimeter the reported figure is computed on — what its "
-        "'ex-cleaning' removes, and whether it composes monthly rates rather than "
-        "dividing two yearly totals.",
+        "This register said for weeks that the rule could not be applied, because opening "
+        "and closing dates were empty on every store and refurbishment covered about half "
+        "the estate. **That was true of the store dimension and false of the warehouse.** "
+        "A consolidation view at store grain carries all three dates filled throughout, "
+        "and it carries something better: the consolidation\'s own comparable-base status, "
+        "in seven named levels — same store, opened last year, opened this year, closed, "
+        "refurbished last year, refurbished this year, other. It is not a rule to "
+        "reinvent; it is the rule, written down.\n\n"
+        "The view ties out: its statuses sum to the euro on the country table\'s retail "
+        "line for the market checked. So the blocker is no longer whether the comparable "
+        "base can be computed — it is that this view keys stores by a consolidation "
+        "identifier with no referential store id, so the join to the sell-out is not yet "
+        "established. Two other traps: the net sales account differs from the one the "
+        "country table uses, and the current fiscal year carries few snapshots, one of "
+        "them dated in the future.\n\n"
+        "Nothing is shown until the two sources are reconciled: a same-store figure whose "
+        "sign depends on which system you ask is not a figure. But what stands between "
+        "here and there is now a join, not an absence.",
+        to_confirm="Whether the reported figure is computed on that status field — likely "
+        "but not demonstrated, since carrying the taxonomy does not prove the published "
+        "number uses it — and how a consolidation store identifier maps to the sell-out "
+        "referential.",
     ),
     "store_concept": Measure(
         key="store_concept",
@@ -356,7 +366,12 @@ REGISTER: Dict[str, Measure] = {
         "That is the instrument to publish, and it is better than the fallback of "
         "printing both rates and letting the reader judge: it gives an answer that can be "
         "checked everywhere instead of a caveat that can be checked nowhere. Two findings "
-        "were manufactured by comparing levels today and both were withdrawn.",
+        "were manufactured by comparing levels today and both were withdrawn.\n\n"
+        "Searched and answered since: no view of the consolidation, in the governed schema "
+        "or outside it, carries an amount in original currency. One of them is worse than "
+        "the others — it states a euro amount with no rate-year at all, so not even which "
+        "set converted it can be recovered. The rate-free instrument is not a preference "
+        "here; it is the only exact method available.",
         to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
         "market by market, so the reconciliation compares growth instead of levels.",
     ),
@@ -386,6 +401,31 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Nothing on the artefact itself. Whether the same renumbering touched "
         "any perimeter this screen does read, which the operated network's own ratio "
         "answers for the market checked and for no other.",
+    ),
+    "consolidation_by_store": Measure(
+        key="consolidation_by_store",
+        label="The consolidation, readable one store at a time",
+        maturity=BETA,
+        note="The consolidation was read as a country total for months, and a view exists "
+        "carrying it at store grain. It ties out — its rows sum to the euro on the country "
+        "table\'s retail line for the market checked, which is a calibration and not a "
+        "resemblance.\n\n"
+        "Three things follow. The residue left in that market\'s retail after the unread "
+        "counters are placed becomes traceable shop by shop instead of being argued about "
+        "in aggregate. The comparable-base status the accounts actually use becomes "
+        "readable rather than inferred. And the opening, closing and refurbishment dates "
+        "this register had declared empty are present throughout — they were empty in the "
+        "dimension, which is a different object.\n\n"
+        "Nothing is read from it yet, and three properties have to be handled first: the "
+        "net sales account is not the one the country table uses, the store grain is a "
+        "consolidation identifier with no referential store id, and the current fiscal "
+        "year carries few snapshots with one dated in the future. The store count on the "
+        "non-closed statuses is also close to, and not equal to, the count the sell-out "
+        "carries for the same market — near-equality is the reading this register has "
+        "twice been caught by, so it is the first thing the join has to settle rather "
+        "than the reassurance it looks like.",
+        to_confirm="How a consolidation store identifier maps to the sell-out referential, "
+        "and why the two store counts differ by a handful for one market.",
     ),
     "window_comparability": Measure(
         key="window_comparability",
@@ -610,7 +650,11 @@ REGISTER: Dict[str, Measure] = {
         "be judged on.\n\n"
         "Nothing measures it today. The recruitment figure counts customers new to the "
         "brand, so a transferred one is not counted as recruited; that helps, and it does "
-        "not separate transferred revenue from won revenue inside a store's takings.",
+        "not separate transferred revenue from won revenue inside a store's takings.\n\n"
+        "One half of the arithmetic has since become readable. The consolidation at store "
+        "grain names its closed stores and what they took, so the revenue leaving is "
+        "measurable. What leaves is not what arrives, and the transfer itself is still "
+        "unmeasured.",
         to_confirm="Whether a transferred customer can be identified as such — the closed "
         "store's customer file matched against the receiving store's sales. Without it, "
         "the programme's own success measure is not readable.",
