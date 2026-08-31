@@ -535,8 +535,24 @@ class Dataset:
 
     @property
     def sales_actual(self) -> float:
-        """Everything read. An unreadable unit contributes nothing here by definition, so
-        this needs no filter — the asymmetry to correct was never on this side."""
+        """Sales on the comparable perimeter — the one the group variance is computed on.
+
+        Both terms of a ratio have to cover the same business, and this one did not: the
+        plan was summed over the units that have one, while the sales were summed over
+        everything. A unit selling without a commitment therefore added its whole turnover
+        to the numerator and nothing to the denominator, and the month came out ahead of a
+        plan that never covered it. The test guarding this said so in its own words and
+        then asserted the opposite.
+
+        `read_sales` is everything read, comparable or not, and `unbudgeted_sales` is the
+        difference. Both are printed: a total that narrows without saying so is the same
+        fault facing the other way.
+        """
+        return sum(unit.sales_actual for unit in self.comparable)
+
+    @property
+    def read_sales(self) -> float:
+        """Everything read, including what no plan can be set against."""
         return sum(unit.sales_actual for unit in self.units)
 
     @property

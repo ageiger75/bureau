@@ -266,17 +266,23 @@ def test_a_named_market_carries_its_owner_through_the_join(monkeypatch):
 
 def test_a_dataset_is_built_end_to_end():
     dataset = mapping.dataset_from_rows(
-        [row(market="Japan"), row(market="Taiwan")],
+        [row(market="Japan"), row(market="Unplanned")],
         budget=budget_of(line()),
         period_label="Sales MTD",
         as_of="2026-07-31",
     )
 
     assert dataset.period_label == "Sales MTD"
-    assert dataset.sales_actual == pytest.approx(2_519_400)
-    # Taiwan has no plan, so it is outside the company's variance to plan.
+    # The second market has no plan here, so it is outside the company's variance to plan
+    # — on both sides of it. This test used to say that in a comment and then count its
+    # sales anyway, which is how a month came out ahead of a plan that never covered it.
+    # The market is named for nothing real: an invented fact under a real name gets read
+    # as a statement about that market, and once was.
+    assert dataset.sales_actual == pytest.approx(1_259_700)
     assert dataset.sales_budget == pytest.approx(1_861_700)
-    assert [u.market for u in dataset.unbudgeted] == ["Taiwan"]
+    # Outside the ratio, and still on the screen.
+    assert dataset.read_sales == pytest.approx(2_519_400)
+    assert [u.market for u in dataset.unbudgeted] == ["Unplanned"]
 
 
 # ------------------------------------------------- what the query says about the funnel

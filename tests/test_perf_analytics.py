@@ -518,7 +518,7 @@ def test_every_suspect_says_what_to_do_about_it():
 def test_a_market_with_no_budget_is_never_a_win():
     """Beating a budget that does not exist is not an achievement."""
     unbudgeted = unit(
-        key="taiwan",
+        key="unplanned",
         actual=ecom(2_000_000),
         budget=Drivers.sales_only(0.0),
         budget_known=False,
@@ -531,7 +531,7 @@ def test_a_market_with_no_budget_is_never_a_win():
 def test_a_market_with_no_budget_is_never_a_fire():
     """Nor is it a failure. There is simply nothing to compare it to."""
     unbudgeted = unit(
-        key="taiwan",
+        key="unplanned",
         actual=ecom(10_000),
         budget=Drivers.sales_only(0.0),
         budget_known=False,
@@ -541,11 +541,19 @@ def test_a_market_with_no_budget_is_never_a_fire():
     assert [f.unit.key for f in analytics.fires(dataset_of(unbudgeted))] == []
 
 
-def test_a_missing_budget_is_left_out_of_the_company_total():
-    """Otherwise the company looks ahead of a plan it was never measured against."""
+def test_a_missing_budget_is_left_out_of_both_company_totals():
+    """Otherwise the company looks ahead of a plan it was never measured against.
+
+    This test carried that sentence and asserted its opposite: the plan was held to the
+    units that have one while the sales counted everything, so a unit selling without a
+    commitment added its whole turnover to one side of the ratio and nothing to the other.
+    On the real screen that showed a month far ahead of plan inside a year behind it.
+    Both terms are now taken from the same perimeter, and what falls outside is reported
+    rather than absorbed.
+    """
     covered = unit(key="japan", actual=ecom(900_000), budget=ecom(1_000_000))
     uncovered = unit(
-        key="taiwan",
+        key="unplanned",
         actual=ecom(2_000_000),
         budget=Drivers.sales_only(0.0),
         budget_known=False,
@@ -554,13 +562,16 @@ def test_a_missing_budget_is_left_out_of_the_company_total():
     dataset = dataset_of(covered, uncovered)
 
     assert dataset.sales_budget == pytest.approx(1_000_000)
-    assert dataset.sales_actual == pytest.approx(2_900_000)
+    assert dataset.sales_actual == pytest.approx(900_000)
+    # Excluded from the ratio, never from the screen.
+    assert dataset.read_sales == pytest.approx(2_900_000)
+    assert dataset.unbudgeted_sales == pytest.approx(2_000_000)
 
 
 def test_the_omission_stays_visible():
     """Excluded, but not hidden: the screen has to be able to say what it left out."""
     uncovered = unit(
-        key="taiwan",
+        key="unplanned",
         actual=ecom(2_000_000),
         budget=Drivers.sales_only(0.0),
         budget_known=False,
@@ -568,7 +579,7 @@ def test_the_omission_stays_visible():
 
     dataset = dataset_of(unit(key="japan"), uncovered)
 
-    assert [u.key for u in dataset.unbudgeted] == ["taiwan"]
+    assert [u.key for u in dataset.unbudgeted] == ["unplanned"]
     assert dataset.unbudgeted_sales == pytest.approx(2_000_000)
 
 

@@ -71,3 +71,26 @@ def test_no_real_amount_or_entity_code_is_written_into_the_repository(path):
         + "\n\nCe dépôt ne porte aucun chiffre de la maison. Le raisonnement reste dans "
         "le code, les montants vont dans var/journal.md, qui est ignoré par git."
     )
+
+
+def test_an_invented_scenario_never_wears_a_real_market_name():
+    """A named market said to have no plan reads as a statement about that market.
+
+    The rule this repository runs on is taxonomy real, values invented. An invented *fact*
+    about a named market breaks it in the way that matters: a reader checked their own
+    workbook, found the plan there, and reasonably concluded the screen had lost it. The
+    scenario was fictional and the name was not, so the sentence was read as true.
+    """
+    import io
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    claims = ("no plan", "without a plan", "carrying no plan", "unbudgeted")
+    for path in sorted((root / "tests").glob("test_*.py")):
+        text = io.open(str(path), encoding="utf-8").read()
+        for number, line in enumerate(text.splitlines(), start=1):
+            lowered = line.lower()
+            if not any(claim in lowered for claim in claims):
+                continue
+            # The fixtures that carry such a claim must not name a real market beside it.
+            assert "taiwan" not in lowered, "%s:%d" % (path.name, number)
