@@ -82,6 +82,9 @@ DEFAULT_CONTEXT_FILE = "var/context.csv"
 DEFAULT_WEIGHTS_FILE = "var/weights.csv"
 #: Le réalisé publié par la Finance, à la maille du plan. Déposé chaque mois.
 DEFAULT_ACTUALS_FILE = "var/actuals.xlsx"
+#: La distance mesurée entre les deux systèmes, marché par marché : ce qui décide à
+#: quelle vitesse l'écran a le droit de tourner sur chaque marché.
+DEFAULT_DIVERGENCE_FILE = "var/divergence.csv"
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -106,6 +109,7 @@ class Settings:
     weights_file: str = DEFAULT_WEIGHTS_FILE
     actuals_file: str = DEFAULT_ACTUALS_FILE
     actuals_folder_name: str = DEFAULT_ACTUALS_FOLDER
+    divergence_file: str = DEFAULT_DIVERGENCE_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
@@ -157,6 +161,15 @@ class Settings:
     @property
     def has_actuals_file(self) -> bool:
         return self.actuals_path.exists()
+
+    @property
+    def divergence_path(self) -> Path:
+        path = Path(self.divergence_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_divergence_file(self) -> bool:
+        return self.divergence_path.exists()
 
     @property
     def actuals_folder(self) -> Path:
@@ -248,6 +261,7 @@ def load_settings() -> Settings:
         weights_file=_env("CEOOS_WEIGHTS_FILE") or DEFAULT_WEIGHTS_FILE,
         actuals_file=_env("CEOOS_ACTUALS_FILE") or DEFAULT_ACTUALS_FILE,
         actuals_folder_name=_env("CEOOS_ACTUALS_FOLDER") or DEFAULT_ACTUALS_FOLDER,
+        divergence_file=_env("CEOOS_DIVERGENCE_FILE") or DEFAULT_DIVERGENCE_FILE,
         snowflake_connection=snowflake_connection,
     )
 

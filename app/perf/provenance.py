@@ -866,6 +866,103 @@ REGISTER: Dict[str, Measure] = {
         "states everything at the budget rates and holds them fixed all year. See "
         "`fixed_rates` — what this measure discovered, that one settles.",
     ),
+    "warehouse_before_close": Measure(
+        key="warehouse_before_close",
+        label="Where the warehouse can steer before the accounts close",
+        maturity=BETA,
+        note="The screen has said for weeks that it runs at two speeds and names the one it "
+        "is on: before the close the warehouse, directional; after it the consolidation, "
+        "and that is the figure to quote. The sentence was true and stated globally, which "
+        "made it close to useless — it asked a reader to distrust the warehouse everywhere "
+        "because it cannot be trusted somewhere.\n\n"
+        "It is now measured per market, over twelve published months, growth against growth "
+        "so no exchange rate enters. Three shapes come out and each asks for something "
+        "different. Most of the estate is **aligned**: the two systems agree month after "
+        "month, which means the warehouse is not a degraded stand-in for the accounts — it "
+        "says the same thing three weeks earlier. A couple of markets sit at a **constant "
+        "displacement**, steady enough to state as one number, which is a rule someone can "
+        "write. The rest is **unstable**, and no rule reaches it, because what moves it is "
+        "decided at the close.\n\n"
+        "That the aligned group is the majority is the finding that pays for the whole "
+        "reconciliation. It converts a caveat into a permission: on most markets the CEO "
+        "can act on the warehouse before Finance publishes, and on the named few he waits. "
+        "Nothing about the previous global statement allowed either.\n\n"
+        "One rule of the grading matters more than any threshold in it: a market absent "
+        "from the measurement grades as **not measured**, never as aligned. Every version "
+        "of this cockpit that let an absence default to a pass produced a confident wrong "
+        "answer inside a week.",
+        to_confirm="Whether the grades hold on the next published month — a market moving "
+        "out of the aligned group is worth more attention than any single variance, because "
+        "it says an instrument changed rather than a business.",
+    ),
+    "closing_month": Measure(
+        key="closing_month",
+        label="The month the two systems agree least is the one that closes the year",
+        maturity=BETA,
+        note="Across twelve months and thirty-odd markets, the largest divergences between "
+        "the consolidation and the warehouse do not scatter. They pile into one month, and "
+        "it is the last month of the fiscal year — eight of the ten widest sit there, on "
+        "markets that otherwise disagree by very little.\n\n"
+        "Six markets landing in one month is not a coincidence of six markets; it is a "
+        "property of the month. The close is where provisions are trued up, "
+        "reclassifications applied and accruals settled — everything the year deferred is "
+        "decided at once, and none of it exists in a system that records what shops sold.\n\n"
+        "The consequence for the screen is narrow and worth stating: a year-end comparison "
+        "between the two sources is the least informative one available, and a divergence "
+        "measured there should never be read as a market's instrument being broken. It is "
+        "the calendar of the close, and it repeats every March.",
+        to_confirm="Whether the same concentration appears in the prior year's twelve "
+        "months. If it does, the closing month can be excluded from the grading window by "
+        "rule rather than by judgement.",
+    ),
+    "door_filed_twice": Measure(
+        key="door_filed_twice",
+        label="One door, two entities, and a market at the top of the wrong list",
+        maturity=BETA,
+        note="The widest divergence in the whole table, on a market nobody expected to see "
+        "there, came from a single shop. The consolidation files that door on an entity of "
+        "its own; the warehouse's referential codes it inside the country's main entity. "
+        "Both are internally consistent. Set side by side, one system's country contains "
+        "the shop and the other's does not.\n\n"
+        "It stayed invisible while the door traded, because a difference of one shop inside "
+        "a large country is a rounding error in a growth rate. It became the largest line "
+        "in the table the month the door closed: its collapse pulls the warehouse's country "
+        "down and leaves the consolidation's country untouched, so the two diverge by "
+        "several tens of points on a market that agrees to within a point once the shop is "
+        "removed from both sides.\n\n"
+        "Two things generalise. A perimeter difference is worth what the business inside it "
+        "is *doing*, not what it is worth — a large stable one hides and a small collapsing "
+        "one shouts. And the arithmetic that found it is the one to keep: the country was "
+        "recomputed without the door and the divergence fell to nothing, which is a "
+        "demonstration rather than an explanation. Naming a plausible cause proves nothing; "
+        "removing it and watching the gap close proves it.",
+        to_confirm="Which other doors carry an entity in one system and a different one in "
+        "the other — asked as a list from the referential, not discovered one closure at a "
+        "time.",
+    ),
+    "counters_outside_the_view": Measure(
+        key="counters_outside_the_view",
+        label="A perimeter that appeared this year, and the bias it makes",
+        maturity=BETA,
+        note="The governed sell-out view excludes a class of counter that exists in exactly "
+        "five markets. Four of those five are in the unstable group of the divergence "
+        "grading, which is more concentration than chance offers.\n\n"
+        "One of them makes the argument sharper than the others. There, those counters did "
+        "not exist last year and trade this year. A perimeter that starts from nothing and "
+        "grows produces, mechanically, a distance of constant sign and rising size — which "
+        "is exactly the shape that market has shown for twelve months, and exactly the "
+        "shape that a standard deviation misfiles as instability.\n\n"
+        "So the grading keeps sign apart from size on purpose. A distance that swings "
+        "either side of zero is a decision landing differently at each close. One that "
+        "stays on its side is business one system counts and the other does not. Same "
+        "dispersion, different cause, different person to ask.\n\n"
+        "This is a hypothesis with a test, not a finding: add the excluded counters back "
+        "and the distance should collapse. Until that is run it explains nothing, and this "
+        "register has already retracted one finding built on a resemblance.",
+        to_confirm="The same growth-against-growth comparison with those counters included, "
+        "on the five markets that have them. A distance that closes is the answer; one that "
+        "does not is a different cause and the hypothesis is dropped.",
+    ),
     "model_change": Measure(
         key="model_change",
         label="A market that changed model has no last year",

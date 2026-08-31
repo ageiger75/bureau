@@ -25,5 +25,5 @@ __pycache__/
 *.xlsm
 *.csv
 
-# Sauf l'exemple, qui n'est qu'une forme : des colonnes, aucune valeur de la maison.
-!docs/context.example.csv
+# Sauf les exemples, qui ne sont qu'une forme : des colonnes, aucune valeur de la maison.
+!docs/*.example.csv

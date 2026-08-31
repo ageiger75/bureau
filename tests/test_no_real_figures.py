@@ -118,3 +118,5 @@ def test_a_workbook_is_ignored_wherever_it_is_dropped():
         assert "/*.%s" % suffix not in lines, (
             "La règle ancrée à la racine laisse passer les sous-dossiers.")
     assert "var/" in lines
+    # Les exemples de docs/ restent versionnés : des colonnes, aucune valeur de la maison.
+    assert "!docs/*.example.csv" in lines

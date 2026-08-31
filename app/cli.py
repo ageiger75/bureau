@@ -33,6 +33,14 @@
                                      --file CHEMIN pour un autre classeur que var/
     python -m app.cli bulk           les ventes hors bulk, à côté des ventes tout compris
                                      bulk [MARCHÉ …] [--months N] [--through AAAA-MM]
+    python -m app.cli weights        le jugement du lecteur, et ce que le fichier a de faux
+                                     --all pour voir aussi les lignes neutres
+    python -m app.cli actuals        le réalisé de la Finance, à la maille du plan
+                                     actuals FICHIER.xlsx [--ytd] [--markets] [--coverage]
+                                     actuals DOSSIER --series : les douze mois publiés,
+                                     et quel mois a bougé après avoir été publié
+    python -m app.cli divergence     à quelle vitesse l'écran a le droit de tourner,
+                                     marché par marché — alignés, décalés, instables
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -2128,6 +2136,74 @@ def _actuals_series(folder: str, detail: bool) -> int:
     return 0
 
 
+def cmd_divergence(argv: List[str]) -> int:
+    """À quelle vitesse l'écran a le droit de tourner, marché par marché.
+
+        manage.py divergence              les trois groupes
+        manage.py divergence FICHIER.csv  un autre fichier de mesures
+        manage.py divergence --all        chaque marché avec sa distance
+
+    L'écran dit depuis des semaines qu'il tourne à deux vitesses. C'était vrai et énoncé
+    globalement, donc presque inutile : ça demandait de se méfier de l'entrepôt partout
+    parce qu'on ne peut pas s'y fier quelque part. Ici c'est mesuré — douze mois publiés
+    contre l'entrepôt, croissance contre croissance, donc sans aucun taux.
+
+    Un marché absent du fichier n'est pas aligné : il n'est pas mesuré. C'est la faute que
+    ce dépôt rencontre le plus souvent, une absence qui ressemble à un succès.
+    """
+    from .perf import divergence as divergence_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    path = positional[0] if positional else str(settings.divergence_path)
+    read = divergence_module.load(path)
+    if read.faults:
+        for fault in read.faults:
+            print("  %s" % fault, file=sys.stderr)
+        print("")
+        print("Aucune mesure retenue : tous les marchés sont \"pas mesuré\".",
+              file=sys.stderr)
+        return 1
+
+    grouped = read.by_grade()
+    titles = [
+        (divergence_module.ALIGNED,
+         "Alignés — l'entrepôt dit la même chose, trois semaines plus tôt"),
+        (divergence_module.OFFSET,
+         "Décalés d'une constante — une règle de périmètre est écrivable"),
+        (divergence_module.UNSTABLE,
+         "Instables — la distance bouge : décision de clôture, pas règle"),
+        (divergence_module.NOT_GRADED,
+         "Pas mesurés — trop peu de mois : ni l'un ni l'autre ne tranche"),
+    ]
+    print("Fichier            %s" % path)
+    print("Marchés mesurés    %d" % len(read.rows))
+    print("Pilotables avant clôture   %d" % len(read.steerable()))
+    for grade, title in titles:
+        rows = grouped.get(grade, [])
+        if not rows:
+            continue
+        print("")
+        print("%s  (%d)" % (title, len(rows)))
+        for row in rows:
+            mark = "  signe constant" if row.sign_holds and grade != "ALIGNED" else ""
+            if "--all" in argv or grade != divergence_module.ALIGNED:
+                print("  %-24s moyenne %+6.1f pt   variation %5.1f pt   %2d mois%s"
+                      % (row.market[:24], 100.0 * row.mean, 100.0 * row.sigma,
+                         row.months, mark))
+            else:
+                print("  %s" % row.market)
+    unstable = grouped.get(divergence_module.UNSTABLE, [])
+    holding = [row for row in unstable if row.sign_holds]
+    if holding:
+        print("")
+        print("Le signe ne tourne jamais sur %d d'entre eux. Un écart-type les range avec"
+              % len(holding))
+        print("les décisions de clôture ; ils n'en sont pas. Une distance qui reste du même")
+        print("côté est du commerce qu'un système compte et l'autre pas, et elle grandit")
+        print("avec ce périmètre. Même dispersion, autre question, autre interlocuteur.")
+    return 0
+
+
 def cmd_weights(argv: List[str]) -> int:
     """Le jugement du lecteur : ce que le fichier dit, et ce qu'il a de faux.
 
@@ -2668,6 +2744,8 @@ def main(argv: List[str]) -> int:
         return cmd_budget(argv[1:])
     if command == "weights":
         return cmd_weights(argv[1:])
+    if command == "divergence":
+        return cmd_divergence(argv[1:])
     if command == "actuals":
         return cmd_actuals(argv[1:])
     if command == "refresh":
