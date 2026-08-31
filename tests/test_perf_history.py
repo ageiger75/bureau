@@ -13,6 +13,8 @@ Written in English, like the rest of the cockpit — see AGENTS.md.
 
 from __future__ import annotations
 
+import pytest
+
 from app.perf import analytics, history, mapping
 from app.perf.budget import Budget, BudgetLine
 from app.perf.model import ECOMMERCE, BusinessUnit, Drivers, Owner
@@ -1106,3 +1108,61 @@ def test_a_range_period_names_every_month_it_covers():
     assert history._months_in("2026-04") == ["2026-04"]
     assert history._months_in("2026-04..2026-06") == ["2026-04", "2026-05", "2026-06"]
     assert history._months_in("") == []
+
+
+# --- the year takes its terms from the same source as the month -----------------------
+
+
+def _published_line(market, channel, actual, budget):
+    from app.perf.actuals import SOLD, Line
+
+    return Line(market, "EMEA", channel, SOLD, actual, 0.0, budget)
+
+
+def test_a_scope_the_published_file_covers_is_counted_once_from_it():
+    """The headline month learned to take both of its terms from the published file. The
+    year did not, and kept setting a warehouse actual against a workbook plan every month —
+    a ratio across two perimeters, and the arithmetic that put a shortfall of millions on
+    this screen for a house publishing a fraction of a point.
+
+    The file's year-to-date sheet is already cumulative, so a covered scope contributes
+    once rather than month by month.
+    """
+    built = history.from_rows([
+        row(period="2026-04", actual=100_000.0),
+        row(period="2026-05", actual=100_000.0),
+    ])
+    workbook = plan(("2026-04", 90_000.0), ("2026-05", 90_000.0))
+
+    without = built.ytd("2026-05", budget=workbook)
+    assert without.actual == pytest.approx(200_000.0)
+    assert without.budget == pytest.approx(180_000.0)
+    # A real measurement, not an unknown: nothing of this year came from the file.
+    assert without.reported_share == 0.0
+
+    with_file = built.ytd("2026-05", budget=workbook, published={
+        "Japan/ecommerce": _published_line("Japan", "ecommerce", 205_000.0, 210_000.0),
+    })
+    assert with_file.actual == pytest.approx(205_000.0)
+    assert with_file.budget == pytest.approx(210_000.0)
+    assert with_file.reported_share == pytest.approx(1.0)
+    assert "consolidation" in with_file.plan_source
+
+
+def test_a_scope_the_file_does_not_cover_keeps_the_warehouse_and_the_workbook():
+    """Never one term from each. A scope the file misses keeps both of its own."""
+    built = history.from_rows([
+        row(market="Japan", period="2026-04", actual=100_000.0),
+        row(market="Spain", period="2026-04", actual=50_000.0),
+    ])
+    workbook = merged(plan(("2026-04", 90_000.0), market="Japan"),
+                      plan(("2026-04", 60_000.0), market="Spain"))
+
+    mixed = built.ytd("2026-04", budget=workbook, published={
+        "Japan/ecommerce": _published_line("Japan", "ecommerce", 110_000.0, 95_000.0),
+    })
+
+    assert mixed.actual == pytest.approx(160_000.0)
+    assert mixed.budget == pytest.approx(155_000.0)
+    assert mixed.reported_actual == pytest.approx(110_000.0)
+    assert mixed.reported_lines == 1

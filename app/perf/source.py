@@ -374,6 +374,20 @@ def _period_label(period: str, shipped: str = "") -> str:
     return label
 
 
+def _published_year():
+    """Finance's own year to date, folded by scope, or nothing where the file is absent.
+
+    Absent, the year falls back to the warehouse against the workbook exactly as before —
+    degraded, never wrong. What it must not do is take one term from each.
+    """
+    from . import actuals as actuals_module
+
+    read = actuals_module.current(month=False)
+    if not read.lines:
+        return {}
+    return actuals_module.by_scope(read)
+
+
 class MockSource:
     """Invented data, clearly labelled as such everywhere it is shown."""
 
@@ -663,7 +677,11 @@ class SnowflakeSource:
             # restamps: the whole point of saying when is that it stays said.
             as_of=read_at_text,
             units=mapped.units,
-            ytd=history.ytd(period, budget=budget, sell_in=sold_in)
+            # The year takes its terms from the published file wherever that file covers a
+            # scope, exactly as the month does. Read from the year-to-date sheet of the
+            # same workbook — the one that is already cumulative through its own month.
+            ytd=history.ytd(period, budget=budget, sell_in=sold_in,
+                            published=_published_year())
             if history is not None
             else None,
         )

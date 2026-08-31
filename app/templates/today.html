@@ -126,6 +126,18 @@
           </span>
         </li>
       </ul>
+      {% if dataset.ytd.reported_share %}
+        {# The same sentence the month carries, for the same reason. A year assembled from
+           a warehouse actual and a workbook plan is a ratio across two perimeters, and it
+           is what put a shortfall of millions on this screen for a house publishing a
+           fraction of a point. Where the published file covers a scope, both of that
+           scope's terms come from it — and the share says how much of the year that is. #}
+        <p class="cockpit-caveat">
+          {{ dataset.ytd.reported_share | pct }} of this year's comparison takes both of
+          its terms from the consolidation, so that part cannot disagree with what the
+          house publishes. The rest is the warehouse against the workbook.
+        </p>
+      {% endif %}
       {% if dataset.ytd.basis_caveat %}
         {# Only printed when the two perimeters close on different months, which is not
            most of them. Said every time, it would be read none of the time. #}

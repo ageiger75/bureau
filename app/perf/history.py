@@ -509,6 +509,9 @@ class Ytd:
         "months",
         "plan_source",
         "shipped_through",
+        "reported_actual",
+        "reported_budget",
+        "reported_lines",
     )
 
     def __init__(
@@ -527,12 +530,21 @@ class Ytd:
         zero_goal_lines: int = 0,
         plan_source: str = "",
         shipped_through: str = "",
+        reported_actual: float = 0.0,
+        reported_budget: float = 0.0,
+        reported_lines: int = 0,
     ) -> None:
         self.label = label
         self.first_period = first_period
         self.last_period = last_period
         self.actual = actual
         self.budget = budget
+        #: The part of the two totals above taken from the published file rather than
+        #: assembled from the warehouse and the workbook. Held apart because it is the
+        #: only part whose variance cannot disagree with what the house publishes.
+        self.reported_actual = reported_actual
+        self.reported_budget = reported_budget
+        self.reported_lines = reported_lines
         self.unbudgeted_actual = unbudgeted_actual
         self.unsold_budget = unsold_budget
         self.unbudgeted_lines = unbudgeted_lines
@@ -552,6 +564,20 @@ class Ytd:
         #: transaction — so a year to date can legitimately hold four months of one and
         #: three of the other. Legitimate, and invisible unless it is named.
         self.shipped_through = shipped_through
+
+    @property
+    def reported_share(self) -> Optional[float]:
+        """How much of this year's comparison comes from the source that decides.
+
+        The headline month learned to take both of its terms from the published file
+        wherever that file covers a scope. The year did not, and kept comparing a warehouse
+        actual to a workbook plan across every month — which is a ratio across two
+        perimeters, and it is exactly the arithmetic that put a shortfall of several
+        millions on a screen for a house publishing a fraction of a point.
+        """
+        if not self.actual:
+            return None
+        return self.reported_actual / self.actual
 
     @property
     def gap(self) -> float:
@@ -658,7 +684,7 @@ class History:
                     found[market] = found.get(market, 0.0) + month.actual
         return found
 
-    def ytd(self, anchor: str = "", budget=None, sell_in=()) -> Optional[Ytd]:
+    def ytd(self, anchor: str = "", budget=None, sell_in=(), published=None) -> Optional[Ytd]:
         """The fiscal year to date, ending at `anchor` (the last complete month).
 
         Measured against the planning workbook when one is given, and that is not a
@@ -689,15 +715,46 @@ class History:
             # the business does not stand behind — a figure that looks quotable and is not.
             return None
 
+        # Where the published file covers a scope, both terms of that scope's variance
+        # come from it and its months are not accumulated at all. That is the same rule the
+        # headline month runs on, and the reason is the same: a reported actual set against
+        # a workbook plan is a ratio across two perimeters, and mixing them inside one total
+        # produces a figure that reconciles with neither source.
+        #
+        # The file's year-to-date sheet is already cumulative through its own month, so a
+        # covered scope contributes once rather than month by month.
+        covered = dict(published or {})
         actual = budget_total = unbudgeted = unsold = zero_goal = 0.0
+        reported_actual = reported_budget = 0.0
+        reported_lines = 0
+        used = set()
         unbudgeted_lines = unsold_lines = zero_goal_lines = 0
         periods = set()
 
+        def take_reported(market, channel):
+            """Fold a scope's published year-to-date in, once."""
+            scope = "%s/%s" % (market, channel)
+            line = covered.get(scope)
+            if line is None or scope in used or not line.budget:
+                return False
+            used.add(scope)
+            return line
+
         for track in self.tracks.values():
+            reported = take_reported(track.market, track.channel)
+            if reported:
+                actual += reported.actual
+                budget_total += reported.budget
+                reported_actual += reported.actual
+                reported_budget += reported.budget
+                reported_lines += 1
             for month in track.months:
                 if not (first <= month.period <= last):
                     continue
                 periods.add(month.period)
+                if reported:
+                    # Its year is already counted, from the source that decides.
+                    continue
                 planned = budget.budget_for(track.market, track.channel, month.period)
                 if month.actual is not None and planned:
                     actual += month.actual
@@ -723,6 +780,14 @@ class History:
             if not months_of or not (first <= months_of[-1] <= last):
                 continue
             periods.update(m for m in months_of if first <= m <= last)
+            reported = take_reported(market, channel)
+            if reported:
+                actual += reported.actual
+                budget_total += reported.budget
+                reported_actual += reported.actual
+                reported_budget += reported.budget
+                reported_lines += 1
+                continue
             planned = _plan_across(budget, market, channel, months_of)
             if planned:
                 actual += sold
@@ -753,7 +818,11 @@ class History:
             months=len(periods),
             zero_goal_actual=zero_goal,
             zero_goal_lines=zero_goal_lines,
-            plan_source="the planning workbook",
+            reported_actual=reported_actual,
+            reported_budget=reported_budget,
+            reported_lines=reported_lines,
+            plan_source=("the consolidation where it covers, the planning workbook elsewhere"
+                         if reported_lines else "the planning workbook"),
             shipped_through=max(shipped) if shipped else "",
         )
 
