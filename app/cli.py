@@ -137,6 +137,32 @@ def cmd_check() -> int:
     else:
         print("Plan                absent — copier le classeur dans %s" % settings.budget_path)
 
+    # Quelle source alimente le chiffre du haut, dit ici plutôt que déduit du navigateur.
+    # Un écran qui affiche un total et une commande qui en affiche un autre coûtent une
+    # demi-journée à quiconque essaie de comprendre lequel croire.
+    from .perf import actuals as actuals_module
+
+    if not settings.has_actuals_file:
+        print("Fichier publié      absent — copier le flash dans %s" % settings.actuals_path)
+        print("                    sans lui, le chiffre du haut vient de l'entrepôt")
+    for label, month in (("Mois publié", True), ("Cumul publié", False)):
+        if not settings.has_actuals_file:
+            break
+        read = actuals_module.current(month=month)
+        if read.faults and not read.lines:
+            print("%-19s illisible — %s" % (label, read.faults[0]))
+            continue
+        if not read.lines:
+            print("%-19s absent — l'écran retombe sur l'entrepôt" % label)
+            continue
+        totals = read.totals()
+        print("%-19s %s · %d lignes · réalisé %.3f M€ · budget %.3f M€ · %+.1f %%"
+              % (label, settings.actuals_path.name, int(totals["lines"]),
+                 totals["actual"] / 1e6, totals["budget"] / 1e6,
+                 100.0 * (totals["actual"] - totals["budget"]) / totals["budget"]
+                 if totals["budget"] else 0.0))
+        print("                    c'est ce que l'écran doit afficher en haut.")
+
     from .perf import owners
 
     directory = owners.current()
