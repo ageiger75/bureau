@@ -429,6 +429,18 @@ def _reported(published, market: str, channel: str, field: str):
     return getattr(line, field) if line is not None else None
 
 
+def _published_month():
+    """The month as Finance publishes it, whole, or nothing where the file is absent.
+
+    Read here rather than in the model: a value object that opens a file cannot be built
+    in a test, and the screen must degrade to the warehouse rather than to an exception.
+    """
+    from . import actuals as actuals_module
+
+    read = actuals_module.current(month=True)
+    return read.totals() if read.lines else None
+
+
 def units_from_rows(
     rows: Sequence[Dict[str, object]],
     budget: Optional[Budget] = None,
@@ -635,4 +647,5 @@ def dataset_from_rows(
         )
         if history and rows
         else None,
+        published_month=_published_month(),
     )

@@ -638,7 +638,7 @@ class BusinessUnit:
 class Dataset:
     """The whole normalised dataset for one period."""
 
-    __slots__ = ("period_label", "as_of", "units", "ytd")
+    __slots__ = ("period_label", "as_of", "units", "ytd", "published_month")
 
     def __init__(
         self,
@@ -646,6 +646,7 @@ class Dataset:
         as_of: str,
         units: Sequence[BusinessUnit],
         ytd=None,
+        published_month=None,
     ) -> None:
         self.period_label = period_label
         self.as_of = as_of
@@ -653,6 +654,45 @@ class Dataset:
         #: The fiscal year to date, when a history was read. None means no history, which
         #: the screen says rather than papering over with a single month's figure.
         self.ytd = ytd
+        #: The month as Finance publishes it: actual, budget and last year over its own
+        #: whole perimeter. Held rather than derived, and used for the figure at the top of
+        #: the screen — the units below keep their own arithmetic, because that is where
+        #: the explanation lives and the explanation is the warehouse's job.
+        self.published_month = published_month
+
+    @property
+    def headline_is_published(self) -> bool:
+        return bool(self.published_month and self.published_month.get("budget"))
+
+    @property
+    def headline_actual(self) -> float:
+        """The month's figure, from the source that decides where there is one.
+
+        Summing the units gives a total over the perimeter this screen can *read*, which
+        is not the perimeter the house publishes: a scope present in the accounts and
+        absent from the warehouse leaves both of its terms out, and the year proved what
+        that costs — an intersection of two sources reported a fifth of a point behind as
+        more than two points behind.
+
+        So the top figure is the published one, whole, and the cards below stay as they
+        are. The gap comes from the consolidation; the explanation comes from the
+        warehouse. Neither is asked to do the other's work.
+        """
+        if self.headline_is_published:
+            return self.published_month["actual"]
+        return sum(unit.sales_actual for unit in self.comparable)
+
+    @property
+    def headline_budget(self) -> float:
+        if self.headline_is_published:
+            return self.published_month["budget"]
+        return sum(unit.sales_budget for unit in self.comparable)
+
+    @property
+    def headline_last_year(self) -> float:
+        if self.headline_is_published:
+            return self.published_month["last_year"]
+        return sum(unit.sales_last_year for unit in self.comparable)
 
     @property
     def comparable(self) -> List["BusinessUnit"]:

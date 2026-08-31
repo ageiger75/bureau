@@ -68,11 +68,20 @@
         closes the group's books from SAP and TM1 — one perimeter, one set of rates, and the
         figure the house quotes. The warehouse counts transactions, which is the only place
         a reason for a gap exists.
-        <br>{{ (dataset.reported_share * 100) | round(0) | int }}% of the money below is
-        measured against plan by the consolidation, so those variances cannot disagree with
-        what the house publishes. The rest is measured by the warehouse and says so on its
-        card. Every driver breakdown comes from the warehouse either way: the gap is
-        closed by one, explained by the other.
+        {% if header.published %}
+          <br>The figure above and its variance are the consolidation's own, for its whole
+          perimeter — not assembled here from what the warehouse can read. Below,
+          {{ dataset.reported_share | share }} of the money is measured against plan the
+          same way; the rest is the warehouse and says so on its card. Every driver
+          breakdown comes from the warehouse either way: the gap is closed by one,
+          explained by the other.
+        {% else %}
+          <br>{{ dataset.reported_share | share }} of the money below is measured against
+          plan by the consolidation, so those variances cannot disagree with what the house
+          publishes. The rest is measured by the warehouse and says so on its card. Every
+          driver breakdown comes from the warehouse either way: the gap is closed by one,
+          explained by the other.
+        {% endif %}
       </p>
     {% endif %}
     {% if dataset.unbudgeted_sales %}

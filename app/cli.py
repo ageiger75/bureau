@@ -1628,17 +1628,22 @@ def cmd_history(argv: List[str]) -> int:
             # fait ici, comme dans le gabarit, et jamais dans la propriété.
             "" if ytd.pct is None else "%+.1f %%" % (100.0 * ytd.pct),
         ))
-        # Dit à côté du total et non en note de bas de page : c'est la raison pour
-        # laquelle ce total est plus petit que la somme brute, et la raison pour
-        # laquelle on peut s'y fier.
-        print("  couverture       %15s" % (
-            "—" if ytd.covered is None else "%.0f %% du vendu" % (100.0 * ytd.covered)))
-        print("  sans plan        %15s  (%d cellules, hors total)"
-              % (_eur(ytd.unbudgeted_actual), ytd.unbudgeted_lines))
-        print("  plan à zéro      %15s  (%d cellules, hors total)"
-              % (_eur(ytd.zero_goal_actual), ytd.zero_goal_lines))
-        print("  sans vente       %15s  (%d cellules, hors total)"
-              % (_eur(ytd.unsold_budget), ytd.unsold_lines))
+        # Ces quatre lignes décrivent une composition : ce qui a été apparié, et ce qui est
+        # resté dehors faute de contrepartie. Quand le total vient entier du fichier
+        # publié il n'y a rien à composer, et quatre zéros donnent l'impression que
+        # quelque chose a été vérifié alors que la question ne se pose plus.
+        if not ytd.reported_lines:
+            print("  couverture       %15s" % (
+                "—" if ytd.covered is None else "%.0f %% du vendu" % (100.0 * ytd.covered)))
+            print("  sans plan        %15s  (%d cellules, hors total)"
+                  % (_eur(ytd.unbudgeted_actual), ytd.unbudgeted_lines))
+            print("  plan à zéro      %15s  (%d cellules, hors total)"
+                  % (_eur(ytd.zero_goal_actual), ytd.zero_goal_lines))
+            print("  sans vente       %15s  (%d cellules, hors total)"
+                  % (_eur(ytd.unsold_budget), ytd.unsold_lines))
+        else:
+            print("  lignes lues      %15d  du fichier publié, rien n'est composé ici"
+                  % ytd.reported_lines)
         if ytd.hospitality_actual:
             # Dans le total, pas à côté : ce périmètre était exclu tant que rien ne le
             # mesurait, et l'exclure maintenant fabriquerait un écart avec le chiffre que
@@ -1646,12 +1651,18 @@ def cmd_history(argv: List[str]) -> int:
             print("  dont hospitality %15s  budget %s, écart %s"
                   % (_eur(ytd.hospitality_actual), _eur(ytd.hospitality_budget),
                      _eur(ytd.hospitality_gap)))
-        # Dit ici et pas en note de bas de page : ce chiffre n'est pas la Maison, c'est
-        # la moitié de la Maison que l'entrepôt sait mesurer. Le sell-in n'a pas encore
-        # d'historique, donc il n'est ni au réalisé ni au budget de cette ligne.
+        # Dit ici et pas en note de bas de page : le lecteur doit savoir ce que le total
+        # contient avant de le citer. La phrase était devenue fausse en silence — elle
+        # annonçait « sell-out uniquement » au-dessus d'un total qui porte désormais les
+        # trois bases, ce qui est la faute la plus discrète de ce projet : un texte qui
+        # survit au changement de source qu'il décrit.
         print("")
-        print("  Sell-out uniquement — les canaux que l'entrepôt mesure. Ce qui est")
-        print("  facturé à des partenaires n'a pas encore d'historique ici.")
+        if ytd.reported_lines:
+            print("  Vendu, expédié et hospitality ensemble, comme les comptes les")
+            print("  reconnaissent — le périmètre entier que la maison publie.")
+        else:
+            print("  Sell-out uniquement — les canaux que l'entrepôt mesure. Ce qui est")
+            print("  facturé à des partenaires n'a pas encore d'historique ici.")
 
     # Une seule liste, mesurée contre le classeur. Le fait `goals` de l'entrepôt donnerait
     # deux ans de profondeur au lieu de quelques mois, mais l'entreprise a tranché qu'il

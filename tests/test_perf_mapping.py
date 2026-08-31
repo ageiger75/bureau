@@ -744,3 +744,33 @@ def test_the_unreadable_perimeter_is_named_not_guessed():
     assert mapping.not_read_reason("Austria", "retail")
     assert not mapping.not_read_reason("Austria", "whoin")
     assert not mapping.not_read_reason("France", "retail")
+
+
+def test_the_month_headline_is_the_published_figure_and_the_cards_are_not():
+    """The year proved what an intersection costs: a scope in the accounts and absent from
+    the warehouse leaves both its terms out, and a fifth of a point behind was reported as
+    more than two points behind.
+
+    So the top figure is the published one, whole, while the cards below keep the
+    warehouse's arithmetic — which is where the explanation lives. The gap comes from one
+    source, the reason from the other, and neither does the other's work.
+    """
+    from app.perf.model import Dataset
+
+    units = mapping.units_from_rows([row()], budget=budget_of(line())).units
+    sold = units[0].sales_actual
+
+    warehouse_only = Dataset("Sales MTD", "2026-07-31", units)
+    assert warehouse_only.headline_actual == pytest.approx(sold)
+    assert warehouse_only.headline_budget == pytest.approx(units[0].sales_budget)
+    assert not warehouse_only.headline_is_published
+
+    published = Dataset("Sales MTD", "2026-07-31", units, published_month={
+        "actual": 4_000_000.0, "budget": 4_010_000.0,
+        "last_year": 3_900_000.0, "lines": 240.0,
+    })
+    assert published.headline_is_published
+    assert published.headline_actual == pytest.approx(4_000_000.0)
+    assert published.headline_budget == pytest.approx(4_010_000.0)
+    # The cards are untouched: their arithmetic is the warehouse's and stays that way.
+    assert published.units[0].sales_actual == pytest.approx(sold)

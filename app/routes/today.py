@@ -173,14 +173,20 @@ def today(request: Request):
             "dataset": dataset,
             # Handed to the page so it can tell a fresh read from the one it is showing.
             "read_at": getattr(dataset, "as_of", ""),
+            # The top figure comes from the published file whole where there is one, and
+            # from the readable units otherwise. The cards below are unchanged: the gap
+            # comes from the consolidation, the explanation from the warehouse.
             "header": {
-                "actual": dataset.sales_actual,
-                "budget": dataset.sales_budget,
-                "last_year": dataset.sales_last_year,
+                "actual": dataset.headline_actual,
+                "budget": dataset.headline_budget,
+                "last_year": dataset.headline_last_year,
                 "forecast": dataset.sales_forecast,
-                "vs_budget": analytics.variance(dataset.sales_actual, dataset.sales_budget),
+                "published": dataset.headline_is_published,
+                "vs_budget": analytics.variance(
+                    dataset.headline_actual, dataset.headline_budget
+                ),
                 "vs_last_year": analytics.variance(
-                    dataset.sales_actual, dataset.sales_last_year
+                    dataset.headline_actual, dataset.headline_last_year
                 ),
             },
             "issues": linked,

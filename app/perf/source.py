@@ -374,6 +374,14 @@ def _period_label(period: str, shipped: str = "") -> str:
     return label
 
 
+def _published_month():
+    """The month as Finance publishes it, whole, or nothing where the file is absent."""
+    from . import actuals as actuals_module
+
+    read = actuals_module.current(month=True)
+    return read.totals() if read.lines else None
+
+
 def _published_year():
     """Finance's own year to date, whole, or nothing where the file is absent.
 
@@ -686,6 +694,7 @@ class SnowflakeSource:
                             published=_published_year())
             if history is not None
             else None,
+            published_month=_published_month(),
         )
         if stored is None:
             _write_disk_cache(rows, stamp, read_at_text)
