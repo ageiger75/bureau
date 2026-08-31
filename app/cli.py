@@ -1940,6 +1940,83 @@ def _share(part: float, whole: float) -> str:
     return "%.0f %%" % (100.0 * part / whole)
 
 
+def cmd_actuals(argv: List[str]) -> int:
+    """Le réalisé de la Finance, à la maille du plan.
+
+        manage.py actuals FICHIER.xlsx            le mois
+        manage.py actuals FICHIER.xlsx --ytd      l'exercice à date
+        manage.py actuals FICHIER.xlsx --markets  le détail par marché
+
+    Ce fichier porte, sur une même ligne : la Maison, l'entité, vendu ou expédié, le pays,
+    le canal — puis le réalisé, l'an dernier et le budget côte à côte, au même jeu de taux.
+    C'est exactement le modèle de cet écran, publié chaque mois par ceux dont la maison
+    cite le chiffre.
+
+    Ce que ça change : l'écart au plan cesse d'être dérivé de l'entrepôt et devient une
+    soustraction dans la source qui fait foi. Tous les périmètres poursuivis depuis des
+    semaines — comptoirs absents du référentiel, pseudo-entités, un marché sans boutique,
+    deux régimes de taux — cessent de peser sur le chiffre du haut, parce que ce chiffre ne
+    vient plus de l'entrepôt.
+    """
+    from .perf import actuals as actuals_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    if not positional:
+        print(cmd_actuals.__doc__, file=sys.stderr)
+        return 2
+    path = positional[0]
+    if not Path(path).exists():
+        print("Fichier introuvable : %s" % path, file=sys.stderr)
+        return 2
+
+    sheet = actuals_module.YTD_SHEET if "--ytd" in argv else actuals_module.MONTH_SHEET
+    read = actuals_module.load(path, sheet)
+    if read.faults:
+        for fault in read.faults:
+            print("  %s" % fault, file=sys.stderr)
+        if not read.lines:
+            return 1
+
+    print("Fichier            %s" % path)
+    print("Feuille            %s" % sheet)
+    print("Maison             %s" % actuals_module.BRAND)
+    print("Lignes             %d sur %d marchés" % (len(read.lines), len(read.markets())))
+    print("")
+    print("Réalisé            %.3f M€" % (read.actual / 1e6))
+    print("Budget             %.3f M€" % (read.budget / 1e6))
+    print("Écart              %+.0f k€   %+.1f %%"
+          % (read.gap / 1000, 100.0 * (read.pct or 0.0)))
+    print("An dernier         %.3f M€   %+.1f %%"
+          % (read.last_year / 1e6,
+             100.0 * (read.actual - read.last_year) / read.last_year
+             if read.last_year else 0.0))
+    print("")
+    # Les trois bases séparées, jamais additionnées en silence : c'est la règle de cet
+    # écran depuis le début, et ce fichier est le premier à les étiqueter lui-même.
+    print("Par base, tel que les comptes reconnaissent la ligne :")
+    labels = {actuals_module.SOLD: "vendu — le client paie",
+              actuals_module.SHIPPED: "expédié — le partenaire est facturé",
+              actuals_module.HOSPITALITY: "hospitality et cadeaux d'entreprise"}
+    for basis, amount in sorted(read.by_basis().items(), key=lambda pair: -pair[1]):
+        print("  %-9s %9.1f M€   %s"
+              % (basis, amount / 1e6, labels.get(basis, "")))
+
+    if "--markets" in argv:
+        print("")
+        print("%-30s %11s %11s %11s %8s"
+              % ("Marché", "Réalisé", "Budget", "Écart", "%"))
+        totals = []
+        for market, lines in read.by_market().items():
+            actual = sum(line.actual for line in lines)
+            budget = sum(line.budget for line in lines)
+            totals.append((actual - budget, market, actual, budget))
+        for gap, market, actual, budget in sorted(totals):
+            print("%-30s %11s %11s %11s %8s"
+                  % (market[:30], _eur_k(actual), _eur_k(budget), _eur_k(gap),
+                     "%+.1f%%" % (100.0 * gap / budget) if budget else "—"))
+    return 0
+
+
 def cmd_weights(argv: List[str]) -> int:
     """Le jugement du lecteur : ce que le fichier dit, et ce qu'il a de faux.
 
@@ -2480,6 +2557,8 @@ def main(argv: List[str]) -> int:
         return cmd_budget(argv[1:])
     if command == "weights":
         return cmd_weights(argv[1:])
+    if command == "actuals":
+        return cmd_actuals(argv[1:])
     if command == "refresh":
         return cmd_refresh(argv[1:])
     if command == "history":
