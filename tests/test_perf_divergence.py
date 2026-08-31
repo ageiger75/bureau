@@ -153,3 +153,20 @@ def test_a_displacement_does_not_make_a_moving_market_ruleable():
     assert displaced_and_moving.grade == divergence.UNSTABLE
     assert displaced_and_moving.grade != divergence.OFFSET
     assert divergence.SPEED[displaced_and_moving.grade].startswith("attendre")
+
+
+def test_a_candidate_cause_has_to_be_large_enough_to_make_the_effect():
+    """One division separates a lead from a story, and this repository has improvised it
+    three times: twice on a cause far too small for the gap it was offered for, once on a
+    ratio that landed near a known ownership share by coincidence of size.
+
+    A line worth a fraction of a percent of a market moves that market's growth by its share
+    times its own change in growth. So the small candidate needs a swing no business
+    produces, and the question is closed before anyone is asked to look into it.
+    """
+    small_line, wide_gap = 0.003, 0.013
+    plausible_line, its_gap = 0.020, 0.022
+
+    assert divergence.swing_needed(wide_gap, small_line) > 4.0        # 400%: not a lead
+    assert divergence.swing_needed(its_gap, plausible_line) < 1.5     # in reach: a lead
+    assert divergence.swing_needed(0.01, 0.0) is None

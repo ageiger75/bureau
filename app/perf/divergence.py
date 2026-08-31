@@ -259,3 +259,30 @@ def current() -> "Divergence":
     from ..config import settings
 
     return load(str(settings.divergence_path))
+
+
+def swing_needed(effect: float, share: float) -> Optional[float]:
+    """How much a line's own growth must move to shift a market's growth by `effect`.
+
+    A candidate explanation has to be big enough to produce the thing it explains, and the
+    arithmetic that settles it is one division. A line worth `share` of a market moves that
+    market's growth rate by its share times its own change in growth — so a small line needs
+    an enormous swing, and past a point the swing it would need is one no business does.
+
+    This has been needed three times and improvised three times. Twice a plausible cause
+    was proposed for a gap it was far too small to make, and once a ratio landing near a
+    known ownership share was taken for the cause and turned out to be a coincidence of
+    size. Named here so the next candidate meets a number rather than an opinion:
+
+        >>> round(swing_needed(0.013, 0.003), 1)   # a small line, a wide gap
+        4.3
+
+    Four hundred per cent of growth movement, on a line trading in both years. That is not
+    a lead that needs investigating; it is a lead that is already answered.
+
+    Returns nothing when the line has no share at all — an absent line explains nothing, and
+    dividing by it would produce infinity and look like certainty.
+    """
+    if not share:
+        return None
+    return effect / share

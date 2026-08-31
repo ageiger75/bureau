@@ -1011,77 +1011,39 @@ REGISTER: Dict[str, Measure] = {
         "from magnitudes — the shipped-side line they land on, and whether every market with "
         "them does it the same way.",
     ),
-    "impossible_gross": Measure(
-        key="impossible_gross",
-        label="A column that cannot be true, from a date",
+    "gross_column_break": Measure(
+        key="gross_column_break",
+        label="A break inside one market's own series, and a claim that was mine to retract",
         maturity=BETA,
-        note="Net sales are gross less tax, so gross is the larger of the two by "
-        "construction. On one market the raw fact states, in one month, a gross figure far "
-        "below its own tax-inclusive net — an implied deduction of minus forty per cent. "
-        "There is no reading of those columns under which that is correct.\n\n"
-        "Read across the whole window rather than at the break, the column is worse than "
-        "broken from a date: it is unusable throughout. The deduction it implies wanders "
-        "between two and twenty per cent month to month before ever going negative. So the "
-        "correction is not \"something changed in April\" — that framing would send someone "
-        "looking for an event on a date. **That column has never been fit to divide by.**\n\n"
-        "Two facts have to be kept apart here, and separating them is the whole value of the "
-        "reading. The gross column is unreliable. The tax deduction itself is not: measured "
-        "the sound way — net of tax against net including tax — it holds a narrow band for "
-        "six months, drops by a third for exactly two, then doubles for three. Those breaks "
-        "are confirmed by the line-level tax rate, which is a different column arrived at a "
-        "different way. **Two independent columns agreeing is what makes a break real** "
-        "rather than an artefact of the one that is broken.\n\n"
-        "So there are two items and they go to two places. A column that cannot be divided "
-        "by is a defect with an owner. A tax deduction that moves twice in a year, on dates, "
-        "is a fact about that market that whoever runs it already knows and nobody here had "
-        "written down. Neither of them explains why the two systems disagree on that market: "
-        "the deduction does not track the divergence in size or in sign, which is what "
-        "killed the hypothesis that brought all this up.",
-        to_confirm="Whether that gross column is fed at all on this market, or carries "
-        "something other than gross — asked of whoever owns the feed. And the two deduction "
-        "dates put to the market itself: a rate that moves twice in a year has a cause "
-        "someone there can name in a sentence.",
-    ),
-    "keys_that_answer_sometimes": Measure(
-        key="keys_that_answer_sometimes",
-        label="A key that identifies some rows and silently drops the rest",
-        maturity=BETA,
-        note="A near relative of the placeholders that answer, and more dangerous, because "
-        "the damage is not to one field but to a whole comparison.\n\n"
-        "A store key was used to separate two populations. It carries a market prefix on "
-        "most rows, on some rows it is absent, and on others it is the literal text `N/A`. "
-        "Selecting on the prefix therefore built each side of the comparison out of "
-        "whatever happened to be coded — on one market barely a third of the money, on two "
-        "others nothing at all. Every figure that came out was arithmetically correct and "
-        "computed on a population nobody chose.\n\n"
-        "What caught it is worth keeping as a habit: **two different populations returned "
-        "identical columns across twenty-four months**. Identical is not agreement. Two "
-        "measurements of two things agreeing to the last decimal, every month, for two "
-        "years, is the signature of neither having been read. A difference would have "
-        "looked like a finding; the identity is what gave it away.\n\n"
-        "The repair is to group by the attribute that is always present — the country — "
-        "rather than by the key that is usually present. And the general rule: before "
-        "selecting on a key, count what the selection dropped. A key is a hypothesis about "
-        "coverage, and it is testable in one line.\n\n"
-        "It leaves a real limit rather than only a lesson. On one market, thirty-odd shops "
-        "share the `N/A` code — they are not filed twice, they are not filed at all — and "
-        "that market is one of the two with a small, steady displacement between the two "
-        "systems. So its displacement is measurable in total and cannot be attributed door "
-        "by door. Knowing which question is unanswerable is worth as much as an answer.\n\n"
-        "Three separate findings now trace to that one placeholder, and the third is the "
-        "expensive one. Two populations returning identical columns for two years: that "
-        "code. A market whose displacement cannot be traced door by door: that code. And a "
-        "five-point bias chased across several rounds of analysis on the wrong market — "
-        "three marketplaces had no store code, so they fell into the class where uncoded "
-        "things land, so a governed view dropped them and the accounts did not. The "
-        "placeholder did not merely fail to answer; it routed real business into the wrong "
-        "bucket and every measurement downstream inherited it.\n\n"
-        "That is the argument for treating a placeholder as a defect rather than as "
-        "untidiness. `N/A` is not a missing value here — it is a value, it groups, it joins, "
-        "and it silently collects everything nobody coded.",
-        to_confirm="Whether that code is a convention with a meaning or an absence with a "
-        "spelling — and if the shops behind it can be identified another way, which is what "
-        "would make the one stable displacement traceable.",
+        note="This entry began as a finding and is kept because of how it failed.\n\n"
+        "The raw fact was read as stating a gross figure below its own tax-inclusive net, "
+        "which was called arithmetically impossible. It is not. The gross column is stated "
+        "before tax and the net column beside it includes tax, so a ratio under one hundred "
+        "per cent is the normal state wherever tax exceeds discount — as it is in some "
+        "twenty markets. **Two different bases were compared and the difference was read as "
+        "a defect.** This repository has recorded that exact failure before, on the month a "
+        "budget was derived by dividing a published value at one rate set by a published "
+        "percentage computed at another. Knowing a failure mode does not stop you repeating "
+        "it; only checking does.\n\n"
+        "What survives the correction is smaller, sharper and real. Inside one market the "
+        "ratio holds its usual band, collapses to a fifth of it for thirteen consecutive "
+        "days, and returns to normal the next day. Every channel moves together, the shop "
+        "count is unchanged throughout, and no other market moves on those dates. A break "
+        "with a start, an end and a perimeter is a feed incident, not a business event.\n\n"
+        "And the method that survives is the general lesson: **compare a series to itself, "
+        "not to its neighbours, unless the base is known to be homogeneous.** That ratio "
+        "runs past two hundred per cent in some markets and under ninety in others, so it "
+        "measures nothing across a table of countries. Within one country, across time, it "
+        "found a thirteen-day window to the day.\n\n"
+        "One more anomaly of the same kind sits beside it: another market's gross column is "
+        "zero throughout, on every month and every channel. Empty rather than inconsistent, "
+        "and invisible to any test that divides by it.\n\n"
+        "Neither of them explains the divergence that prompted the search. The net figures "
+        "are undisturbed across the whole window, and the net is what the reconciliation "
+        "reads. That market's distance stays open.",
+        to_confirm="What ran against that market's feed on those thirteen days, and why "
+        "another market's gross column is empty — both asked of whoever owns the feed, as "
+        "defects with dates rather than as questions about trading.",
     ),
     "model_change": Measure(
         key="model_change",
@@ -1167,7 +1129,7 @@ REGISTER: Dict[str, Measure] = {
         "Gross sales would settle it beyond argument and cannot be read from the governed "
         "layer: the discount and tax columns exist in the raw fact and the layer does not "
         "expose them. They have since been read at the raw grain, and they answer a "
-        "different question from this one — see `impossible_gross`. What they settle is that "
+        "different question from this one — see `gross_column_break`. What they settle is that "
         "the *divergence between the two systems* on this market is not a tax-treatment "
         "difference: the warehouse's implicit rate is not frozen, it moves by more than the "
         "real tax did, and it does not track the divergence in size or in sign. A hypothesis "
