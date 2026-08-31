@@ -42,6 +42,8 @@
                                      et quel mois a bougé après avoir été publié
     python -m app.cli divergence     à quelle vitesse l'écran a le droit de tourner,
                                      marché par marché — alignés, décalés, instables
+    python -m app.cli org            la ligne hiérarchique : sept périmètres, leur patron
+                                     --teams les GM pays · --markets ce qui n'est pas placé
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -2304,6 +2306,105 @@ def _actuals_series(folder: str, detail: bool) -> int:
     return 0
 
 
+def cmd_org(argv: List[str]) -> int:
+    """La ligne hiérarchique : sept périmètres, leur patron, et qui n'est pas placé.
+
+        manage.py org               les périmètres et leur patron
+        manage.py org --teams       les responsables pays sous chaque patron
+        manage.py org --markets     ce que la source place, et ce qu'elle ne place pas
+        manage.py org FICHIER.xlsx  une autre source que var/org.xlsx
+
+    L'écran proposait une General Manager pays comme interlocutrice directe et rangeait
+    les responsables sous des zones qui ne sont aucun des périmètres pilotés. Ce n'est pas
+    un réglage d'affichage : l'annuaire avait reçu la carte des marchés au lieu de la
+    ligne hiérarchique.
+
+    Le piège que cette commande existe pour rendre visible : le rôle décide, jamais le
+    titre. Un patron de BU peut être titré « General Manager » et un « Managing Director »
+    peut être un responsable pays. Filtrer sur l'intitulé aurait promu le second et
+    rétrogradé le premier.
+    """
+    from .perf import perimeter as perimeter_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    path = positional[0] if positional else str(settings.org_path)
+    if not Path(path).exists():
+        print("Source absente : %s" % path, file=sys.stderr)
+        print("Déposer l'annuaire des patrons de BU et des GM pays à cet endroit.",
+              file=sys.stderr)
+        return 2
+
+    org = perimeter_module.load(path)
+    for fault in org.faults:
+        print("  %s" % fault, file=sys.stderr)
+    if not org.people:
+        return 1
+
+    leads = org.leads()
+    print("Source             %s" % path)
+    print("Périmètres         %d" % len(org.perimeters()))
+    print("Personnes lues     %d" % len(org.people))
+    print("")
+    print("%-16s %-20s %-10s %s" % ("Périmètre", "Patron", "Équipe", "Poste"))
+    for name in org.perimeters():
+        lead = leads.get(name)
+        team = len(org.team_of(name))
+        if lead is None:
+            print("%-16s %-20s %-10s %s"
+                  % (name[:16], "— aucun patron —", "%d GM" % team,
+                     "à compléter dans la source"))
+            continue
+        print("%-16s %-20s %-10s %s"
+              % (name[:16], lead.name[:20], "%d GM" % team, lead.role[:44]))
+
+    missing = org.without_lead()
+    if missing:
+        print("")
+        print("Sans patron identifié : %s." % ", ".join(missing))
+        print("Ces périmètres n'auront pas d'interlocuteur sur l'écran — un responsable")
+        print("pays ne sera jamais proposé à leur place, c'est ce que ce module empêche.")
+
+    if "--teams" in argv:
+        for name in org.perimeters():
+            team = org.team_of(name)
+            if not team:
+                continue
+            print("")
+            print("%s — %d responsables, affichés en détail et jamais comme interlocuteurs :"
+                  % (name, len(team)))
+            for person in team:
+                print("  %-20s %-34s %s"
+                      % (person.name[:20], person.role[:34], person.zone[:24]))
+
+    if "--markets" in argv:
+        if not settings.has_budget_file:
+            print("Classeur de plan absent : %s" % settings.budget_path, file=sys.stderr)
+            return 2
+        from .perf import budget as budget_module
+
+        plan = budget_module.load(settings.budget_path)
+        markets = sorted({market for market, _channel in plan.scopes()})
+        placed = perimeter_module.place(org, markets)
+        missing_markets = perimeter_module.unplaced(org, markets)
+        print("")
+        print("Marchés au plan            %d" % len(markets))
+        print("Placés par la source       %d" % len(placed))
+        if placed:
+            print("")
+            for market in sorted(placed):
+                print("  %-28s %s" % (market[:28], placed[market]))
+        if missing_markets:
+            print("")
+            print("Non placés — la source nomme des zones là où l'écran nomme des pays :")
+            for market in missing_markets:
+                print("  %s" % market)
+            print("")
+            print("Rien n'est deviné ici. Rattacher un marché au périmètre qui lui")
+            print("ressemble le plus enverrait une conversation à quelqu'un qui n'en est")
+            print("pas responsable, et personne ne le verrait passer.")
+    return 0
+
+
 def cmd_divergence(argv: List[str]) -> int:
     """À quelle vitesse l'écran a le droit de tourner, marché par marché.
 
@@ -2961,6 +3062,8 @@ def main(argv: List[str]) -> int:
         return cmd_weights(argv[1:])
     if command == "divergence":
         return cmd_divergence(argv[1:])
+    if command == "org":
+        return cmd_org(argv[1:])
     if command == "actuals":
         return cmd_actuals(argv[1:])
     if command == "refresh":

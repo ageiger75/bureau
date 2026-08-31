@@ -99,6 +99,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("actuals_path", "actuals.xlsx"),
         ("divergence_path", "divergence.csv"),
         ("actuals_folder", "actuals"),
+        ("org_path", "org.xlsx"),
     ):
         monkeypatch.setattr(
             type(settings), name,

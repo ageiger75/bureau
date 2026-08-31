@@ -77,6 +77,10 @@ def test_nothing_is_validated_on_the_strength_of_working():
     it and written down — budget rates, held fixed April to March — and it would be demoted
     the day the screen stated a figure on any other set.
 
+    A third joins them and is a decision too, of the same kind: which reference a variance
+    is measured against. The budget, not the reforecast — because a commitment that moves
+    when the year gets hard has stopped being a commitment.
+
     The plan itself was demoted when a published flash disagreed with it by several points,
     which is the whole reason this list is written out by hand: a measure reaching this
     state because it works is a measure nobody checked, and a measure kept here after the
@@ -84,7 +88,7 @@ def test_nothing_is_validated_on_the_strength_of_working():
     """
     validated = sorted(m.key for m in provenance.REGISTER.values() if m.is_settled)
 
-    assert validated == ["fixed_rates", "plan_rate"]
+    assert validated == ["fixed_rates", "plan_rate", "plan_reference"]
 
 
 # ------------------------------------------------------- the caveat on the big number

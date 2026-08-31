@@ -200,7 +200,8 @@ def test_the_suite_never_reads_the_files_of_the_machine_it_runs_on():
 
     working = (ROOT / "var").resolve()
     for name in ("budget_path", "owners_path", "context_path", "kpi_path",
-                 "weights_path", "actuals_path", "divergence_path", "actuals_folder"):
+                 "weights_path", "actuals_path", "divergence_path", "actuals_folder",
+                 "org_path"):
         path = Path(getattr(settings, name)).resolve()
         assert working not in path.parents and path != working, (
             "%s pointe dans le var/ de travail pendant les tests : la suite lirait les "

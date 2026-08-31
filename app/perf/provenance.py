@@ -1072,6 +1072,46 @@ REGISTER: Dict[str, Measure] = {
         "is worse than one at the year boundary, because the annual total is then on "
         "neither.",
     ),
+    "ceo_interlocutor": Measure(
+        key="ceo_interlocutor",
+        label="Who the screen may put in front of the CEO",
+        maturity=BETA,
+        note="The screen was proposing a country General Manager as a direct conversation "
+        "for the CEO, and filing leaders under zones — a northern-Europe grouping, a "
+        "north-American one — that are none of the seven perimeters he runs. The directory "
+        "had been given the map of markets instead of the reporting line.\n\n"
+        "That is not a display setting. A cockpit that seats its reader above his own "
+        "business-unit heads damages a line the house holds, and it does it at every "
+        "reading, politely, with nothing to signal the error.\n\n"
+        "The trap in the source is sharper than it looks: **the role decides and the job "
+        "title never does**. One business-unit head is titled *General Manager* and "
+        "reports to the CEO; one *Managing Director* reports to a business-unit head. A "
+        "filter on the title would have promoted the second and demoted the first — which "
+        "is exactly the mistake, arrived at by a different route.\n\n"
+        "And a perimeter whose head is not in the source stays without one. It does not "
+        "receive its nearest country manager: an empty interlocutor is a fact that gets "
+        "corrected at the source, a substituted one is a conversation sent to the wrong "
+        "person that nobody notices.",
+        to_confirm="Which markets belong to which perimeter. The source names zones — "
+        "southern Europe, the Nordics — where the screen names countries, so it places "
+        "part of the estate and the rest is listed as unplaced rather than guessed.",
+    ),
+    "plan_reference": Measure(
+        key="plan_reference",
+        label="The plan is the budget, not the reforecast",
+        maturity=VALIDATED,
+        note="The screen said `no forecast reported`, which was false: the house produces "
+        "successive reforecasts and the whole internal comparison rests on them. The fix "
+        "was never a connection, though — it was a decision about which vintage a variance "
+        "is measured against, and a variance measured against a moving reference measures "
+        "nothing at all.\n\n"
+        "It is decided: **the budget**. Reforecasts are read and displayed as vintages, "
+        "dated, beside the figure; they are never the reference the gap is taken from.\n\n"
+        "The reason is the one the plan itself rests on: a commitment that moves when the "
+        "year gets hard has stopped being a commitment. A reforecast is a useful statement "
+        "about where the house now thinks it lands, and a poor yardstick for whether it is "
+        "holding what it promised.",
+    ),
     "fixed_rates": Measure(
         key="fixed_rates",
         label="One rate set, fixed for the year, decided rather than discovered",
