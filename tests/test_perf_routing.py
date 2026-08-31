@@ -200,7 +200,7 @@ def test_the_screen_shows_where_a_routed_item_went(monkeypatch):
     )
 
     class Stub(MockSource):
-        def dataset(self, refresh: bool = False):
+        def dataset(self, refresh: bool = False, wait_for_warehouse=True):
             return dataset_of(trading, boundary)
 
     monkeypatch.setattr(today_route, "current_source", lambda: Stub())

@@ -83,7 +83,10 @@ def today(request: Request):
     # cockpit is slow. Whoever needs it knows to type it.
     refresh = request.query_params.get("refresh") in ("1", "true", "yes")
     try:
-        dataset = source.dataset(refresh=refresh)
+        # Nobody waits three minutes for a screen. Without an explicit refresh the page
+        # serves what is on disk, however old, and says how old — the age is printed
+        # beside the figures, so a stale reading is a stated one rather than a hidden one.
+        dataset = source.dataset(refresh=refresh, wait_for_warehouse=refresh)
     except NotImplementedError as incomplete:
         # Pointing at a warehouse whose queries are not written yet is a normal state
         # during connection, not a crash. Say what is missing and how to get back to

@@ -386,7 +386,8 @@ class MockSource:
         "person or product appears here."
     )
 
-    def dataset(self, refresh: bool = False) -> Dataset:
+    def dataset(self, refresh: bool = False,
+                wait_for_warehouse: bool = True) -> Dataset:
         return mock.dataset()
 
     def commitments(self) -> List["mock.MockCommitment"]:
@@ -557,7 +558,18 @@ class SnowflakeSource:
             (m.market, m.channel): m.sentence for m in moved if m.sentence
         }
 
-    def dataset(self, refresh: bool = False) -> Dataset:
+    def dataset(self, refresh: bool = False, wait_for_warehouse: bool = True) -> Dataset:
+        """The screen's figures.
+
+        `wait_for_warehouse` is false wherever somebody is waiting in front of the result.
+        An expired cache then serves anyway, with its age stated, instead of holding the
+        page open for the minutes a full read costs — because a cockpit that occasionally
+        takes three minutes to open is a cockpit nobody opens. Refreshing becomes something
+        the reader asks for, not something that happens to them.
+
+        The rule this follows is the one the whole product runs on: this screen reads what
+        has been prepared. It does not go and fetch while its reader waits.
+        """
         global _cached
 
         from . import context as context_module
@@ -582,6 +594,13 @@ class SnowflakeSource:
         budget = self._budget()
 
         stored = None if refresh else _read_disk_cache()
+        if stored is None and not refresh and not wait_for_warehouse:
+            # Expired is not absent. An hour-old reading answers the same questions as a
+            # fresh one; a page that hangs for minutes answers none.
+            stored = _read_disk_cache(max_age=float("inf"))
+            if stored is not None:
+                LOG.info("warehouse: serving an expired cache rather than making the "
+                         "reader wait")
         if stored is not None:
             rows, stamp, read_at_text = stored
             LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
