@@ -1275,3 +1275,15 @@ def test_the_plan_totals_by_region_over_chosen_periods():
         if line.period == "2026-04":
             one[line.region] = one.get(line.region, 0.0) + (line.budget or 0.0)
     assert one == {"EMEA": 30.0, "APAC": 30.0}
+
+
+def test_the_plan_says_which_maisons_it_summed():
+    """Two Maisons trade in the same country under names a reader shortens the same way.
+    Nothing here filters on brand, so a workbook carrying two would be summed in silence —
+    and a plan is the denominator of every variance on the screen."""
+    plan = Budget([BudgetLine("Brazil", "BRAZIL", "RET", "retail", "2026-04", 10.0, 9.0)],
+                  brands=["L'Occitane en Provence", "L'Occitane au Brésil"])
+    assert plan.brands == ["L'Occitane au Brésil", "L'Occitane en Provence"]
+
+    quiet = Budget([BudgetLine("Brazil", "BRAZIL", "RET", "retail", "2026-04", 10.0, 9.0)])
+    assert quiet.brands == []

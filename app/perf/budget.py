@@ -15,7 +15,7 @@ here, so nothing downstream has to remember the unit.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .xlsx import Workbook, WorkbookError
 
@@ -194,6 +194,11 @@ SELL_OUT_SEGMENTS = OWN_SEGMENTS | PLATFORM_SEGMENTS
 #: the workbook carries no column saying which of its rows are totals, so the alternative
 #: is to infer it from size or from a naming pattern, and both would eventually swallow a
 #: real market. An explicit list is wrong loudly rather than quietly.
+#: Header names under which a workbook may name the Maison a line belongs to. Read only to
+#: report what was summed — never to filter, because choosing a brand silently would be the
+#: same fault in the other direction.
+BRAND_COLUMNS = frozenset(("brand", "brand code", "marque", "maison"))
+
 AGGREGATE_MARKETS = frozenset(("Other", "Others", "Rest of World", "ROW"))
 
 
@@ -308,8 +313,13 @@ def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
 class Budget:
     """Every budget line of a fiscal year, addressable by market, channel and period."""
 
-    def __init__(self, lines: List[BudgetLine]) -> None:
+    def __init__(self, lines: List[BudgetLine], brands: Optional[Sequence[str]] = None
+                 ) -> None:
         self.lines = lines
+        #: The Maisons the workbook named, if it named any. Empty means the column was
+        #: absent, which is not the same as one brand — and the difference matters enough
+        #: to keep the two states apart rather than defaulting.
+        self.brands = sorted(set(brands or ()))
         self._index: Dict[Tuple[str, str, str], BudgetLine] = {}
         for line in lines:
             # Collisions happen, and they are not duplicates: a market × segment × month
@@ -398,6 +408,21 @@ def load(path) -> Budget:
     # join key rather than the whole read.
     entity_at = header.index("Entity") if "Entity" in header else None
 
+    # The house sells several Maisons, and two of them trade in the same country under
+    # names a reader will shorten to the same word. Nothing in this reader has ever looked
+    # at a brand, so a workbook carrying two of them would be summed into one plan in
+    # silence — and a plan is the denominator of every variance on this screen. Found by
+    # reading a published comment about one Maison onto the other's figure.
+    #
+    # Not an error: a single-brand workbook is the normal case and a multi-brand one may be
+    # deliberate. What is refused is not knowing, so the brands are carried out and the
+    # command says what it summed.
+    brand_at = None
+    for position, name in enumerate(header):
+        if name.strip().lower() in BRAND_COLUMNS:
+            brand_at = position
+            break
+
     budget_at: Dict[str, int] = {}
     actual_at: Dict[str, int] = {}
     for position, name in enumerate(header):
@@ -417,6 +442,7 @@ def load(path) -> Budget:
         raise WorkbookError("No monthly budget column found in %r." % SHEET)
 
     lines: List[BudgetLine] = []
+    brands_seen = set()
     for row in rows[1:]:
         def cell(position: int):
             return row[position] if position < len(row) else None
@@ -425,6 +451,10 @@ def load(path) -> Budget:
         if not country:
             continue
         market = normalise_market(str(country))
+        if brand_at is not None:
+            named = str(cell(brand_at) or "").strip()
+            if named:
+                brands_seen.add(named)
         region = str(cell(region_at) or "").strip()
         segment = str(cell(segment_at) or "").strip()
         channel = channel_of(segment)
@@ -453,4 +483,4 @@ def load(path) -> Budget:
                     entity=entity,
                 )
             )
-    return Budget(lines)
+    return Budget(lines, brands_seen)

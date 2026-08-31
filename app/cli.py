@@ -1967,6 +1967,12 @@ def cmd_budget(argv: List[str]) -> int:
     print("Classeur            %s" % settings.budget_path)
     print("Lignes              %d" % len(plan.lines))
     print("Marchés             %d" % len(markets))
+    if plan.brands:
+        # Dit avant tout chiffre, parce qu'un plan qui somme deux Maisons est faux d'une
+        # façon qu'aucun total ne révèle.
+        print("Maisons             %s%s"
+              % (", ".join(plan.brands),
+                 "   ⚠ plusieurs marques sommées" if len(plan.brands) > 1 else ""))
     print("Périodes            %d, de %s à %s" % (
         len(periods), periods[0] if periods else "?", periods[-1] if periods else "?"))
 
