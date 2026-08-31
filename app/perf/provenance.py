@@ -89,7 +89,9 @@ REGISTER: Dict[str, Measure] = {
         "region by roughly the same proportion; a range this wide, with one region above "
         "and several far below, is a perimeter that differs line by line. So the workbook "
         "is not an older version to be swapped — it is missing, or carrying, specific "
-        "business.\n\n"
+        "business. One alternative explanation has been eliminated rather than assumed: "
+        "the workbook names exactly one Maison, so it is not two brands summed under one "
+        "country.\n\n"
         "This matters more than a plan being slightly wrong, because a variance is a "
         "ratio of two numbers and this is the denominator. A screen whose actuals are "
         "known to be short and whose plan is short by a different amount produces a "
@@ -606,24 +608,33 @@ REGISTER: Dict[str, Measure] = {
         key="door_grades",
         label="The network's own grading of its shops",
         maturity=BETA,
-        note="The store dimension carries a grade per shop — a flagship tier, a top tier, "
-        "an ordinary tier, outlets — and it is already inside the certified path, so the "
-        "screen can read it without leaving the governed door. Nothing here reads it "
-        "today, which is a missing view rather than a missing number.\n\n"
-        "Two properties shape what it can be asked. The high grades exist for the main "
-        "Maison only, while the ordinary tier is carried across every brand: a grouped "
-        "reading of the top of the network is therefore one Maison's by construction, and "
-        "saying so is part of showing it. And a large share of shops carry no grade at "
-        "all, structurally, because the grading is joined onto the operated network — so "
-        "the ungraded population is not a data hole to be filled but a different kind of "
-        "point of sale.\n\n"
-        "The reading worth building from it is a ratio rather than a total: what a top "
-        "door turns over against what an ordinary one does, market by market. That is a "
-        "question about where the upside sits, and it is the sort of thing a plan is "
-        "argued with.",
-        to_confirm="Whether the grade is exposed on the semantic sell-out view itself or "
-        "only on the dimension, and whether a shop's grade is stable across years — a "
-        "grade that is restated each year would make any trend on it a reclassification.",
+        note="The store dimension carries a grade per shop, inside the certified path, and "
+        "nothing here read it until now. Read, it produces the first finding of this whole "
+        "reconciliation that is about the business rather than about the data.\n\n"
+        "The top tier grows while the ordinary tier falls, seven points apart, and the "
+        "sign holds in three quarters of the markets — in one it is more than forty "
+        "points. A top door turns over two and a half times what an ordinary one does. On "
+        "the largest market this reframes a decline that had been validated three times "
+        "over: its national figure is the average of a top tier growing and an ordinary "
+        "tier falling twice as fast. **That market is not declining, it is "
+        "concentrating** — which is a different sentence, addressed to different people, "
+        "and it argues for the closure programme rather than against it.\n\n"
+        "A control question decided how this can be read, and it answered in both "
+        "directions at once. The grade is not versioned: one row per shop, one grade, no "
+        "history. So a reclassification cannot contaminate the trend — today\'s grade "
+        "applies to both years by construction, and what is measured is genuinely "
+        "performance on a constant perimeter. And a reclassification is undetectable: a "
+        "shop promoted this year has last year\'s sales counted under its new grade, and "
+        "nothing here can say how it was graded then.\n\n"
+        "So the trend is clean and the composition is dated today. A screen showing this "
+        "shows the performance of the shops that hold the top grade **now**, never of "
+        "those that held it a year ago, and the difference cannot be measured from here. "
+        "That belongs on the panel, not in a footnote.",
+        to_confirm="Whether the grade is restated in a source that keeps history, so the "
+        "composition can be dated; and how much of the ordinary tier's movement in the "
+        "smallest markets is openings rather than trading — this is not a comparable base, "
+        "and two markets where the ordinary tier leaps on single-digit shop counts look "
+        "like openings.",
     ),
     "certified_path_exclusions": Measure(
         key="certified_path_exclusions",
