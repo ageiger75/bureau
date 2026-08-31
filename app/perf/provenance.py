@@ -364,30 +364,48 @@ REGISTER: Dict[str, Measure] = {
         key="third_party_counters",
         label="Counters the sell-out referential does not carry",
         maturity=BETA,
-        note="The sell-out reads its shops through the modelled store dimension, and a "
-        "population of department-store counters sells outside it. They are the country's "
-        "most prestigious houses, they match the consolidation's own department-store "
-        "customers name for name, and they trade every day of the quarter.\n\n"
-        "Why they are outside now has a structural answer rather than a guess. The store "
-        "grading attribute is fed by an outer join onto the operated-network reference, "
-        "and no counter of this kind anywhere in the group carries a grade — the "
-        "classification stops exactly at the boundary of the network the Maison runs "
-        "itself. These are not our staff and not our till; the business reads them as "
-        "shipments to a partner, and the referential agrees. Their absence from the "
-        "sell-out is a consequence of what they are, not an oversight.\n\n"
-        "What can be read of them, and what cannot, is not settled. Money and quantities "
-        "hold together across two comparable years — the implied unit price moves a few "
-        "points and no more. The transaction count does not: it falls by two fifths while "
-        "quantities barely move, so the basket appears to deepen by half in a year on the "
-        "same shops. That is far more likely to be a change in how tickets are numbered "
-        "than in how people shop, but it has not been demonstrated, and an earlier reading "
-        "that treated it as demonstrated rested on a detail its own author withdrew. The "
-        "test is the shape of the change: a numbering change arrives on a date and lands "
-        "on every shop at once, a trading change arrives gradually and unevenly.",
-        to_confirm="Whether the transaction count changes as a step on one date across "
-        "all these shops, or gradually and unevenly — the first says the counter changed, "
-        "the second says the basket did. Until then money and quantities are the readable "
-        "part and the per-transaction averages are not.",
+        note="A population of department-store counters sells outside the modelled store "
+        "dimension. Why is structural rather than suspicious: the store grade is joined "
+        "onto the operated-network reference, no counter of this kind carries a grade "
+        "anywhere in the group, and the classification therefore stops exactly at the "
+        "boundary of what the Maison runs itself. Not our staff and not our till — the "
+        "business ships to a partner, and the referential agrees. Their absence follows "
+        "from what they are.\n\n"
+        "The transaction count on them was suspected of having been renumbered and now is "
+        "shown to have been, by the shape of the change rather than by its size. The whole "
+        "movement sits inside one fortnight: the month before rises, the month after is "
+        "identical across both years, and inside that fortnight every single shop moves "
+        "the same way — transactions collapsing, lines per transaction rising, several "
+        "landing on exactly the same round ratio. A change in how people shop does not "
+        "arrive on every shop at once and leave the following month untouched.\n\n"
+        "So the per-transaction averages on this perimeter are unusable for that "
+        "fortnight and the two flanking months are fine, and the money and quantities "
+        "were never in doubt. None of it reaches this screen: the governed store "
+        "dimension excludes these counters, so no query here reads the corrupted rows — "
+        "and by the same token no query here can see that they exist.",
+        to_confirm="Nothing on the artefact itself. Whether the same renumbering touched "
+        "any perimeter this screen does read, which the operated network's own ratio "
+        "answers for the market checked and for no other.",
+    ),
+    "semantic_descriptions": Measure(
+        key="semantic_descriptions",
+        label="Where the semantic layer's own descriptions are wrong",
+        maturity=BETA,
+        note="The governed view carries a written description per field, and three of them "
+        "are wrong rather than merely terse. Two dimensions describe a couple of their "
+        "values and omit the rest, including in one case the exact value a reader would "
+        "come looking for — so an agent that reads the description concludes the thing it "
+        "needs does not exist. The third is worse: a field named for transactions counts "
+        "sales lines, several for every transaction, and the description asserts "
+        "otherwise. A ratio built on it is wrong by that factor, and wrong in the "
+        "direction that looks plausible.\n\n"
+        "This queries' own comments already carry that trap and the queries already "
+        "divide by distinct transactions, so the screen is not affected. It is recorded "
+        "because the risk is not to this code: it is to anyone — a person or an agent — "
+        "who reads the governed layer's description and trusts it. A wrong description on "
+        "a certified path is more dangerous than a missing one, because it answers.",
+        to_confirm="Whether the descriptions can be corrected at the source, and whether "
+        "any other field on the path this screen uses describes itself wrongly.",
     ),
     "door_grades": Measure(
         key="door_grades",
