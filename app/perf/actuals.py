@@ -161,6 +161,28 @@ class Actuals:
             grouped.setdefault(line.market, []).append(line)
         return grouped
 
+    def totals(self, bases: Sequence[str] = ()) -> "Dict[str, float]":
+        """Actual, budget and last year over the bases named — all of them when none is.
+
+        The whole point of this file is that its three columns describe one perimeter at
+        one set of rates. Summing them here rather than assembling a total from somewhere
+        else is not a convenience: any total built by intersecting this file with another
+        source reintroduces exactly the perimeter difference the file was adopted to
+        remove, and does it invisibly.
+        """
+        wanted = set(bases) or None
+        actual = budget = last_year = 0.0
+        counted = 0
+        for line in self.lines:
+            if wanted is not None and line.basis not in wanted:
+                continue
+            actual += line.actual
+            budget += line.budget
+            last_year += line.last_year
+            counted += 1
+        return {"actual": actual, "budget": budget, "last_year": last_year,
+                "lines": float(counted)}
+
     def by_basis(self) -> Dict[str, float]:
         totals: Dict[str, float] = {}
         for line in self.lines:

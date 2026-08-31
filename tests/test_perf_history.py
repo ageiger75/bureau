@@ -1218,3 +1218,36 @@ def test_the_unplanned_report_covers_the_shipped_side_too():
                 "period": "2026-04", "sales_actual": 500_000.0}]
 
     assert _print_unplanned(built, workbook, shipped) == 0
+
+
+def test_the_year_is_taken_whole_from_the_published_file_and_not_composed():
+    """Folding the file scope by scope was better than the warehouse alone and still wrong.
+
+    A published scope with no warehouse track was dropped on both terms, so the year's
+    perimeter became the *intersection* of two sources rather than the one the house
+    publishes. On real data that intersection was short by twenty million and turned a
+    fifth of a point behind into more than two points behind — the exact error the file was
+    adopted to remove, committed one level up.
+    """
+    from app.perf.actuals import HOSPITALITY, SHIPPED, SOLD, Actuals, Line
+
+    built = history.from_rows([row(period="2026-04", actual=100_000.0)])
+    workbook = plan(("2026-04", 130_000.0))
+
+    published = Actuals([
+        Line("Japan", "APAC", "ecommerce", SOLD, 100_000.0, 0.0, 101_000.0),
+        # A scope the warehouse has no track for. Dropped by a scope-by-scope fold, and
+        # it is the one carrying the business that keeps the year close to its plan.
+        Line("Elsewhere", "EMEA", "retail", SHIPPED, 900_000.0, 0.0, 899_000.0),
+        # Outside the perimeter this screen states, and the only thing left out.
+        Line("Japan", "APAC", "b2b", HOSPITALITY, 50_000.0, 0.0, 40_000.0),
+    ], [])
+
+    ytd = built.ytd("2026-04", budget=workbook, published=published)
+
+    assert ytd.actual == pytest.approx(1_000_000.0)
+    assert ytd.budget == pytest.approx(1_000_000.0)
+    assert ytd.gap == pytest.approx(0.0)
+    assert ytd.reported_share == pytest.approx(1.0)
+    assert ytd.unbudgeted_actual == 0.0
+    assert "whole" in ytd.plan_source

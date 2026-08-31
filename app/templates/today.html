@@ -133,9 +133,15 @@
            fraction of a point. Where the published file covers a scope, both of that
            scope's terms come from it — and the share says how much of the year that is. #}
         <p class="cockpit-caveat">
-          {{ dataset.ytd.reported_share | share }} of this year's comparison takes both of
-          its terms from the consolidation, so that part cannot disagree with what the
-          house publishes. The rest is the warehouse against the workbook.
+          {% if dataset.ytd.reported_share >= 0.999 %}
+            Both terms of this figure are the consolidation's own, for its whole perimeter
+            — not assembled here from anything. It is the variance the house publishes,
+            and the warehouse below explains it rather than competing with it.
+          {% else %}
+            {{ dataset.ytd.reported_share | share }} of this year's comparison takes both
+            of its terms from the consolidation, so that part cannot disagree with what the
+            house publishes. The rest is the warehouse against the workbook.
+          {% endif %}
         </p>
       {% endif %}
       {% if dataset.ytd.basis_caveat %}

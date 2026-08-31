@@ -723,6 +723,27 @@ class History:
         #
         # The file's year-to-date sheet is already cumulative through its own month, so a
         # covered scope contributes once rather than month by month.
+        # When the published file is here whole, the year stops being assembled at all.
+        #
+        # Folding it scope by scope was better than the warehouse alone and still wrong:
+        # a published scope with no warehouse track was dropped on both terms, so the
+        # year's perimeter became the intersection of two sources rather than the one the
+        # house publishes. On real data that intersection was short by twenty million and
+        # turned a fifth of a point behind into more than two points behind — the exact
+        # error this file was adopted to remove, committed one level up.
+        #
+        # So the totals come from the file and nothing is composed. Hospitality is left
+        # out to match the perimeter this screen states, and it is the only thing left out.
+        whole = None
+        if published is not None and getattr(published, "lines", None):
+            from .actuals import HOSPITALITY, SHIPPED, SOLD
+
+            summed = published.totals((SOLD, SHIPPED))
+            if summed["budget"]:
+                whole = summed
+                whole["outside"] = published.totals((HOSPITALITY,))["actual"]
+            published = None
+
         covered = dict(published or {})
         actual = budget_total = unbudgeted = unsold = zero_goal = 0.0
         reported_actual = reported_budget = 0.0
@@ -801,6 +822,25 @@ class History:
 
         if not periods:
             return None
+
+        if whole is not None:
+            return Ytd(
+                label=_fiscal_label(last),
+                first_period=first,
+                last_period=last,
+                actual=whole["actual"],
+                budget=whole["budget"],
+                unbudgeted_actual=0.0,
+                unsold_budget=0.0,
+                unbudgeted_lines=0,
+                unsold_lines=0,
+                months=len(periods),
+                reported_actual=whole["actual"],
+                reported_budget=whole["budget"],
+                reported_lines=int(whole["lines"]),
+                plan_source="the consolidation, whole",
+                shipped_through="",
+            )
         shipped = [
             m for _, _, period, _ in _sell_in_months(sell_in)
             for m in _months_in(period) if first <= m <= last

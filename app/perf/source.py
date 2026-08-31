@@ -375,17 +375,19 @@ def _period_label(period: str, shipped: str = "") -> str:
 
 
 def _published_year():
-    """Finance's own year to date, folded by scope, or nothing where the file is absent.
+    """Finance's own year to date, whole, or nothing where the file is absent.
 
-    Absent, the year falls back to the warehouse against the workbook exactly as before —
-    degraded, never wrong. What it must not do is take one term from each.
+    Handed over as the reading itself rather than folded by scope. A scope-by-scope fold
+    makes the year's perimeter the intersection of two sources, which is the difference
+    this file was adopted to remove — so the totals are taken from it directly.
+
+    Absent, the year falls back to the warehouse against the workbook exactly as before:
+    degraded, never wrong.
     """
     from . import actuals as actuals_module
 
     read = actuals_module.current(month=False)
-    if not read.lines:
-        return {}
-    return actuals_module.by_scope(read)
+    return read if read.lines else None
 
 
 class MockSource:

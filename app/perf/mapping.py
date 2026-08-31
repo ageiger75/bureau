@@ -631,7 +631,7 @@ def dataset_from_rows(
             str(rows[0].get("period") or ""),
             budget=budget,
             sell_in=[r for r in rows if r.get("segment")],
-            published=actuals_module.by_scope(actuals_module.current(month=False)),
+            published=actuals_module.current(month=False),
         )
         if history and rows
         else None,
