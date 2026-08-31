@@ -420,14 +420,23 @@ def test_a_panel_with_no_source_is_still_listed(monkeypatch):
 # ------------------------------------------------------------ the year behind the month
 
 
-def test_the_year_to_date_is_on_the_screen(client):
+def test_the_year_leads_and_the_month_follows(client):
     """A month is the loudest figure here and the least reliable: a shipment that slips
     across a month end shows as a collapse and a rebound, and neither happened. The year
-    to date is the same business read without that noise."""
-    page = page_text(client.get("/"))
+    to date is the same business read without that noise.
 
-    assert "FY27 to date" in page
-    assert "sold since April" in page
+    The screen used to open on the month anyway, and it cost something concrete — a month
+    at −1.6% sat above a year at −0.2%, and the reader spent three blocks worried about a
+    year that was being held. The house judges the exercise; the screen now opens on it,
+    and the month reads second, for pace and for what moved.
+    """
+    page = page_text(client.get("/"))
+    body = page[page.index("cockpit-header"):]
+
+    assert "to date" in body
+    assert "sold this month" in body
+    # Order, not merely presence: the year's figure has to come first on the page.
+    assert body.index("to date") < body.index("sold this month")
 
 
 def test_the_year_to_date_says_what_it_could_not_compare(client):

@@ -514,6 +514,7 @@ class Ytd:
         "reported_lines",
         "hospitality_actual",
         "hospitality_budget",
+        "last_year",
     )
 
     def __init__(
@@ -537,6 +538,7 @@ class Ytd:
         reported_lines: int = 0,
         hospitality_actual: float = 0.0,
         hospitality_budget: float = 0.0,
+        last_year: float = 0.0,
     ) -> None:
         self.label = label
         self.first_period = first_period
@@ -555,6 +557,10 @@ class Ytd:
         #: would manufacture a difference with the figure the house quotes.
         self.hospitality_actual = hospitality_actual
         self.hospitality_budget = hospitality_budget
+        #: The same period one year earlier, on the same perimeter. Carried because the
+        #: year is now the headline, and "is the business growing" is a group question —
+        #: the one place where a comparison to last year is a signal rather than noise.
+        self.last_year = last_year
         self.unbudgeted_actual = unbudgeted_actual
         self.unsold_budget = unsold_budget
         self.unbudgeted_lines = unbudgeted_lines
@@ -574,6 +580,13 @@ class Ytd:
         #: transaction — so a year to date can legitimately hold four months of one and
         #: three of the other. Legitimate, and invisible unless it is named.
         self.shipped_through = shipped_through
+
+    @property
+    def growth(self) -> Optional[float]:
+        """Against the same months last year, or nothing where last year is not carried."""
+        if not self.last_year:
+            return None
+        return (self.actual - self.last_year) / self.last_year
 
     @property
     def hospitality_gap(self) -> float:
@@ -857,6 +870,7 @@ class History:
                 reported_actual=whole["actual"],
                 reported_budget=whole["budget"],
                 reported_lines=int(whole["lines"]),
+                last_year=whole["last_year"],
                 hospitality_actual=whole["hospitality"]["actual"],
                 hospitality_budget=whole["hospitality"]["budget"],
                 plan_source="the consolidation, whole",

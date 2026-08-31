@@ -7,11 +7,15 @@
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
 
 <section class="cockpit-header" data-read-at="{{ read_at }}">
+  {# The year leads and the month follows. Decided after a screen that opened on a month
+     at −1.6% inside a year at −0.2%: a single month is a noisy figure, and placed first it
+     manufactures a worry the year disproves three lines later. The house judges the
+     exercise; so does this screen now. #}
   <p class="cockpit-eyebrow" id="freshness-line">
-    {{ dataset.period_label }} · as of {{ dataset.as_of }}
+    {% if dataset.ytd %}{{ dataset.ytd.label }} to date · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }} · {% endif %}as of {{ dataset.as_of }}
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>
-  <p class="cockpit-total">{{ header.actual | eur }}</p>
+  <p class="cockpit-total">{{ (dataset.ytd.actual if dataset.ytd else header.actual) | eur }}</p>
   {% if header.published %}
     {# It stopped being the incomplete figure the moment it stopped being assembled here.
        The old sentence named an exclusion that no longer exists, under a total that now
@@ -37,6 +41,26 @@
     </p>
   {% endif %}
   <ul class="cockpit-variances">
+    {% if dataset.ytd %}
+    <li>
+      <span class="variance-value {{ 'is-down' if dataset.ytd.gap < 0 else 'is-up' }}">
+        {{ dataset.ytd.gap | eur }}
+      </span>
+      <span class="variance-label">vs plan{% if dataset.ytd.pct is not none %} · {{ dataset.ytd.pct | pct }}{% endif %}</span>
+    </li>
+    {% if dataset.ytd.growth is not none %}
+    <li>
+      {# Kept at group level and removed from the cards. "Is the business growing" is a
+         question about the house; "are we holding what we promised" is the question a
+         card answers. Mixing them put a comparison on every card that no plan was ever
+         set against. #}
+      <span class="variance-value {{ 'is-down' if dataset.ytd.growth < 0 else 'is-up' }}">
+        {{ (dataset.ytd.actual - dataset.ytd.last_year) | eur }}
+      </span>
+      <span class="variance-label">vs last year · {{ dataset.ytd.growth | pct }}</span>
+    </li>
+    {% endif %}
+    {% else %}
     <li>
       <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
         {{ header.vs_budget.gap | eur }}
@@ -49,6 +73,7 @@
       </span>
       <span class="variance-label">vs last year · {{ header.vs_last_year.pct | pct }}</span>
     </li>
+    {% endif %}
     <li>
       {# A forecast of exactly zero is not a forecast of nothing: it is the absence of one.
          Printing €0 would put a number where no one has made a commitment, which is the
@@ -124,26 +149,24 @@
         {% endfor %}
       </p>
     {% endif %}
-    <div class="cockpit-ytd">
-      <p class="cockpit-eyebrow">
-        {{ dataset.ytd.label }} · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }}
-      </p>
+    <div class="cockpit-second">
+      {# The month, second. It is read for pace and for what moved, never for whether the
+         year is being held — which is the question above it. #}
+      <p class="cockpit-eyebrow">{{ dataset.period_label }}</p>
       <ul class="cockpit-variances">
         <li>
-          <span class="variance-value is-neutral">{{ dataset.ytd.actual | eur }}</span>
-          <span class="variance-label">sold since April</span>
+          <span class="variance-value is-neutral">{{ header.actual | eur }}</span>
+          <span class="variance-label">sold this month</span>
         </li>
         <li>
-          <span class="variance-value {{ 'is-down' if dataset.ytd.gap < 0 else 'is-up' }}">
-            {{ dataset.ytd.gap | eur }}
+          <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
+            {{ header.vs_budget.gap | eur }}
           </span>
           {# Which plan, named. Two sources of very different standing can sit behind this
              figure — a workbook that reconciles with the consolidated accounts, and a
              warehouse fact that covers little more than half of measured sales. A reader
              who cannot tell them apart cannot judge the number. #}
-          <span class="variance-label">
-            vs plan · {{ dataset.ytd.pct | pct }}{% if dataset.ytd.plan_source %} · {{ dataset.ytd.plan_source }}{% endif %}
-          </span>
+          <span class="variance-label">vs plan · {{ header.vs_budget.pct | pct }}</span>
         </li>
       </ul>
       {% if dataset.ytd.reported_share %}

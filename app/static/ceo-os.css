@@ -602,11 +602,14 @@ input:focus, textarea:focus, select:focus {
 /* The year to date, set apart from the month above it rather than beside it. Two
    readings of the same business at two grains; run together on one line they read as one
    list of four numbers, and nobody can tell which is which. */
-.cockpit-ytd {
+/* Le bloc secondaire du bandeau. Il portait l'exercice quand le mois était en tête ;
+   il porte le mois depuis que l'exercice l'est. Le nom dit sa place et non son contenu,
+   pour qu'il ne redevienne pas faux au prochain arbitrage. */
+.cockpit-second {
   margin: 22px 0 0; padding: 16px 0 0; border-top: 1px solid var(--rule);
 }
-.cockpit-ytd .cockpit-eyebrow { margin: 0 0 8px; }
-.cockpit-ytd .variance-value { font-size: 18px; }
+.cockpit-second .cockpit-eyebrow { margin: 0 0 8px; }
+.cockpit-second .variance-value { font-size: 18px; }
 
 .is-down { color: var(--alert); }
 .is-up { color: var(--ok); }
