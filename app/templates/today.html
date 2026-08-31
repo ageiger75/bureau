@@ -12,7 +12,17 @@
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>
   <p class="cockpit-total">{{ header.actual | eur }}</p>
-  {% if perimeter_note %}
+  {% if header.published %}
+    {# It stopped being the incomplete figure the moment it stopped being assembled here.
+       The old sentence named an exclusion that no longer exists, under a total that now
+       carries it — the third time in this screen's life that a caveat outlived the source
+       it described, and the reason each of them is worth a commit of its own. #}
+    <p class="cockpit-caveat">
+      Every channel, hospitality and corporate gifts included: the whole perimeter the
+      house publishes, on its own figures. Nothing here is assembled from what the
+      warehouse happens to read.
+    </p>
+  {% elif perimeter_note %}
     {# The most-read figure on the screen is also the most incomplete one. Saying what it
        excludes belongs next to it, not in a footnote at the bottom of the page. #}
     <p class="cockpit-caveat">{{ perimeter_note }}</p>
@@ -90,11 +100,12 @@
          counted in nothing — so the month came out far ahead of a plan that never
          covered it, inside a year that was behind. Named here, never absorbed. #}
       <p class="cockpit-caveat">
+        In the ranked list below — not in the figure above, which is the accounts' own —
         {{ dataset.unbudgeted_sales | eur }} sold across
         {{ dataset.unbudgeted | length }}
-        line{{ '' if dataset.unbudgeted | length == 1 else 's' }} carrying no plan at all,
-        and left out of the comparison below rather than measured against nothing.
-        Everything read this month is {{ dataset.read_sales | eur }}.
+        line{{ '' if dataset.unbudgeted | length == 1 else 's' }} carries no plan at all,
+        and is left out of those comparisons rather than measured against nothing.
+        Everything the warehouse reads this month is {{ dataset.read_sales | eur }}.
       </p>
     {% endif %}
     {% if dataset.plan_set_aside %}
@@ -931,8 +942,11 @@
       </li>
       <li class="provenance">
         <p class="provenance-note">
-          <strong>The perimeter</strong> is every channel except hospitality and corporate
-          gifts — about 3% of the plan, measured by nothing connected here.
+          <strong>The perimeter</strong> of the figure at the top is the published file's
+          own: every channel, hospitality and corporate gifts included. The cards below
+          cover what the warehouse reads, which is not quite the same set — the gap is
+          closed by one source and explained by the other, and neither is asked to do the
+          other's work.
         </p>
       </li>
     </ul>
