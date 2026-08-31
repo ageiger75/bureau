@@ -1616,10 +1616,22 @@ def cmd_history(argv: List[str]) -> int:
         # La source vient du modèle et non d'un libellé écrit ici : la ligne annonçait « le
         # classeur de planification » pendant que le total venait entièrement du fichier
         # publié. Un en-tête qui nomme la mauvaise source est pire qu'un en-tête absent.
+        # Le modèle nomme sa source en anglais, parce que c'est l'écran qui l'affiche.
+        # Le terminal parle français : traduire ici plutôt qu'imprimer les deux langues
+        # dans une même phrase, et sans deviner — une source inconnue est dite telle
+        # quelle plutôt que rendue approximativement.
+        sources = {
+            "the consolidation, whole":
+                "la consolidation, périmètre entier",
+            "the consolidation where it covers, the planning workbook elsewhere":
+                "la consolidation là où elle couvre, le classeur ailleurs",
+            "the planning workbook": "le classeur de planification",
+        }
+        stated = ytd.plan_source or ("the planning workbook" if plan is not None
+                                     else "le fait `goals` de l'entrepôt")
         print("%s (%s → %s, %d mois), mesurée contre %s :"
               % (ytd.label, ytd.first_period, ytd.last_period, ytd.months,
-                 ytd.plan_source or ("le classeur de planification" if plan is not None
-                                     else "le fait `goals` de l'entrepôt")))
+                 sources.get(stated, stated)))
         print("  réalisé          %15s" % _eur(ytd.actual))
         print("  budget           %15s" % _eur(ytd.budget))
         print("  écart            %15s  %s" % (
