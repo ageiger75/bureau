@@ -246,6 +246,7 @@ class BusinessUnit:
         "reported_actual",
         "reported_budget",
         "reported_last_year",
+        "divergence_grade",
         "funnel_status",
         "context_notes",
         "perimeter",
@@ -284,6 +285,7 @@ class BusinessUnit:
         reported_actual: Optional[float] = None,
         reported_budget: Optional[float] = None,
         reported_last_year: Optional[float] = None,
+        divergence_grade: str = "",
         funnel_status: str = "",
         context_notes=(),
         perimeter: str = "",
@@ -308,6 +310,10 @@ class BusinessUnit:
         self.gap_history = tuple(gap_history)
         #: Successive forecasts for the same period, oldest first (brief §25, UK).
         self.forecast_history = tuple(forecast_history)
+        #: How far this market's warehouse reading sits from the accounts, graded over the
+        #: published months. Passed in rather than read here: the unit is a value object,
+        #: and a unit that opens a file on demand cannot be built in a test.
+        self.divergence_grade = divergence_grade
         #: Published market growth, when available — used to test the "difficult market"
         #: explanation rather than repeat it (brief §3.5).
         self.market_index_pct = market_index_pct
@@ -516,6 +522,37 @@ class BusinessUnit:
     @property
     def gap_vs_last_year(self) -> float:
         return self.sales_actual - self.sales_last_year
+
+    @property
+    def warehouse_speed_note(self) -> str:
+        """What this figure is worth before the accounts close, when that constrains.
+
+        Silent on most of the estate, and the silence is the design. Three quarters of the
+        markets have been shown to move with the accounts month after month; printing
+        "this one is fine" on each of them would be twenty-one prints of a fact that
+        changes nothing, which is how a screen teaches its reader to skip its notes.
+
+        It speaks in the two cases that change what the reader may do with the number: a
+        market where the two systems disagree by an amount that moves — no rule reaches
+        that, so the figure is a direction — and a market nobody has measured, where the
+        honest statement is that nothing has been checked.
+
+        Silent too wherever the figure already comes from the accounts. There the
+        divergence is somebody else's problem: the number on the card is the number the
+        house publishes.
+        """
+        if self.is_reported or not self.divergence_grade:
+            return ""
+        from .divergence import NOT_GRADED, UNSTABLE
+
+        if self.divergence_grade == UNSTABLE:
+            return ("Warehouse figure, and this market's two systems part by an amount "
+                    "that moves month to month. Read the direction; the variance the "
+                    "house will publish is decided at the close.")
+        if self.divergence_grade == NOT_GRADED:
+            return ("Warehouse figure, and nothing has measured how far this market sits "
+                    "from the accounts. Not checked is not agreed.")
+        return ""
 
     @property
     def year_on_year_withheld(self) -> str:

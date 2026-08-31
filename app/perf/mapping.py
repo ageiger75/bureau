@@ -459,6 +459,13 @@ def units_from_rows(
 
     published = actuals_module.by_scope(actuals_module.current())
 
+    # How far each market's warehouse reading sits from the accounts, graded over the
+    # published months. Absent or faulty, every market grades as not measured — which is
+    # the safe direction: an absence must never read as a pass.
+    from . import divergence as divergence_module
+
+    grades = divergence_module.current()
+
     units: List[BusinessUnit] = []
     conflicts: List[BudgetConflict] = []
     seen_markets: List[tuple] = []
@@ -561,6 +568,7 @@ def units_from_rows(
                 # not measured funnels. A gap against them is still exact.
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
                 strategic_weight=weights.weight_for(market, channel),
+                divergence_grade=grades.grade_of(market),
                 reported_actual=_reported(published, market, channel, "actual"),
                 reported_budget=_reported(published, market, channel, "budget"),
                 reported_last_year=_reported(published, market, channel, "last_year"),

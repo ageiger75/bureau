@@ -170,3 +170,44 @@ def test_a_candidate_cause_has_to_be_large_enough_to_make_the_effect():
     assert divergence.swing_needed(wide_gap, small_line) > 4.0        # 400%: not a lead
     assert divergence.swing_needed(its_gap, plausible_line) < 1.5     # in reach: a lead
     assert divergence.swing_needed(0.01, 0.0) is None
+
+
+# --- what the screen does with a grade ------------------------------------------------
+
+
+def _unit(grade="", reported=False):
+    from app.perf.model import BusinessUnit, Drivers, Owner
+
+    kwargs = {"reported_actual": 1.0, "reported_budget": 1.0} if reported else {}
+    return BusinessUnit(
+        key="k", label="Somewhere", market="Somewhere", region="EMEA", channel="retail",
+        owner=Owner("A name", "Managing Director", "Somewhere"),
+        actual=Drivers(("Sales",), (900_000.0,)),
+        budget=Drivers(("Sales",), (1_000_000.0,)),
+        last_year=Drivers(("Sales",), (950_000.0,)),
+        forecast_sales=1_000_000.0,
+        divergence_grade=grade, **kwargs)
+
+
+def test_the_screen_says_nothing_where_the_warehouse_can_be_trusted():
+    """Three quarters of the estate moves with the accounts. Printing \"this one is fine\"
+    on each of them would be twenty-one prints of a fact that changes nothing — which is
+    exactly how a screen teaches its reader to skip its notes."""
+    assert _unit(divergence.ALIGNED).warehouse_speed_note == ""
+    assert _unit(divergence.OFFSET).warehouse_speed_note == ""
+
+
+def test_the_screen_speaks_where_the_grade_changes_what_may_be_done():
+    """Two cases change what the reader may do with the number: a market whose two systems
+    part by a moving amount, and a market nobody has measured."""
+    moving = _unit(divergence.UNSTABLE).warehouse_speed_note
+    unmeasured = _unit(divergence.NOT_GRADED).warehouse_speed_note
+
+    assert "direction" in moving
+    assert "Not checked is not agreed" in unmeasured
+
+
+def test_a_figure_that_already_comes_from_the_accounts_carries_no_such_note():
+    """There the divergence is somebody else's problem: the number on the card is the
+    number the house publishes, whatever the warehouse says about that market."""
+    assert _unit(divergence.UNSTABLE, reported=True).warehouse_speed_note == ""

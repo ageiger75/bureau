@@ -221,6 +221,13 @@
             <span class="fire-gap-sub">vs plan</span></span>
         </div>
 
+        {% if fire.unit.warehouse_speed_note %}
+          {# Above the diagnosis, and only where it constrains. Three quarters of the
+             estate has been shown to move with the accounts, and printing "this one is
+             fine" on each of them would teach the reader to skip every note on the page.
+             Silent too where the figure already comes from the accounts. #}
+          <p class="estimate-note">{{ fire.unit.warehouse_speed_note }}</p>
+        {% endif %}
         {% if fire.plan_vs_record %}
           {# Above the diagnosis, like the chronic verdict and for the same reason: it
              changes what the diagnosis is about. A market whose plan asks for growth its
