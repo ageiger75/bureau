@@ -53,6 +53,8 @@ import io
 import os
 from typing import Dict, List, Optional
 
+from .budget import normalise_market
+
 #: Grades, from the reader's point of view rather than the statistician's: each one names
 #: what the screen is allowed to do, not how wide a distribution is.
 ALIGNED = "ALIGNED"
@@ -186,6 +188,24 @@ class Divergence:
                       if row.grade in (ALIGNED, OFFSET))
 
 
+def named(market: str) -> str:
+    """The market as the rest of the cockpit spells it.
+
+    The measurements are cut the way the consolidation names countries — upper case, and
+    a handful of names of its own. The screen names them the way the plan does. Left
+    unmatched, every market would grade as not measured and the screen would print
+    "nothing has been checked here" on all of them, which is the failure this whole file
+    exists to avoid: an absence dressed as a finding.
+
+    Two steps, both already written elsewhere: the plan's own aliasing, then the rollups
+    that fold a consolidation label into the country the business belongs to.
+    """
+    from .reference import ROLLUP
+
+    normalised = normalise_market(market)
+    return ROLLUP.get(normalised, normalised)
+
+
 def _number(text: str) -> Optional[float]:
     try:
         return float((text or "").strip().replace(",", "."))
@@ -247,7 +267,7 @@ def load(path: str) -> Divergence:
                           % (number, market))
             continue
 
-        rows.append(Market(market, int(months), mean, sigma, low, high,
+        rows.append(Market(named(market), int(months), mean, sigma, low, high,
                            (record.get("evidence") or "").strip()))
 
     if not rows and not faults:

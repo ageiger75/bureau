@@ -2142,6 +2142,7 @@ def cmd_divergence(argv: List[str]) -> int:
         manage.py divergence              les trois groupes
         manage.py divergence FICHIER.csv  un autre fichier de mesures
         manage.py divergence --all        chaque marché avec sa distance
+        manage.py divergence --join       ce que le fichier couvre du plan, et ce qu'il rate
 
     L'écran dit depuis des semaines qu'il tourne à deux vitesses. C'était vrai et énoncé
     globalement, donc presque inutile : ça demandait de se méfier de l'entrepôt partout
@@ -2156,6 +2157,38 @@ def cmd_divergence(argv: List[str]) -> int:
     positional = [a for a in argv if not a.startswith("--")]
     path = positional[0] if positional else str(settings.divergence_path)
     read = divergence_module.load(path)
+    if "--join" in argv and not read.faults:
+        # À lancer avant de se fier aux notes de l'écran. Les mesures sont découpées comme
+        # la consolidation nomme les pays, l'écran les nomme comme le plan : sans
+        # correspondance, tous les marchés tombent en « pas mesuré » et l'écran imprime
+        # « rien n'a été vérifié ici » partout. Une absence déguisée en constat est
+        # exactement ce que ce fichier existe pour éviter.
+        from .perf import budget as budget_module
+
+        if not settings.has_budget_file:
+            print("Classeur de plan absent : %s" % settings.budget_path, file=sys.stderr)
+            return 2
+        plan = budget_module.load(settings.budget_path)
+        planned = sorted({market for market, _channel in plan.scopes()})
+        measured = {row.market for row in read.rows}
+        matched = [m for m in planned if m in measured]
+        missing = [m for m in planned if m not in measured]
+        extra = sorted(measured - set(planned))
+        print("Marchés au plan          %d" % len(planned))
+        print("Notés par le fichier     %d  (%.0f %%)"
+              % (len(matched), 100.0 * len(matched) / len(planned) if planned else 0))
+        if missing:
+            print("")
+            print("Au plan, sans mesure — l'écran y dira « pas vérifié » :")
+            for market in missing:
+                print("  %s" % market)
+        if extra:
+            print("")
+            print("Mesurés, absents du plan — lus, jamais affichés :")
+            for market in extra:
+                print("  %s" % market)
+        return 0
+
     if read.faults:
         for fault in read.faults:
             print("  %s" % fault, file=sys.stderr)

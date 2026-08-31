@@ -211,3 +211,31 @@ def test_a_figure_that_already_comes_from_the_accounts_carries_no_such_note():
     """There the divergence is somebody else's problem: the number on the card is the
     number the house publishes, whatever the warehouse says about that market."""
     assert _unit(divergence.UNSTABLE, reported=True).warehouse_speed_note == ""
+
+
+def test_the_measurements_are_renamed_the_way_the_screen_spells_them():
+    """The measurements are cut the way the consolidation names countries — upper case,
+    and a few names of its own. The screen names them the way the plan does.
+
+    Unmatched, every market would grade as not measured and the screen would print
+    "nothing has been checked here" on all of them: an absence dressed as a finding, which
+    is the failure this whole module exists to prevent. Both steps are reused rather than
+    rewritten — the plan's own aliasing, then the rollups.
+    """
+    assert divergence.named("FRANCE") == "France"
+    assert divergence.named("USA") == "United States"
+    assert divergence.named("CZECH REPUBLIC") == "Czech Republic"
+    assert divergence.named("HK LOCAL") == "Hong Kong"
+    assert divergence.named("SHANGHAI") == "China"
+
+
+def test_a_loaded_row_carries_the_screen_s_name(tmp_path):
+    path = tmp_path / "divergence.csv"
+    path.write_text(
+        "market,months,mean,sigma,low,high,evidence\n"
+        "HK LOCAL,11,0.001,0.002,-0.001,0.003,measured\n", encoding="utf-8")
+    read = divergence.load(str(path))
+
+    assert read.usable, read.faults
+    assert read.grade_of("Hong Kong") == divergence.ALIGNED
+    assert read.grade_of("HK LOCAL") == divergence.NOT_GRADED
