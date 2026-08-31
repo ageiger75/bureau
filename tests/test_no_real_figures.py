@@ -94,3 +94,27 @@ def test_an_invented_scenario_never_wears_a_real_market_name():
                 continue
             # The fixtures that carry such a claim must not name a real market beside it.
             assert "taiwan" not in lowered, "%s:%d" % (path.name, number)
+
+
+def test_a_workbook_is_ignored_wherever_it_is_dropped():
+    """The rule above keeps the house's figures out of the versioned files. This one keeps
+    the files themselves out, and it is the mechanism that actually protects the data.
+
+    It was anchored to the repository root, which covers the accident it was written for —
+    a workbook dropped beside `manage.py` — and misses the likelier one: a folder of
+    published files copied into the working tree to be read. Twelve months of flash sat one
+    distracted `git add -A` from being published. An ignore rule that holds only at the top
+    level is not an ignore rule, so the patterns must carry no leading slash.
+    """
+    import io
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    lines = [line.strip()
+             for line in io.open(str(root / ".gitignore"), encoding="utf-8").read().splitlines()]
+    for suffix in ("xlsx", "xlsm", "csv"):
+        assert "*.%s" % suffix in lines, (
+            "Un classeur %s déposé dans un sous-dossier serait versionné." % suffix)
+        assert "/*.%s" % suffix not in lines, (
+            "La règle ancrée à la racine laisse passer les sous-dossiers.")
+    assert "var/" in lines

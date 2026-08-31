@@ -16,9 +16,14 @@ __pycache__/
 # Systèmes de fichiers
 .DS_Store
 
-# Classeurs déposés à la racine par accident. Le budget et l'annuaire vivent dans var/ ;
-# un fichier de travail glissé ici contient des chiffres ou des noms réels, et un
-# `git add -A` distrait suffirait à le publier.
-/*.xlsx
-/*.xlsm
-/*.csv
+# Classeurs, où qu'ils soient. La règle valait pour la racine seule, et un dossier de
+# fichiers publiés déposé dans l'arbre de travail — douze mois de flash, par exemple —
+# passait au travers : un `git add -A` distrait aurait suffi à publier des chiffres et des
+# noms réels. Le budget et l'annuaire vivent dans var/ ; tout le reste est un fichier de
+# travail, et aucun n'a sa place ici.
+*.xlsx
+*.xlsm
+*.csv
+
+# Sauf l'exemple, qui n'est qu'une forme : des colonnes, aucune valeur de la maison.
+!docs/context.example.csv
