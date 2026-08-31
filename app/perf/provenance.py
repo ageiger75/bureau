@@ -189,16 +189,28 @@ REGISTER: Dict[str, Measure] = {
         "in seven named levels — same store, opened last year, opened this year, closed, "
         "refurbished last year, refurbished this year, other. It is not a rule to "
         "reinvent; it is the rule, written down.\n\n"
+        "One correction to what this register said an hour ago. The dates are not filled "
+        "throughout: the empty value is a sentinel date early in the last century rather "
+        "than a null, so a column that reads as complete is not. They remain usable — an "
+        "opening is real, a closing is real where the shop closed — provided the sentinel "
+        "is treated as absent. Counted naively, every age computed from them is wrong.\n\n"
         "The view ties out: its statuses sum to the euro on the country table\'s retail "
         "line for the market checked. So the blocker is no longer whether the comparable "
         "base can be computed — it is that this view keys stores by a consolidation "
-        "identifier with no referential store id, so the join to the sell-out is not yet "
-        "established. Two other traps: the net sales account differs from the one the "
+        "identifier, and the join to the sell-out turned out to need no bridge: that "
+        "key is the sell-out's own store-group code. Two traps remain: the net sales "
+        "account differs from the one the "
         "country table uses, and the current fiscal year carries few snapshots, one of "
         "them dated in the future.\n\n"
         "Nothing is shown until the two sources are reconciled: a same-store figure whose "
         "sign depends on which system you ask is not a figure. But what stands between "
-        "here and there is now a join, not an absence.",
+        "here and there is now a join and a status field, not an absence.\n\n"
+        "It has since been computed, on a small market where the join is complete and where "
+        "the currency cannot interfere. The two readings differ by fourteen points, and the "
+        "whole of that difference is one shop that opened mid-way through last year with no "
+        "counterpart in the earlier period. Publishing the total there would publish an "
+        "opening as if it were performance — which is exactly what a comparable base exists "
+        "to prevent, demonstrated on a real market rather than argued.",
         to_confirm="Whether the reported figure is computed on that status field — likely "
         "but not demonstrated, since carrying the taxonomy does not prove the published "
         "number uses it — and how a consolidation store identifier maps to the sell-out "
@@ -452,6 +464,30 @@ REGISTER: Dict[str, Measure] = {
         "is a different problem with a different fix.",
         to_confirm="Whether other markets carry the same kind of pseudo-entity, and "
         "whether the bulk pseudo-entity is the same money the reforecast separates.",
+    ),
+    "placeholders_that_answer": Measure(
+        key="placeholders_that_answer",
+        label="The recurring defect is not missing data, it is fillers that reply",
+        maturity=BETA,
+        note="Four defects found in the warehouse this week look unrelated and are one. A "
+        "field description stating the opposite of what the field counts. Two dimension "
+        "descriptions listing a couple of their values and omitting the one a reader comes "
+        "for. A store code whose value is the literal string meaning not-applicable. A "
+        "date whose empty state is a sentinel early in the last century rather than a "
+        "null.\n\n"
+        "Each one answers. None declines to answer. That is the whole defect: a missing "
+        "value announces itself and gets handled, while a filler shaped like a value is "
+        "consumed silently and travels. All four produced a confident wrong reading before "
+        "being caught — a basket at a third of its size, a market declared absent, a "
+        "column of dates declared complete.\n\n"
+        "The rule that follows is cheap and general: join on codes and never on labels, "
+        "treat any sentinel as absent before computing, and read a field's description as "
+        "a hypothesis about the field rather than a statement of it. The clearest instance "
+        "was found inside a query written to avoid exactly this trap, which measures how "
+        "easy it is to walk into.",
+        to_confirm="Whether these fillers are historic residue or current convention — "
+        "which decides whether they are corrected at the source or documented where they "
+        "are.",
     ),
     "window_comparability": Measure(
         key="window_comparability",
