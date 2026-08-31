@@ -2185,7 +2185,8 @@ def cmd_divergence(argv: List[str]) -> int:
         print("")
         print("%s  (%d)" % (title, len(rows)))
         for row in rows:
-            mark = "  signe constant" if row.sign_holds and grade != "ALIGNED" else ""
+            mark = ("  signe constant" if row.sign_holds
+                    and grade != divergence_module.ALIGNED else "")
             if "--all" in argv or grade != divergence_module.ALIGNED:
                 print("  %-24s moyenne %+6.1f pt   variation %5.1f pt   %2d mois%s"
                       % (row.market[:24], 100.0 * row.mean, 100.0 * row.sigma,
