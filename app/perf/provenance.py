@@ -1016,21 +1016,31 @@ REGISTER: Dict[str, Measure] = {
         label="A column that cannot be true, from a date",
         maturity=BETA,
         note="Net sales are gross less tax, so gross is the larger of the two by "
-        "construction. In one market, from one month onwards, the raw fact states a gross "
-        "figure well below its own tax-inclusive net. There is no reading of those three "
-        "columns under which all of them are correct.\n\n"
-        "It surfaced from a test aimed at something else and it is now the only live lead on "
-        "the last unexplained market in the divergence table. Two regime breaks sit in the "
-        "same series — the implicit tax rate holds a decade-long band, drops by a third for "
-        "exactly three months, then doubles — and the second break lands in the same month "
-        "as the impossible gross. Whatever changed in that feed changed more than one column "
-        "at once, on a date.\n\n"
-        "Stated as a data alert and not as an explanation. It does not say why the two "
-        "systems disagree on that market; it says the ground under one of them moved, and "
-        "that no diagnosis built on those columns can be trusted across the break.",
-        to_confirm="What changed in that market's feed on that date, asked of whoever owns "
-        "it. A column that is arithmetically impossible has a cause with a ticket number, "
-        "not a business interpretation.",
+        "construction. On one market the raw fact states, in one month, a gross figure far "
+        "below its own tax-inclusive net — an implied deduction of minus forty per cent. "
+        "There is no reading of those columns under which that is correct.\n\n"
+        "Read across the whole window rather than at the break, the column is worse than "
+        "broken from a date: it is unusable throughout. The deduction it implies wanders "
+        "between two and twenty per cent month to month before ever going negative. So the "
+        "correction is not \"something changed in April\" — that framing would send someone "
+        "looking for an event on a date. **That column has never been fit to divide by.**\n\n"
+        "Two facts have to be kept apart here, and separating them is the whole value of the "
+        "reading. The gross column is unreliable. The tax deduction itself is not: measured "
+        "the sound way — net of tax against net including tax — it holds a narrow band for "
+        "six months, drops by a third for exactly two, then doubles for three. Those breaks "
+        "are confirmed by the line-level tax rate, which is a different column arrived at a "
+        "different way. **Two independent columns agreeing is what makes a break real** "
+        "rather than an artefact of the one that is broken.\n\n"
+        "So there are two items and they go to two places. A column that cannot be divided "
+        "by is a defect with an owner. A tax deduction that moves twice in a year, on dates, "
+        "is a fact about that market that whoever runs it already knows and nobody here had "
+        "written down. Neither of them explains why the two systems disagree on that market: "
+        "the deduction does not track the divergence in size or in sign, which is what "
+        "killed the hypothesis that brought all this up.",
+        to_confirm="Whether that gross column is fed at all on this market, or carries "
+        "something other than gross — asked of whoever owns the feed. And the two deduction "
+        "dates put to the market itself: a rate that moves twice in a year has a cause "
+        "someone there can name in a sentence.",
     ),
     "keys_that_answer_sometimes": Measure(
         key="keys_that_answer_sometimes",
