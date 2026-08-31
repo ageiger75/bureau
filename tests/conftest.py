@@ -77,6 +77,34 @@ def fresh_warehouse_cache(monkeypatch):
         property(lambda self: TEST_DIR / "kpi-tracker.xlsx"),
     )
 
+    # And now every remaining file the working `var/` can hold, for the reason the two
+    # above found one at a time and this one generalises.
+    #
+    # A build of business units reads the weights and the published actuals from disk on
+    # every call. That is right in the application and wrong in a suite: on a machine with
+    # those files in place, invented fixtures came back carrying the house's own figures —
+    # a unit built from a fixture worth 1.2 million returned a different number entirely,
+    # and eleven tests failed while accusing the last commit. They were not wrong. The code
+    # was reading the operator's data.
+    #
+    # The rule this settles, and it is worth more than the eleven tests: **the suite must
+    # never read the machine's own files.** A suite whose result depends on which
+    # spreadsheets happen to sit in a directory attests to nothing, and it fails on exactly
+    # the machine where the answer matters. Redirected wholesale rather than case by case,
+    # so a file added later inherits the isolation instead of repeating the incident.
+    for name, target in (
+        ("budget_path", "budget.xlsx"),
+        ("owners_path", "owners.xlsx"),
+        ("weights_path", "weights.csv"),
+        ("actuals_path", "actuals.xlsx"),
+        ("divergence_path", "divergence.csv"),
+        ("actuals_folder", "actuals"),
+    ):
+        monkeypatch.setattr(
+            type(settings), name,
+            property(lambda self, target=target: TEST_DIR / target),
+        )
+
     source.cache_forget()
     owners.reset()
     context.reset()

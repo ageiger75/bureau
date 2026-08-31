@@ -178,3 +178,30 @@ def test_la_suite_tourne_sur_des_donnees_fictives():
     from app.config import settings
 
     assert settings.reads_warehouse is False
+
+
+def test_the_suite_never_reads_the_files_of_the_machine_it_runs_on():
+    """The invariant eleven failing tests bought.
+
+    Building business units reads the weights and the published actuals from disk on every
+    call — correct in the application, and a hidden dependency in a suite. On a machine
+    holding those files, fixtures worth an invented million came back carrying the house's
+    real figures, and the suite failed while blaming the last commit. It was right to fail
+    and wrong about the cause.
+
+    So no path this suite can reach may resolve inside the working directory. Checked here
+    rather than trusted to a fixture nobody re-reads: this test fails the moment a new file
+    is added to the configuration and not redirected, which is precisely when the next
+    person would otherwise spend an afternoon on it.
+    """
+    from pathlib import Path
+
+    from app.config import ROOT, settings
+
+    working = (ROOT / "var").resolve()
+    for name in ("budget_path", "owners_path", "context_path", "kpi_path",
+                 "weights_path", "actuals_path", "divergence_path", "actuals_folder"):
+        path = Path(getattr(settings, name)).resolve()
+        assert working not in path.parents and path != working, (
+            "%s pointe dans le var/ de travail pendant les tests : la suite lirait les "
+            "chiffres réels de la maison." % name)
