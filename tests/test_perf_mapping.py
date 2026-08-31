@@ -704,3 +704,37 @@ def test_the_three_online_channels_are_told_apart():
     # And each says on which side of the invoice its euros are counted.
     assert "shipper" not in CHANNEL_MEANING["webp"]
     assert "when we ship" in CHANNEL_MEANING["webp"]
+
+
+def test_a_plan_nobody_can_read_leaves_the_group_variance():
+    """It used to bring its whole commitment to the denominator and nothing to the
+    numerator, which reports an unmeasured market as a market that missed everything."""
+    from app.perf.model import BusinessUnit, Dataset, Drivers, Owner
+
+    def unit(key, budget, actual, reads):
+        return BusinessUnit(
+            key=key, label=key, market=key, region="EMEA", channel="retail",
+            owner=Owner("A", "B", "c@d"),
+            actual=Drivers.sales_only(actual),
+            budget=Drivers.sales_only(budget),
+            last_year=Drivers.sales_only(0.0),
+            forecast_sales=0.0,
+            budget_known=True, reads_actual=reads,
+        )
+
+    data = Dataset(period_label="Sales MTD", as_of="2026-08-26",
+                   units=[unit("read", 100.0, 90.0, True),
+                          unit("blind", 40.0, 0.0, False)])
+
+    assert data.sales_budget == 100.0
+    assert data.plan_set_aside == 40.0
+    assert [u.key for u in data.unreadable] == ["blind"]
+    assert data.sales_actual - data.sales_budget == -10.0
+
+
+def test_the_unreadable_perimeter_is_named_not_guessed():
+    """Inferred from an actual of zero, a market that genuinely sold nothing would be
+    indistinguishable from one nobody measured."""
+    assert mapping.not_read_reason("Austria", "retail")
+    assert not mapping.not_read_reason("Austria", "whoin")
+    assert not mapping.not_read_reason("France", "retail")

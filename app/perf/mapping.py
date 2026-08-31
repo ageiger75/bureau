@@ -185,6 +185,32 @@ class Mapped:
 #: own site, recognised at different moments, answered by different people. A reader who
 #: has to guess which is which cannot judge either — and the guess is usually wrong, since
 #: the platform most people picture for China sits under a third name again.
+#: Business the plan commits to and no source connected here can read. Named, one line at
+#: a time, because the alternative is inferring it from an actual of zero — and a market
+#: that genuinely sold nothing looks identical to a market nobody measured.
+#:
+#: Why this table has to exist at all: a plan with no reading was contributing its whole
+#: commitment to the group denominator and nothing to the numerator. The group then showed
+#: millions below a plan it was very possibly holding, and the screen sent its reader to
+#: challenge a shortfall that was its own blind spot. Absence is not zero — the rule this
+#: repository applies to a missing month, applied at last to a missing perimeter.
+#:
+#: Keys are `market` or `market/channel`. A market-level entry covers all its channels.
+NOT_READ = {
+    "Austria/retail": "no shop in the sell-out referential, under any label or country "
+                      "code; only what Austria invoices to third parties is read",
+}
+
+
+def not_read_reason(market: str, channel: str) -> str:
+    """Why this unit's sales cannot be read, or empty when they can.
+
+    Checked channel-first so a market may be readable in one channel and not another —
+    which is the usual shape, and the shape the first entry here has.
+    """
+    return NOT_READ.get("%s/%s" % (market, channel)) or NOT_READ.get(market, "")
+
+
 CHANNEL_MEANING = {
     "ecommerce": "Our own site — brand.com. The one channel where the whole funnel is "
                  "ours to read: visits, conversion, basket.",
@@ -511,6 +537,8 @@ def units_from_rows(
                 # not measured funnels. A gap against them is still exact.
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
                 budget_known=budget_value is not None,
+                reads_actual=not_read_reason(market, channel) == "",
+                not_read_reason=not_read_reason(market, channel),
                 last_year=_drivers_for(
                     channel, market, last_year_value, sessions_ly, orders_ly
                 )

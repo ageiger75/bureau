@@ -57,6 +57,22 @@
     {# A month is the loudest number on this screen and the least reliable one: a shipment
        that slips across a month end shows here as a collapse. The year to date is the
        same business read without that noise. #}
+    {% if dataset.plan_set_aside %}
+      {# A group variance shrank when this was written, and the shrinking is the point:
+         business the plan commits to and no source here reads was bringing its whole
+         commitment to the denominator and nothing to the numerator. Named rather than
+         absorbed — a reader owed a group figure is owed the size of what it does not
+         cover, or the figure quietly means something narrower than its label. #}
+      <p class="cockpit-caveat">
+        {{ dataset.plan_set_aside | eur }} of plan is held out of the figures below,
+        across {{ dataset.unreadable | length }}
+        line{{ '' if dataset.unreadable | length == 1 else 's' }} whose sales nothing here
+        can read. Counted in, they would read as a shortfall nobody measured.
+        {% for unit in dataset.unreadable %}
+          <br><strong>{{ unit.label }}</strong> — {{ unit.not_read_reason }}
+        {% endfor %}
+      </p>
+    {% endif %}
     <div class="cockpit-ytd">
       <p class="cockpit-eyebrow">
         {{ dataset.ytd.label }} · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }}

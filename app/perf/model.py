@@ -241,6 +241,8 @@ class BusinessUnit:
         "sessions",
         "orders",
         "budget_known",
+        "reads_actual",
+        "not_read_reason",
         "funnel_status",
         "context_notes",
         "perimeter",
@@ -274,6 +276,8 @@ class BusinessUnit:
         sessions: Optional[float] = None,
         orders: Optional[float] = None,
         budget_known: bool = True,
+        reads_actual: bool = True,
+        not_read_reason: str = "",
         funnel_status: str = "",
         context_notes=(),
         perimeter: str = "",
@@ -325,6 +329,16 @@ class BusinessUnit:
         #: and the market would top the screen as a triumph. Such units are kept out of
         #: both fires and wins, and counted so the omission is visible.
         self.budget_known = budget_known
+        #: Whether this unit's sales can be read at all. False where the source does not
+        #: carry the business — a market with no shop in the referential, a channel no
+        #: query reaches. The symmetric twin of `budget_known`, and it was missing: a
+        #: commitment with no reading was contributing its whole plan to the group
+        #: denominator and nothing to the numerator, which is counting an unreadable
+        #: market as a total miss. Absence is not zero on this side either.
+        self.reads_actual = reads_actual
+        #: Why, in words a reader can act on. A flag with no reason is a
+        #: figure removed without explanation, which is its own defect.
+        self.not_read_reason = not_read_reason
         #: What the query established about this market's funnel: measured, never tracked,
         #: tracking lost, or no own site at all. Four states with four different remedies,
         #: which is why they are not collapsed into one word for "missing".
@@ -508,17 +522,48 @@ class Dataset:
         self.ytd = ytd
 
     @property
+    def comparable(self) -> List["BusinessUnit"]:
+        """The units where both sides exist, and the only ones a group variance may use.
+
+        A variance is a ratio, and both of its terms have to describe the same business.
+        A market whose sales this screen cannot read was still contributing its whole plan
+        to the denominator and nothing to the numerator — which reports a market nobody
+        measured as a market that missed everything, and shows the group millions below a
+        plan it may well be holding.
+        """
+        return [u for u in self.units if u.budget_known and u.reads_actual]
+
+    @property
     def sales_actual(self) -> float:
+        """Everything read. An unreadable unit contributes nothing here by definition, so
+        this needs no filter — the asymmetry to correct was never on this side."""
         return sum(unit.sales_actual for unit in self.units)
 
     @property
     def sales_budget(self) -> float:
-        """Group budget, over the units that have one.
+        """Group budget, over the units that have one *and* that the screen can read.
 
         Units without a budget contribute nothing here and their sales are reported
-        separately, rather than silently widening or narrowing the group variance.
+        separately, rather than silently widening or narrowing the group variance. Units
+        with a budget and no reading are held out for the same reason, in the other
+        direction.
         """
-        return sum(unit.sales_budget for unit in self.units if unit.budget_known)
+        return sum(unit.sales_budget for unit in self.comparable)
+
+    @property
+    def plan_set_aside(self) -> float:
+        """Committed plan held out of the variance because nothing reads its sales.
+
+        Printed, never absorbed: a reader owed a group figure is owed the size of what it
+        does not cover, or the figure quietly means something narrower than its label.
+        """
+        return sum(u.sales_budget for u in self.units
+                   if u.budget_known and not u.reads_actual)
+
+    @property
+    def unreadable(self) -> List["BusinessUnit"]:
+        """Units carrying a commitment that nothing on this screen can measure."""
+        return [u for u in self.units if u.budget_known and not u.reads_actual]
 
     @property
     def sales_last_year(self) -> float:
