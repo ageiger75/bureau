@@ -35,10 +35,19 @@ def test_what_is_missing_outranks_what_is_merely_unconfirmed():
     assert states == sorted(states, key=lambda s: provenance.ORDER[s])
 
 
-def test_the_plan_is_the_one_thing_that_reconciles():
-    """It is checked against the consolidated pack, so a disagreement is a bug, not a
-    discussion. Nothing else on the screen has that standing yet."""
-    assert provenance.REGISTER["sales_budget"].maturity == provenance.VALIDATED
+def test_the_plan_lost_the_standing_it_was_given():
+    """It held it on a yearly total reconciling with the consolidated pack. Set beside a
+    published monthly flash it is several points lower, and unevenly so by region — which
+    is a perimeter that differs, not a vintage that lags.
+
+    Written as a test because the demotion must survive: a plan is the denominator of
+    every variance on this screen, and a denominator quietly restored to `VALIDATED`
+    would make every gap look measured again.
+    """
+    plan = provenance.REGISTER["sales_budget"]
+
+    assert plan.maturity == provenance.BETA
+    assert plan.to_confirm.strip()
 
 
 def test_a_measure_is_promoted_only_when_something_attests_to_it():
@@ -53,20 +62,20 @@ def test_a_measure_is_promoted_only_when_something_attests_to_it():
 
 
 def test_nothing_is_validated_on_the_strength_of_working():
-    """Two measures carry that standing, and each is checked against a document the
-    organisation publishes rather than against itself.
+    """One measure carries that standing, checked against a document the organisation
+    publishes rather than against itself: the rate the plan is stated at reconciles with
+    the group's own budget-rate table, currency by currency, against rates measured
+    independently from the sell-out — a document on one side, a measurement on the other,
+    agreeing without either being adjusted.
 
-    The plan reconciles with the consolidated pack. The rate the plan is stated at
-    reconciles with the group's own budget-rate table, currency by currency, against
-    rates that had been measured independently from the sell-out — a document on one
-    side, a measurement on the other, agreeing without either being adjusted.
-
-    The list is written out so that promoting a third costs somebody a deliberate edit
-    here. A measure that reaches this state because it works is a measure nobody checked.
+    There were two. The plan itself was demoted when a published flash disagreed with it
+    by several points, which is the whole reason this list is written out by hand: a
+    measure reaching this state because it works is a measure nobody checked, and a
+    measure kept here after the evidence moved is worse.
     """
     validated = sorted(m.key for m in provenance.REGISTER.values() if m.is_settled)
 
-    assert validated == ["plan_rate", "sales_budget"]
+    assert validated == ["plan_rate"]
 
 
 # ------------------------------------------------------- the caveat on the big number

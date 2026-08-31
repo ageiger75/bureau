@@ -77,10 +77,28 @@ REGISTER: Dict[str, Measure] = {
     "sales_budget": Measure(
         key="sales_budget",
         label="Plan",
-        maturity=VALIDATED,
-        note="From the planning workbook, not the warehouse. Its yearly total reconciles "
-        "exactly with the Sales line of the consolidated EBITDA pack, and its monthly "
-        "totals with the Q1 estimate pack.",
+        maturity=BETA,
+        note="From the planning workbook, not the warehouse. It was carried here as "
+        "settled, on the strength of its yearly total reconciling with the consolidated "
+        "pack and its monthly totals with the quarter\'s estimate. **That is no longer "
+        "enough.** Set beside a published monthly flash for the same brand and the same "
+        "month, this workbook\'s plan is several points lower, and the shortfall is not "
+        "spread evenly: by region it runs from a couple of points above to more than a "
+        "tenth below.\n\n"
+        "The spread is the finding. A different vintage of the same plan would move every "
+        "region by roughly the same proportion; a range this wide, with one region above "
+        "and several far below, is a perimeter that differs line by line. So the workbook "
+        "is not an older version to be swapped — it is missing, or carrying, specific "
+        "business.\n\n"
+        "This matters more than a plan being slightly wrong, because a variance is a "
+        "ratio of two numbers and this is the denominator. A screen whose actuals are "
+        "known to be short and whose plan is short by a different amount produces a "
+        "variance that is neither, and that lands near the truth or far from it by "
+        "arithmetic accident rather than by measurement.",
+        to_confirm="Which lines each region is missing or carrying, by comparing the "
+        "workbook against the published plan region by region and then channel by "
+        "channel — one region\'s discrepancy names its own cause faster than the total "
+        "ever will.",
     ),
     "web_funnel": Measure(
         key="web_funnel",
@@ -210,11 +228,26 @@ REGISTER: Dict[str, Measure] = {
         "whole of that difference is one shop that opened mid-way through last year with no "
         "counterpart in the earlier period. Publishing the total there would publish an "
         "opening as if it were performance — which is exactly what a comparable base exists "
-        "to prevent, demonstrated on a real market rather than argued.",
+        "to prevent, demonstrated on a real market rather than argued.\n\n"
+        "Two things constrain what can ever be claimed for it. The status field lives on "
+        "the consolidation fact itself, beside the actuals and the forecasts, which is a "
+        "serious presumption of provenance and not proof of use. And the same-store class "
+        "is **not reproducible from the dates**: dozens of the shops in it carry a closing "
+        "or a recent refurbishment date without being classed as closed or refurbished, so "
+        "at least one further rule exists that is not visible. This perimeter can be read "
+        "as given; it cannot be recomputed or checked. A screen showing it depends "
+        "entirely on Finance for its correctness, and should say so.\n\n"
+        "One candidate for what the published figure excludes has been eliminated: the "
+        "catch-all status is nine tenths pseudo-entities — bulk and road-show lines, not "
+        "shops — so a treatment that removes shops cannot be living there. The market "
+        "where its size looked right was one bulk line, and the resemblance was a "
+        "coincidence for the third time this week.",
         to_confirm="Whether the reported figure is computed on that status field — likely "
         "but not demonstrated, since carrying the taxonomy does not prove the published "
-        "number uses it — and how a consolidation store identifier maps to the sell-out "
-        "referential.",
+        "number uses it. Five candidate definitions have been computed and they separate "
+        "widely, so one comparison against the published figure identifies the rule — or "
+        "shows it is computed somewhere else entirely, which would make displaying this "
+        "one a second competing number.",
     ),
     "store_concept": Measure(
         key="store_concept",
