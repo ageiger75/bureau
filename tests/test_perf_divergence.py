@@ -135,3 +135,21 @@ def test_a_displacement_larger_than_the_movement_is_its_own_state():
     assert both.grade == only_moving.grade == divergence.UNSTABLE
     assert both.displaced
     assert not only_moving.displaced
+
+
+def test_a_displacement_does_not_make_a_moving_market_ruleable():
+    """A market can be displaced by more than it moves and still move too much to write a
+    rule for. The two readings are independent and only one of them licenses a correction.
+
+    The distinction was nearly lost in words: a market described as \"biased in a stable
+    way\" on the strength of its bias exceeding its spread, when its own measurements put
+    that spread at several points. A rule written from it would be wrong by that much in any
+    given month — and a correction that is wrong by five points is worse than none, because
+    the reader stops seeing it as an approximation.
+    """
+    displaced_and_moving = _row(mean=0.051, sigma=0.043, low=-0.053, high=0.102)
+
+    assert displaced_and_moving.displaced
+    assert displaced_and_moving.grade == divergence.UNSTABLE
+    assert displaced_and_moving.grade != divergence.OFFSET
+    assert divergence.SPEED[displaced_and_moving.grade].startswith("attendre")

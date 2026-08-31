@@ -946,33 +946,80 @@ REGISTER: Dict[str, Measure] = {
         "The removal has now been run on both sides across the whole window, and the market "
         "that led the divergence table by a wide margin sits in the aligned group — an "
         "average distance near zero and a spread under a point. One door, correctly filed "
-        "in each system and filed differently between them, was the entire finding.",
-        to_confirm="Which other doors carry an entity in one system and a different one in "
-        "the other — asked as a list from the referential, not discovered one closure at a "
-        "time.",
+        "in each system and filed differently between them, was the entire finding.\n\n"
+        "The list was then asked for rather than waited for, and it has one name on it. The "
+        "counterpart is identified: what the sold side holds as one shop, the consolidation "
+        "splits into two entities — the retail floor and the café inside it — under a "
+        "prefix the sold side does not use, and the two sides reconcile to under a fifth of "
+        "a percent. Both consolidation entities are classed outside the comparable base, "
+        "which is why the published figure never showed the door either.\n\n"
+        "The rest of the unmatched codes are structural and legitimate: web pseudo-shops, "
+        "marketplace, external counters, roadshows — things a store-grain consolidation "
+        "does not carry because they are not shops. One physical shop out of a hundred and "
+        "eleven codes. The worry that others would surface one closure at a time is "
+        "answered, and answered by asking rather than by waiting.",
+        to_confirm="Whether the two consolidation entities should be folded onto the sold "
+        "side's single shop in the cockpit itself. Nothing depends on it today — the "
+        "divergence file already carries that market with the door removed from both sides "
+        "— so it is a question for whenever a door-level panel exists.",
     ),
     "counters_outside_the_view": Measure(
         key="counters_outside_the_view",
-        label="A perimeter that appeared this year, and the bias it makes",
+        label="The counters the view excludes are excluded on both sides",
         maturity=BETA,
-        note="The governed sell-out view excludes a class of counter that exists in exactly "
-        "five markets. Four of those five are in the unstable group of the divergence "
-        "grading, which is more concentration than chance offers.\n\n"
-        "One of them makes the argument sharper than the others. There, those counters did "
-        "not exist last year and trade this year. A perimeter that starts from nothing and "
-        "grows produces, mechanically, a distance of constant sign and rising size — which "
-        "is exactly the shape that market has shown for twelve months, and exactly the "
-        "shape that a standard deviation misfiles as instability.\n\n"
-        "So the grading keeps sign apart from size on purpose. A distance that swings "
-        "either side of zero is a decision landing differently at each close. One that "
-        "stays on its side is business one system counts and the other does not. Same "
-        "dispersion, different cause, different person to ask.\n\n"
-        "This is a hypothesis with a test, not a finding: add the excluded counters back "
-        "and the distance should collapse. Until that is run it explains nothing, and this "
-        "register has already retracted one finding built on a resemblance.",
-        to_confirm="The same growth-against-growth comparison with those counters included, "
-        "on the five markets that have them. A distance that closes is the answer; one that "
-        "does not is a different cause and the hypothesis is dropped.",
+        note="Written here first as a hypothesis with a test attached: the governed "
+        "sell-out view excludes a class of counter present in exactly five markets, four "
+        "of them in the unstable group, and in one of those the counters did not exist "
+        "last year — a perimeter starting from nothing and growing produces a distance of "
+        "constant sign and rising size, which is the shape that market shows. Plausible, "
+        "concentrated, and wrong.\n\n"
+        "The test was to put the counters back and watch the distance close. It opened "
+        "instead, on every market and in almost every month — on the largest of them not a "
+        "single month out of eleven improved. A hypothesis that predicts a direction and "
+        "gets the opposite one is not weakened, it is finished.\n\n"
+        "And the refutation is worth more than the hypothesis was. If adding the counters "
+        "makes the two sides disagree, the consolidation is not counting them in its sold "
+        "lines either — so the view's exclusion is not a hole this cockpit inherits, it is "
+        "**the same boundary drawn in the same place**. That had been assumed for months "
+        "and never demonstrated; it is now demonstrated, by a test designed to show the "
+        "opposite. The counters are consolidated elsewhere, on the shipped side, which the "
+        "orders of magnitude support.\n\n"
+        "Two markets keep their distance after this and now have to be explained some other "
+        "way. That is a smaller question than the one it replaces, and it is asked on solid "
+        "ground: the perimeter is no longer a candidate.",
+        to_confirm="Where Finance consolidates those counters, stated rather than inferred "
+        "from magnitudes — the shipped-side line they land on, and whether every market "
+        "with them does it the same way.",
+    ),
+    "keys_that_answer_sometimes": Measure(
+        key="keys_that_answer_sometimes",
+        label="A key that identifies some rows and silently drops the rest",
+        maturity=BETA,
+        note="A near relative of the placeholders that answer, and more dangerous, because "
+        "the damage is not to one field but to a whole comparison.\n\n"
+        "A store key was used to separate two populations. It carries a market prefix on "
+        "most rows, on some rows it is absent, and on others it is the literal text `N/A`. "
+        "Selecting on the prefix therefore built each side of the comparison out of "
+        "whatever happened to be coded — on one market barely a third of the money, on two "
+        "others nothing at all. Every figure that came out was arithmetically correct and "
+        "computed on a population nobody chose.\n\n"
+        "What caught it is worth keeping as a habit: **two different populations returned "
+        "identical columns across twenty-four months**. Identical is not agreement. Two "
+        "measurements of two things agreeing to the last decimal, every month, for two "
+        "years, is the signature of neither having been read. A difference would have "
+        "looked like a finding; the identity is what gave it away.\n\n"
+        "The repair is to group by the attribute that is always present — the country — "
+        "rather than by the key that is usually present. And the general rule: before "
+        "selecting on a key, count what the selection dropped. A key is a hypothesis about "
+        "coverage, and it is testable in one line.\n\n"
+        "It leaves a real limit rather than only a lesson. On one market, thirty-odd shops "
+        "share the `N/A` code — they are not filed twice, they are not filed at all — and "
+        "that market is one of the two with a small, steady displacement between the two "
+        "systems. So its displacement is measurable in total and cannot be attributed door "
+        "by door. Knowing which question is unanswerable is worth as much as an answer.",
+        to_confirm="Whether that code is a convention with a meaning or an absence with a "
+        "spelling — and if the shops behind it can be identified another way, which is what "
+        "would make the one stable displacement traceable.",
     ),
     "model_change": Measure(
         key="model_change",
