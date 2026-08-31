@@ -1200,3 +1200,21 @@ def test_the_unplanned_report_separates_a_missed_join_from_a_market_off_plan():
     workbook = plan(("2026-04", 90_000.0), market="Japan", channel=ECOMMERCE)
 
     assert _print_unplanned(built, workbook) == 0
+
+
+def test_the_unplanned_report_covers_the_shipped_side_too():
+    """The shipped perimeter is not in `tracks` — the consolidation publishes a cumulative
+    column, not a series — so a report walking tracks alone said "nothing escapes the plan"
+    while the screen counted tens of millions without one.
+
+    A diagnostic that reassures about the half it looks at and stays silent on the other is
+    worse than no diagnostic: it closes the question.
+    """
+    from app.cli import _print_unplanned
+
+    built = history.from_rows([row(period="2026-04", actual=100_000.0)])
+    workbook = plan(("2026-04", 90_000.0))
+    shipped = [{"market": "Middle East", "channel": "dis", "segment": "DIS",
+                "period": "2026-04", "sales_actual": 500_000.0}]
+
+    assert _print_unplanned(built, workbook, shipped) == 0

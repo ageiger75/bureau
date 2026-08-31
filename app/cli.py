@@ -1602,7 +1602,7 @@ def cmd_history(argv: List[str]) -> int:
         if plan is None:
             print("Classeur de plan absent : %s" % settings.budget_path, file=sys.stderr)
             return 2
-        return _print_unplanned(built, plan)
+        return _print_unplanned(built, plan, [r for r in rows if r.get("segment")])
 
     ytd = built.ytd(budget=plan)
     if ytd is not None:
@@ -1876,7 +1876,7 @@ def _print_one_market(built, market: str, plan=None) -> int:
     return 0
 
 
-def _print_unplanned(built, plan) -> int:
+def _print_unplanned(built, plan, sell_in=()) -> int:
     """Le chiffre que l'écran laisse hors de la comparaison, et pourquoi.
 
     L'écran compare marché × canal × mois. Le budget se fait par pays. Les deux sont vrais
@@ -1919,7 +1919,24 @@ def _print_unplanned(built, plan) -> int:
         total += sold
         if no_line:
             unplanned += no_line
-            rows.append((scope, no_line, sold, months, scope in planned_scopes))
+            rows.append((scope, no_line, sold, months, scope in planned_scopes, "vendu"))
+
+    # Le sell-in n'est pas dans `tracks` : la consolidation publie un cumul et non une
+    # série, donc il n'a pas d'historique à replier. Sans lui, ce rapport disait « rien
+    # n'échappe au plan » pendant que l'écran comptait des dizaines de millions sans plan
+    # — un diagnostic qui rassure sur la moitié qu'il regarde et se tait sur l'autre.
+    from .perf.history import _months_in, _plan_across, _sell_in_months
+
+    for market, channel, period, sold in _sell_in_months(sell_in, plan):
+        months_of = [m for m in _months_in(period) if first <= m <= last]
+        if not months_of:
+            continue
+        total += sold
+        if _plan_across(plan, market, channel, months_of) is None:
+            unplanned += sold
+            scope = "%s/%s" % (market, channel)
+            rows.append((scope, sold, sold, len(months_of),
+                         scope in planned_scopes, "expédié"))
 
     print("")
     print("Exercice à date (%s → %s), vendu contre le classeur de plan :" % (first, last))
@@ -1943,9 +1960,11 @@ def _print_unplanned(built, plan) -> int:
             continue
         print("")
         print("%s :" % title)
-        for scope, amount, sold, months, _known in sorted(group, key=lambda r: -r[1])[:30]:
-            print("  %-38s %14s  %5s de son chiffre  %2d mois"
-                  % (scope[:38], _eur(amount), _share(amount, sold), months))
+        for scope, amount, sold, months, _known, basis in sorted(
+            group, key=lambda r: -r[1]
+        )[:30]:
+            print("  %-34s %14s  %5s de son chiffre  %2d mois  %s"
+                  % (scope[:34], _eur(amount), _share(amount, sold), months, basis))
     return 0
 
 
