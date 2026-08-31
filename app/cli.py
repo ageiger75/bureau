@@ -1604,7 +1604,13 @@ def cmd_history(argv: List[str]) -> int:
             return 2
         return _print_unplanned(built, plan, [r for r in rows if r.get("segment")])
 
-    ytd = built.ytd(budget=plan)
+    # Le même fichier que l'écran, sinon les deux se contredisent — et deux lectures du
+    # même exercice qui ne disent pas la même chose coûtent plus cher que l'une des deux.
+    from .perf import actuals as actuals_module
+
+    published_year = actuals_module.current(month=False)
+    ytd = built.ytd(budget=plan,
+                    published=published_year if published_year.lines else None)
     if ytd is not None:
         print("")
         print("%s (%s → %s, %d mois), mesurée contre %s :"
