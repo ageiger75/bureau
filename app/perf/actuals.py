@@ -282,3 +282,230 @@ def current(month: bool = True) -> "Actuals":
 
     path = str(settings.actuals_path)
     return load(path, MONTH_SHEET if month else YTD_SHEET)
+
+
+# --- Twelve months of it -------------------------------------------------------------
+#
+# One file answers "where are we against the plan". A folder of them answers two questions
+# no single file can, and both are worth more to the data teams than to the screen.
+#
+# The first is whether this reader reads the file correctly, and it is self-checking:
+# inside a fiscal year, the year-to-date sheet of one month less the year-to-date sheet of
+# the month before must equal the periodic sheet of that month, to the euro. Twelve files
+# give eleven independent checks that cost nothing and need nobody's confirmation.
+#
+# The second is restatement, and it is the reason to keep the whole series rather than the
+# latest file. When those two disagree, a month has been changed after it was published —
+# a provision trued up, a reclassification applied backwards, an entity moved. That is
+# precisely the class of difference that no rule derived from the warehouse can anticipate,
+# because it is decided rather than computed. Measured here, it stops being a mystery and
+# becomes a list with dates on it.
+
+import os
+import re
+
+#: The published files name their month at the end of the stem: `... 2025 11_RFx.xlsx`.
+#: Read rather than assumed, and the last match wins — a folder name or a version suffix
+#: can carry digits too, and a file filed under the wrong month is worse than one skipped.
+PERIOD_IN_NAME = re.compile(r"(20\d\d)[ _\-.]?(0[1-9]|1[0-2])(?!\d)")
+
+#: The fiscal year opens in April. Stated once, here, because every comparison below
+#: depends on knowing where the year-to-date resets.
+FISCAL_OPENS = 4
+
+
+class Period:
+    """The month a published file speaks for, and where it sits in the fiscal year."""
+
+    __slots__ = ("year", "month", "path")
+
+    def __init__(self, year: int, month: int, path: str = "") -> None:
+        self.year = year
+        self.month = month
+        self.path = path
+
+    @property
+    def fiscal_year(self) -> int:
+        """FY26 runs April 2025 to March 2026 — the house's own convention."""
+        return self.year + 1 if self.month >= FISCAL_OPENS else self.year
+
+    @property
+    def fiscal_index(self) -> int:
+        """1 in April, 12 in March. The position the year-to-date accumulates to."""
+        return self.month - 3 if self.month >= FISCAL_OPENS else self.month + 9
+
+    @property
+    def label(self) -> str:
+        return "%04d-%02d" % (self.year, self.month)
+
+    def __repr__(self) -> str:  # pragma: no cover — diagnostics only
+        return "Period(%s)" % self.label
+
+
+class Book:
+    """One published file, both of its sheets."""
+
+    __slots__ = ("period", "month", "ytd")
+
+    def __init__(self, period: "Period", month: "Actuals", ytd: "Actuals") -> None:
+        self.period = period
+        self.month = month
+        self.ytd = ytd
+
+    @property
+    def usable(self) -> bool:
+        return self.month.usable and self.ytd.usable
+
+
+class Drift:
+    """What one month was published as, and what the next month's year-to-date says it was.
+
+    Held as a class rather than a tuple because the interesting field is the smallest one:
+    a difference of zero is the normal state and the reason to trust everything else.
+    """
+
+    __slots__ = ("period", "published", "implied", "budget_published", "budget_implied")
+
+    def __init__(self, period, published, implied, budget_published, budget_implied):
+        self.period = period
+        self.published = published
+        self.implied = implied
+        self.budget_published = budget_published
+        self.budget_implied = budget_implied
+
+    @property
+    def actual_drift(self) -> float:
+        return self.implied - self.published
+
+    @property
+    def budget_drift(self) -> float:
+        return self.budget_implied - self.budget_published
+
+    @property
+    def is_clean(self) -> bool:
+        """Within a euro on both terms. Rounding lives in the file, not in the business."""
+        return abs(self.actual_drift) < 1.0 and abs(self.budget_drift) < 1.0
+
+
+class Series:
+    """A folder of published files, in order, with what reading them found."""
+
+    __slots__ = ("books", "faults", "folder")
+
+    def __init__(self, books, faults, folder="") -> None:
+        self.books = list(books)
+        self.faults = list(faults)
+        self.folder = folder
+
+    @property
+    def usable(self) -> bool:
+        return bool(self.books) and all(book.usable for book in self.books)
+
+    def fiscal_years(self) -> List[int]:
+        return sorted({book.period.fiscal_year for book in self.books})
+
+    def drifts(self) -> List["Drift"]:
+        """Every month the series can check, whether or not it moved.
+
+        A month is checkable when the file before it in its own fiscal year is present, or
+        when it is April and the year-to-date is the month itself. Months whose predecessor
+        is missing are silently uncheckable rather than reported clean — an absent check is
+        not a passed one.
+        """
+        by_year: Dict[int, Dict[int, Book]] = {}
+        for book in self.books:
+            by_year.setdefault(book.period.fiscal_year, {})[book.period.fiscal_index] = book
+
+        found: List[Drift] = []
+        for _, months in sorted(by_year.items()):
+            for index, book in sorted(months.items()):
+                if index == 1:
+                    before_actual = before_budget = 0.0
+                else:
+                    earlier = months.get(index - 1)
+                    if earlier is None:
+                        continue
+                    before_actual = earlier.ytd.actual
+                    before_budget = earlier.ytd.budget
+                found.append(Drift(
+                    period=book.period,
+                    published=book.month.actual,
+                    implied=book.ytd.actual - before_actual,
+                    budget_published=book.month.budget,
+                    budget_implied=book.ytd.budget - before_budget,
+                ))
+        return found
+
+    def restated(self) -> List["Drift"]:
+        return [drift for drift in self.drifts() if not drift.is_clean]
+
+    def by_market(self) -> Dict[str, List["Period"]]:
+        """Which months each market appears in — a market that stops appearing is news."""
+        seen: Dict[str, List[Period]] = {}
+        for book in self.books:
+            for market in book.month.markets():
+                seen.setdefault(market, []).append(book.period)
+        return seen
+
+
+def period_of(name: str) -> Optional["Period"]:
+    """The month a file name speaks for, or nothing if it does not say."""
+    stem = os.path.splitext(os.path.basename(name))[0]
+    matches = PERIOD_IN_NAME.findall(stem)
+    if not matches:
+        return None
+    year, month = matches[-1]
+    return Period(int(year), int(month), name)
+
+
+def series(folder: str, brand: str = BRAND) -> "Series":
+    """Read every published file in a folder, ordered by the month each speaks for.
+
+    Files that do not name a month are refused rather than guessed at, and two files
+    claiming the same month are both refused: the series exists to detect restatement, and
+    a series that quietly kept one of two versions would hide exactly what it is for.
+    """
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError as exc:  # noqa: BLE001 — the message matters more than the type
+        return Series([], ["%s" % exc], folder)
+
+    faults: List[str] = []
+    claimed: Dict[str, List[str]] = {}
+    candidates: List[Period] = []
+    for name in names:
+        if not name.lower().endswith((".xlsx", ".xlsm")) or name.startswith("~$"):
+            continue
+        period = period_of(name)
+        if period is None:
+            faults.append("mois illisible dans le nom, fichier ignoré : %s" % name)
+            continue
+        period.path = os.path.join(folder, name)
+        claimed.setdefault(period.label, []).append(name)
+        candidates.append(period)
+
+    doubled = {label for label, names_ in claimed.items() if len(names_) > 1}
+    for label in sorted(doubled):
+        faults.append("deux fichiers pour %s : %s — aucun retenu"
+                      % (label, ", ".join(sorted(claimed[label]))))
+
+    books: List[Book] = []
+    for period in sorted(candidates, key=lambda p: (p.year, p.month)):
+        if period.label in doubled:
+            continue
+        month = load(period.path, MONTH_SHEET, brand)
+        ytd = load(period.path, YTD_SHEET, brand)
+        faults.extend("%s — %s" % (os.path.basename(period.path), fault)
+                      for fault in month.faults + ytd.faults)
+        books.append(Book(period, month, ytd))
+
+    if not books:
+        faults.append("aucun fichier publié lisible dans %s" % folder)
+    return Series(books, faults, folder)
+
+
+def current_series() -> "Series":
+    """The folder of published files as it sits on disk right now."""
+    from ..config import settings
+
+    return series(str(settings.actuals_folder))

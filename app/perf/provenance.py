@@ -423,7 +423,14 @@ REGISTER: Dict[str, Measure] = {
         "exactly zero, twelve more inside a point, and seven separate by more than that. "
         "Ten exact zeros is the demonstration: a method that agrees to the decimal on a "
         "third of the estate is measuring, not approximating, and the spreads it leaves "
-        "are findings rather than noise. The levels bounded the gap; this measures it.",
+        "are findings rather than noise. The levels bounded the gap; this measures it.\n\n"
+        "Two things have narrowed this since. The screen's own convention is now decided "
+        "rather than inferred — budget rates, fixed across the year, `fixed_rates` — so "
+        "everything stated here is on one set and the unreconcilable levels are confined to "
+        "figures taken from the consolidation's own views. And the headline no longer "
+        "crosses the boundary at all: it is a subtraction inside a single published file. "
+        "This measure stops being load-bearing for the number and stays the right "
+        "instrument for the question behind it.",
         to_confirm="Reading the consolidation's own year-on-year alongside the sell-out's, "
         "market by market, and what the remaining spreads are, now that the method itself "
         "is demonstrated rather than proposed.",
@@ -590,7 +597,11 @@ REGISTER: Dict[str, Measure] = {
         "of the other.",
         to_confirm="Whether the residual left after every known rule is applied shrinks "
         "month on month — a shrinking residual is a maturing pipeline, and one that jumps "
-        "is a closing decision worth asking about by name.",
+        "is a closing decision worth asking about by name. Half of that is now measurable "
+        "without the warehouse and without anyone's help: twelve published files, read as a "
+        "series, say which months were changed after they were published and by how much. "
+        "The provision trued up at close is confirmed as real; the series turns it from a "
+        "reason a reconciliation cannot converge into a dated list.",
     ),
     "window_comparability": Measure(
         key="window_comparability",
@@ -850,7 +861,42 @@ REGISTER: Dict[str, Measure] = {
         "rate-clean without anyone arranging it.\n\n"
         "The odd one out is the consolidation, whose set is neither the budget rates nor "
         "market rates. So the rate problem is confined exactly where it was found: the "
-        "reconciliation against Finance, and nowhere else on this screen.",
+        "reconciliation against Finance, and nowhere else on this screen.\n\n"
+        "That confinement has since been made a rule rather than an observation: the screen "
+        "states everything at the budget rates and holds them fixed all year. See "
+        "`fixed_rates` — what this measure discovered, that one settles.",
+    ),
+    "fixed_rates": Measure(
+        key="fixed_rates",
+        label="One rate set, fixed for the year, decided rather than discovered",
+        maturity=VALIDATED,
+        note="This register treated the exchange rate for months as something to be found "
+        "out, and wrote, as though it closed the matter, that the consolidation's set sits "
+        "in no table anyone can query. The sentence is true and the conclusion was wrong. "
+        "A rate is a convention before it is a measurement, and a convention is settled by "
+        "deciding it — which is what has now been done, at the only level where it could "
+        "be.\n\n"
+        "The decision: this screen states everything at the group's budget rates, the set "
+        "fixed for the exercise, and holds them fixed from April to March. Nothing here "
+        "converts at a rate that moves.\n\n"
+        "Three things fall into line at once, and they were already in line without anyone "
+        "having arranged it. The planning workbook is stated at those rates. The sell-out "
+        "converts at those rates, and they do not move between years. And of the two actual "
+        "columns the published file carries side by side, the one this reader takes — the "
+        "choice that was made for a technical reason and cost this repository a retracted "
+        "finding — is the one at the budget's rates. So every term of every comparison on "
+        "this screen now sits on one set by decision, not by luck: a market misses its plan "
+        "for trading and never for its currency, and every trend is a local-currency trend.\n\n"
+        "What stays outside is named rather than absorbed. The published file's neighbouring "
+        "column, and the sell-in views of the consolidation, carry a set of their own; they "
+        "are no longer under the headline, which is a subtraction inside one file, but a "
+        "figure taken from them must not be set against a figure from here.\n\n"
+        "And the convention has a cost that has to be said out loud, because a fixed rate "
+        "is convenient in exactly the way that misleads. It does not say what the year "
+        "earned in euros. Nobody should read a figure on this screen as cash. Performance "
+        "is measured at a rate that is held still on purpose; what a moving rate does to "
+        "the money belongs to Treasury, and is a different question asked by different "
+        "people.",
     ),
     "brazil_tax": Measure(
         key="brazil_tax",

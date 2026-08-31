@@ -127,3 +127,99 @@ def test_several_published_rows_for_one_scope_are_summed_never_picked():
     assert folded["China/webp"].budget == 180.0
     # Two bases under one heading is a fact about the business, and it is named.
     assert folded["China/webp"].basis == "MIXED"
+
+
+# --- The series ----------------------------------------------------------------------
+
+
+def _book(year, month, month_actual, ytd_actual, month_budget=0.0, ytd_budget=0.0):
+    period = actuals.Period(year, month)
+    line = actuals.Line("Somewhere", "EMEA", "retail", actuals.SOLD,
+                        month_actual, 0.0, month_budget)
+    cumulative = actuals.Line("Somewhere", "EMEA", "retail", actuals.SOLD,
+                              ytd_actual, 0.0, ytd_budget)
+    return actuals.Book(period, actuals.Actuals([line], []), actuals.Actuals([cumulative], []))
+
+
+def test_the_fiscal_year_is_read_from_the_file_name():
+    """April opens the year, so November 2025 belongs to FY26 and sits eighth in it. Read
+    from the name rather than declared: a file filed under the wrong month would compare a
+    cumulative total against the wrong predecessor and invent a restatement."""
+    november = actuals.period_of("Sales by country and by channel 2025 11_RFx.xlsx")
+    assert (november.year, november.month) == (2025, 11)
+    assert november.fiscal_year == 2026
+    assert november.fiscal_index == 8
+
+    april = actuals.period_of("Sales by country and by channel 2025 04_RFx.xlsx")
+    assert april.fiscal_index == 1
+    assert actuals.period_of("Sales by country and by channel.xlsx") is None
+
+
+def test_a_month_that_did_not_move_is_the_normal_state():
+    """The whole instrument rests on one subtraction: inside a fiscal year, the cumulative
+    of one month less the cumulative of the month before must equal the month itself. When
+    it does, this reader reads the file correctly and nobody needs to confirm it."""
+    series = actuals.Series([
+        _book(2025, 4, 100.0, 100.0),
+        _book(2025, 5, 120.0, 220.0),
+        _book(2025, 6, 90.0, 310.0),
+    ], [])
+    drifts = series.drifts()
+    assert len(drifts) == 3
+    assert all(drift.is_clean for drift in drifts)
+    assert series.restated() == []
+
+
+def test_a_month_restated_after_publication_is_named_with_its_month():
+    """A provision trued up at close, a reclassification applied backwards: the month was
+    published at one figure and the next cumulative says another. That difference is
+    decided rather than computed, which is exactly why no rule derived from the warehouse
+    could have anticipated it — and why measuring it is worth more than deriving it."""
+    series = actuals.Series([
+        _book(2025, 4, 100.0, 100.0),
+        _book(2025, 5, 120.0, 250.0),
+    ], [])
+    moved = series.restated()
+    assert [drift.period.label for drift in moved] == ["2025-05"]
+    assert moved[0].published == 120.0
+    assert moved[0].implied == 150.0
+    assert moved[0].actual_drift == 30.0
+
+
+def test_a_month_whose_predecessor_is_absent_is_not_checked():
+    """An absent check is not a passed one. A folder missing one month can still be read,
+    and the months it cannot verify are left out of the count rather than reported clean."""
+    series = actuals.Series([
+        _book(2025, 4, 100.0, 100.0),
+        _book(2025, 6, 90.0, 310.0),
+    ], [])
+    assert [drift.period.label for drift in series.drifts()] == ["2025-04"]
+
+
+def test_the_year_end_does_not_carry_into_the_next_april():
+    """The cumulative resets in April, so April is checked against itself and never against
+    the March before it. Getting this wrong would report a restatement every twelve months
+    the size of a whole year."""
+    series = actuals.Series([
+        _book(2026, 3, 80.0, 900.0),
+        _book(2026, 4, 110.0, 110.0),
+    ], [])
+    assert all(drift.is_clean for drift in series.drifts())
+
+
+def test_two_files_claiming_one_month_are_both_refused(tmp_path):
+    """The series exists to detect that a month changed. A series that quietly kept one of
+    two versions of the same month would hide precisely what it is for."""
+    (tmp_path / "Sales 2025 11.xlsx").write_bytes(b"")
+    (tmp_path / "Sales 2025 11_v2.xlsx").write_bytes(b"")
+    (tmp_path / "Sales unnamed month.xlsx").write_bytes(b"")
+    read = actuals.series(str(tmp_path))
+    assert read.books == []
+    assert any("deux fichiers pour 2025-11" in fault for fault in read.faults)
+    assert any("mois illisible" in fault for fault in read.faults)
+
+
+def test_an_absent_folder_reports_rather_than_raises():
+    read = actuals.series("/nowhere/at/all")
+    assert not read.usable
+    assert read.faults

@@ -62,20 +62,29 @@ def test_a_measure_is_promoted_only_when_something_attests_to_it():
 
 
 def test_nothing_is_validated_on_the_strength_of_working():
-    """One measure carries that standing, checked against a document the organisation
-    publishes rather than against itself: the rate the plan is stated at reconciles with
-    the group's own budget-rate table, currency by currency, against rates measured
-    independently from the sell-out — a document on one side, a measurement on the other,
-    agreeing without either being adjusted.
+    """Two measures carry that standing, and they reach it by different routes — which is
+    the useful thing about this list.
 
-    There were two. The plan itself was demoted when a published flash disagreed with it
-    by several points, which is the whole reason this list is written out by hand: a
-    measure reaching this state because it works is a measure nobody checked, and a
-    measure kept here after the evidence moved is worse.
+    One was checked against a document the organisation publishes rather than against
+    itself: the rate the plan is stated at reconciles with the group's own budget-rate
+    table, currency by currency, against rates measured independently from the sell-out — a
+    document on one side, a measurement on the other, agreeing without either being
+    adjusted.
+
+    The other is not a measurement at all. Which rates this screen states its figures at is
+    a convention, and a convention is settled by someone deciding it, not by a query
+    returning. It is validated because the decision was taken at the level entitled to take
+    it and written down — budget rates, held fixed April to March — and it would be demoted
+    the day the screen stated a figure on any other set.
+
+    The plan itself was demoted when a published flash disagreed with it by several points,
+    which is the whole reason this list is written out by hand: a measure reaching this
+    state because it works is a measure nobody checked, and a measure kept here after the
+    evidence moved is worse.
     """
     validated = sorted(m.key for m in provenance.REGISTER.values() if m.is_settled)
 
-    assert validated == ["plan_rate"]
+    assert validated == ["fixed_rates", "plan_rate"]
 
 
 # ------------------------------------------------------- the caveat on the big number

@@ -1173,6 +1173,12 @@ def _eur_k(amount: float) -> str:
     return "%+.0f k€" % (amount / 1000.0)
 
 
+def _level_k(amount: float) -> str:
+    """A level, not a variance. The signed form above reads as a gap wherever it appears,
+    and a month's turnover printed with a plus sign invites exactly that misreading."""
+    return "%.0f k€" % (amount / 1000.0)
+
+
 
 def cmd_bulk(argv: List[str]) -> int:
     """Les ventes hors bulk, à côté des ventes tout compris.
@@ -1947,6 +1953,7 @@ def cmd_actuals(argv: List[str]) -> int:
         manage.py actuals FICHIER.xlsx --ytd      l'exercice à date
         manage.py actuals FICHIER.xlsx --markets  le détail par marché
         manage.py actuals FICHIER.xlsx --coverage ce que le fichier couvre du plan
+        manage.py actuals DOSSIER --series       les douze mois, et ce qui a été retouché
 
     Ce fichier porte, sur une même ligne : la Maison, l'entité, vendu ou expédié, le pays,
     le canal — puis le réalisé, l'an dernier et le budget côte à côte, au même jeu de taux.
@@ -1962,6 +1969,12 @@ def cmd_actuals(argv: List[str]) -> int:
     from .perf import actuals as actuals_module
 
     positional = [a for a in argv if not a.startswith("--")]
+    if "--series" in argv:
+        folder = positional[0] if positional else str(settings.actuals_folder)
+        if not Path(folder).is_dir():
+            print("Dossier introuvable : %s" % folder, file=sys.stderr)
+            return 2
+        return _actuals_series(folder, "--markets" in argv)
     if not positional:
         print(cmd_actuals.__doc__, file=sys.stderr)
         return 2
@@ -2046,6 +2059,72 @@ def cmd_actuals(argv: List[str]) -> int:
             print("%-30s %11s %11s %11s %8s"
                   % (market[:30], _eur_k(actual), _eur_k(budget), _eur_k(gap),
                      "%+.1f%%" % (100.0 * gap / budget) if budget else "—"))
+    return 0
+
+
+def _actuals_series(folder: str, detail: bool) -> int:
+    """Les mois publiés, dans l'ordre, et ce qu'un mois est devenu après sa publication.
+
+    Deux lectures et une seule arithmétique : à l'intérieur d'un exercice, le cumul d'un
+    mois moins le cumul du mois d'avant doit valoir le mois lui-même, à l'euro. Quand ça
+    tombe juste, ce lecteur lit le fichier correctement et personne n'a besoin de le
+    confirmer. Quand ça ne tombe pas juste, un mois a bougé après avoir été publié — une
+    provision reprise, un reclassement appliqué en arrière — et c'est exactement la
+    catégorie d'écart qu'aucune règle tirée de l'entrepôt ne pouvait deviner.
+    """
+    from .perf import actuals as actuals_module
+
+    read = actuals_module.series(folder)
+    for fault in read.faults:
+        print("  %s" % fault, file=sys.stderr)
+    if not read.books:
+        return 1
+
+    print("Dossier            %s" % folder)
+    print("Maison             %s" % actuals_module.BRAND)
+    print("Fichiers lus       %d  (%s → %s)"
+          % (len(read.books), read.books[0].period.label, read.books[-1].period.label))
+    print("")
+    print("%-9s %11s %11s %10s %11s %10s"
+          % ("Mois", "Réalisé", "Budget", "vs plan", "An dernier", "vs N-1"))
+    for book in read.books:
+        month = book.month
+        growth = ((month.actual - month.last_year) / month.last_year
+                  if month.last_year else None)
+        print("%-9s %11s %11s %10s %11s %10s"
+              % (book.period.label,
+                 _level_k(month.actual), _level_k(month.budget),
+                 "%+.1f%%" % (100.0 * month.pct) if month.pct is not None else "—",
+                 _level_k(month.last_year),
+                 "%+.1f%%" % (100.0 * growth) if growth is not None else "—"))
+
+    drifts = read.drifts()
+    print("")
+    if not drifts:
+        print("Aucun mois vérifiable : il faut deux mois consécutifs du même exercice.")
+        return 0
+    moved = [drift for drift in drifts if not drift.is_clean]
+    print("Contrôle cumul − cumul du mois précédent = le mois, sur %d mois vérifiables :"
+          % len(drifts))
+    if not moved:
+        print("  les %d tombent à l'euro." % len(drifts))
+        print("  Rien n'a été retouché après publication, et ce lecteur lit juste.")
+        return 0
+    print("  %d sur %d ne tombent pas juste. Un mois a bougé après avoir été publié :"
+          % (len(moved), len(drifts)))
+    print("")
+    print("%-9s %13s %13s %12s" % ("Mois", "publié", "recalculé", "écart"))
+    for drift in moved:
+        print("%-9s %13s %13s %12s"
+              % (drift.period.label, _level_k(drift.published), _level_k(drift.implied),
+                 _eur_k(drift.actual_drift)))
+        if abs(drift.budget_drift) >= 1.0:
+            print("%-9s %13s %13s %12s   budget"
+                  % ("", _level_k(drift.budget_published), _level_k(drift.budget_implied),
+                     _eur_k(drift.budget_drift)))
+    print("")
+    print("À porter à la Finance mois par mois : ce n'est pas une erreur de lecture, c'est")
+    print("une décision de clôture appliquée après coup. Elle a une date et une raison.")
     return 0
 
 

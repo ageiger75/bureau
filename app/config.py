@@ -82,6 +82,10 @@ DEFAULT_CONTEXT_FILE = "var/context.csv"
 DEFAULT_WEIGHTS_FILE = "var/weights.csv"
 #: Le réalisé publié par la Finance, à la maille du plan. Déposé chaque mois.
 DEFAULT_ACTUALS_FILE = "var/actuals.xlsx"
+#: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
+#: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
+#: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
+DEFAULT_ACTUALS_FOLDER = "var/actuals"
 
 #: The KPI tracker the business maintains: definitions, targets, cadence, owners. Beside
 #: the plan workbook and gitignored with it, because it names people and states targets.
@@ -101,6 +105,7 @@ class Settings:
     context_file: str = DEFAULT_CONTEXT_FILE
     weights_file: str = DEFAULT_WEIGHTS_FILE
     actuals_file: str = DEFAULT_ACTUALS_FILE
+    actuals_folder_name: str = DEFAULT_ACTUALS_FOLDER
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
@@ -152,6 +157,15 @@ class Settings:
     @property
     def has_actuals_file(self) -> bool:
         return self.actuals_path.exists()
+
+    @property
+    def actuals_folder(self) -> Path:
+        path = Path(self.actuals_folder_name)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_actuals_folder(self) -> bool:
+        return self.actuals_folder.is_dir()
 
     @property
     def has_weights_file(self) -> bool:
@@ -231,6 +245,9 @@ def load_settings() -> Settings:
         owners_file=_env("CEOOS_OWNERS_FILE") or DEFAULT_OWNERS_FILE,
         context_file=_env("CEOOS_CONTEXT_FILE") or DEFAULT_CONTEXT_FILE,
         kpi_file=_env("CEOOS_KPI_FILE") or DEFAULT_KPI_FILE,
+        weights_file=_env("CEOOS_WEIGHTS_FILE") or DEFAULT_WEIGHTS_FILE,
+        actuals_file=_env("CEOOS_ACTUALS_FILE") or DEFAULT_ACTUALS_FILE,
+        actuals_folder_name=_env("CEOOS_ACTUALS_FOLDER") or DEFAULT_ACTUALS_FOLDER,
         snowflake_connection=snowflake_connection,
     )
 
