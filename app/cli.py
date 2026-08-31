@@ -1613,10 +1613,13 @@ def cmd_history(argv: List[str]) -> int:
                     published=published_year if published_year.lines else None)
     if ytd is not None:
         print("")
+        # La source vient du modèle et non d'un libellé écrit ici : la ligne annonçait « le
+        # classeur de planification » pendant que le total venait entièrement du fichier
+        # publié. Un en-tête qui nomme la mauvaise source est pire qu'un en-tête absent.
         print("%s (%s → %s, %d mois), mesurée contre %s :"
               % (ytd.label, ytd.first_period, ytd.last_period, ytd.months,
-                 "le classeur de planification" if plan is not None
-                 else "le fait `goals` de l'entrepôt"))
+                 ytd.plan_source or ("le classeur de planification" if plan is not None
+                                     else "le fait `goals` de l'entrepôt")))
         print("  réalisé          %15s" % _eur(ytd.actual))
         print("  budget           %15s" % _eur(ytd.budget))
         print("  écart            %15s  %s" % (
@@ -1636,6 +1639,13 @@ def cmd_history(argv: List[str]) -> int:
               % (_eur(ytd.zero_goal_actual), ytd.zero_goal_lines))
         print("  sans vente       %15s  (%d cellules, hors total)"
               % (_eur(ytd.unsold_budget), ytd.unsold_lines))
+        if ytd.hospitality_actual:
+            # Dans le total, pas à côté : ce périmètre était exclu tant que rien ne le
+            # mesurait, et l'exclure maintenant fabriquerait un écart avec le chiffre que
+            # la maison cite. Il est nommé parce qu'il se comporte autrement que le reste.
+            print("  dont hospitality %15s  budget %s, écart %s"
+                  % (_eur(ytd.hospitality_actual), _eur(ytd.hospitality_budget),
+                     _eur(ytd.hospitality_gap)))
         # Dit ici et pas en note de bas de page : ce chiffre n'est pas la Maison, c'est
         # la moitié de la Maison que l'entrepôt sait mesurer. Le sell-in n'a pas encore
         # d'historique, donc il n'est ni au réalisé ni au budget de cette ligne.

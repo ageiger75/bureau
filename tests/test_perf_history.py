@@ -1228,6 +1228,10 @@ def test_the_year_is_taken_whole_from_the_published_file_and_not_composed():
     publishes. On real data that intersection was short by twenty million and turned a
     fifth of a point behind into more than two points behind — the exact error the file was
     adopted to remove, committed one level up.
+
+    Hospitality is inside the total too. It was excluded for as long as nothing measured
+    it, which was honest; this file measures it, and excluding it now would manufacture a
+    difference with the figure the house quotes.
     """
     from app.perf.actuals import HOSPITALITY, SHIPPED, SOLD, Actuals, Line
 
@@ -1239,15 +1243,37 @@ def test_the_year_is_taken_whole_from_the_published_file_and_not_composed():
         # A scope the warehouse has no track for. Dropped by a scope-by-scope fold, and
         # it is the one carrying the business that keeps the year close to its plan.
         Line("Elsewhere", "EMEA", "retail", SHIPPED, 900_000.0, 0.0, 899_000.0),
-        # Outside the perimeter this screen states, and the only thing left out.
         Line("Japan", "APAC", "b2b", HOSPITALITY, 50_000.0, 0.0, 40_000.0),
     ], [])
 
     ytd = built.ytd("2026-04", budget=workbook, published=published)
 
-    assert ytd.actual == pytest.approx(1_000_000.0)
-    assert ytd.budget == pytest.approx(1_000_000.0)
-    assert ytd.gap == pytest.approx(0.0)
+    assert ytd.actual == pytest.approx(1_050_000.0)
+    assert ytd.budget == pytest.approx(1_040_000.0)
+    assert ytd.gap == pytest.approx(10_000.0)
     assert ytd.reported_share == pytest.approx(1.0)
     assert ytd.unbudgeted_actual == 0.0
     assert "whole" in ytd.plan_source
+
+
+def test_hospitality_is_named_inside_the_total_rather_than_left_out_of_it():
+    """It behaves differently from the rest — on real data it is ahead of its plan while
+    the year is behind — so a total that swallowed it silently would hide the one
+    perimeter that is doing well. Named, not excluded: excluding it would put four tenths
+    of a point between this screen and the figure the house publishes.
+    """
+    from app.perf.actuals import HOSPITALITY, SOLD, Actuals, Line
+
+    built = history.from_rows([row(period="2026-04", actual=100_000.0)])
+    published = Actuals([
+        Line("Japan", "APAC", "ecommerce", SOLD, 100_000.0, 0.0, 120_000.0),
+        Line("Japan", "APAC", "b2b", HOSPITALITY, 50_000.0, 0.0, 40_000.0),
+    ], [])
+
+    ytd = built.ytd("2026-04", budget=plan(("2026-04", 90_000.0)), published=published)
+
+    assert ytd.hospitality_actual == pytest.approx(50_000.0)
+    assert ytd.hospitality_budget == pytest.approx(40_000.0)
+    assert ytd.hospitality_gap == pytest.approx(10_000.0)
+    # And it is inside the total it is named in, not beside it.
+    assert ytd.actual == pytest.approx(150_000.0)

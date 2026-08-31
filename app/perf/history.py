@@ -512,6 +512,8 @@ class Ytd:
         "reported_actual",
         "reported_budget",
         "reported_lines",
+        "hospitality_actual",
+        "hospitality_budget",
     )
 
     def __init__(
@@ -533,6 +535,8 @@ class Ytd:
         reported_actual: float = 0.0,
         reported_budget: float = 0.0,
         reported_lines: int = 0,
+        hospitality_actual: float = 0.0,
+        hospitality_budget: float = 0.0,
     ) -> None:
         self.label = label
         self.first_period = first_period
@@ -545,6 +549,12 @@ class Ytd:
         self.reported_actual = reported_actual
         self.reported_budget = reported_budget
         self.reported_lines = reported_lines
+        #: Hospitality and corporate gifts, held apart inside the total rather than left
+        #: out of it. Nothing measured this perimeter until the published file arrived, so
+        #: the screen excluded it and said so. The file carries it, and excluding it now
+        #: would manufacture a difference with the figure the house quotes.
+        self.hospitality_actual = hospitality_actual
+        self.hospitality_budget = hospitality_budget
         self.unbudgeted_actual = unbudgeted_actual
         self.unsold_budget = unsold_budget
         self.unbudgeted_lines = unbudgeted_lines
@@ -564,6 +574,10 @@ class Ytd:
         #: transaction — so a year to date can legitimately hold four months of one and
         #: three of the other. Legitimate, and invisible unless it is named.
         self.shipped_through = shipped_through
+
+    @property
+    def hospitality_gap(self) -> float:
+        return self.hospitality_actual - self.hospitality_budget
 
     @property
     def reported_share(self) -> Optional[float]:
@@ -738,10 +752,15 @@ class History:
         if published is not None and getattr(published, "lines", None):
             from .actuals import HOSPITALITY, SHIPPED, SOLD
 
-            summed = published.totals((SOLD, SHIPPED))
+            # Every basis, hospitality included. It was left out for as long as nothing
+            # measured it, which was honest; this file measures it, and leaving it out now
+            # would manufacture a difference with the figure the house quotes — on real
+            # data, four tenths of a point of one, all of it in the direction that makes
+            # the year look worse than it is.
+            summed = published.totals()
             if summed["budget"]:
                 whole = summed
-                whole["outside"] = published.totals((HOSPITALITY,))["actual"]
+                whole["hospitality"] = published.totals((HOSPITALITY,))
             published = None
 
         covered = dict(published or {})
@@ -838,6 +857,8 @@ class History:
                 reported_actual=whole["actual"],
                 reported_budget=whole["budget"],
                 reported_lines=int(whole["lines"]),
+                hospitality_actual=whole["hospitality"]["actual"],
+                hospitality_budget=whole["hospitality"]["budget"],
                 plan_source="the consolidation, whole",
                 shipped_through="",
             )

@@ -185,8 +185,16 @@
            revenue as the accounts recognise it — which is the figure Finance reports, and
            the reason it must never be quietly swapped for a sell-through one. #}
         Sold and shipped together, as the accounts recognise them: stores and own sites at
-        the point of sale, partners at the invoice. Hospitality and corporate gifts are
-        still outside — about 3% of the plan.
+        the point of sale, partners at the invoice.
+        {% if dataset.ytd.hospitality_actual %}
+          Hospitality and corporate gifts are inside this figure now that the published
+          file measures them — {{ dataset.ytd.hospitality_actual | eur }} sold,
+          {{ dataset.ytd.hospitality_gap | eur }} against their plan. Leaving them out
+          would put this screen a fraction of a point away from the figure the house
+          quotes, for no reason anyone could defend.
+        {% else %}
+          Hospitality and corporate gifts are still outside — about 3% of the plan.
+        {% endif %}
       </p>
     </div>
   {% endif %}
