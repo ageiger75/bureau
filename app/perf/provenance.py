@@ -984,12 +984,30 @@ REGISTER: Dict[str, Measure] = {
         "and never demonstrated; it is now demonstrated, by a test designed to show the "
         "opposite. The counters are consolidated elsewhere, on the shipped side, which the "
         "orders of magnitude support.\n\n"
-        "Two markets keep their distance after this and now have to be explained some other "
-        "way. That is a smaller question than the one it replaces, and it is asked on solid "
-        "ground: the perimeter is no longer a candidate.",
-        to_confirm="Where Finance consolidates those counters, stated rather than inferred "
-        "from magnitudes — the shipped-side line they land on, and whether every market "
-        "with them does it the same way.",
+        "One market of the five refuses the conclusion, and it is the one that most needed "
+        "explaining. Over the months where its counter estate is unchanged, excluding them "
+        "leaves the consolidation growing seven points faster and including them leaves the "
+        "warehouse growing three points faster. **Both extremes overshoot, in opposite "
+        "directions** — which is not a failed test but a solved one stated in the wrong "
+        "terms. When each of two exhaustive choices lands on the far side of the answer, "
+        "the answer is a partition: that consolidation carries part of those counters and "
+        "not the rest. The question stops being whether the boundary matches and becomes "
+        "which counters sit on which side, and it is answerable from the shipped-side lines "
+        "rather than by another year of watching.\n\n"
+        "So the finding holds with a named exception rather than universally: four markets "
+        "draw the boundary in the same place, one draws it somewhere in between, and no "
+        "market draws it where this register first guessed.\n\n"
+        "A second thing surfaced with it and bears on the grading. That market's counter "
+        "estate shrinks by a third partway through the measured window. A market whose "
+        "perimeter changes mid-window is not one series with movement in it; it is two "
+        "series averaged, and the movement so computed is partly the change of perimeter "
+        "and not the business at all — the same error, at market scale, as comparing a year "
+        "across a change of commercial model.",
+        to_confirm="Which of those counters the consolidation carries and which it does "
+        "not, read from the shipped-side lines. And the same market measured over the "
+        "months where its estate is unchanged: if the distance there is steady, it belongs "
+        "with the markets a rule can be written for rather than with the ones that wait for "
+        "the close.",
     ),
     "keys_that_answer_sometimes": Measure(
         key="keys_that_answer_sometimes",
