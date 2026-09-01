@@ -33,13 +33,35 @@ def test_the_role_decides_and_never_the_job_title():
     assert not titled_md_but_country.answers_to_ceo
 
 
-def test_travel_retail_answers_to_the_ceo_without_a_manager():
-    """Ce périmètre est géré au niveau du groupe : ses responsables ne rendent pas compte
-    à un patron de BU, et la source le marque par un tiret. Un tiret n'est pas un nom."""
-    group_level = _person(kind=perimeter.TRAVEL_GM, manager="")
+def test_a_dotted_lead_is_the_lead_of_the_perimeter():
+    """Le travel retail est piloté au niveau du groupe, et sa patronne est rattachée au
+    CEO en pointillé. Le pointillé décrit le lien, pas l'interlocutrice : c'est elle que
+    le CEO appelle pour ce périmètre, et le fichier doit le dire sans l'aplatir en trait
+    plein — la maison ne décrit pas ce lien comme les six autres."""
+    dotted = _person(scope="Travel Retail", kind=perimeter.DOTTED_LEAD,
+                     manager="Le CEO")
+    org = perimeter.Org([dotted], [])
 
-    assert group_level.answers_to_ceo
-    assert group_level.manager == ""
+    assert dotted.answers_to_ceo
+    assert dotted.dotted
+    assert org.lead_for("Travel Retail") is dotted
+    assert org.without_lead() == []
+
+
+def test_a_regional_lead_stops_answering_to_the_ceo_once_the_source_names_their_boss():
+    """La faute que ce module empêche, dans l'autre sens. Les deux responsables travel
+    retail régionaux ont longtemps été proposés au CEO parce que la source ne nommait
+    personne au-dessus d'eux. Elle en nomme une maintenant : continuer à les proposer
+    court-circuiterait une ligne que la maison tient, exactement comme proposer un GM
+    pays par-dessus son patron de BU."""
+    regional = _person(scope="Travel Retail", kind=perimeter.TRAVEL_GM,
+                       manager="La patronne")
+    lead = _person(first="B", scope="Travel Retail", kind=perimeter.DOTTED_LEAD)
+    org = perimeter.Org([lead, regional], [])
+
+    assert not regional.answers_to_ceo
+    assert org.team_of("Travel Retail") == [regional]
+    assert lead not in org.team_of("Travel Retail")
 
 
 def test_a_perimeter_without_a_lead_stays_without_one():

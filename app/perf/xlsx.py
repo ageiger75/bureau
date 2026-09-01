@@ -89,7 +89,18 @@ class Workbook:
             target = targets.get(node.get("%sid" % DOC_RELS), "")
             if not name or not target:
                 continue
-            path = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
+            # Two conventions live in the wild for this attribute: a path relative to
+            # the part that declares it — "worksheets/sheet1.xml", what Excel writes —
+            # and one absolute from the package root, "/xl/worksheets/sheet1.xml", which
+            # some writers emit instead. Prefixing both alike produced "xl/xl/…" and a
+            # workbook that read as missing its only sheet.
+            target = target.replace("\\", "/")
+            if target.startswith("/"):
+                path = target.lstrip("/")
+            elif target.startswith("xl/"):
+                path = target
+            else:
+                path = "xl/" + target
             sheets[name] = path
         return sheets
 

@@ -307,14 +307,17 @@ def test_a_group_figure_on_target_with_markets_under_it_is_not_quiet():
         pillar="Client", unit="", target=3.0, direction=K.UP,
         readings=[K.Reading("2026-07", 3.78)],
     )
+    # Ancré comme toutes les autres : sans date, ce test passait en août et échouait en
+    # septembre, parce que la lecture de juillet devenait en retard. Il aurait alors
+    # accusé la règle groupe/marchés d'une faute qui n'est pas la sienne.
     assert item.status == K.ON_TRACK
-    assert item not in K.worth_showing([item])
+    assert item not in K.worth_showing([item], AUGUST)
 
     item.markets_read = 35
     item.behind = [("New Zealand", 2.07), ("India", 2.09)]
 
     assert item.status == K.ON_TRACK
-    assert item in K.worth_showing([item])
+    assert item in K.worth_showing([item], AUGUST)
 
 
 def test_a_market_is_judged_by_the_same_rule_as_the_group():

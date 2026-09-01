@@ -95,6 +95,25 @@ def test_the_reader_returns_text_and_numbers(workbook_path):
     assert rows[1][4] == pytest.approx(1861.7)
 
 
+def test_a_sheet_declared_from_the_package_root_is_still_found(tmp_path):
+    """Deux conventions coexistent pour ce chemin : relatif à la partie qui le déclare —
+    « worksheets/sheet1.xml », ce qu'écrit Excel — et absolu depuis la racine du paquet,
+    « /xl/worksheets/sheet1.xml », qu'écrivent d'autres outils. Préfixer les deux de la
+    même façon donnait « xl/xl/… » : le classeur se lisait comme dépourvu de sa seule
+    feuille, et l'annuaire disparaissait pour un slash.
+    """
+    path = tmp_path / "from-root.xlsx"
+    rels = WORKBOOK_RELS.replace('Target="worksheets/sheet1.xml"',
+                                 'Target="/xl/worksheets/sheet1.xml"')
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", CONTENT_TYPES)
+        archive.writestr("xl/workbook.xml", WORKBOOK)
+        archive.writestr("xl/_rels/workbook.xml.rels", rels)
+        archive.writestr("xl/worksheets/sheet1.xml", _sheet([HEADERS]))
+
+    assert read_sheet(path, "DATA BASE")[0][:2] == ["Brand", "Country"]
+
+
 def test_an_unknown_sheet_names_the_ones_that_exist(workbook_path):
     with pytest.raises(WorkbookError) as refused:
         read_sheet(workbook_path, "Sheet1")

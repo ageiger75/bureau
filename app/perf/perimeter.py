@@ -34,16 +34,25 @@ from typing import Dict, List, Optional, Sequence
 from .budget import normalise_market
 from .xlsx import Workbook
 
-#: Ce que la source appelle un rattachement. Seul le premier répond au CEO.
+#: Ce que la source appelle un rattachement.
 BU_LEAD = "Patron de BU"
+DOTTED_LEAD = "Patron de BU (pointillé)"
 COUNTRY_GM = "GM pays"
 TRAVEL_GM = "GM Travel Retail"
+
+#: Les deux rattachements qui font de quelqu'un le patron d'un périmètre. Le trait plein
+#: et le trait pointillé mènent au même bureau : dans les deux cas, c'est cette personne
+#: que le CEO appelle pour ce périmètre, et personne d'autre. Le pointillé se dit dans le
+#: type parce qu'il est vrai — il ne change pas l'interlocuteur, il change la façon dont
+#: la maison décrit le lien, et effacer cette nuance pour simplifier le lecteur ferait
+#: dire au fichier quelque chose que la maison ne dit pas.
+LEAD_KINDS = (BU_LEAD, DOTTED_LEAD)
 
 #: Les colonnes de la source, dans l'ordre où elle les écrit.
 BU_AT, FIRST_AT, LAST_AT, ROLE_AT, ZONE_AT, KIND_AT, MANAGER_AT = 0, 1, 2, 3, 4, 5, 6
 
-#: Le travel retail est géré au niveau du groupe : ses responsables ne rendent pas compte
-#: à un patron de BU, et la source le marque par un tiret plutôt que par un nom.
+#: Un rattachement que la source ne renseigne pas. Elle le marque par un tiret plutôt que
+#: par un nom ; un tiret n'est pas un nom, et ce lecteur le rend comme une absence.
 NO_MANAGER = ("—", "-", "")
 
 
@@ -73,8 +82,22 @@ class Person:
 
         Il porte sur le type et non sur l'intitulé : un patron de BU peut être titré
         *General Manager*, et un *Managing Director* peut être un responsable pays.
+
+        Le travel retail a longtemps répondu vrai ici pour ses responsables régionaux,
+        parce que la source ne nommait personne au-dessus d'eux et que le périmètre
+        serait resté sans interlocuteur. Elle en nomme un maintenant, en pointillé, et
+        les deux régionaux rendent compte à cette personne comme un GM pays rend compte
+        à son patron de BU. Continuer à les proposer au CEO reviendrait à court-circuiter
+        une ligne que la maison tient — la faute exacte que ce module existe pour rendre
+        impossible, dans l'autre sens.
         """
-        return self.kind in (BU_LEAD, TRAVEL_GM)
+        return self.kind in LEAD_KINDS
+
+    @property
+    def dotted(self) -> bool:
+        """Le lien est fonctionnel et la source le dit. Affichable, jamais interprété :
+        un patron en pointillé est le patron du périmètre au même titre qu'un autre."""
+        return self.kind == DOTTED_LEAD
 
 
 class Org:
@@ -103,7 +126,7 @@ class Org:
         """
         found: Dict[str, Person] = {}
         for person in self.people:
-            if person.kind == BU_LEAD and person.perimeter not in found:
+            if person.kind in LEAD_KINDS and person.perimeter not in found:
                 found[person.perimeter] = person
         return found
 
@@ -111,7 +134,7 @@ class Org:
         """Les responsables pays d'un périmètre — affichables en détail, jamais comme
         destinataires d'une conversation du CEO."""
         return [p for p in self.people
-                if p.perimeter == perimeter and p.kind != BU_LEAD]
+                if p.perimeter == perimeter and p.kind not in LEAD_KINDS]
 
     def lead_for(self, perimeter: str) -> Optional["Person"]:
         return self.leads().get(perimeter)
@@ -145,7 +168,7 @@ def load(path: str) -> "Org":
         kind = str(row[KIND_AT] or "").strip()
         if not kind or kind.lower() == "type":
             continue
-        if kind not in (BU_LEAD, COUNTRY_GM, TRAVEL_GM):
+        if kind not in (BU_LEAD, DOTTED_LEAD, COUNTRY_GM, TRAVEL_GM):
             unknown.add(kind)
             continue
         manager = str(row[MANAGER_AT] or "").strip()

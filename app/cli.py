@@ -2345,17 +2345,27 @@ def cmd_org(argv: List[str]) -> int:
     print("Périmètres         %d" % len(org.perimeters()))
     print("Personnes lues     %d" % len(org.people))
     print("")
-    print("%-16s %-20s %-10s %s" % ("Périmètre", "Patron", "Équipe", "Poste"))
+    print("%-16s %-24s %-10s %s" % ("Périmètre", "Patron", "Équipe", "Poste"))
+    dotted = False
     for name in org.perimeters():
         lead = leads.get(name)
         team = len(org.team_of(name))
         if lead is None:
-            print("%-16s %-20s %-10s %s"
+            print("%-16s %-24s %-10s %s"
                   % (name[:16], "— aucun patron —", "%d GM" % team,
                      "à compléter dans la source"))
             continue
-        print("%-16s %-20s %-10s %s"
-              % (name[:16], lead.name[:20], "%d GM" % team, lead.role[:44]))
+        # Le pointillé est dit et non traduit : c'est le même interlocuteur, décrit
+        # autrement par la maison, et taire la nuance ferait passer pour hiérarchique
+        # un lien qui est fonctionnel.
+        shown = lead.name + " (pointillé)" if lead.dotted else lead.name
+        dotted = dotted or lead.dotted
+        print("%-16s %-24s %-10s %s"
+              % (name[:16], shown[:24], "%d GM" % team, lead.role[:40]))
+    if dotted:
+        print("")
+        print("« pointillé » : rattachement fonctionnel au CEO. L'interlocuteur est le")
+        print("même qu'un patron de BU ; c'est le lien que la maison décrit autrement.")
 
     missing = org.without_lead()
     if missing:
