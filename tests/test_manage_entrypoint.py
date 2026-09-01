@@ -42,6 +42,23 @@ def test_check_fonctionne_depuis_n_importe_ou(cwd_name, tmp_path):
     assert "127.0.0.1" in result.stdout
 
 
+def test_le_controle_nomme_chaque_source_qu_il_sait_lire():
+    """L'organigramme est resté absent de ce panneau alors que l'application le lisait
+    déjà : chaque source y était écrite à la main, et personne n'a pensé à ajouter la
+    ligne. Le lecteur a déposé son fichier, rien n'a changé à l'écran, et rien ne lui a
+    dit pourquoi.
+
+    Le test porte sur les libellés seuls — jamais sur les valeurs — pour qu'il reste vrai
+    que la machine qui l'exécute ait ces fichiers ou non.
+    """
+    result = run_manage("check", cwd=ROOT)
+
+    assert result.returncode == 0, result.stderr
+    for label in ("Plan", "Fichier publié", "Annuaire", "Contexte", "Organigramme",
+                  "Divergence", "Séries mensuelles", "Poids stratégiques", "Suivi KPI"):
+        assert label in result.stdout, label
+
+
 def test_commande_inconnue_echoue_avec_l_aide():
     result = run_manage("commande-qui-nexiste-pas", cwd=Path.home())
 

@@ -184,6 +184,46 @@ def cmd_check() -> int:
     else:
         print("Contexte            aucune note — modèle dans docs/context.example.csv")
 
+    from .perf import perimeter as perimeter_module
+
+    if settings.has_org_file:
+        org = perimeter_module.load(str(settings.org_path))
+        if org.faults:
+            print("Organigramme        illisible — %s" % org.faults[0])
+        else:
+            missing = org.without_lead()
+            print("Organigramme        %d périmètres, %d patrons, %d personnes"
+                  % (len(org.perimeters()), len(org.leads()), len(org.people)))
+            if missing:
+                print("                    sans patron : %s — aucun responsable pays ne"
+                      % ", ".join(missing))
+                print("                    sera proposé à leur place")
+    else:
+        print("Organigramme        absent — les périmètres n'auront pas d'interlocuteur")
+        print("                    déposer le fichier dans %s" % settings.org_path)
+
+    # Écrit comme une table et non en lignes séparées. L'organigramme est resté absent de
+    # ce panneau alors que l'application le lisait déjà : il fallait penser à y ajouter
+    # une ligne, et personne n'y a pensé. Une source que le contrôle ne nomme pas est une
+    # source dont le lecteur ne peut pas savoir si elle a été trouvée — il dépose son
+    # fichier, rien ne change à l'écran, et rien ne lui dit pourquoi.
+    others = (
+        ("Divergence", settings.divergence_path,
+         "les marchés ne seront pas notés en vitesse"),
+        ("Séries mensuelles", settings.actuals_folder,
+         "pas de dérive entre publié et implicite"),
+        ("Poids stratégiques", settings.weights_path,
+         "toutes les priorités pèseront pareil"),
+        ("Suivi KPI", settings.kpi_path,
+         "le panneau KPI restera muet"),
+    )
+    for label, path, cost in others:
+        if path.exists():
+            print("%-19s %s" % (label, path))
+        else:
+            print("%-19s absent — %s" % (label, cost))
+            print("                    attendu à %s" % path)
+
     print("Écritures externes  aucune. Le cockpit prépare, signale et structure.")
     print("Appels externes     %s" % (
         "l'entrepôt Snowflake en lecture seule, et rien d'autre"
