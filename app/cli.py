@@ -2416,7 +2416,7 @@ def cmd_issues(argv: List[str]) -> int:
             reference = _option(argv, flag)
             if not reference:
                 continue
-            issue = register.of(reference)
+            issue = _issue_named(register, reference)
             if issue is None:
                 print("Aucun sujet %s." % reference, file=sys.stderr)
                 return 2
@@ -2504,6 +2504,24 @@ def _scan_into(register, today: str = "") -> bool:
     return bool(seen)
 
 
+def _issue_named(register, name: str):
+    """Un sujet désigné par sa référence, ou par une clé d'observation qu'il couvre.
+
+    Les deux, parce que les références sont attribuées par machine : ISS-004 ne désigne pas
+    le même sujet sur deux postes qui n'ont pas lu les sources dans le même ordre. Une clé
+    — `partner_unnamed:999TMGLBWP` — désigne la même chose partout, ce qui rend une
+    instruction transmissible : « enregistrez cette décision » cesse d'exiger que le
+    lecteur relise d'abord son écran pour trouver le bon numéro.
+    """
+    found = register.of(name)
+    if found is not None:
+        return found
+    kind, sep, scope = name.partition(":")
+    if not sep:
+        return None
+    return register.holding((kind.strip(), scope.strip()))
+
+
 def _print_issues(register, today: str) -> None:
     """La mémoire, telle qu'elle est. Les trois dimensions côte à côte et jamais fondues."""
     open_ones = register.open_issues()
@@ -2516,14 +2534,27 @@ def _print_issues(register, today: str) -> None:
         return
 
     print("")
-    print("%-9s %-30s %-11s %-9s %-12s %s"
-          % ("Réf", "Sujet", "Tendance", "Traitement", "Confiance", "Vu"))
+    print("%-9s %-28s %-18s %-10s %-9s %-12s %s"
+          % ("Réf", "Sujet", "Où il en est", "Tendance", "Traitement", "Confiance", "Vu"))
     for issue in open_ones:
-        print("%-9s %-30s %-11s %-9s %-12s %s"
-              % (issue.issue_id, issue.title[:30], issue.trend, issue.progress,
-                 issue.confidence, issue.last_seen or "—"))
+        # Le cycle de vie s'affiche à côté des trois dimensions, jamais fondu avec elles.
+        # Sans lui, un sujet qu'on a décidé de laisser passer est indiscernable d'un sujet
+        # que personne n'a encore regardé — et tracer la décision de ne rien faire ne sert
+        # à rien si elle ne se voit pas.
+        print("%-9s %-28s %-18s %-10s %-9s %-12s %s"
+              % (issue.issue_id, issue.title[:28], issue.status, issue.trend,
+                 issue.progress, issue.confidence, issue.last_seen or "—"))
         if len(issue.scopes) > 1:
             print("%-9s   sur %s" % ("", ", ".join(issue.scopes)))
+        if issue.arbitration is not None:
+            print("%-9s   écart accepté par %s le %s"
+                  % ("", issue.arbitration.decided_by, issue.arbitration.at))
+            print("%-9s   %s" % ("", issue.arbitration.reason[:66]))
+            if issue.arbitration.review_on:
+                print("%-9s   à revoir le %s" % ("", issue.arbitration.review_on))
+            else:
+                print("%-9s   sans date de réexamen : ne reviendra que sur un fait nouveau"
+                      % "")
         if issue.conclusion:
             print("%-9s   lecture : %s" % ("", issue.conclusion[:64]))
             if issue.previous_conclusion:

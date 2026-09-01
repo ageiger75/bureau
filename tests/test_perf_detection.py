@@ -268,3 +268,21 @@ def test_a_subject_no_rule_fires_for_is_silent_and_not_resolved():
     assert [issue.scopes for issue in quiet] == [["Northland"]]
     assert all(issue.is_open for issue in quiet)
     assert all(issue.status == I.DETECTED for issue in quiet)
+
+
+def test_a_subject_is_reachable_by_the_key_it_covers():
+    """Une référence est attribuée par machine : ISS-004 ne désigne pas le même sujet sur
+    deux postes qui n'ont pas lu les sources dans le même ordre. Une clé désigne la même
+    chose partout, ce qui rend une instruction transmissible — « enregistrez cette
+    décision » cesse d'exiger que le lecteur relise son écran pour trouver le bon numéro.
+    """
+    from app.cli import _issue_named
+
+    register = I.Register()
+    D.post(register, D.from_units([_Unit(market="Northland", months_below=3)]))
+    issue = register.issues[0]
+
+    assert _issue_named(register, issue.issue_id) is issue
+    assert _issue_named(register, "gap_to_plan:Northland") is issue
+    assert _issue_named(register, "gap_to_plan:Eastland") is None
+    assert _issue_named(register, "ISS-999") is None
