@@ -44,6 +44,8 @@
                                      marché par marché — alignés, décalés, instables
     python -m app.cli org            la ligne hiérarchique : sept périmètres, leur MD
                                      --teams les GM pays · --markets ce qui n'est pas placé
+    python -m app.cli partners       le digital non détenu, une base à la fois
+                                     --sell-in · --sell-out · --unnamed · --deductions
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -210,6 +212,8 @@ def cmd_check() -> int:
     others = (
         ("Divergence", settings.divergence_path,
          "les marchés ne seront pas notés en vitesse"),
+        ("Partenaires", settings.partners_path,
+         "le digital non détenu restera un total sans noms"),
         ("Séries mensuelles", settings.actuals_folder,
          "pas de dérive entre publié et implicite"),
         ("Poids stratégiques", settings.weights_path,
@@ -2346,6 +2350,95 @@ def _actuals_series(folder: str, detail: bool) -> int:
     return 0
 
 
+def cmd_partners(argv: List[str]) -> int:
+    """Le digital non détenu, une base à la fois et jamais les deux ensemble.
+
+    La commande affiche une base par appel plutôt que les deux côte à côte. Ce n'est pas
+    de l'économie d'écran : deux colonnes voisines s'additionnent dans la tête du lecteur,
+    et la somme mélange ce que la Maison expédie avec ce qu'elle vend. Le titre porte donc
+    la base, et il n'y a rien à additionner à l'écran.
+    """
+    from .perf import partners as partners_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    path = positional[0] if positional else str(settings.partners_path)
+    read = partners_module.load(path)
+    for fault in read.faults:
+        print("  %s" % fault, file=sys.stderr)
+    if not read.lines:
+        print("Déposer le fichier des partenaires à cet endroit : %s" % path,
+              file=sys.stderr)
+        return 2
+
+    wanted = [base for base, flag in ((partners_module.SELL_IN, "--sell-in"),
+                                      (partners_module.SELL_OUT, "--sell-out"))
+              if flag in argv] or list(partners_module.BASES)
+
+    print("Source             %s" % path)
+    print("Lignes lues        %d" % len(read))
+    both = read.named_in_both_bases()
+    if both:
+        print("Des deux côtés     %s" % ", ".join(both))
+        print("                   même nom, deux métiers — jamais additionnés")
+
+    for base in wanted:
+        rows = read.by_partner(base)
+        if not rows:
+            continue
+        total = read.total(base)
+        blind = read.unnamed_total(base)
+        print("")
+        print("%s — %s €" % (base.replace("_", "-").upper(), _euros(total)))
+        if blind:
+            print("dont %s € sans marque attribuable, %s"
+                  % (_euros(blind), _share_of(blind, total)))
+        print("")
+        print("%-28s %14s %10s %8s" % ("Partenaire", "12 mois", "Déduction", "Mois"))
+        for row in rows[:_partner_rows(argv)]:
+            rate = row.deduction
+            print("%-28s %14s %10s %8s"
+                  % (row.label[:28], _euros(row.revenue),
+                     ("%.1f %%" % (100.0 * rate)) if rate is not None else "—",
+                     row.months_seen if row.months_seen is not None else "—"))
+
+    if "--unnamed" in argv:
+        print("")
+        print("Sans marque commerciale — rendues plutôt que cachées :")
+        for row in read.unnamed():
+            print("  %-10s %-30s %14s"
+                  % (row.base, (row.legal_name or row.profit_centre)[:30],
+                     _euros(row.revenue)))
+            if row.note:
+                print("  %-10s %s" % ("", row.note[:70]))
+
+    if "--deductions" in argv:
+        print("")
+        print("Le taux de déduction ne se compare jamais d'une base à l'autre : ce qu'on")
+        print("consent à un acheteur sur un prix de cession et ce qui sépare un prix")
+        print("affiché d'un prix payé sont deux notions sous un même mot.")
+    return 0
+
+
+def _euros(amount: float) -> str:
+    """Un montant en euros pleins, séparés par milliers.
+
+    Pas en k€ ni en M€ : ce tableau couvre cinq ordres de grandeur, du partenaire à
+    cinquante millions à celui qui pèse mille euros, et une unité arrondie écraserait la
+    queue à zéro. C'est aussi la forme sous laquelle un chiffre se rapproche d'un extrait
+    de la Finance sans conversion mentale.
+    """
+    return "{:,.0f}".format(amount).replace(",", "\u202f")
+
+
+def _partner_rows(argv: List[str]) -> int:
+    """Combien de lignes afficher. Toutes sur demande, les quinze premières sinon."""
+    return 10 ** 6 if "--all" in argv else 15
+
+
+def _share_of(part: float, whole: float) -> str:
+    return "%.1f %%" % (100.0 * part / whole) if whole else "—"
+
+
 def cmd_org(argv: List[str]) -> int:
     """La ligne hiérarchique : sept périmètres, leur MD, et qui n'est pas placé.
 
@@ -3104,6 +3197,8 @@ def main(argv: List[str]) -> int:
         return cmd_divergence(argv[1:])
     if command == "org":
         return cmd_org(argv[1:])
+    if command == "partners":
+        return cmd_partners(argv[1:])
     if command == "actuals":
         return cmd_actuals(argv[1:])
     if command == "refresh":

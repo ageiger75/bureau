@@ -88,6 +88,10 @@ DEFAULT_ORG_FILE = "var/org.xlsx"
 #: La distance mesurée entre les deux systèmes, marché par marché : ce qui décide à
 #: quelle vitesse l'écran a le droit de tourner sur chaque marché.
 DEFAULT_DIVERGENCE_FILE = "var/divergence.csv"
+
+#: Les partenaires du digital non détenu, base par base. Écrit par Cortex depuis
+#: l'entrepôt : la marque commerciale n'est dans aucune colonne et arrive avec le fichier.
+DEFAULT_PARTNERS_FILE = "var/partners.csv"
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -113,6 +117,7 @@ class Settings:
     actuals_file: str = DEFAULT_ACTUALS_FILE
     actuals_folder_name: str = DEFAULT_ACTUALS_FOLDER
     divergence_file: str = DEFAULT_DIVERGENCE_FILE
+    partners_file: str = DEFAULT_PARTNERS_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -183,6 +188,15 @@ class Settings:
     @property
     def has_divergence_file(self) -> bool:
         return self.divergence_path.exists()
+
+    @property
+    def partners_path(self) -> Path:
+        path = Path(self.partners_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_partners_file(self) -> bool:
+        return self.partners_path.exists()
 
     @property
     def actuals_folder(self) -> Path:
@@ -275,6 +289,7 @@ def load_settings() -> Settings:
         actuals_file=_env("CEOOS_ACTUALS_FILE") or DEFAULT_ACTUALS_FILE,
         actuals_folder_name=_env("CEOOS_ACTUALS_FOLDER") or DEFAULT_ACTUALS_FOLDER,
         divergence_file=_env("CEOOS_DIVERGENCE_FILE") or DEFAULT_DIVERGENCE_FILE,
+        partners_file=_env("CEOOS_PARTNERS_FILE") or DEFAULT_PARTNERS_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         snowflake_connection=snowflake_connection,
     )

@@ -173,6 +173,26 @@ REGISTER: Dict[str, Measure] = {
         "come from the KPI tracker. Neither is wired.",
         to_confirm="Which KPIs are already computed centrally, and to whose definition.",
     ),
+    "partners": Measure(
+        key="partners",
+        label="Non-owned digital partners",
+        maturity=BETA,
+        note="Two bases, read from two different fact tables and never summed. The "
+        "commercial brand is the only column with no source at all: the warehouse carries "
+        "the customer's registered name and the store's label, not the banner a reader "
+        "would recognise, so the mapping is written by hand and travels with the file. "
+        "That is why this is BETA and not VALIDATED — every amount reconciles, and every "
+        "name is a judgement.\n\n"
+        "Three cautions the file itself records. The sell-in country column is the "
+        "customer's country of registration, not the market it serves. A handful of lines "
+        "carry no brand because the invoiced entity is a commercial operator rather than "
+        "the platform its profit centre is named after — refusing to name them is the "
+        "point, not a gap. And the deduction rate is computed from a different pair of "
+        "columns on each side: it compares within a base and never across.",
+        to_confirm="Whether the two sell-out fact tables should agree to the euro, and "
+        "which is authoritative; and who the invoiced operators are behind the profit "
+        "centres named for a platform.",
+    ),
     "owners": Measure(
         key="owners",
         label="Market owners",
