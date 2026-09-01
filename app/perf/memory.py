@@ -77,6 +77,7 @@ def to_domain(row: "ManagementIssue") -> "domain.Issue":
         covers=_unpack(row.covers),
         status=row.status,
         role=row.role,
+        role_set=row.role_set,
         accountable=row.accountable,
         trend=row.trend,
         progress=row.progress,
@@ -144,6 +145,7 @@ def save(session: Session, register: "domain.Register") -> int:
         row.covers = _pack(issue.covers)
         row.status = issue.status
         row.role = issue.role
+        row.role_set = issue.role_set
         row.accountable = issue.accountable
         row.trend = issue.trend
         row.progress = issue.progress

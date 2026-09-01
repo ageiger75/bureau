@@ -478,6 +478,9 @@ class ManagementIssue(Base):
     #: Le responsable du sujet. Texte libre comme `Commitment.owner_name`, et pour la même
     #: raison : une clé étrangère vers un compte suggérerait une notification.
     accountable: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    #: Le rôle a-t-il été posé ? Sans ce drapeau, « MONITOR » ne se distingue pas de « pas
+    #: encore qualifié », et une règle requalifierait chaque semaine un sujet tranché.
+    role_set: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     #: Les trois dimensions du §C2. Trois colonnes et non une : dès qu'elles tiennent dans
     #: un seul champ, quelqu'un l'affiche seul.

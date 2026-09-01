@@ -182,22 +182,111 @@ def load(path: str) -> "Org":
     return Org(people, faults, path)
 
 
+#: Le pont entre deux vocabulaires. L'annuaire est tenu en français — « Japon », « Brésil »
+#: — et l'écran nomme ses marchés comme le plan les nomme, en anglais. Le rapprochement
+#: échouait donc partout sauf sur les pays qui s'écrivent pareil, silencieusement : la
+#: fonction rendait ce qu'elle pouvait et personne ne comptait ce qui manquait.
+#:
+#: Écrit comme une correspondance et non comme une traduction. Chaque zone propose
+#: plusieurs candidats, et seul celui qui figure réellement dans la liste des marchés est
+#: retenu — la Corée s'écrit « Korea » sur certains plans et « South Korea » sur d'autres,
+#: et deviner laquelle rattacherait la moitié d'un continent au mauvais MD.
+SPELLINGS: Dict[str, Tuple[str, ...]] = {
+    "japon": ("Japan",),
+    "bresil": ("Brazil",),
+    "chine": ("China",),
+    "hong kong": ("Hong Kong", "HK Local"),
+    "allemagne": ("Germany",),
+    "coree": ("Korea", "South Korea"),
+    "australie": ("Australia",),
+    "nouvelle-zelande": ("New Zealand",),
+    "inde": ("India",),
+    "mexique": ("Mexico",),
+    "usa": ("United States", "USA", "US"),
+    "etats-unis": ("United States", "USA", "US"),
+    "uk": ("United Kingdom", "UK"),
+    "royaume-uni": ("United Kingdom", "UK"),
+    "irlande": ("Ireland",),
+    "espagne": ("Spain",),
+    "italie": ("Italy",),
+    "suisse": ("Switzerland",),
+    "belgique": ("Belgium",),
+    "pays-bas": ("Netherlands",),
+    "autriche": ("Austria",),
+    "pologne": ("Poland",),
+    "tchequie": ("Czechia", "Czech Republic"),
+    "suede": ("Sweden",),
+    "norvege": ("Norway",),
+    "danemark": ("Denmark",),
+    "finlande": ("Finland",),
+    "thailande": ("Thailand",),
+    "malaisie": ("Malaysia",),
+    "singapour": ("Singapore",),
+    "indonesie": ("Indonesia",),
+    "turquie": ("Turkey",),
+}
+
+#: Ce qui sépare deux pays dans une même cellule. La source écrit « Chine + Hong Kong » et
+#: « UK & Irlande » — deux conventions pour une seule idée, et n'en lire qu'une laissait la
+#: moitié d'un périmètre sans interlocuteur.
+SEPARATORS = ("+", "&", ",", "/")
+
+
+def _folded(text: str) -> str:
+    """Le libellé réduit à ce qui se compare : sans accents, sans casse, sans espaces
+    doubles. Les accents seuls faisaient échouer « Brésil » contre « bresil »."""
+    import unicodedata
+
+    stripped = unicodedata.normalize("NFKD", (text or "").strip().lower())
+    return "".join(ch for ch in stripped if not unicodedata.combining(ch))
+
+
+def spellings_of(zone: str) -> Tuple[str, ...]:
+    """Les noms sous lesquels ce morceau de zone peut apparaître sur l'écran.
+
+    Le libellé tel quel vient d'abord : une source qui nomme déjà ses pays comme l'écran
+    n'a besoin d'aucun pont, et ce cas doit continuer de marcher le jour où la table
+    ci-dessus est vidée.
+    """
+    raw = (zone or "").strip()
+    if not raw:
+        return ()
+    candidates = [normalise_market(raw), raw]
+    candidates.extend(SPELLINGS.get(_folded(raw), ()))
+    seen: List[str] = []
+    for name in candidates:
+        if name and name not in seen:
+            seen.append(name)
+    return tuple(seen)
+
+
+def _parts(zone: str) -> List[str]:
+    parts = [zone or ""]
+    for separator in SEPARATORS:
+        parts = [piece for part in parts for piece in part.split(separator)]
+    return [part.strip() for part in parts if part.strip()]
+
+
 def place(org: "Org", markets: Sequence[str]) -> Dict[str, str]:
     """Marché → périmètre, pour les marchés que la source place sans ambiguïté.
 
-    Le rapprochement se fait sur le nom du pays, normalisé comme partout ailleurs. Une
-    zone qui n'est pas un pays — « Europe du Sud », « Nordics » — ne place rien : elle
-    couvre plusieurs marchés de l'écran et la source ne dit pas lesquels.
+    Le rapprochement teste plusieurs orthographes et ne retient que celle qui figure
+    réellement dans la liste des marchés fournie. C'est ce qui distingue une correspondance
+    d'une traduction : rien n'est placé sous un nom que l'écran n'emploie pas.
 
-    Ce qui n'est pas placé n'est pas deviné. Voir `unplaced`.
+    Une zone qui n'est pas un pays — « Europe du Sud », « Nordics » — ne place rien : elle
+    couvre plusieurs marchés et la source ne dit pas lesquels. Ce qui n'est pas placé n'est
+    pas deviné. Voir `unplaced`.
     """
-    by_country: Dict[str, str] = {}
+    known = set(markets)
+    found: Dict[str, str] = {}
     for person in org.people:
-        for part in str(person.zone or "").split("+"):
-            name = normalise_market(part.strip())
-            if name and name not in by_country:
-                by_country[name] = person.perimeter
-    return {market: by_country[market] for market in markets if market in by_country}
+        for part in _parts(str(person.zone or "")):
+            for candidate in spellings_of(part):
+                if candidate in known and candidate not in found:
+                    found[candidate] = person.perimeter
+                    break
+    return {market: found[market] for market in markets if market in found}
 
 
 def unplaced(org: "Org", markets: Sequence[str]) -> List[str]:

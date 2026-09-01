@@ -104,3 +104,64 @@ def test_the_team_of_a_perimeter_excludes_its_lead():
     team = org.team_of("Northland")
     assert len(team) == 2
     assert all(not person.answers_to_ceo for person in team)
+
+
+# ------------------------------------------------------------------ pont de libellés
+
+
+def test_the_directory_speaks_french_and_the_screen_speaks_english():
+    """Le défaut était silencieux, et c'est ce qui le rendait coûteux : l'annuaire est tenu
+    en français — « Japon », « Brésil » — quand l'écran nomme ses marchés comme le plan les
+    nomme. Le rapprochement échouait partout sauf sur les pays qui s'écrivent pareil, la
+    fonction rendait ce qu'elle pouvait, et personne ne comptait ce qui manquait."""
+    org = perimeter.Org([
+        _person(scope="Japon", zone="Japon", kind=perimeter.MD),
+        _person(first="B", scope="Amériques", zone="Brésil", kind=perimeter.MD),
+    ], [])
+
+    placed = perimeter.place(org, ["Japan", "Brazil"])
+
+    assert placed == {"Japan": "Japon", "Brazil": "Amériques"}
+    assert perimeter.unplaced(org, ["Japan", "Brazil"]) == []
+
+
+def test_a_spelling_the_screen_does_not_use_places_nothing():
+    """C'est ce qui distingue une correspondance d'une traduction. « Corée » s'écrit
+    « Korea » sur certains plans et « South Korea » sur d'autres : proposer les deux et ne
+    retenir que celle qui existe évite de rattacher un continent au mauvais MD."""
+    org = perimeter.Org([_person(zone="Corée", kind=perimeter.MD)], [])
+
+    assert perimeter.place(org, ["Korea"]) == {"Korea": "Northland"}
+    assert perimeter.place(org, ["South Korea"]) == {"South Korea": "Northland"}
+    assert perimeter.place(org, ["Corea"]) == {}
+
+
+def test_a_cell_naming_two_countries_places_both():
+    """La source écrit « Chine + Hong Kong » et « UK & Irlande » — deux conventions pour
+    une seule idée, et n'en lire qu'une laissait la moitié d'un périmètre sans
+    interlocuteur."""
+    org = perimeter.Org([
+        _person(scope="Greater China", zone="Chine + Hong Kong", kind=perimeter.MD),
+        _person(first="B", scope="EMEA", zone="UK & Irlande", kind=perimeter.MD),
+    ], [])
+
+    placed = perimeter.place(org, ["China", "Hong Kong", "United Kingdom", "Ireland"])
+
+    assert placed == {"China": "Greater China", "Hong Kong": "Greater China",
+                      "United Kingdom": "EMEA", "Ireland": "EMEA"}
+
+
+def test_a_source_already_speaking_the_screen_language_needs_no_bridge():
+    """Le libellé tel quel passe avant la table : le jour où l'annuaire sera tenu en
+    anglais, le pont doit devenir inutile sans rien casser."""
+    org = perimeter.Org([_person(zone="New Zealand", kind=perimeter.MD)], [])
+
+    assert perimeter.place(org, ["New Zealand"]) == {"New Zealand": "Northland"}
+
+
+def test_a_zone_that_is_not_a_country_still_places_nothing():
+    """Elle couvre plusieurs marchés et la source ne dit pas lesquels. Le pont ne doit pas
+    devenir une excuse pour deviner."""
+    org = perimeter.Org([_person(zone="Europe du Sud", kind=perimeter.MD)], [])
+
+    assert perimeter.place(org, ["Spain", "Italy", "Portugal"]) == {}

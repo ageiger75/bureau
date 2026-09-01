@@ -224,6 +224,10 @@ class Issue:
     #: et l'owner de chaque engagement. Les owners de KPI et de prévision vivent dans leurs
     #: propres objets, et les ramener ici en ferait un troisième niveau qui n'existe pas.
     accountable: str = ""
+    #: Vrai dès que le rôle a été posé — par la règle qui a ouvert le sujet, ou par un
+    #: humain. Sans ce drapeau, « MONITOR » ne se distingue pas de « pas encore qualifié »,
+    #: et une règle requalifierait chaque semaine un sujet que quelqu'un avait tranché.
+    role_set: bool = False
     arbitration: Optional[Arbitration] = None
     #: Le sujet clos dont celui-ci est la réapparition, quand il y en a un.
     follows: str = ""

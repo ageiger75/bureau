@@ -47,7 +47,7 @@
     python -m app.cli partners       le digital non détenu, une base à la fois
                                      --sell-in · --sell-out · --unnamed · --deductions
     python -m app.cli issues         les sujets qui traversent les lectures
-                                     --scan lit les sources et dépose ce qui a changé
+                                     --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
@@ -2446,8 +2446,56 @@ def cmd_issues(argv: List[str]) -> int:
             memory.save(session, register)
             session.commit()
 
-        _print_issues(register, today)
+        if "--week" in argv:
+            _print_week(register, today)
+        else:
+            _print_issues(register, today)
     return 0
+
+
+def _print_week(register, today: str) -> None:
+    """Ce que la lecture propose : trois interventions, cinq veilles, le reste en annexe.
+
+    Les plafonds sont durs. Si le moteur trouve neuf sujets prioritaires, il en montre
+    trois — un écran qui rend tout ce qu'il a trouvé rend la sélection au lecteur, c'est-à-
+    dire exactement le travail qu'il venait chercher.
+    """
+    from .perf import selection as selection_module
+    from .perf import weights as weights_module
+
+    read = weights_module.current() if settings.has_weights_file else None
+    week = selection_module.rank(register, today, weights=read)
+
+    print("")
+    print("Sujets pesés       %d · endormis %d" % (week.considered, len(week.sleeping)))
+    if not week.weights_read:
+        print("Poids stratégiques absents : tous les périmètres pèsent pareil, et le")
+        print("classement redevient un classement par taille.")
+
+    for label, rows, note in (
+        ("À FAIRE CETTE SEMAINE", week.attention,
+         "au plus trois — le reste attendra, et c'est le but"),
+        ("SOUS SURVEILLANCE", week.watch,
+         "suivis, pas portés : owner, tendance, prochaine échéance"),
+        ("ANNEXE", week.annex, "vus, comptés, hors des créneaux"),
+    ):
+        if not rows:
+            continue
+        print("")
+        print("%s — %s" % (label, note))
+        for row in rows:
+            print("  %-9s %-10s %s" % (row.issue.issue_id, row.role, row.issue.title[:52]))
+            print("  %-9s %-10s pourquoi : %s" % ("", "", row.why))
+            who = row.issue.accountable or "— aucun interlocuteur dans l'annuaire —"
+            print("  %-9s %-10s qui      : %s%s"
+                  % ("", "", who,
+                     ("  · poids %.2f" % row.weight) if row.weight != 1.0 else ""))
+
+    if week.sleeping:
+        print("")
+        print("Endormis — arbitrés, ne remontent que sur fait nouveau ou à leur date :")
+        for issue in week.sleeping:
+            print("  %-9s %s" % (issue.issue_id, issue.title[:60]))
 
 
 def _scan_into(register, today: str = "") -> bool:
@@ -2485,6 +2533,20 @@ def _scan_into(register, today: str = "") -> bool:
         print("Partenaires            absent — %s" % settings.partners_path)
 
     result = detection.post(register, seen)
+
+    # Rattacher les sujets de marché à leur MD avant de compter quoi que ce soit : sans
+    # cette étape, « personne n'en répond » s'applique à tous les sujets et cesse
+    # d'ordonner. Un facteur ne vaut que par les sujets où il ne vaut pas.
+    from .perf import perimeter as perimeter_module
+    from .perf import selection as selection_module
+
+    if settings.has_org_file:
+        org = perimeter_module.load(str(settings.org_path))
+        given = selection_module.assign_owners(register, org)
+        print("Interlocuteurs         %d sujets rattachés à leur MD" % given)
+    else:
+        print("Interlocuteurs         organigramme absent — aucun sujet ne sera rattaché")
+
     quiet = detection.silent(register, seen)
 
     print("")

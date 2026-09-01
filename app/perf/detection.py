@@ -244,6 +244,13 @@ def post(register, seen: Sequence["Observation"]) -> Dict[str, List]:
     for item in seen:
         known = register.holding(item.key) is not None
         issue = register.observe(item, title=title_for(item))
+        if not known and not issue.role_set:
+            # Le rôle par défaut de la règle qui a ouvert le sujet. Posé à l'ouverture et
+            # jamais réécrit : un humain qui a qualifié un sujet ne veut pas qu'une règle
+            # le requalifie la semaine suivante.
+            from . import selection
+            issue.role = selection.ROLE_FOR.get(item.kind, issue.role)
+            issue.role_set = True
         if known:
             grew.append(issue)
         elif issue.follows:
