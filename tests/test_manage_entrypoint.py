@@ -49,13 +49,22 @@ def test_le_controle_nomme_chaque_source_qu_il_sait_lire():
     dit pourquoi.
 
     Le test porte sur les libellés seuls — jamais sur les valeurs — pour qu'il reste vrai
-    que la machine qui l'exécute ait ces fichiers ou non.
+    que la machine qui l'exécute ait ces fichiers ou non. Sa première version ne tenait
+    pas cette promesse : elle exigeait « Fichier publié », qui ne s'écrivait que lorsque
+    le fichier manquait. Elle passait sur une machine nue et échouait sur celle qui a les
+    données — donc exactement là où la réponse compte. C'était le défaut de source que ce
+    panneau existe pour corriger, reproduit dans son propre test.
+
+    Le libellé de chaque source est maintenant le même qu'elle soit présente ou absente,
+    ce qui est aussi ce que voit le lecteur : une ligne qui change de nom selon l'état de
+    ce qu'elle décrit ne se cherche pas dans une liste.
     """
     result = run_manage("check", cwd=ROOT)
 
     assert result.returncode == 0, result.stderr
     for label in ("Plan", "Fichier publié", "Annuaire", "Contexte", "Organigramme",
-                  "Divergence", "Séries mensuelles", "Poids stratégiques", "Suivi KPI"):
+                  "Divergence", "Partenaires", "Séries mensuelles", "Poids stratégiques",
+                  "Suivi KPI"):
         assert label in result.stdout, label
 
 

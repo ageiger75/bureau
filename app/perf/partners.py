@@ -69,11 +69,11 @@ class Line:
 
     __slots__ = ("base", "profit_centre", "customer_id", "partner", "legal_name",
                  "country_field", "country_is", "months_seen", "revenue", "gross",
-                 "net", "note")
+                 "net", "note", "rate_withheld")
 
     def __init__(self, base, profit_centre, customer_id, partner, legal_name,
                  country_field, country_is, months_seen, revenue, gross, net,
-                 note) -> None:
+                 note, rate_withheld: str = "") -> None:
         self.base = base
         self.profit_centre = profit_centre
         self.customer_id = customer_id
@@ -87,6 +87,8 @@ class Line:
         self.gross = gross
         self.net = net
         self.note = note
+        #: Pourquoi le taux n'est pas rendu, quand il ne l'est pas. Vide sinon.
+        self.rate_withheld = rate_withheld
 
     @property
     def is_named(self) -> bool:
@@ -112,7 +114,9 @@ class Line:
         acheteur sur un prix de cession, côté sell-out ce qui sépare un prix affiché d'un
         prix payé. Deux notions, un mot, et le rapprochement des deux serait un faux.
         """
-        if self.gross is None or self.net is None or self.gross <= 0:
+        if self.rate_withheld or self.gross is None or self.net is None:
+            return None
+        if self.gross == 0:
             return None
         return (self.gross - self.net) / self.gross
 
@@ -166,11 +170,18 @@ class Partners:
                     customer_id="", partner=line.partner, legal_name="",
                     country_field="", country_is=line.country_is,
                     months_seen=line.months_seen, revenue=line.revenue,
-                    gross=line.gross, net=line.net, note="")
+                    gross=line.gross, net=line.net, note="",
+                    rate_withheld=line.rate_withheld)
                 continue
             held.revenue += line.revenue
             held.gross = _add(held.gross, line.gross)
             held.net = _add(held.net, line.net)
+            # Une ligne dont le taux est retenu contamine celui de son groupe. Sinon le
+            # regroupement blanchirait le défaut : la somme resterait cohérente, le taux
+            # sortirait plausible, et le seul endroit où l'anomalie était visible aurait
+            # disparu dans l'agrégat.
+            if line.rate_withheld and not held.rate_withheld:
+                held.rate_withheld = line.rate_withheld
             if line.profit_centre not in held.profit_centre.split(" + "):
                 held.profit_centre = "%s + %s" % (held.profit_centre, line.profit_centre)
             if line.months_seen is not None and (held.months_seen is None
@@ -192,6 +203,14 @@ class Partners:
         rows.sort(key=lambda row: row.revenue, reverse=True)
         return rows
 
+    def withheld(self) -> List["Line"]:
+        """Les lignes dont le taux de déduction n'est pas rendu, et la raison.
+
+        Rendues plutôt que tues : un taux manquant se remarque, un taux fabriqué non.
+        """
+        return [line for line in self.lines if line.rate_withheld
+                and line.rate_withheld.startswith("net hors")]
+
     def unnamed_total(self, base: str) -> float:
         return sum(line.revenue for line in self.unnamed(base))
 
@@ -205,6 +224,31 @@ class Partners:
         first = {line.partner for line in self.of_base(SELL_IN) if line.is_named}
         second = {line.partner for line in self.of_base(SELL_OUT) if line.is_named}
         return sorted(first & second)
+
+
+def rate_fault(gross: Optional[float], net: Optional[float]) -> str:
+    """Pourquoi ce couple brut/net ne donne pas un taux, ou une chaîne vide.
+
+    Un taux de déduction vit entre zéro et cent pour cent : le net se tient entre zéro et
+    le brut. Écrit avec les deux signes plutôt qu'avec `net <= gross`, parce que la source
+    porte de vraies lignes négatives — un avoir a un brut et un net négatifs, et son taux
+    est parfaitement lisible. La première version de cette règle les a toutes déclarées
+    fautives et a rendu le fichier entier inutilisable pour deux avoirs.
+
+    Un net au-dessus de son brut n'est pas une remise négative : c'est un rapprochement de
+    deux définitions, hors taxe d'un côté et toutes taxes de l'autre — le défaut que ce
+    dépôt a déjà rencontré, et qui se signale mal parce que le taux qui en sort reste un
+    nombre plausible.
+    """
+    if gross is None or net is None:
+        return "brut ou net absent"
+    if gross == 0:
+        return "brut à zéro"
+    if gross > 0 and not (0 <= net <= gross):
+        return "net hors de l'intervalle [0, brut]"
+    if gross < 0 and not (gross <= net <= 0):
+        return "net hors de l'intervalle [brut, 0]"
+    return ""
 
 
 def _add(left: Optional[float], right: Optional[float]) -> Optional[float]:
@@ -285,14 +329,12 @@ def load(path: str) -> "Partners":
 
         gross = _number(record.get("gross_12m", ""))
         net = _number(record.get("net_12m", ""))
-        if gross is not None and net is not None and net > gross + 1e-6:
-            # Un net au-dessus de son brut n'est pas une remise négative : c'est un
-            # rapprochement de deux définitions, hors taxe d'un côté et toutes taxes de
-            # l'autre. Le défaut a déjà été rencontré dans ce dépôt, et il se signale mal
-            # parce que le taux qui en sort reste un nombre plausible.
-            faults.append("ligne %d, %s : net au-dessus du brut — deux définitions "
-                          "rapprochées" % (number, centre))
-            continue
+        # Un couple brut/net incohérent retient le taux de cette ligne, il ne condamne pas
+        # le fichier. Le montant, lui, reste bon et appartient au total : refuser tout
+        # aurait privé le lecteur de deux cent soixante millions pour quatre cent mille,
+        # ce qui est le mauvais côté de la prudence. Ce qui compte est que le taux ne
+        # s'invente pas — et qu'on sache lequel manque et pourquoi.
+        withheld = rate_fault(gross, net) if (gross is not None or net is not None) else ""
 
         months = _number(record.get("months_seen", ""))
         lines.append(Line(
@@ -308,6 +350,7 @@ def load(path: str) -> "Partners":
             gross=gross,
             net=net,
             note=(record.get("note") or "").strip(),
+            rate_withheld=withheld,
         ))
 
     if not lines and not faults:

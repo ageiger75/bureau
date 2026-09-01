@@ -170,16 +170,41 @@ def test_a_missing_gross_contaminates_the_group_rather_than_counting_as_zero(tmp
     assert grouped.deduction is None
 
 
-def test_a_net_above_its_gross_makes_the_file_unusable(tmp_path):
+def test_a_net_above_its_gross_withholds_the_rate_and_keeps_the_amount(tmp_path):
     """Ce n'est pas une remise négative : c'est un rapprochement de deux définitions, hors
     taxe d'un côté et toutes taxes de l'autre. Le dépôt l'a déjà rencontré, et le taux qui
-    en sort reste un nombre plausible — c'est ce qui le rend coûteux."""
+    en sort reste un nombre plausible — c'est ce qui le rend coûteux.
+
+    Mais le défaut est de ligne, pas de fichier. Le montant reste bon et appartient au
+    total ; seul le taux ne s'invente pas. Condamner tout le fichier priverait le lecteur
+    de deux cent soixante millions pour quatre cent mille, ce qui est le mauvais côté de
+    la prudence.
+    """
     path = _write(tmp_path,
-                  "sell_out,37OCMP001,,Northmart,Northmart Store,NORTHLAND,marche,12,900,800,900,\n")
+                  "sell_out,37OCMP001,,Northmart,Northmart Store,NORTHLAND,marche,12,900,800,900,\n"
+                  "sell_out,24OCMP001,,Southbay,Southbay Store,SOUTHLAND,marche,12,300,500,300,\n")
     read = P.load(path)
 
-    assert not read.usable
-    assert "net au-dessus du brut" in read.faults[0]
+    assert read.usable
+    assert read.total(P.SELL_OUT) == 1200.0
+    withheld = read.withheld()
+    assert [line.partner for line in withheld] == ["Northmart"]
+    assert withheld[0].deduction is None
+    assert read.of_base(P.SELL_OUT)[1].deduction == pytest.approx(0.4)
+
+
+def test_a_credit_note_keeps_its_rate_although_both_sides_are_negative(tmp_path):
+    """La source porte de vraies lignes négatives — un avoir a un brut et un net négatifs,
+    et son taux est parfaitement lisible. La première version de cette règle comparait les
+    deux nombres sans penser au signe : elle a déclaré fautifs les deux avoirs du fichier
+    réel, et rendu inutilisables cent quinze lignes pour deux."""
+    path = _write(tmp_path,
+                  "sell_in,999AAAWP,SAP-1,Northmart,Northmart Ltd,LUXEMBOURG,facturation,2,-584,-1031,-584,\n")
+    read = P.load(path)
+
+    assert read.usable
+    assert read.withheld() == []
+    assert read.lines[0].deduction == pytest.approx((-1031 + 584) / -1031)
 
 
 # -------------------------------------------------------------------------- lecture

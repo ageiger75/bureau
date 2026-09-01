@@ -146,7 +146,9 @@ def cmd_check() -> int:
     # demi-journée à quiconque essaie de comprendre lequel croire.
     from .perf import actuals as actuals_module
 
-    if not settings.has_actuals_file:
+    if settings.has_actuals_file:
+        print("Fichier publié      %s" % settings.actuals_path)
+    else:
         print("Fichier publié      absent — copier le flash dans %s" % settings.actuals_path)
         print("                    sans lui, le chiffre du haut vient de l'entrepôt")
     for label, month in (("Mois publié", True), ("Cumul publié", False)):
@@ -2410,6 +2412,14 @@ def cmd_partners(argv: List[str]) -> int:
                      _euros(row.revenue)))
             if row.note:
                 print("  %-10s %s" % ("", row.note[:70]))
+
+    held_back = read.withheld()
+    if held_back:
+        print("")
+        print("Taux non rendus — le montant est bon, le taux ne s'invente pas :")
+        for row in held_back:
+            print("  %-10s %-12s %-18s %s"
+                  % (row.base, row.profit_centre, row.label[:18], row.rate_withheld))
 
     if "--deductions" in argv:
         print("")
