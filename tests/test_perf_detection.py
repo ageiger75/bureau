@@ -188,6 +188,20 @@ def test_a_withheld_rate_is_a_subject_whatever_its_size():
     assert "net hors intervalle" in seen[0].statement
 
 
+def test_a_rule_never_fires_on_a_line_worth_nothing():
+    """Une règle qui se déclenche à zéro euro fabrique du bruit qui a l'air d'un signal.
+    La leçon vient d'une autre analyse et coûtait un tiers d'un résultat : une règle de
+    profondeur d'achat comptait des sacs cadeaux, gratuits et pris par quinze, et déclarait
+    acheteur en gros quiconque emballait ses achats."""
+    read = _Partners([], total=100000.0,
+                     withheld=[_Line("EMBALLAGE", 0.0, withheld="net hors intervalle"),
+                               _Line("24OCMP002", 12.0, withheld="net hors intervalle")])
+
+    seen = D.from_partners(read, "2026-07")
+
+    assert [item.scope for item in seen] == ["24OCMP002"]
+
+
 def test_an_unusable_file_produces_nothing_rather_than_a_guess():
     class _Broken:
         usable = False

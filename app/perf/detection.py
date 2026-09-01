@@ -183,6 +183,13 @@ def from_partners(read, period: str, today: str = "") -> List["Observation"]:
             ))
 
     for line in read.withheld():
+        if not line.revenue:
+            # Une règle qui se déclenche sur une ligne à zéro euro fabrique du bruit qui
+            # a l'air d'un signal. La leçon vient d'ailleurs et coûtait un tiers d'un
+            # résultat : une règle de profondeur d'achat comptait des sacs cadeaux, gratuits
+            # et pris par quinze, et déclarait acheteur en gros quiconque emballait ses
+            # achats. Un défaut de méthode sur un flux qui ne vaut rien ne se traite pas.
+            continue
         seen.append(Observation(
             kind=PARTNER_RATE, scope=line.profit_centre, seen_at=when,
             statement="taux non calculable : %s" % line.rate_withheld,
