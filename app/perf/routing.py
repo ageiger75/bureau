@@ -10,7 +10,7 @@ So the class is decided first, and it decides the surface:
 
 * **business** — what deserves the CEO's attention this week: trading, and the risks that
   lead it. This is the only surface where a market's own leader is the person addressed.
-* **plan** — plans that ask for growth the record has never delivered. A Finance and BU
+* **plan** — plans that ask for growth the record has never delivered. A Finance and region
   review, measured in the year's embedded gap rather than in this month's miss.
 * **data** — broken feeds, accounting boundaries and unsettled definitions. Real work,
   owned by people who are not the market, and never worth a slot of CEO attention.
@@ -225,7 +225,7 @@ class PlanReview:
 
     A separate item from the month's miss, and separately measured: the month's gap is
     what was lost in July, this is what the rest of the year still embeds. Finance and the
-    BU answer it; the market's lead cannot fix a number they did not set.
+    region answer it; the market's lead cannot fix a number they did not set.
 
     Two directions, and they are two different conversations. A plan *above* everything
     the business has delivered is a credibility risk: it will be missed every month and

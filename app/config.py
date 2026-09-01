@@ -71,7 +71,7 @@ DEFAULT_DATA_SOURCE = "mock"
 #: un historique Git.
 DEFAULT_BUDGET_FILE = "var/budget.xlsx"
 
-#: Annuaire des patrons de BU et GM pays. Comme le budget, il vit hors du dépôt : ce sont
+#: Annuaire des MD et GM pays. Comme le budget, il vit hors du dépôt : ce sont
 #: de vraies personnes et leur périmètre réel, ce qui n'a rien à faire dans un git.
 DEFAULT_OWNERS_FILE = "var/owners.xlsx"
 
@@ -82,7 +82,7 @@ DEFAULT_CONTEXT_FILE = "var/context.csv"
 DEFAULT_WEIGHTS_FILE = "var/weights.csv"
 #: Le réalisé publié par la Finance, à la maille du plan. Déposé chaque mois.
 DEFAULT_ACTUALS_FILE = "var/actuals.xlsx"
-#: La ligne hiérarchique : les sept périmètres, leur patron, et les responsables pays
+#: La ligne hiérarchique : les sept périmètres, leur MD, et les responsables pays
 #: sous eux. Hors du dépôt comme l'annuaire : elle porte des noms et des adresses.
 DEFAULT_ORG_FILE = "var/org.xlsx"
 #: La distance mesurée entre les deux systèmes, marché par marché : ce qui décide à

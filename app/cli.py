@@ -42,7 +42,7 @@
                                      et quel mois a bougé après avoir été publié
     python -m app.cli divergence     à quelle vitesse l'écran a le droit de tourner,
                                      marché par marché — alignés, décalés, instables
-    python -m app.cli org            la ligne hiérarchique : sept périmètres, leur patron
+    python -m app.cli org            la ligne hiérarchique : sept périmètres, leur MD
                                      --teams les GM pays · --markets ce qui n'est pas placé
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
@@ -192,10 +192,10 @@ def cmd_check() -> int:
             print("Organigramme        illisible — %s" % org.faults[0])
         else:
             missing = org.without_lead()
-            print("Organigramme        %d périmètres, %d patrons, %d personnes"
+            print("Organigramme        %d périmètres, %d MD, %d personnes"
                   % (len(org.perimeters()), len(org.leads()), len(org.people)))
             if missing:
-                print("                    sans patron : %s — aucun responsable pays ne"
+                print("                    sans MD : %s — aucun responsable pays ne"
                       % ", ".join(missing))
                 print("                    sera proposé à leur place")
     else:
@@ -2347,10 +2347,10 @@ def _actuals_series(folder: str, detail: bool) -> int:
 
 
 def cmd_org(argv: List[str]) -> int:
-    """La ligne hiérarchique : sept périmètres, leur patron, et qui n'est pas placé.
+    """La ligne hiérarchique : sept périmètres, leur MD, et qui n'est pas placé.
 
-        manage.py org               les périmètres et leur patron
-        manage.py org --teams       les responsables pays sous chaque patron
+        manage.py org               les périmètres et leur MD
+        manage.py org --teams       les responsables pays sous chaque MD
         manage.py org --markets     ce que la source place, et ce qu'elle ne place pas
         manage.py org FICHIER.xlsx  une autre source que var/org.xlsx
 
@@ -2360,9 +2360,9 @@ def cmd_org(argv: List[str]) -> int:
     ligne hiérarchique.
 
     Le piège que cette commande existe pour rendre visible : le rôle décide, jamais le
-    titre. Un patron de BU peut être titré « General Manager » et un « Managing Director »
-    peut être un responsable pays. Filtrer sur l'intitulé aurait promu le second et
-    rétrogradé le premier.
+    titre. Un MD peut être titré « General Manager » et un « Managing Director » peut être
+    un responsable pays. Filtrer sur l'intitulé aurait promu le second et rétrogradé le
+    premier.
     """
     from .perf import perimeter as perimeter_module
 
@@ -2370,7 +2370,7 @@ def cmd_org(argv: List[str]) -> int:
     path = positional[0] if positional else str(settings.org_path)
     if not Path(path).exists():
         print("Source absente : %s" % path, file=sys.stderr)
-        print("Déposer l'annuaire des patrons de BU et des GM pays à cet endroit.",
+        print("Déposer l'annuaire des MD et des GM pays à cet endroit.",
               file=sys.stderr)
         return 2
 
@@ -2385,32 +2385,22 @@ def cmd_org(argv: List[str]) -> int:
     print("Périmètres         %d" % len(org.perimeters()))
     print("Personnes lues     %d" % len(org.people))
     print("")
-    print("%-16s %-24s %-10s %s" % ("Périmètre", "Patron", "Équipe", "Poste"))
-    dotted = False
+    print("%-16s %-22s %-10s %s" % ("Périmètre", "MD", "Équipe", "Poste"))
     for name in org.perimeters():
         lead = leads.get(name)
         team = len(org.team_of(name))
         if lead is None:
-            print("%-16s %-24s %-10s %s"
-                  % (name[:16], "— aucun patron —", "%d GM" % team,
+            print("%-16s %-22s %-10s %s"
+                  % (name[:16], "— aucun MD —", "%d GM" % team,
                      "à compléter dans la source"))
             continue
-        # Le pointillé est dit et non traduit : c'est le même interlocuteur, décrit
-        # autrement par la maison, et taire la nuance ferait passer pour hiérarchique
-        # un lien qui est fonctionnel.
-        shown = lead.name + " (pointillé)" if lead.dotted else lead.name
-        dotted = dotted or lead.dotted
-        print("%-16s %-24s %-10s %s"
-              % (name[:16], shown[:24], "%d GM" % team, lead.role[:40]))
-    if dotted:
-        print("")
-        print("« pointillé » : rattachement fonctionnel au CEO. L'interlocuteur est le")
-        print("même qu'un patron de BU ; c'est le lien que la maison décrit autrement.")
+        print("%-16s %-22s %-10s %s"
+              % (name[:16], lead.name[:22], "%d GM" % team, lead.role[:42]))
 
     missing = org.without_lead()
     if missing:
         print("")
-        print("Sans patron identifié : %s." % ", ".join(missing))
+        print("Sans MD identifié : %s." % ", ".join(missing))
         print("Ces périmètres n'auront pas d'interlocuteur sur l'écran — un responsable")
         print("pays ne sera jamais proposé à leur place, c'est ce que ce module empêche.")
 

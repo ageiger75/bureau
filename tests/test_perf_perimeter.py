@@ -2,7 +2,7 @@
 
 L'écran proposait une responsable pays comme interlocutrice directe du CEO, et rangeait
 les responsables sous des zones qui ne sont aucun des périmètres pilotés. Un cockpit qui
-installe son lecteur au-dessus de ses propres patrons de BU abîme une ligne hiérarchique
+installe son lecteur au-dessus de ses propres MD abîme une ligne hiérarchique
 que la maison tient — et il le fait à chaque lecture, poliment, sans que rien ne signale
 l'erreur.
 """
@@ -13,7 +13,7 @@ from app.perf import perimeter
 
 
 def _person(first="A", last="NAME", role="General Manager", scope="Northland",
-            zone="Northland", kind=perimeter.BU_LEAD, manager=""):
+            zone="Northland", kind=perimeter.MD, manager=""):
     return perimeter.Person(first, last, role, scope, zone, kind, manager)
 
 
@@ -25,7 +25,7 @@ def test_the_role_decides_and_never_the_job_title():
     Le test porte donc sur le rattachement, jamais sur le libellé du poste.
     """
     titled_gm_but_bu_lead = _person(role="General Manager, Northland",
-                                    kind=perimeter.BU_LEAD)
+                                    kind=perimeter.MD)
     titled_md_but_country = _person(role="Managing Director Eastland & Westland",
                                     kind=perimeter.COUNTRY_GM, manager="A Lead")
 
@@ -33,35 +33,21 @@ def test_the_role_decides_and_never_the_job_title():
     assert not titled_md_but_country.answers_to_ceo
 
 
-def test_a_dotted_lead_is_the_lead_of_the_perimeter():
-    """Le travel retail est piloté au niveau du groupe, et sa patronne est rattachée au
-    CEO en pointillé. Le pointillé décrit le lien, pas l'interlocutrice : c'est elle que
-    le CEO appelle pour ce périmètre, et le fichier doit le dire sans l'aplatir en trait
-    plein — la maison ne décrit pas ce lien comme les six autres."""
-    dotted = _person(scope="Travel Retail", kind=perimeter.DOTTED_LEAD,
-                     manager="Le CEO")
-    org = perimeter.Org([dotted], [])
-
-    assert dotted.answers_to_ceo
-    assert dotted.dotted
-    assert org.lead_for("Travel Retail") is dotted
-    assert org.without_lead() == []
-
-
 def test_a_regional_lead_stops_answering_to_the_ceo_once_the_source_names_their_boss():
     """La faute que ce module empêche, dans l'autre sens. Les deux responsables travel
     retail régionaux ont longtemps été proposés au CEO parce que la source ne nommait
     personne au-dessus d'eux. Elle en nomme une maintenant : continuer à les proposer
     court-circuiterait une ligne que la maison tient, exactement comme proposer un GM
-    pays par-dessus son patron de BU."""
+    pays par-dessus son MD."""
     regional = _person(scope="Travel Retail", kind=perimeter.TRAVEL_GM,
-                       manager="La patronne")
-    lead = _person(first="B", scope="Travel Retail", kind=perimeter.DOTTED_LEAD)
+                       manager="La MD")
+    lead = _person(first="B", scope="Travel Retail", kind=perimeter.MD)
     org = perimeter.Org([lead, regional], [])
 
     assert not regional.answers_to_ceo
+    assert org.lead_for("Travel Retail") is lead
+    assert org.without_lead() == []
     assert org.team_of("Travel Retail") == [regional]
-    assert lead not in org.team_of("Travel Retail")
 
 
 def test_a_perimeter_without_a_lead_stays_without_one():
@@ -69,7 +55,7 @@ def test_a_perimeter_without_a_lead_stays_without_one():
     n'est pas dans la source ne reçoit pas son responsable pays le plus proche. Il
     apparaît sans interlocuteur, ce qui est une information et se corrige à la source."""
     org = perimeter.Org([
-        _person(scope="Northland", kind=perimeter.BU_LEAD),
+        _person(scope="Northland", kind=perimeter.MD),
         _person(first="B", scope="Eastland", kind=perimeter.COUNTRY_GM,
                 manager="Someone"),
     ], [])
@@ -108,7 +94,7 @@ def test_the_team_of_a_perimeter_excludes_its_lead():
     """Les responsables pays s'affichent en détail. Ce qu'ils ne sont jamais, c'est le
     destinataire d'une conversation du CEO."""
     org = perimeter.Org([
-        _person(scope="Northland", kind=perimeter.BU_LEAD),
+        _person(scope="Northland", kind=perimeter.MD),
         _person(first="B", scope="Northland", kind=perimeter.COUNTRY_GM,
                 manager="A NAME"),
         _person(first="C", scope="Northland", kind=perimeter.COUNTRY_GM,

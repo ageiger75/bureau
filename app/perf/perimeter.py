@@ -6,14 +6,14 @@ des zones — « North Europe », « North America » — qui ne sont aucun des 
 pilote. L'annuaire avait reçu la carte des marchés au lieu de la ligne hiérarchique.
 
 Ce n'est pas un défaut d'affichage. Un cockpit qui installe son lecteur au-dessus de ses
-propres patrons de BU abîme une ligne que la maison tient, et il le fait à chaque lecture,
+propres MD abîme une ligne que la maison tient, et il le fait à chaque lecture,
 poliment, sans que rien ne signale l'erreur.
 
 Deux règles gouvernent tout ce fichier.
 
-**Le rôle décide, jamais le titre.** Le patron du Japon porte le titre de *General
+**Le rôle décide, jamais le titre.** Le MD du Japon porte le titre de *General
 Manager* et rend compte directement au CEO ; un *Managing Director UK & Ireland* rend
-compte à un patron de BU. Filtrer sur l'intitulé du poste aurait promu la seconde et
+compte à un MD. Filtrer sur l'intitulé du poste aurait promu la seconde et
 rétrogradé le premier — la faute exacte que ce module doit rendre impossible. La colonne
 qui fait foi est celle du type, et le lien de rattachement la confirme.
 
@@ -34,22 +34,18 @@ from typing import Dict, List, Optional, Sequence
 from .budget import normalise_market
 from .xlsx import Workbook
 
-#: Ce que la source appelle un rattachement.
-BU_LEAD = "Patron de BU"
-DOTTED_LEAD = "Patron de BU (pointillé)"
+#: Ce que la source appelle un rattachement. Le premier est celui qui répond au CEO.
+#:
+#: La maison dit « MD » — parfois « regional leader » — et ne dit plus « BU ». Ce module
+#: employait l'ancien mot parce que la source l'employait, et un cockpit qui parle une
+#: langue que la maison a quittée fait douter de tout le reste : le lecteur se demande de
+#: quand datent les chiffres avant de se demander s'ils sont justes.
+MD = "MD"
 COUNTRY_GM = "GM pays"
 TRAVEL_GM = "GM Travel Retail"
 
-#: Les deux rattachements qui font de quelqu'un le patron d'un périmètre. Le trait plein
-#: et le trait pointillé mènent au même bureau : dans les deux cas, c'est cette personne
-#: que le CEO appelle pour ce périmètre, et personne d'autre. Le pointillé se dit dans le
-#: type parce qu'il est vrai — il ne change pas l'interlocuteur, il change la façon dont
-#: la maison décrit le lien, et effacer cette nuance pour simplifier le lecteur ferait
-#: dire au fichier quelque chose que la maison ne dit pas.
-LEAD_KINDS = (BU_LEAD, DOTTED_LEAD)
-
 #: Les colonnes de la source, dans l'ordre où elle les écrit.
-BU_AT, FIRST_AT, LAST_AT, ROLE_AT, ZONE_AT, KIND_AT, MANAGER_AT = 0, 1, 2, 3, 4, 5, 6
+PERIMETER_AT, FIRST_AT, LAST_AT, ROLE_AT, ZONE_AT, KIND_AT, MANAGER_AT = 0, 1, 2, 3, 4, 5, 6
 
 #: Un rattachement que la source ne renseigne pas. Elle le marque par un tiret plutôt que
 #: par un nom ; un tiret n'est pas un nom, et ce lecteur le rend comme une absence.
@@ -80,24 +76,17 @@ class Person:
     def answers_to_ceo(self) -> bool:
         """Le seul test qui autorise à proposer cette personne comme interlocutrice.
 
-        Il porte sur le type et non sur l'intitulé : un patron de BU peut être titré
-        *General Manager*, et un *Managing Director* peut être un responsable pays.
+        Il porte sur le type et non sur l'intitulé : un MD peut être titré *General
+        Manager*, et un *Managing Director* peut être un responsable pays.
 
         Le travel retail a longtemps répondu vrai ici pour ses responsables régionaux,
         parce que la source ne nommait personne au-dessus d'eux et que le périmètre
-        serait resté sans interlocuteur. Elle en nomme un maintenant, en pointillé, et
-        les deux régionaux rendent compte à cette personne comme un GM pays rend compte
-        à son patron de BU. Continuer à les proposer au CEO reviendrait à court-circuiter
-        une ligne que la maison tient — la faute exacte que ce module existe pour rendre
-        impossible, dans l'autre sens.
+        serait resté sans interlocuteur. Elle en nomme une maintenant, et les deux
+        régionaux lui rendent compte comme un GM pays rend compte à son MD. Continuer à
+        les proposer au CEO court-circuiterait une ligne que la maison tient — la faute
+        exacte que ce module existe pour rendre impossible, dans l'autre sens.
         """
-        return self.kind in LEAD_KINDS
-
-    @property
-    def dotted(self) -> bool:
-        """Le lien est fonctionnel et la source le dit. Affichable, jamais interprété :
-        un patron en pointillé est le patron du périmètre au même titre qu'un autre."""
-        return self.kind == DOTTED_LEAD
+        return self.kind == MD
 
 
 class Org:
@@ -120,13 +109,13 @@ class Org:
     def leads(self) -> Dict[str, "Person"]:
         """Périmètre → la personne qui répond au CEO pour lui.
 
-        Un périmètre sans patron identifié est absent de ce dictionnaire plutôt que
+        Un périmètre sans MD identifié est absent de ce dictionnaire plutôt que
         rempli par son responsable pays le plus proche : c'est précisément la substitution
         que ce module existe pour empêcher.
         """
         found: Dict[str, Person] = {}
         for person in self.people:
-            if person.kind in LEAD_KINDS and person.perimeter not in found:
+            if person.kind == MD and person.perimeter not in found:
                 found[person.perimeter] = person
         return found
 
@@ -134,13 +123,13 @@ class Org:
         """Les responsables pays d'un périmètre — affichables en détail, jamais comme
         destinataires d'une conversation du CEO."""
         return [p for p in self.people
-                if p.perimeter == perimeter and p.kind not in LEAD_KINDS]
+                if p.perimeter == perimeter and p.kind != MD]
 
     def lead_for(self, perimeter: str) -> Optional["Person"]:
         return self.leads().get(perimeter)
 
     def without_lead(self) -> List[str]:
-        """Les périmètres que la source décrit sans nommer leur patron."""
+        """Les périmètres que la source décrit sans nommer leur MD."""
         leads = self.leads()
         return [name for name in self.perimeters() if name not in leads]
 
@@ -168,7 +157,7 @@ def load(path: str) -> "Org":
         kind = str(row[KIND_AT] or "").strip()
         if not kind or kind.lower() == "type":
             continue
-        if kind not in (BU_LEAD, DOTTED_LEAD, COUNTRY_GM, TRAVEL_GM):
+        if kind not in (MD, COUNTRY_GM, TRAVEL_GM):
             unknown.add(kind)
             continue
         manager = str(row[MANAGER_AT] or "").strip()
@@ -176,7 +165,7 @@ def load(path: str) -> "Org":
             first=str(row[FIRST_AT] or "").strip(),
             last=str(row[LAST_AT] or "").strip(),
             role=str(row[ROLE_AT] or "").strip(),
-            perimeter=str(row[BU_AT] or "").strip(),
+            perimeter=str(row[PERIMETER_AT] or "").strip(),
             zone=str(row[ZONE_AT] or "").strip(),
             kind=kind,
             manager="" if manager in NO_MANAGER else manager,
@@ -184,7 +173,7 @@ def load(path: str) -> "Org":
 
     if unknown:
         # Refusé plutôt qu'assimilé : un rattachement que ce lecteur ne connaît pas est
-        # peut-être un troisième niveau, et le ranger d'office parmi les patrons de BU
+        # peut-être un troisième niveau, et le ranger d'office parmi les MD
         # mettrait quelqu'un devant le CEO sans que personne l'ait décidé.
         faults.append("rattachements inconnus, lignes ignorées : %s"
                       % ", ".join(sorted(unknown)))
