@@ -47,6 +47,7 @@
     python -m app.cli partners       le digital non détenu, une base à la fois
                                      --sell-in · --sell-out · --unnamed · --deductions
     python -m app.cli issues         les sujets qui traversent les lectures
+                                     --scan lit les sources et dépose ce qui a changé
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
@@ -2438,12 +2439,69 @@ def cmd_issues(argv: List[str]) -> int:
                 return 1
             changed = True
 
+        if "--scan" in argv:
+            changed = _scan_into(register, today) or changed
+
         if changed:
             memory.save(session, register)
             session.commit()
 
         _print_issues(register, today)
     return 0
+
+
+def _scan_into(register, today: str = "") -> bool:
+    """Lire les sources et déposer ce qu'elles disent. Rend vrai si le registre a bougé.
+
+    Le passage lit ce que le cockpit lit déjà : l'écran de performance et le fichier des
+    partenaires. Une source absente ne produit rien et le dit — jamais un silence, qui se
+    lirait comme « rien à signaler » alors qu'il veut dire « je n'ai pas regardé ».
+    """
+    from datetime import date
+
+    from .perf import detection
+    from .perf import partners as partners_module
+    from .perf import source as source_module
+
+    today = today or date.today().isoformat()
+    seen: List = []
+    dataset = source_module.current_source().dataset()
+    if dataset is not None and getattr(dataset, "units", None):
+        seen.extend(detection.from_units(dataset.units,
+                                         period=getattr(dataset, "period", ""),
+                                         today=today))
+        print("Écran de performance   %d unités lues" % len(dataset.units))
+    else:
+        print("Écran de performance   rien à lire")
+
+    if settings.has_partners_file:
+        read = partners_module.current()
+        for fault in read.faults:
+            print("  %s" % fault, file=sys.stderr)
+        seen.extend(detection.from_partners(
+            read, getattr(dataset, "period", ""), today=today))
+        print("Partenaires            %d lignes lues" % len(read))
+    else:
+        print("Partenaires            absent — %s" % settings.partners_path)
+
+    result = detection.post(register, seen)
+    quiet = detection.silent(register, seen)
+
+    print("")
+    print("Règles déclenchées     %d" % len(seen))
+    print("Sujets ouverts         %d" % len(result["opened"]))
+    print("Sujets alimentés       %d" % len(result["grew"]))
+    if result["returning"]:
+        print("Réapparitions          %d — on avait déjà cru régler ça"
+              % len(result["returning"]))
+        for issue in result["returning"]:
+            print("  %s suit %s · %s" % (issue.issue_id, issue.follows, issue.title[:48]))
+    if quiet:
+        print("Silencieux ce passage  %d — silencieux n'est pas résolu ; il faut deux"
+              % len(quiet))
+        print("                       périodes conformes pour constater un retour à la")
+        print("                       normale, et c'est une décision de cadence.")
+    return bool(seen)
 
 
 def _print_issues(register, today: str) -> None:
