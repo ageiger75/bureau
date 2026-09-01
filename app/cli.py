@@ -46,6 +46,8 @@
                                      --teams les GM pays · --markets ce qui n'est pas placé
     python -m app.cli partners       le digital non détenu, une base à la fois
                                      --sell-in · --sell-out · --unnamed · --deductions
+    python -m app.cli issues         les sujets qui traversent les lectures
+                                     --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -2352,6 +2354,148 @@ def _actuals_series(folder: str, detail: bool) -> int:
     return 0
 
 
+def cmd_issues(argv: List[str]) -> int:
+    """Les sujets de management, et ce que le cockpit se rappelle d'eux.
+
+    Sans argument : ce que la mémoire porte. Avec un geste, elle change et persiste.
+
+        manage.py issues
+        manage.py issues --observe gap_to_plan:Brazil --say "Écart qui ne se referme pas"
+        manage.py issues --attach ISS-001 --observe gap_to_plan:India --say "..."
+        manage.py issues --conclude ISS-001 --say "Trois magasins mal codés" --because "..."
+        manage.py issues --accept ISS-001 --by "Nom" --reason "..." --review-on 2026-11-30
+        manage.py issues --close ISS-001 --by "Nom" --reason "..."
+
+    La porte est manuelle, et elle le restera jusqu'au moteur de sélection. C'est l'ordre
+    du brief : l'identité d'abord. Un moteur qui ouvrirait des sujets sans que la mémoire
+    tienne présenterait chaque semaine trois découvertes déjà connues.
+    """
+    from datetime import date
+
+    from .db import SessionFactory, create_all
+    from .domain import issues as domain
+    from .perf import memory
+
+    create_all()
+    today = date.today().isoformat()
+    changed = False
+
+    with SessionFactory() as session:
+        register = memory.load(session)
+
+        target = _option(argv, "--attach")
+        spec = _option(argv, "--observe")
+        if spec:
+            kind, _sep, scope = spec.partition(":")
+            if not kind or not scope:
+                print("Écrire l'observation TYPE:PÉRIMÈTRE, par exemple "
+                      "gap_to_plan:Brazil.", file=sys.stderr)
+                return 2
+            seen = domain.Observation(
+                kind=kind.strip(), scope=scope.strip(),
+                seen_at=_option(argv, "--at") or today,
+                statement=_option(argv, "--say"),
+                amount=_number_or_none(_option(argv, "--amount")),
+                measure=_option(argv, "--measure"),
+            )
+            try:
+                issue = (register.attach(target, seen) if target
+                         else register.observe(seen))
+            except (KeyError, domain.TransitionRefused) as refused:
+                print("  %s" % refused, file=sys.stderr)
+                return 1
+            changed = True
+            print("%s · %s" % (issue.issue_id, issue.title))
+            if issue.follows:
+                print("  réapparition de %s — ce n'est pas une découverte"
+                      % issue.follows)
+
+        for flag, act in (("--conclude", "conclude"), ("--accept", "accept"),
+                          ("--close", "close")):
+            reference = _option(argv, flag)
+            if not reference:
+                continue
+            issue = register.of(reference)
+            if issue is None:
+                print("Aucun sujet %s." % reference, file=sys.stderr)
+                return 2
+            try:
+                if act == "conclude":
+                    issue.reinterpret(_option(argv, "--say"),
+                                      at=_option(argv, "--at") or today,
+                                      because=_option(argv, "--because"))
+                elif act == "accept":
+                    issue.accept_variance(domain.Arbitration(
+                        decided_by=_option(argv, "--by"),
+                        at=_option(argv, "--at") or today,
+                        reason=_option(argv, "--reason"),
+                        review_on=_option(argv, "--review-on") or None))
+                else:
+                    issue.close(by=_option(argv, "--by"),
+                                reason=_option(argv, "--reason"))
+            except (ValueError, domain.TransitionRefused) as refused:
+                print("  %s" % refused, file=sys.stderr)
+                return 1
+            changed = True
+
+        if changed:
+            memory.save(session, register)
+            session.commit()
+
+        _print_issues(register, today)
+    return 0
+
+
+def _print_issues(register, today: str) -> None:
+    """La mémoire, telle qu'elle est. Les trois dimensions côte à côte et jamais fondues."""
+    open_ones = register.open_issues()
+    print("")
+    print("Sujets connus      %d, dont %d ouverts" % (len(register), len(open_ones)))
+    if not open_ones:
+        print("")
+        print("Aucun sujet ouvert. La mémoire est vide, ce qui est un fait et non un")
+        print("silence : rien n'a encore été porté, par personne.")
+        return
+
+    print("")
+    print("%-9s %-30s %-11s %-9s %-12s %s"
+          % ("Réf", "Sujet", "Tendance", "Traitement", "Confiance", "Vu"))
+    for issue in open_ones:
+        print("%-9s %-30s %-11s %-9s %-12s %s"
+              % (issue.issue_id, issue.title[:30], issue.trend, issue.progress,
+                 issue.confidence, issue.last_seen or "—"))
+        if len(issue.scopes) > 1:
+            print("%-9s   sur %s" % ("", ", ".join(issue.scopes)))
+        if issue.conclusion:
+            print("%-9s   lecture : %s" % ("", issue.conclusion[:64]))
+            if issue.previous_conclusion:
+                print("%-9s   avant   : %s" % ("", issue.previous_conclusion[:64]))
+
+    repeated = register.repeated()
+    if repeated:
+        print("")
+        print("Réapparitions — déjà signalé une fois, et revenu :")
+        for issue in repeated:
+            print("  %s suit %s" % (issue.issue_id, issue.follows))
+
+    due = register.due_for_review(today)
+    if due:
+        print("")
+        print("Réexamens échus — un écart accepté n'est pas un écart oublié :")
+        for issue in due:
+            arbitration = issue.arbitration
+            print("  %s  %s  décidé par %s"
+                  % (issue.issue_id, arbitration.review_on, arbitration.decided_by))
+            print("     %s" % arbitration.reason[:70])
+
+
+def _number_or_none(text: str) -> Optional[float]:
+    try:
+        return float(text.replace(" ", "").replace(",", ".")) if text else None
+    except ValueError:
+        return None
+
+
 def cmd_partners(argv: List[str]) -> int:
     """Le digital non détenu, une base à la fois et jamais les deux ensemble.
 
@@ -3209,6 +3353,8 @@ def main(argv: List[str]) -> int:
         return cmd_org(argv[1:])
     if command == "partners":
         return cmd_partners(argv[1:])
+    if command == "issues":
+        return cmd_issues(argv[1:])
     if command == "actuals":
         return cmd_actuals(argv[1:])
     if command == "refresh":
