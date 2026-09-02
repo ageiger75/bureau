@@ -46,6 +46,8 @@
                                      --teams les GM pays · --markets ce qui n'est pas placé
     python -m app.cli partners       le digital non détenu, une base à la fois
                                      --sell-in · --sell-out · --unnamed · --deductions
+    python -m app.cli distribution   les entités qui s'écartent de la norme de leur canal
+                                     --sell-in · --sell-out · --distance · --markets
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
@@ -219,6 +221,8 @@ def cmd_check() -> int:
          "les marchés ne seront pas notés en vitesse"),
         ("Partenaires", settings.partners_path,
          "le digital non détenu restera un total sans noms"),
+        ("Signaux distribution", settings.distribution_path,
+         "aucune entité ne sera comparée à la norme de son canal"),
         ("Séries mensuelles", settings.actuals_folder,
          "pas de dérive entre publié et implicite"),
         ("Poids stratégiques", settings.weights_path,
@@ -2355,6 +2359,87 @@ def _actuals_series(folder: str, detail: bool) -> int:
     return 0
 
 
+#: La colonne sur laquelle se classe la matérialité. Nommée ici et non devinée : le jour
+#: où la source la renomme, l'écran doit le dire plutôt que de rendre une liste vide.
+EXPOSURE_COLUMN = "free_goods_value"
+
+
+def cmd_distribution(argv: List[str]) -> int:
+    """Les entités qui s'écartent de la norme de leur canal, une base à la fois.
+
+    Deux classements et jamais un seul. Celui des euros dit **où est l'argent** ; celui de
+    la distance aux seuils dit **où est l'anomalie**. Ils ne se recouvrent pas : une petite
+    entité très déviante n'apparaîtra jamais dans le premier, et c'est pour elle que le
+    second existe. Trois classements à un seul critère ont déjà été construits ici, et les
+    trois mesuraient autre chose que ce qu'on cherchait.
+    """
+    from .perf import distribution as distribution_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    path = positional[0] if positional else str(settings.distribution_path)
+    read = distribution_module.load(path)
+    for fault in read.faults:
+        print("  %s" % fault, file=sys.stderr)
+    if not read.entities:
+        print("Déposer le fichier des signaux à cet endroit : %s" % path, file=sys.stderr)
+        return 2
+
+    wanted = [base for base, flag in ((distribution_module.SELL_IN, "--sell-in"),
+                                      (distribution_module.SELL_OUT, "--sell-out"))
+              if flag in argv] or list(distribution_module.BASES)
+
+    print("Source             %s" % path)
+    print("Lignes lues        %d" % len(read))
+    print("Signaux découverts %s" % ", ".join(read.signals))
+
+    for base in wanted:
+        rows = read.of_base(base)
+        if not rows:
+            continue
+        abnormal = read.abnormal(base)
+        held = read.unrankable(base)
+        inside = read.internal(base)
+        valued, total_rows = read.coverage(base, EXPOSURE_COLUMN)
+        print("")
+        print("%s — %d entités, %d au-dessus de leur norme"
+              % (base.replace("_", "-").upper(), len(rows), len(abnormal)))
+        print("couverture %s : %d lignes valorisées sur %d — le total est un plancher"
+              % (EXPOSURE_COLUMN, valued, total_rows))
+        if inside:
+            print("%d compte(s) interne(s) hors classement" % len(inside))
+        if held:
+            print("%d entité(s) hors du classement par distance : moins de %d signaux"
+                  % (len(held), read.floor))
+            print("   calculables sur %d, leur part n'est pas comparable"
+                  % len(read.signals))
+
+        if "--markets" in argv:
+            print("")
+            print("%-24s %16s" % ("Marché", "exposition"))
+            for market, amount in read.by_market(base, EXPOSURE_COLUMN)[:12]:
+                print("%-24s %16s" % (market[:24], _euros(amount)))
+            continue
+
+        chosen = (read.by_distance(base) if "--distance" in argv
+                  else read.by_exposure(base, EXPOSURE_COLUMN))
+        title = ("où est l'anomalie — distance moyenne aux seuils franchis"
+                 if "--distance" in argv else "où est l'argent — parmi les anormales seules")
+        print("")
+        print("%s" % title)
+        print("%-26s %-14s %-16s %10s %s"
+              % ("Entité", "Marché", "Canal", "exposition", "signaux"))
+        for row in chosen[:15]:
+            amount = row.amount(EXPOSURE_COLUMN)
+            print("%-26s %-14s %-16s %10s %s"
+                  % (row.label[:26], row.market[:14], row.channel[:16],
+                     _euros(amount) if amount is not None else "—",
+                     ", ".join(row.fired())[:40]))
+            if "--distance" in argv and row.distance() is not None:
+                print("%-26s %s" % ("", "  %.1f fois ses seuils, sur %d calculables"
+                                    % (row.distance(), len(row.computable()))))
+    return 0
+
+
 def cmd_issues(argv: List[str]) -> int:
     """Les sujets de management, et ce que le cockpit se rappelle d'eux.
 
@@ -3506,6 +3591,8 @@ def main(argv: List[str]) -> int:
         return cmd_partners(argv[1:])
     if command == "issues":
         return cmd_issues(argv[1:])
+    if command == "distribution":
+        return cmd_distribution(argv[1:])
     if command == "actuals":
         return cmd_actuals(argv[1:])
     if command == "refresh":

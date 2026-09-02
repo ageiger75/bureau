@@ -173,6 +173,30 @@ REGISTER: Dict[str, Measure] = {
         "come from the KPI tracker. Neither is wired.",
         to_confirm="Which KPIs are already computed centrally, and to whose definition.",
     ),
+    "distribution_signals": Measure(
+        key="distribution_signals",
+        label="Distribution signals",
+        maturity=BETA,
+        note="Eight named signals per entity, each beside the threshold it must cross, "
+        "computed against the norm of the entity's own channel within its own market. "
+        "Nothing here is a verdict: the warehouse carries no authorisation field, so the "
+        "measure is a distance from the retail behaviour of the same kind, never a "
+        "finding.\n\n"
+        "Three rankings were built on this data before one held, and each failed by "
+        "applying a single criterion correctly. Counting fired signals ranked the "
+        "largest doors, because signals built on a maximum or a count grow with traffic. "
+        "Ranking on a free-goods ratio returned the smallest accounts, because a ratio "
+        "over a few hundred units explodes. Ranking on absolute value returned one "
+        "market, which carried four fifths of the total. Two conditions are therefore "
+        "required and the reader enforces both: abnormal for its own kind first, "
+        "material second.\n\n"
+        "The totals are floors. Around a fifth of the rows carry no computable value, "
+        "and every screen that shows a total must show its coverage beside it.",
+        to_confirm="Whether the free-goods valuation reconciles with the per-millilitre "
+        "measurement taken on the same account by another route — the two diverge by "
+        "half; and whether a control group of markets known to be sound stays out of "
+        "the ranking.",
+    ),
     "partners": Measure(
         key="partners",
         label="Non-owned digital partners",

@@ -92,6 +92,11 @@ DEFAULT_DIVERGENCE_FILE = "var/divergence.csv"
 #: Les partenaires du digital non détenu, base par base. Écrit par Cortex depuis
 #: l'entrepôt : la marque commerciale n'est dans aucune colonne et arrive avec le fichier.
 DEFAULT_PARTNERS_FILE = "var/partners.csv"
+
+#: Les signaux de distribution, entité par entité et fenêtre par fenêtre. Écrit par Cortex
+#: depuis l'entrepôt : la norme de comparaison se calcule sur des dizaines de milliers de
+#: lignes, ce que le cockpit ne fait pas et n'a pas à faire.
+DEFAULT_DISTRIBUTION_FILE = "var/distribution_signals.csv"
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -118,6 +123,7 @@ class Settings:
     actuals_folder_name: str = DEFAULT_ACTUALS_FOLDER
     divergence_file: str = DEFAULT_DIVERGENCE_FILE
     partners_file: str = DEFAULT_PARTNERS_FILE
+    distribution_file: str = DEFAULT_DISTRIBUTION_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -197,6 +203,15 @@ class Settings:
     @property
     def has_partners_file(self) -> bool:
         return self.partners_path.exists()
+
+    @property
+    def distribution_path(self) -> Path:
+        path = Path(self.distribution_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_distribution_file(self) -> bool:
+        return self.distribution_path.exists()
 
     @property
     def actuals_folder(self) -> Path:
@@ -290,6 +305,8 @@ def load_settings() -> Settings:
         actuals_folder_name=_env("CEOOS_ACTUALS_FOLDER") or DEFAULT_ACTUALS_FOLDER,
         divergence_file=_env("CEOOS_DIVERGENCE_FILE") or DEFAULT_DIVERGENCE_FILE,
         partners_file=_env("CEOOS_PARTNERS_FILE") or DEFAULT_PARTNERS_FILE,
+        distribution_file=(_env("CEOOS_DISTRIBUTION_FILE")
+                           or DEFAULT_DISTRIBUTION_FILE),
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         snowflake_connection=snowflake_connection,
     )

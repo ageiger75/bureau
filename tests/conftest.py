@@ -101,6 +101,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("actuals_folder", "actuals"),
         ("org_path", "org.xlsx"),
         ("partners_path", "partners.csv"),
+        ("distribution_path", "distribution_signals.csv"),
     ):
         monkeypatch.setattr(
             type(settings), name,
