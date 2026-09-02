@@ -2665,69 +2665,50 @@ def _print_week(register, today: str) -> None:
 def _scan_into(register, today: str = "") -> bool:
     """Lire les sources et déposer ce qu'elles disent. Rend vrai si le registre a bougé.
 
-    Le passage lit ce que le cockpit lit déjà : l'écran de performance et le fichier des
-    partenaires. Une source absente ne produit rien et le dit — jamais un silence, qui se
-    lirait comme « rien à signaler » alors qu'il veut dire « je n'ai pas regardé ».
+    La lecture elle-même vit dans `app.perf.week`, qui ne sait rien afficher : l'écran et
+    le terminal doivent lire par le même chemin, sinon la même règle existe à deux endroits
+    et diverge le jour où l'une des deux change. Ce qui reste ici est l'impression.
+
+    Une source absente et une source vide ne s'écrivent jamais pareil. Un silence se lirait
+    comme « rien à signaler » alors qu'il veut dire « je n'ai pas regardé ».
     """
-    from datetime import date
+    from .perf import week as week_module
 
-    from .perf import detection
-    from .perf import partners as partners_module
-    from .perf import source as source_module
+    scan = week_module.observe(register, today)
+    sources = scan.sources
 
-    today = today or date.today().isoformat()
-    seen: List = []
-    dataset = source_module.current_source().dataset()
-    if dataset is not None and getattr(dataset, "units", None):
-        seen.extend(detection.from_units(dataset.units,
-                                         period=getattr(dataset, "period", ""),
-                                         today=today))
-        print("Écran de performance   %d unités lues" % len(dataset.units))
-    else:
+    if sources.units is None:
         print("Écran de performance   rien à lire")
-
-    if settings.has_partners_file:
-        read = partners_module.current()
-        for fault in read.faults:
-            print("  %s" % fault, file=sys.stderr)
-        seen.extend(detection.from_partners(
-            read, getattr(dataset, "period", ""), today=today))
-        print("Partenaires            %d lignes lues" % len(read))
     else:
+        print("Écran de performance   %d unités lues" % sources.units)
+
+    if sources.partners is None:
         print("Partenaires            absent — %s" % settings.partners_path)
-
-    result = detection.post(register, seen)
-
-    # Rattacher les sujets de marché à leur MD avant de compter quoi que ce soit : sans
-    # cette étape, « personne n'en répond » s'applique à tous les sujets et cesse
-    # d'ordonner. Un facteur ne vaut que par les sujets où il ne vaut pas.
-    from .perf import perimeter as perimeter_module
-    from .perf import selection as selection_module
-
-    if settings.has_org_file:
-        org = perimeter_module.load(str(settings.org_path))
-        given = selection_module.assign_owners(register, org)
-        print("Interlocuteurs         %d sujets rattachés à leur MD" % given)
     else:
-        print("Interlocuteurs         organigramme absent — aucun sujet ne sera rattaché")
+        for fault in sources.partner_faults:
+            print("  %s" % fault, file=sys.stderr)
+        print("Partenaires            %d lignes lues" % sources.partners)
 
-    quiet = detection.silent(register, seen)
+    if sources.owners_given is None:
+        print("Interlocuteurs         organigramme absent — aucun sujet ne sera rattaché")
+    else:
+        print("Interlocuteurs         %d sujets rattachés à leur MD" % sources.owners_given)
 
     print("")
-    print("Règles déclenchées     %d" % len(seen))
-    print("Sujets ouverts         %d" % len(result["opened"]))
-    print("Sujets alimentés       %d" % len(result["grew"]))
-    if result["returning"]:
+    print("Règles déclenchées     %d" % scan.fired)
+    print("Sujets ouverts         %d" % len(scan.opened))
+    print("Sujets alimentés       %d" % len(scan.grew))
+    if scan.returning:
         print("Réapparitions          %d — on avait déjà cru régler ça"
-              % len(result["returning"]))
-        for issue in result["returning"]:
+              % len(scan.returning))
+        for issue in scan.returning:
             print("  %s suit %s · %s" % (issue.issue_id, issue.follows, issue.title[:48]))
-    if quiet:
+    if scan.quiet:
         print("Silencieux ce passage  %d — silencieux n'est pas résolu ; il faut deux"
-              % len(quiet))
+              % len(scan.quiet))
         print("                       périodes conformes pour constater un retour à la")
         print("                       normale, et c'est une décision de cadence.")
-    return bool(seen)
+    return scan.changed
 
 
 def _issue_named(register, name: str):
