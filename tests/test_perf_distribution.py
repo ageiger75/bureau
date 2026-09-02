@@ -199,8 +199,8 @@ def test_the_amount_per_market_is_what_makes_a_world_average_readable(tmp_path):
                   + _row(eid="C", market="Northland", value=50.0))
     read = D.load(path)
 
-    assert read.by_market(D.SELL_OUT, "free_goods_value") == [("Northland", 950.0),
-                                                              ("Eastland", 100.0)]
+    assert read.by_market(D.SELL_OUT, "free_goods_value") == [
+        ("Northland", 950.0, 2, 2), ("Eastland", 100.0, 1, 1)]
 
 
 # --------------------------------------------------------------- deux bases
@@ -274,3 +274,101 @@ def test_on_eight_signals_the_floor_is_the_five_that_had_been_hardcoded(tmp_path
 
     assert len(read.signals) == 8
     assert read.floor == 5
+
+
+def test_a_market_nobody_measured_is_not_a_market_at_zero(tmp_path):
+    """Sept marchés de la vraie source sont couverts à zéro pour cent, dont un qui pèse
+    plus de vingt millions. Leur zéro euro se lit comme « rien à signaler » alors qu'il
+    veut dire « je n'ai pas regardé » — c'est l'absence qui ressemble à un feu vert, et
+    elle a déjà été payée quatre fois dans ce dépôt."""
+    path = _write(tmp_path,
+                  _row(eid="A", market="Mesuré", value=100.0)
+                  + _row(eid="B", market="Mesuré", value=200.0)
+                  + _row(eid="C", market="Aveugle", value=None)
+                  + _row(eid="D", market="Aveugle", value=None))
+    read = D.load(path)
+    rows = {name: (amount, valued, total)
+            for name, amount, valued, total in read.by_market(D.SELL_OUT,
+                                                              "free_goods_value")}
+
+    assert rows["Mesuré"] == (300.0, 2, 2)
+    assert rows["Aveugle"] == (0.0, 0, 2)
+    assert D.Distribution.measured(2, 2)
+    assert not D.Distribution.measured(0, 2)
+    # Un marché couvert à moitié passe : c'est un plancher, pas une cécité.
+    assert D.Distribution.measured(1, 2)
+
+
+def test_rows_without_an_identifier_are_kept_and_counted_once(tmp_path):
+    """Soixante lignes de la vraie source portaient « N/A », et la règle de doublon les a
+    toutes rejetées comme des répétitions les unes des autres — en imprimant soixante
+    avertissements identiques qui noyaient la seule ligne portant une information. Le dépôt
+    connaissait déjà ce défaut sur cette valeur exacte, et le lecteur y est retombé."""
+    path = _write(tmp_path,
+                  _row(eid="N/A", market="Northland")
+                  + _row(eid="N/A", market="Eastland")
+                  + _row(eid="N/A", market="Westland"))
+    read = D.load(path)
+
+    assert len(read) == 3
+    assert len(read.faults) == 1
+    assert "3 ligne(s) sans identifiant" in read.faults[0]
+
+
+def test_a_real_duplicate_is_still_refused(tmp_path):
+    """La tolérance porte sur l'absence d'identifiant, pas sur la répétition d'un vrai."""
+    path = _write(tmp_path, _row(eid="S1") + _row(eid="S1"))
+    read = D.load(path)
+
+    assert len(read) == 1
+    assert "figure déjà" in read.faults[0]
+
+
+# ------------------------------------------------------------------- périmètres
+
+
+def test_an_outlet_is_measured_against_outlets_and_never_against_retail(tmp_path):
+    """Un outlet vend des héros en profondeur à des acheteurs par lots — c'est sa
+    définition, pas une anomalie. Deux outlets américains et un anglais occupaient le
+    classement pendant que la maison les tenait pour sains, et c'est le groupe témoin qui
+    l'a montré. Ils sont séparés, jamais retirés : ôter des lignes pour faire taire un
+    signal est la façon la plus rapide de rendre un détecteur inutile."""
+    path = _write(tmp_path,
+                  _row(eid="SHOP", channel="STREET STORE", hero=0.9, value=1000.0)
+                  + _row(eid="OUT", channel="OUTLET", hero=0.9, value=5000.0)
+                  + _row(eid="FACTORY", channel="FACTORY OUTLET", hero=0.9, value=2000.0))
+    read = D.load(path)
+
+    assert [i.entity_id for i in read.of_base(D.SELL_OUT, D.RETAIL)] == ["SHOP"]
+    assert [i.entity_id
+            for i in read.of_base(D.SELL_OUT, D.OUTLET)] == ["OUT", "FACTORY"]
+    assert len(read.of_base(D.SELL_OUT, D.ALL)) == 3
+    # Reconnu sur le mot et non sur l'égalité : « FACTORY OUTLET » serait resté dans le
+    # retail avec une comparaison stricte, et sans rien dire.
+    assert read.of_base(D.SELL_OUT, D.OUTLET)[1].is_outlet
+
+
+def test_the_perimeter_is_asked_for_and_never_assumed(tmp_path):
+    """Changer un défaut change silencieusement ce que tous les appelants existants
+    demandaient."""
+    read = D.load(_write(tmp_path, _row(channel="OUTLET")))
+
+    assert len(read.of_base(D.SELL_OUT)) == 1
+    with pytest.raises(ValueError):
+        read.of_base(D.SELL_OUT, "boutique")
+
+
+def test_the_euro_floor_is_not_eaten_by_the_signal_floor(tmp_path):
+    """Deux planchers, et ils ne mesurent pas la même chose : l'un compte des signaux,
+    l'autre des euros. La première version les appelait tous les deux `floor` et le second
+    écrasait le premier dès la première ligne — le plancher de matérialité était donc
+    inopérant, ce qui a laissé remonter une entité à deux mille fois ses seuils pour deux
+    cent trente-six euros."""
+    path = _write(tmp_path,
+                  _row(eid="TINY", hero=0.99, depth=0.99, value=236.0)
+                  + _row(eid="REAL", hero=0.6, depth=0.3, value=90_000.0))
+    read = D.load(path)
+
+    assert [i.entity_id for i in read.by_distance(D.SELL_OUT)] == ["TINY", "REAL"]
+    assert [i.entity_id
+            for i in read.by_distance(D.SELL_OUT, "free_goods_value", 25_000.0)] == ["REAL"]

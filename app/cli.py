@@ -48,6 +48,7 @@
                                      --sell-in · --sell-out · --unnamed · --deductions
     python -m app.cli distribution   les entités qui s'écartent de la norme de leur canal
                                      --sell-in · --sell-out · --distance · --markets
+                                     retail par défaut · --outlets · --all-channels
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
@@ -59,7 +60,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .config import settings
 from .db import create_all, database_label
@@ -2363,6 +2364,23 @@ def _actuals_series(folder: str, detail: bool) -> int:
 #: où la source la renomme, l'écran doit le dire plutôt que de rendre une liste vide.
 EXPOSURE_COLUMN = "free_goods_value"
 
+#: Plancher sous lequel une entité ne remonte pas au classement par distance. Le module le
+#: prévoyait et l'écran ne le passait pas : un compte a remonté à 2 064 fois ses seuils
+#: pour 236 € d'exposition, ce qui est le défaut du petit dénominateur revenu par la porte
+#: de derrière. Une anomalie qui ne coûte rien n'est pas une anomalie à porter.
+DISTANCE_FLOOR = 25_000.0
+
+
+def _print_faults(faults: Sequence[str], limit: int = 5) -> None:
+    """Les défauts, plafonnés. Soixante avertissements identiques noient la seule ligne
+    qui portait une information — c'est le même défaut qu'un facteur qui s'applique
+    partout : ce qui se déclenche toujours ne dit plus rien."""
+    for fault in list(faults)[:limit]:
+        print("  %s" % fault, file=sys.stderr)
+    if len(faults) > limit:
+        print("  … et %d autre(s) défaut(s) du même ordre" % (len(faults) - limit),
+              file=sys.stderr)
+
 
 def cmd_distribution(argv: List[str]) -> int:
     """Les entités qui s'écartent de la norme de leur canal, une base à la fois.
@@ -2378,8 +2396,7 @@ def cmd_distribution(argv: List[str]) -> int:
     positional = [a for a in argv if not a.startswith("--")]
     path = positional[0] if positional else str(settings.distribution_path)
     read = distribution_module.load(path)
-    for fault in read.faults:
-        print("  %s" % fault, file=sys.stderr)
+    _print_faults(read.faults)
     if not read.entities:
         print("Déposer le fichier des signaux à cet endroit : %s" % path, file=sys.stderr)
         return 2
@@ -2388,18 +2405,32 @@ def cmd_distribution(argv: List[str]) -> int:
                                       (distribution_module.SELL_OUT, "--sell-out"))
               if flag in argv] or list(distribution_module.BASES)
 
+    # Le retail par défaut, et les outlets à part. Un outlet vend des héros en profondeur
+    # à des acheteurs par lots : comparé au magasin médian de son marché il sortira
+    # toujours en tête, et c'est ce qui a fait remonter deux outlets américains et un
+    # anglais que la maison tient pour sains. Ils ne sont pas retirés, ils sont mesurés
+    # entre eux.
+    perimeter = (distribution_module.OUTLET if "--outlets" in argv
+                 else distribution_module.ALL if "--all-channels" in argv
+                 else distribution_module.RETAIL)
+
     print("Source             %s" % path)
     print("Lignes lues        %d" % len(read))
     print("Signaux découverts %s" % ", ".join(read.signals))
+    print("Périmètre          %s" % {
+        distribution_module.RETAIL: "retail — les outlets sont lus à part (--outlets)",
+        distribution_module.OUTLET: "outlets seuls",
+        distribution_module.ALL: "tous canaux confondus, outlets compris",
+    }[perimeter])
 
     for base in wanted:
-        rows = read.of_base(base)
+        rows = read.of_base(base, perimeter)
         if not rows:
             continue
-        abnormal = read.abnormal(base)
-        held = read.unrankable(base)
-        inside = read.internal(base)
-        valued, total_rows = read.coverage(base, EXPOSURE_COLUMN)
+        abnormal = read.abnormal(base, perimeter)
+        held = read.unrankable(base, perimeter)
+        inside = read.internal(base, perimeter)
+        valued, total_rows = read.coverage(base, EXPOSURE_COLUMN, perimeter)
         print("")
         print("%s — %d entités, %d au-dessus de leur norme"
               % (base.replace("_", "-").upper(), len(rows), len(abnormal)))
@@ -2415,15 +2446,29 @@ def cmd_distribution(argv: List[str]) -> int:
 
         if "--markets" in argv:
             print("")
-            print("%-24s %16s" % ("Marché", "exposition"))
-            for market, amount in read.by_market(base, EXPOSURE_COLUMN)[:12]:
-                print("%-24s %16s" % (market[:24], _euros(amount)))
+            print("%-24s %16s %12s" % ("Marché", "exposition", "couverture"))
+            blind: List[str] = []
+            for market, amount, valued, count in read.by_market(
+                    base, EXPOSURE_COLUMN, perimeter):
+                if not distribution_module.Distribution.measured(valued, count):
+                    blind.append("%s (%d/%d)" % (market, valued, count))
+                    continue
+                print("%-24s %16s %12s"
+                      % (market[:24], _euros(amount), "%d/%d" % (valued, count)))
+            if blind:
+                print("")
+                print("Non mesurés — leur zéro est une absence, pas un montant :")
+                for name in blind:
+                    print("  %s" % name)
             continue
 
-        chosen = (read.by_distance(base) if "--distance" in argv
-                  else read.by_exposure(base, EXPOSURE_COLUMN))
-        title = ("où est l'anomalie — distance moyenne aux seuils franchis"
-                 if "--distance" in argv else "où est l'argent — parmi les anormales seules")
+        chosen = (read.by_distance(base, EXPOSURE_COLUMN, DISTANCE_FLOOR, perimeter)
+                  if "--distance" in argv
+                  else read.by_exposure(base, EXPOSURE_COLUMN, perimeter))
+        title = ("où est l'anomalie — distance aux seuils, au-dessus de %s €"
+                 % _euros(DISTANCE_FLOOR)
+                 if "--distance" in argv
+                 else "où est l'argent — parmi les anormales seules")
         print("")
         print("%s" % title)
         print("%-26s %-14s %-16s %10s %s"
