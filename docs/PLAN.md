@@ -1,0 +1,308 @@
+# Plan de continuation · CEO Performance Cockpit
+
+Écrit le 2 septembre 2026, après relecture de l'ensemble des échanges, du code et des deux
+briefs (« Expression du besoin » du CEO, « Doctrine V6.1 »). Destiné à la prochaine session
+de travail — quel que soit le modèle qui la tient — et au CEO lui-même. Ce document ne porte
+aucun chiffre réel, aucun nom de marché, de personne ou de produit : ceux-là vivent dans
+`var/`, ignoré par git, et dans les briefs qui ne sont pas versionnés.
+
+À lire avant `AGENTS.md`, qui décrit *comment* contribuer ; ce document dit *quoi* faire et
+dans quel ordre.
+
+---
+
+## 1. Où en est le produit
+
+**Le socle tient.** FastAPI, Jinja2, SQLite, Python 3.9 strict, lecteurs XLSX et CSV en
+bibliothèque standard, aucune ressource externe, écoute locale seulement, lecture seule
+garantie deux fois (code et rôle d'entrepôt). La suite de tests est verte et chaque test
+ferme un défaut qui a été vu, pas un défaut imaginé.
+
+**Deux produits cohabitent dans le dépôt.** Decision Room (`/decisions`, 202 tests
+d'origine, intact) et le Performance Cockpit (`/`, écran « Today », plus `/system`). Le
+premier n'est plus la porte d'entrée mais n'a pas été retiré.
+
+**L'écran web lit** : `analytics` (les écarts, leurs ponts, une liste de sujets
+recalculée à chaque lecture), `routing`, `kpi`, `provenance`, `commitments`, `source`.
+
+**La ligne de commande lit beaucoup plus.** Vingt et une commandes. Les quatre derniers
+jours de travail vivent uniquement là : l'annuaire (`org`), les partenaires nommés
+(`partners`), le détecteur de flux gris (`distribution`), et surtout **le registre des
+sujets** (`issues`) — identité persistante, rôles, arbitrages, lectures successives,
+moteur de sélection à trois créneaux d'attention et cinq de surveillance.
+
+**Les sources que le cockpit sait lire** (toutes dans `var/`) : le classeur de
+planification, le réalisé publié par la Finance, le reforecast, le suivi des KPI,
+l'annuaire, les notes de contexte, les poids stratégiques, la divergence
+entrepôt/consolidation, les partenaires, les signaux de distribution. Et l'entrepôt, par
+une connexion nommée, jamais par un identifiant stocké.
+
+**Deux systèmes, jamais mélangés en silence** : la consolidation (ce que la Finance
+publie) et l'entrepôt (ce qui l'explique). Le chiffre du haut vient de la première ; les
+cartes viennent du second et le disent.
+
+---
+
+## 2. Les sept besoins du CEO, et leur état
+
+| Besoin | État | Où |
+| --- | --- | --- |
+| **B1** Lire et challenger périmètre par périmètre, le MD nommé | Partiel | L'annuaire est lu et place les marchés sous leur MD ; aucune page par périmètre |
+| **B2** Le nom du partenaire, pas la famille de canal | Fait en CLI | `partners` ; rien à l'écran |
+| **B3** Où j'en suis dans le mois, deux taux côte à côte, phasage réel | **Absent** | — |
+| **B4** Le moteur client sous le chiffre | Partiel | Le suivi des KPI est lu avec ses règles de cadence et de sens ; pas de lecture ciblée à l'écran |
+| **B5** L'euro gagné est-il le bon euro — le mix, la contribution | **Absent** | Le brief le nomme « le besoin le plus important » |
+| **B6** Les moteurs nommés du plan, comme des objets avec owner et reste à livrer | **Absent** | — |
+| **B7** Le plan lui-même est-il tenable | Fait | À l'écran, adressé à la Finance, hors du champ commercial |
+
+Et les chapitres de la doctrine V6.1 :
+
+| Chapitre | État |
+| --- | --- |
+| §C Sélection et mémoire des sujets | **Construit en CLI, absent de l'écran** — c'est l'écart le plus grave |
+| §D Trajectoire (atterrissage, plan non bridgé, saisonnalisé) | Absent |
+| §E Surface (ordre d'écran, navigation, langue) | Absent |
+| §F Câblage des KPI par contrat | Partiel (lecteur du tracker) |
+| §6 du brief besoin — l'analyse par une IA | Réponse donnée en conversation, **jamais consignée** |
+| Détecteur de flux gris | Construit en CLI, hors brief, demandé explicitement par le CEO |
+
+---
+
+## 3. Diagnostic
+
+### Ce qui est bien
+
+- **La discipline « une absence n'est pas un zéro »** est réelle, testée, et elle a attrapé
+  des défauts vrais à répétition : des identifiants de remplacement pris pour des
+  identités, des marchés non mesurés affichés à zéro, un plancher de matérialité rendu
+  inopérant par une variable masquée, un compte de personnel qui paraissait petit en euros
+  et pesait cinq fois plus en produit.
+- **Le registre fait ce pour quoi il a été construit.** Une même preuve n'ouvre jamais
+  deux sujets ; un sujet clos ne se rouvre pas mais désigne son successeur ; une lecture
+  remplacée reste visible avec sa raison. Il a été relu trois fois en un après-midi sur
+  un même sujet et les trois lectures sont conservées.
+- **La vérification des retours de l'agent entrepôt est faite, pas relayée.** Plusieurs
+  erreurs réelles ont été trouvées à l'arithmétique : une attribution que le fichier
+  refusait, un total qui apparaissait sous deux noms, une légende de conversion fausse,
+  un ratio dont le dénominateur ne correspondait pas au comportement mesuré.
+- **La séparation domaine / persistance / HTTP** a rendu le pivot bon marché et permet
+  de tester chaque règle sans serveur ni base.
+- **La sécurité est cohérente** : aucun chiffre réel dans le dépôt, vérifié par un test ;
+  `var/` ignoré ; lecture seule ; rien ne sort de la machine.
+
+### Ce qui manque
+
+1. **Le registre n'atteint pas l'écran.** L'écran que le CEO ouvre chaque matin recalcule
+   ses sujets à chaque lecture — exactement l'« amnésie hebdomadaire » que la doctrine
+   interdit. Toute la mémoire construite ces quatre jours ne se voit que dans un terminal.
+2. **Trois des sept besoins n'ont aucun code** : B3, B5, B6. Le besoin le plus important
+   selon le CEO (B5) est à zéro.
+3. **Le produit est devenu une ligne de commande.** Trois mille sept cents lignes de CLI,
+   vingt et une commandes, et un écran web qui n'a pas bougé depuis quatre jours. Le CEO ne
+   code pas ; on lui a demandé de coller des sorties de terminal plus d'une centaine de
+   fois. Le terminal est commode pour celui qui construit, pas pour celui qui lit.
+4. **La doctrine n'est pas dans le dépôt.** Les deux briefs, les règles de travail, les
+   décisions prises en conversation (rôles, taux fixes, périmètres, ce qu'on ne mesure
+   pas) vivent dans des fichiers attachés et dans le fil de discussion. Une session neuve
+   ne les trouve pas.
+5. **La branche principale a plus de deux cents commits de retard** sur la branche de
+   travail. Quiconque arrive sur le dépôt voit un produit ancien.
+
+### Ce qui doit être amélioré
+
+- **Les briefs envoyés à l'agent entrepôt encodaient des hypothèses non testées**, et
+  plusieurs ont fabriqué des défauts : classer sur une valeur qui appartient presque
+  entièrement à un seul marché ; interdire une comparaison entre canaux qui masquait une
+  incitation économique ; limiter un miroir de prix à deux marchés, ce qui créait une
+  absence ; comparer un prix de gros à un prix de détail. Règle : **chaque brief porte le
+  test qui le falsifierait**, écrit avant l'envoi.
+- **Les conclusions ont été enregistrées trop tôt.** Un sujet a été ouvert sur une
+  coïncidence de forme et fermé deux heures plus tard par un test catégorique. Règle :
+  les faits entrent au registre immédiatement ; **une lecture n'entre qu'après un test
+  catégorique ou une connaissance du CEO**, jamais sur un ratio.
+- **Trop de blocs terminal ont échoué au premier essai** — interpréteur système au lieu
+  du venv, schéma en retard sur les modèles, rebase divergent, un espace réservé laissé
+  dans une commande. Chaque échec coûte un aller-retour au CEO. Règle : tout bloc est
+  exécuté d'abord contre une base dans l'état de la sienne ; le double-clic sur
+  `start.command` fait pull, migration et démarrage sans qu'il tape rien.
+- **La longueur des réponses.** Le CEO demande de mesurer et de voir. Les leviers, les
+  recommandations d'action et les listes de questions à d'autres équipes sont hors de sa
+  demande sauf s'il les réclame.
+
+---
+
+## 4. Règles de travail — à ne pas réapprendre
+
+**Forme des échanges.** Un bloc de code cerné de trois accents graves est destiné au
+terminal du CEO, et à rien d'autre ; l'interpréteur est toujours `.venv/bin/python
+manage.py …`, jamais `python3`. Un brief pour l'agent entrepôt n'est jamais cerné. Un
+message qui demande plusieurs gestes les numérote en BLOCs, une destination par bloc. Les
+retours de l'agent entrepôt sont cités et vérifiés avant d'être commentés.
+
+**Règles de mesure**, chacune née d'un défaut vu ici :
+
+1. Une absence n'est jamais un zéro. Elle est nommée, avec son volume.
+2. Un facteur qui se déclenche partout n'ordonne rien.
+3. Un signal isolé est une mesure inhabituelle, pas un comportement. Deux le suggèrent,
+   trois le nomment.
+4. Un seuil absolu ne traverse jamais deux populations ; seuls les rangs se comparent.
+5. Le dénominateur d'un ratio est ce à quoi le comportement se rapporte réellement, et
+   le ratio le dit en une ligne.
+6. Aucune règle ne se déclenche sur une ligne à zéro.
+7. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
+   test catégorique — au ticket, à la ligne, au mois — qui tranche.
+8. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
+   l'en-tête le déclare.
+
+**Registre.** Observer d'abord, conclure après. Une conclusion remplacée exige une raison.
+La clôture est humaine et nommée. Un sujet est la décision qu'il appelle, pas la
+géographie où on l'a vu.
+
+**Sécurité.** Aucun chiffre, marché, personne ou produit réel dans le dépôt — le test
+`tests/test_no_real_figures.py` l'impose et il doit rester vert. `var/` porte le réel et
+reste ignoré. Rien de personnel n'approche le dépôt, même dans un répertoire ignoré.
+L'application ne réécrit rien dans aucune source qu'elle lit.
+
+---
+
+## 5. Plan d'action, dans l'ordre
+
+Chaque phase a un critère de recette binaire. On ne passe pas à la suivante sans lui.
+
+### Phase 0 — Consolider (une demi-journée)
+
+- Mettre la branche principale au niveau de la branche de travail.
+- Réécrire l'en-tête du `README.md` pour que le Performance Cockpit soit le produit
+  décrit en premier, et remplacer la « Suite proposée » héritée de Decision Room par un
+  renvoi vers ce document.
+- Ajouter un renvoi vers ce document en tête d'`AGENTS.md`.
+
+*Recette* : une personne qui clone le dépôt lit d'abord le cockpit, et sait dans quel
+ordre travailler.
+
+### Phase 1 — Le registre à l'écran (priorité absolue)
+
+La route de l'écran « Today » charge le registre (`memory.load`), le fait tourner dans le
+moteur de sélection (`selection.rank`) après l'analyse de détection (`detection`), et
+sauvegarde ce qui a changé. Les trois créneaux d'attention et les cinq de surveillance
+viennent de là ; la liste recalculée d'`analytics` cesse d'être la source de l'attention
+et devient une source de **preuves** pour le registre.
+
+- Chaque carte porte : rôle CEO, chiffre et tendance, la raison d'entrée en mots (jamais le
+  score), la question spécifique à sa preuve, la personne utile, l'échéance.
+- Un bloc « depuis la dernière lecture » construit à partir des lectures et des
+  transitions du registre.
+- Deux gestes humains accessibles depuis l'écran, par formulaire local : accepter une
+  variance (décideur, date, raison, réexamen), clore (nom, motif).
+- Le sommeil d'un sujet arbitré et son réveil sur fait nouveau se voient.
+
+*Recette* : ouvrir l'écran deux fois de suite montre les mêmes références de sujets ; une
+lecture ajoutée en ligne de commande apparaît à l'écran ; jamais plus de trois sujets en
+attention, cinq en surveillance ; un sujet arbitré ne revient pas la semaine suivante
+sans fait nouveau.
+
+### Phase 2 — B3, où j'en suis dans le mois
+
+Un module `pace` : avancement du mois selon une courbe de phasage tirée du même mois de
+l'an dernier au grain jour ou semaine, alignée sur les événements mobiles plutôt que sur
+les dates ; avancement vers l'objectif du mois par périmètre et par canal ; les deux taux
+côte à côte. Le sell-in n'avance pas en jours : tant qu'aucun calendrier d'expédition
+n'est connecté, il affiche « non disponible ».
+
+*Recette* : pour chaque périmètre, deux nombres lisibles en une seconde, chacun avec sa
+base ; un canal sans phasage connu le dit au lieu d'interpoler.
+
+### Phase 3 — B5, le mix
+
+Un fichier de coefficients de contribution par canal dans `var/`, lu comme les autres
+sources, refusé bruyamment s'il est incomplet. À côté de l'écart de ventes : l'écart de
+mix par rapport au mix planifié, et l'écart de ventes repondéré par les coefficients —
+présenté comme un calcul, coefficients affichés, **jamais** comme un résultat.
+
+*Recette* : un mois à l'équilibre en ventes et hors plan en mix se voit ; aucun EBITDA
+n'est produit ni suggéré ; la base de chaque chiffre est affichée.
+
+### Phase 4 — B1, une page par périmètre
+
+Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,
+l'avancement du mois (phase 2), le mix (phase 3), les sujets du registre qui le concernent
+(phase 1), le dernier engagement, la seule question du jour. Le MD est nommé ; les GM
+apparaissent en détail, jamais comme destinataires.
+
+*Recette* : trente secondes avant un appel suffisent ; deux périmètres se comparent sans
+que le format ait bougé.
+
+### Phase 5 — B6, les moteurs du plan
+
+Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,
+état, question du mois), lu comme une source. Ce bloc **remplace** une partie du classement
+des écarts plutôt que de s'y ajouter — c'est la contrainte « deux écrans ».
+
+### Phase 6 — La surface (§E)
+
+Ordre d'écran de la doctrine, navigation en cinq onglets, absorption de Decision Room par
+Investigate et Commitments. Deux décisions du CEO sont nécessaires avant (voir §6).
+
+### Phase 7 — Le détecteur de flux gris à l'écran
+
+Une section sous Data Health ou Investigate, lisant le fichier des signaux avec ses
+colonnes de rang. Le classement par distance se fait sur les rangs et non sur les
+ratios bruts dès que le fichier les porte — le lecteur les reçoit déjà et les nomme
+comme non lues.
+
+### Phase 8 — L'analyse par une IA (§6 du brief besoin)
+
+D'abord **consigner** la réponse déjà donnée : faisabilité, architecture, ce qui quitte la
+machine et vers où, coût, latence, hors connexion. Ensuite seulement construire, et
+seulement après les phases 1 à 3 : la couche déterministe doit être complète avant qu'une
+lecture rédigée se pose dessus. Chaque phrase générée référence les champs numériques
+qu'elle décrit ; une phrase non traçable ne s'affiche pas.
+
+### En attente, sans date
+
+Retrait de Decision Room ; PostgreSQL ; annuaire d'entreprise et audit — nécessaires avant
+tout usage à plusieurs.
+
+---
+
+## 6. Ce qui attend une décision du CEO
+
+1. **La langue de l'interface.** La doctrine V6.1 demande une interface entièrement en
+   anglais ; les notes de contexte et le registre sont en français. Il faut trancher
+   avant la phase 6.
+2. **Decision Room** : conserver ou retirer.
+3. **Le fichier des coefficients de contribution** par canal, à fournir depuis le budget
+   par unité opérationnelle, pour la phase 3.
+4. **Le calendrier des événements mobiles** par marché, pour le phasage de la phase 2.
+
+## 7. Ce qui attend l'équipe data
+
+Une seule liste, envoyée en une fois parce que le retour est lent :
+
+1. La nomenclature des coffrets vendus en travel retail qui ne figurent ni dans la table
+   des nomenclatures ni dans celle des packs.
+2. Le statut des références à suffixe régional distribuées à un grand nombre
+   d'opérateurs sans miroir domestique.
+3. Une référence exclusive au travel retail porte-t-elle un prix de référence domestique ?
+   Sans lui, elle est incomparable par construction.
+4. Un compte de vente au personnel existe-t-il dans les marchés majeurs sous un libellé
+   qu'une recherche par mots-clés ne trouve pas ?
+5. Le compte de vente au personnel du marché où il est le plus lourd est-il un canal vers
+   les salariés, ou un compte de facturation dont les bénéficiaires ne sont pas identifiés ?
+6. Pourquoi la vente au personnel est-elle classée en cadeaux d'entreprise dans les deux
+   marchés où elle existe côté facturation ?
+7. Le point de vente physique portant le plus gros volume gratuit du monde n'a pas de
+   code au référentiel des magasins.
+
+La traçabilité code produit → lot → facture n'est pas systématisable : c'est acquis, et
+cela signifie que le détecteur ne sera jamais calibré sur des cas connus. Il fonctionne
+donc par tests catégoriques, et une unité achetée en rayon puis tracée à la main reste
+la seule preuve opposable.
+
+---
+
+## 8. Ce qui reste ouvert chez l'agent entrepôt
+
+Le test du gratuit non rattaché, descendu au point de vente, sur le marché qui en porte
+la plus forte proportion et qui n'a jamais été regardé. Les six tests du dernier brief
+sont sinon traités, et leurs résultats sont dans le registre.

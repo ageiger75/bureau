@@ -2,6 +2,10 @@
 
 À lire avant de modifier ce dépôt. Complète le `README.md`, qui décrit le produit.
 
+**Avant toute session de travail, lire `docs/PLAN.md`** : l'état du produit, ce qui manque,
+les règles de mesure et de travail apprises sur de vraies données, et l'ordre des
+phases à venir. Ce fichier-ci dit *comment* contribuer ; le plan dit *quoi* faire.
+
 ## Contraintes du socle
 
 Non négociables, elles viennent du poste et du brief :
