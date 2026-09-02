@@ -224,6 +224,11 @@ SPELLINGS: Dict[str, Tuple[str, ...]] = {
     "singapour": ("Singapore",),
     "indonesie": ("Indonesia",),
     "turquie": ("Turkey",),
+    # Le travel retail n'est pas un pays, mais c'est un périmètre piloté : il porte
+    # une responsable, un budget et des sujets. Sans cette entrée, un fait qui le
+    # concerne s'écrit sous le libellé exact de l'annuaire, parenthèse comprise, ou
+    # ne se rattache à personne.
+    "travel retail (monde)": ("Travel Retail",),
 }
 
 #: Ce qui sépare deux pays dans une même cellule. La source écrit « Chine + Hong Kong » et

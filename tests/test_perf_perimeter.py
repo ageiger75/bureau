@@ -165,3 +165,13 @@ def test_a_zone_that_is_not_a_country_still_places_nothing():
     org = perimeter.Org([_person(zone="Europe du Sud", kind=perimeter.MD)], [])
 
     assert perimeter.place(org, ["Spain", "Italy", "Portugal"]) == {}
+
+
+def test_the_travel_retail_perimeter_is_nameable_without_its_parenthesis():
+    """Un fait tracé physiquement — un kit acheté chez un distributeur qui n'aurait jamais
+    dû le vendre — s'écrit à la main, et il s'écrit « Travel Retail ». Si seul le libellé
+    exact de l'annuaire plaçait, la preuve la plus solide du dossier serait la seule à
+    n'avoir aucun interlocuteur."""
+    org = perimeter.Org([_person(zone="Travel Retail (monde)", kind=perimeter.MD)], [])
+
+    assert perimeter.place(org, ["Travel Retail"]) == {"Travel Retail": "Northland"}
