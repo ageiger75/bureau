@@ -2480,8 +2480,21 @@ def cmd_distribution(argv: List[str]) -> int:
                      _euros(amount) if amount is not None else "—",
                      ", ".join(row.fired())[:40]))
             if "--distance" in argv and row.distance() is not None:
-                print("%-26s %s" % ("", "  %.1f fois ses seuils, sur %d calculables"
-                                    % (row.distance(), len(row.computable()))))
+                print("%-26s %s" % ("", "  %.1f fois ses seuils, sur %d franchis et %d "
+                                        "calculables"
+                                    % (row.distance(), len(row.fired()),
+                                       len(row.computable()))))
+
+        if "--distance" in argv:
+            alone = read.single_signal(base, perimeter)
+            if alone:
+                print("")
+                print("Un seul seuil franchi — une mesure inhabituelle, pas un "
+                      "comportement :")
+                for row in alone[:5]:
+                    print("  %-26s %-12s %-14s %s à %.1f fois sa norme"
+                          % (row.label[:26], row.market[:12], row.channel[:14],
+                             row.fired()[0], row.distance()))
     return 0
 
 

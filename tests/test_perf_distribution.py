@@ -372,3 +372,23 @@ def test_the_euro_floor_is_not_eaten_by_the_signal_floor(tmp_path):
     assert [i.entity_id for i in read.by_distance(D.SELL_OUT)] == ["TINY", "REAL"]
     assert [i.entity_id
             for i in read.by_distance(D.SELL_OUT, "free_goods_value", 25_000.0)] == ["REAL"]
+
+
+def test_a_single_extreme_signal_is_not_a_behaviour(tmp_path):
+    """Le magasin historique de la maison sortait premier mondial à quarante fois ses
+    seuils, sur un seul signal. Or une part est bornée par un : quand sa norme vaut deux et
+    demi pour cent, le ratio maximal atteignable est quarante sans que la valeur ait rien
+    d'extraordinaire. Un ratio sur une grandeur bornée ne se compare pas à un ratio sur une
+    grandeur qui ne l'est pas — et la distance étant une moyenne sur les signaux franchis,
+    avec un seul elle **est** ce signal."""
+    path = _write(tmp_path,
+                  _row(eid="SPIKE", hero=1.0, hero_norm=0.025, depth=0.1, depth_norm=0.2,
+                       value=100_000.0)
+                  + _row(eid="BROAD", hero=1.2, hero_norm=0.4, depth=0.6, depth_norm=0.2,
+                         value=100_000.0))
+    read = D.load(path)
+
+    assert read.entities[0].distance() == 40.0
+    # Sortie du classement, et rendue à part : séparer plutôt que taire.
+    assert [i.entity_id for i in read.by_distance(D.SELL_OUT)] == ["BROAD"]
+    assert [i.entity_id for i in read.single_signal(D.SELL_OUT)] == ["SPIKE"]

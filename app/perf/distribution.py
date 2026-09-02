@@ -82,6 +82,18 @@ PLACEHOLDER_IDS = ("", "n/a", "na", "-", "—", "null", "none", "#n/a")
 #: « rien à signaler » alors qu'il veut dire « je n'ai pas regardé ».
 COVERAGE_FLOOR = 0.5
 
+#: Nombre de signaux qu'une entité doit franchir pour entrer au classement par distance.
+#: Deux, parce qu'un signal isolé décrit une mesure inhabituelle et non un comportement —
+#: et parce que la distance est une moyenne sur les signaux franchis : avec un seul, la
+#: moyenne **est** ce signal, et l'entité se classe sur son unique valeur extrême.
+#:
+#: Le magasin historique de la maison sortait ainsi premier mondial à quarante fois ses
+#: seuils, sur `recurrence_share` et lui seul. Or une part est bornée par un : quand sa
+#: norme vaut deux et demi pour cent, le ratio maximal atteignable est quarante, sans que
+#: la valeur ait rien d'extraordinaire. Un ratio sur une grandeur bornée ne se compare pas
+#: à un ratio sur une grandeur qui ne l'est pas.
+MIN_FIRED_FOR_DISTANCE = 2
+
 #: Les canaux qui ne sont pas du retail et ne se comparent pas à lui. Un outlet vend des
 #: héros en profondeur à des acheteurs par lots — c'est sa définition, pas une anomalie —
 #: et comparé au magasin médian de son marché il sortira toujours en tête. Deux outlets
@@ -367,10 +379,26 @@ class Distribution:
         # seuils pour deux cent trente-six euros.
         enough_signals = self.floor
         rows = [item for item in self.abnormal(base, perimeter)
-                if item.is_rankable(enough_signals) and item.distance() is not None]
+                if item.is_rankable(enough_signals)
+                and len(item.fired()) >= MIN_FIRED_FOR_DISTANCE
+                and item.distance() is not None]
         if floor:
             rows = [item for item in rows
                     if ((item.amount(column) if column else item.revenue) or 0.0) >= floor]
+        rows.sort(key=lambda item: item.distance(), reverse=True)
+        return rows
+
+    def single_signal(self, base: str, perimeter: str = ALL) -> List["Entity"]:
+        """Les entités qui ne franchissent qu'un seul seuil, du plus grand écart au plus
+        petit.
+
+        Sorties du classement par distance et rendues à part, jamais supprimées : une seule
+        mesure inhabituelle mérite d'être regardée, elle ne mérite pas d'occuper la
+        première place d'une liste qui prétend décrire des comportements. C'est la même
+        règle que pour les outlets — séparer plutôt que taire.
+        """
+        rows = [item for item in self.abnormal(base, perimeter)
+                if len(item.fired()) == 1 and item.distance() is not None]
         rows.sort(key=lambda item: item.distance(), reverse=True)
         return rows
 
