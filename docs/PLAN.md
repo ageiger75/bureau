@@ -148,10 +148,13 @@ retours de l'agent entrepôt sont cités et vérifiés avant d'être commentés.
 4. Un seuil absolu ne traverse jamais deux populations ; seuls les rangs se comparent.
 5. Le dénominateur d'un ratio est ce à quoi le comportement se rapporte réellement, et
    le ratio le dit en une ligne.
-6. Aucune règle ne se déclenche sur une ligne à zéro.
-7. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
+6. **Un taux moyen ne répond jamais à une question marginale.** Ce qu'un canal a rapporté
+   et ce que son prochain euro rapporterait sont deux nombres différents dès que les coûts
+   ne suivent pas les ventes, et ils peuvent se classer dans l'ordre inverse.
+7. Aucune règle ne se déclenche sur une ligne à zéro.
+8. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
    test catégorique — au ticket, à la ligne, au mois — qui tranche.
-8. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
+9. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
    l'en-tête le déclare.
 
 **Registre.** Observer d'abord, conclure après. Une conclusion remplacée exige une raison.
@@ -214,14 +217,39 @@ base ; un canal sans phasage connu le dit au lieu d'interpoler.
 
 ### Phase 3 — B5, le mix
 
-Le fichier `var/contribution.csv` porte un taux de contribution par canal, lu comme les
-autres sources, refusé bruyamment s'il est incomplet — un canal vendu que le fichier ne
-nomme pas est **ABSENT**, jamais pris à zéro ni à la moyenne des autres. À côté de l'écart de ventes : l'écart de
-mix par rapport au mix planifié, et l'écart de ventes repondéré par les coefficients —
-présenté comme un calcul, coefficients affichés, **jamais** comme un résultat.
+**Deux questions, deux taux, et les confondre inverserait la réponse.**
 
-*Recette* : un mois à l'équilibre en ventes et hors plan en mix se voit ; aucun EBITDA
-n'est produit ni suggéré ; la base de chaque chiffre est affichée.
+Le taux de contribution moyen d'un canal dit ce que ce canal a rapporté. Il ne dit **pas**
+ce que le prochain euro rapporterait, et c'est pourtant la question que pose B5. La raison
+est une structure de coûts, pas une nuance : le retail est un métier à coûts fixes — un
+euro de plus dans une boutique ouverte ne coûte que le produit — quand le wholesale est un
+métier à coûts variables, où la remise consentie *est* le coût et suit chaque euro. Le taux
+moyen classe donc le wholesale devant le retail, et le taux marginal peut faire l'inverse.
+
+Et le régime n'est pas uniforme à l'intérieur d'un même canal : **les loyers sont fixes
+dans les marchés occidentaux et variables en Asie**, où ils sont un pourcentage du chiffre.
+Un euro de plus dans une boutique occidentale et un euro de plus dans une boutique
+asiatique ne valent donc pas la même chose, et aucun taux unique par canal ne peut le dire.
+
+Ce que la phase construit :
+
+- `var/contribution.csv` porte le **taux moyen** par canal, qui est connu, et un **régime
+  de coûts** par marché — loyer fixe ou variable. Un canal vendu que le fichier ne nomme
+  pas est **ABSENT**, jamais pris à zéro ni à la moyenne des autres.
+- Le **taux marginal n'est pas connu** et n'est pas inventé : il demande la part fixe et la
+  part variable des coûts de chaque canal, qu'aucune source lue ici ne porte. L'écran le
+  déclare absent, nommément.
+- L'écran affiche l'écart de mix contre le mix planifié et l'écart de ventes repondéré aux
+  taux moyens — présenté comme un calcul, coefficients affichés, **jamais** comme un
+  résultat, et jamais comme un EBITDA.
+- **Aucun classement « où pousser » ne se fait sur le taux moyen.** C'est la protection qui
+  compte : sans elle, l'écran conseillerait de pousser le canal au taux le plus élevé,
+  c'est-à-dire l'inverse de ce que la structure de coûts commande.
+
+*Recette* : un mois à l'équilibre en ventes et hors plan en mix se voit ; aucun EBITDA n'est
+produit ni suggéré ; la base de chaque chiffre est affichée ; le taux marginal est nommé
+absent plutôt que remplacé par le taux moyen ; deux marchés de régimes différents ne sont
+jamais comparés sur le même taux sans que l'écran le dise.
 
 ### Phase 4 — B1, une page par périmètre
 
@@ -275,9 +303,12 @@ tout usage à plusieurs.
    est aujourd'hui en anglais et doit être repris ; le terminal, les notes et le registre
    sont déjà en français. Travail à porter en phase 6, mais toute chaîne nouvelle écrite
    d'ici là l'est en français.
-2. **Les coefficients de contribution par canal sont connus** — cinq canaux, lus dans le
-   comité de pilotage de mai. Ils vivent dans `var/contribution.csv`, jamais dans le
-   dépôt. La phase 3 est débloquée.
+2. **Les taux de contribution moyens par canal sont connus** — cinq lignes, lues dans le
+   comité de pilotage de mai. Ils vivent dans `var/contribution.csv`, jamais dans le dépôt.
+   Ils ne couvrent pas tout le périmètre vendu et deux d'entre eux nomment un partenaire
+   plutôt qu'un canal : ce qui manque sera nommé, pas comblé. **Le taux marginal, lui,
+   n'est pas connu** — voir la phase 3, qui dit pourquoi c'est la vraie question de B5 et
+   pourquoi le taux moyen y répondrait à l'envers.
 3. **Il n'existe pas de calendrier des événements mobiles.** Le phasage de la phase 2 se
    fera donc sur la courbe hebdomadaire du même mois de l'an dernier, alignée **par
    semaine et non par date**, et l'écran déclarera que les événements mobiles ne sont pas
@@ -288,6 +319,9 @@ tout usage à plusieurs.
 **Encore ouvert.**
 
 4. **Decision Room** : conserver ou retirer. Sans réponse, on conserve.
+5. **La frontière des loyers variables.** La règle est donnée — variable en Asie, fixe à
+   l'Ouest — mais pas la liste des marchés. Nécessaire à la phase 3 pour que deux boutiques
+   de régimes différents ne soient jamais comparées sur le même taux.
 
 ## 7. Ce qui attend l'équipe data
 
