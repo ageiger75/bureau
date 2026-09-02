@@ -322,3 +322,16 @@ def test_the_first_conclusion_needs_no_reason():
     issue.reinterpret("La demande recule", at="2026-06-30")
 
     assert issue.previous_conclusion == ""
+
+
+def test_a_hand_written_subject_says_where_before_it_says_what():
+    """Les sujets détectés portent « périmètre · règle ». Un sujet écrit à la main prenait
+    la phrase seule et devenait le seul de la liste à ne pas dire de quoi il parle avant de
+    dire ce qu'il dit — donc la ligne qu'on ne retrouve pas en parcourant l'écran."""
+    register = I.Register()
+
+    issue = register.observe(I.Observation(
+        kind="diversion_confirmed", scope="Travel Retail", seen_at="2026-08-20",
+        statement="Produit retrouvé chez un distributeur hors réseau"))
+
+    assert issue.title == "Travel Retail · Produit retrouvé chez un distributeur hors réseau"

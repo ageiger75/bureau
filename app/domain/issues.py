@@ -352,6 +352,20 @@ class Issue:
 # ---------------------------------------------------------------------------- registre
 
 
+def _titled(observation: "Observation") -> str:
+    """Le titre d'un sujet ouvert sans titre : le périmètre d'abord, toujours.
+
+    Les sujets détectés portent déjà « périmètre · règle ». Un sujet écrit à la main
+    prenait pour titre la phrase seule, et se retrouvait le seul de la liste à ne pas dire
+    de quoi il parle avant de dire ce qu'il dit. Dans un écran qu'on parcourt, c'est la
+    ligne qu'on ne retrouve pas.
+    """
+    kind, scope = observation.key
+    if observation.statement:
+        return "%s · %s" % (scope, observation.statement) if scope else observation.statement
+    return "%s · %s" % (scope, kind) if scope else kind
+
+
 def _next_id(existing: Sequence[str]) -> str:
     """Un identifiant lisible et stable, jamais réattribué.
 
@@ -438,7 +452,7 @@ class Register:
         previous = self.closed_holding(observation.key)
         issue = Issue(
             issue_id=_next_id([i.issue_id for i in self.issues]),
-            title=title or observation.statement or "%s · %s" % observation.key,
+            title=title or _titled(observation),
             follows=previous.issue_id if previous is not None else "",
         )
         issue.record(observation)

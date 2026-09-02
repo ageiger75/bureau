@@ -40,7 +40,7 @@ def test_a_subject_survives_the_process_that_found_it(db_session):
     again = _round_trip(db_session, register).of(issue.issue_id)
 
     assert again is not None
-    assert again.title == "Écart au plan qui ne se referme pas"
+    assert again.title == "Northland · Écart au plan qui ne se referme pas"
     assert again.status == I.IN_ATTENTION
     assert again.role == I.CHALLENGE
     assert (again.trend, again.progress) == (I.WORSENING, I.AT_RISK)
