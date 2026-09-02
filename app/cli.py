@@ -2430,6 +2430,14 @@ def cmd_distribution(argv: List[str]) -> int:
     print("Source             %s" % path)
     print("Lignes lues        %d" % len(read))
     print("Signaux découverts %s" % ", ".join(read.signals))
+    # Une colonne qu'un fichier apporte et que l'écran ignore sans le dire est la faute
+    # que ce dossier corrige depuis le début : dix colonnes de rang sont arrivées un jour
+    # sans qu'aucune ligne ne signale qu'elles n'étaient pas lues. Un signal a besoin de sa
+    # colonne de norme pour exister ; tout le reste est nommé ici, et son silence cesse.
+    if read.columns:
+        print("Colonnes non lues  %s" % ", ".join(read.columns))
+        print("                   présentes dans le fichier, sans norme associée — le "
+              "classement ne s'en sert pas")
     print("Périmètre          %s" % {
         distribution_module.RETAIL: "retail — les outlets sont lus à part (--outlets)",
         distribution_module.OUTLET: "outlets seuls",

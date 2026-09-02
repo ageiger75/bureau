@@ -392,3 +392,24 @@ def test_a_single_extreme_signal_is_not_a_behaviour(tmp_path):
     # Sortie du classement, et rendue à part : séparer plutôt que taire.
     assert [i.entity_id for i in read.by_distance(D.SELL_OUT)] == ["BROAD"]
     assert [i.entity_id for i in read.single_signal(D.SELL_OUT)] == ["SPIKE"]
+
+
+def test_a_column_the_reader_ignores_is_named_on_screen(tmp_path, capsys):
+    """Dix colonnes de rang sont arrivées dans le fichier un jour, et l'écran n'a rien dit.
+    Un signal a besoin de sa colonne de norme pour exister — c'est la règle, elle est
+    bonne — mais une colonne reçue et non lue doit se voir, sinon celui qui l'a produite
+    croit qu'elle sert."""
+    from app import cli
+
+    path = tmp_path / "signals.csv"
+    path.write_text(
+        "base,market,entity_id,entity_name,channel,hero_share,hero_share_norm,"
+        "depth,depth_norm,hero_share_rank\n"
+        "sell_out,Northland,E1,Boutique,retail,0.4,0.2,3.0,1.5,91.0\n",
+        encoding="utf-8")
+
+    cli.cmd_distribution([str(path)])
+
+    printed = capsys.readouterr().out
+    assert "hero_share_rank" in printed
+    assert "Colonnes non lues" in printed
