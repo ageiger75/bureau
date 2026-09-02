@@ -6,11 +6,19 @@ Elle porte aujourd'hui **deux produits**, dont un seul est actif :
 
 | | | |
 | --- | --- | --- |
-| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, si les engagements passés produisent des résultats, et ce que font les clients — recrutement, ARC, panier, NPS. Écrit en anglais. Voir `PIVOT.md`. |
+| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, si les engagements passés produisent des résultats, et ce que font les clients — recrutement, ARC, panier, NPS. Voir `PIVOT.md`. |
 | **Decision Room** | `/decisions` | Prototype précédent, complet et testé, conservé intact. Écrit en français. Documenté ci-dessous. |
 
 Le pivot de l'un vers l'autre — ce qui est réutilisé, ce qui est mis de côté, et pourquoi
 rien n'a été supprimé — est décrit dans **`PIVOT.md`**.
+
+**L'état du produit, ce qui manque et l'ordre des travaux sont dans `docs/PLAN.md`.**
+C'est le document à lire en premier pour reprendre le travail : il porte aussi les règles
+de mesure apprises sur de vraies données, qu'aucune relecture du code ne redonnerait.
+
+**La langue de l'interface est le français.** La doctrine V6.1 demandait un écran en
+anglais ; le lecteur a tranché pour le français, qui est déjà celle du terminal, des notes
+de contexte et du registre. L'écran web est encore en anglais et doit être repris.
 
 ---
 

@@ -214,8 +214,9 @@ base ; un canal sans phasage connu le dit au lieu d'interpoler.
 
 ### Phase 3 — B5, le mix
 
-Un fichier de coefficients de contribution par canal dans `var/`, lu comme les autres
-sources, refusé bruyamment s'il est incomplet. À côté de l'écart de ventes : l'écart de
+Le fichier `var/contribution.csv` porte un taux de contribution par canal, lu comme les
+autres sources, refusé bruyamment s'il est incomplet — un canal vendu que le fichier ne
+nomme pas est **ABSENT**, jamais pris à zéro ni à la moyenne des autres. À côté de l'écart de ventes : l'écart de
 mix par rapport au mix planifié, et l'écart de ventes repondéré par les coefficients —
 présenté comme un calcul, coefficients affichés, **jamais** comme un résultat.
 
@@ -265,15 +266,28 @@ tout usage à plusieurs.
 
 ---
 
-## 6. Ce qui attend une décision du CEO
+## 6. Décisions du lecteur
 
-1. **La langue de l'interface.** La doctrine V6.1 demande une interface entièrement en
-   anglais ; les notes de contexte et le registre sont en français. Il faut trancher
-   avant la phase 6.
-2. **Decision Room** : conserver ou retirer.
-3. **Le fichier des coefficients de contribution** par canal, à fournir depuis le budget
-   par unité opérationnelle, pour la phase 3.
-4. **Le calendrier des événements mobiles** par marché, pour le phasage de la phase 2.
+**Tranchées le 2 septembre.**
+
+1. **La langue de l'interface est le français.** Le conflit 5 de la doctrine V6.1 — qui
+   demandait un écran entièrement en anglais — est résolu dans l'autre sens. L'écran web
+   est aujourd'hui en anglais et doit être repris ; le terminal, les notes et le registre
+   sont déjà en français. Travail à porter en phase 6, mais toute chaîne nouvelle écrite
+   d'ici là l'est en français.
+2. **Les coefficients de contribution par canal sont connus** — cinq canaux, lus dans le
+   comité de pilotage de mai. Ils vivent dans `var/contribution.csv`, jamais dans le
+   dépôt. La phase 3 est débloquée.
+3. **Il n'existe pas de calendrier des événements mobiles.** Le phasage de la phase 2 se
+   fera donc sur la courbe hebdomadaire du même mois de l'an dernier, alignée **par
+   semaine et non par date**, et l'écran déclarera que les événements mobiles ne sont pas
+   recalés. C'est une dégradation connue, pas une approximation silencieuse : un
+   décalage de calendrier a déjà produit ici une chute apparente de quarante pour cent
+   qui n'existait pas.
+
+**Encore ouvert.**
+
+4. **Decision Room** : conserver ou retirer. Sans réponse, on conserve.
 
 ## 7. Ce qui attend l'équipe data
 
