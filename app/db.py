@@ -9,9 +9,9 @@ SQLite pour le prototype, PostgreSQL en cible (brief §12). La bascule doit se l
 
 from __future__ import annotations
 
-from typing import Iterator
+from typing import Iterator, List, Optional, Tuple
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, MetaData, create_engine, event, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import ROOT, settings
@@ -72,15 +72,112 @@ def get_session() -> Iterator[Session]:
         session.close()
 
 
-def create_all() -> None:
-    """Crée le schéma manquant.
+def create_all() -> Tuple[List[str], List[str]]:
+    """Mettre la base au niveau des modèles, additivement.
 
-    Suffisant pour un prototype mono-utilisateur. Alembic devient nécessaire dès qu'il
-    faut faire évoluer un schéma contenant de vraies décisions — noté dans le README.
+    Les tables manquantes sont créées, puis les colonnes manquantes ajoutées aux tables
+    qui existaient déjà. Le second geste manquait, et son absence a arrêté l'écran sur une
+    base qui portait de vrais sujets : les modèles avaient gagné une colonne, `create_all`
+    ne créait que des tables, et rien ne rattrapait l'écart.
+
+    Ne lève pas et n'affiche rien — les deux listes rendues (ajouté, refusé) sont affichées
+    par `manage.py migrate` et par `manage.py check`, qui sont les endroits où l'état du
+    schéma se lit.
     """
     from . import models  # import tardif : évite un cycle models -> db -> models
 
     models.Base.metadata.create_all(bind=engine)
+    return add_missing_columns()
+
+
+def _metadata() -> "MetaData":
+    from . import models
+
+    return models.Base.metadata
+
+
+def _literal_default(column) -> Optional[str]:
+    """La valeur de départ d'une colonne, écrite en SQL — ou rien si elle ne s'écrit pas.
+
+    Les défauts de ce projet sont posés côté Python (`default=False`, `default=""`), ce que
+    la base ignore : une colonne ajoutée sans défaut littéral laisserait NULL dans chaque
+    ligne existante, et une colonne NOT NULL serait refusée par le moteur. Un défaut
+    calculé — un identifiant, un horodatage — n'a pas de littéral, et il ne s'invente pas.
+    """
+    default = getattr(column, "default", None)
+    if default is None or not getattr(default, "is_scalar", False):
+        return None
+    value = default.arg
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    if isinstance(value, str):
+        return "'%s'" % value.replace("'", "''")
+    return None
+
+
+def pending_columns(metadata: Optional["MetaData"] = None) -> List[Tuple[str, object]]:
+    """Les colonnes que les modèles déclarent et que la base n'a pas.
+
+    Seules les tables déjà présentes sont examinées : une table absente est créée entière
+    par `create_all`, et l'annoncer comme une colonne manquante ferait passer une création
+    ordinaire pour une migration.
+    """
+    schema = metadata if metadata is not None else _metadata()
+    inspector = inspect(engine)
+    existing = set(inspector.get_table_names())
+    pending: List[Tuple[str, object]] = []
+    for table in schema.sorted_tables:
+        if table.name not in existing:
+            continue
+        present = {info["name"] for info in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name not in present:
+                pending.append((table.name, column))
+    return pending
+
+
+def add_missing_columns(
+    metadata: Optional["MetaData"] = None,
+) -> Tuple[List[str], List[str]]:
+    """Ajouter à la base les colonnes que les modèles ont gagnées depuis sa création.
+
+    Le besoin est né d'une panne : une colonne ajoutée à `management_issues` a rendu
+    illisible une base qui portait déjà des sujets. `create_all` ne crée que des tables
+    manquantes, jamais des colonnes manquantes, et l'écran s'arrêtait sur une erreur SQL
+    au lieu de s'adapter. Effacer la base aurait été la réponse courte — et elle aurait
+    effacé la mémoire, c'est-à-dire la seule chose que ce module existe pour garder.
+
+    **Strictement additif.** `ADD COLUMN` est la seule opération émise, et c'est la seule
+    que SQLite et PostgreSQL exécutent de la même façon sans réécrire la table. Renommer,
+    retyper ou supprimer une colonne demande une vraie migration versionnée — Alembic, le
+    jour où ce prototype portera plusieurs postes. Une colonne devenue inutile reste donc
+    en place, ce qui ne coûte rien, plutôt que d'être supprimée par une commande qui
+    perdrait ses données sans le dire.
+
+    Rend deux listes : ce qui a été ajouté, et ce qui a été **refusé** avec son motif. Une
+    colonne obligatoire dont le défaut se calcule — un identifiant, un horodatage — n'est
+    pas ajoutée avec une valeur inventée : elle est nommée, et l'appelant décide.
+    """
+    added: List[str] = []
+    refused: List[str] = []
+    for table_name, column in pending_columns(metadata):
+        literal = _literal_default(column)
+        if literal is None and not column.nullable:
+            refused.append(
+                "%s.%s — colonne obligatoire sans valeur de départ écrivable ; "
+                "une migration versionnée est nécessaire" % (table_name, column.name))
+            continue
+        clause = "%s %s" % (column.name, column.type.compile(engine.dialect))
+        if not column.nullable:
+            clause += " NOT NULL"
+        if literal is not None:
+            clause += " DEFAULT %s" % literal
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE %s ADD COLUMN %s" % (table_name, clause)))
+        added.append("%s.%s" % (table_name, column.name))
+    return added, refused
 
 
 def drop_all() -> None:

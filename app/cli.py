@@ -63,7 +63,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .config import settings
-from .db import create_all, database_label
+from .db import create_all, database_label, pending_columns
 
 # L'adresse d'écoute est une constante du code, pas un argument de ligne de commande :
 # un `--host 0.0.0.0` collé par erreur exposerait des dossiers confidentiels sur le réseau.
@@ -95,9 +95,13 @@ def serve_config() -> Tuple[str, int]:
 
 
 def cmd_migrate() -> int:
-    create_all()
+    added, refused = create_all()
+    for name in added:
+        print("Colonne ajoutée     %s" % name)
+    for reason in refused:
+        print("Colonne refusée     %s" % reason, file=sys.stderr)
     print("Schéma à jour · %s" % database_label())
-    return 0
+    return 1 if refused else 0
 
 
 def cmd_seed(argv: List[str]) -> int:
@@ -125,6 +129,15 @@ def cmd_check() -> int:
     host, port = serve_config()
     print("Environnement       %s" % settings.env)
     print("Base                %s" % database_label())
+    waiting = pending_columns()
+    if waiting:
+        print("Schéma              %d colonne(s) déclarée(s) par les modèles et absente(s) "
+              "de la base :" % len(waiting))
+        for table_name, column in waiting:
+            print("                    %s.%s — lancer manage.py migrate"
+                  % (table_name, column.name))
+    else:
+        print("Schéma              à jour")
     print("Niveau d'autonomie  %s" % settings.autonomy_level)
     print("Écoute              %s:%d (boucle locale uniquement)" % (host, port))
 
