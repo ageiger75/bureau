@@ -329,12 +329,16 @@ tout usage à plusieurs.
    plutôt qu'un canal : ce qui manque sera nommé, pas comblé. **Le taux marginal, lui,
    n'est pas connu** — voir la phase 3, qui dit pourquoi c'est la vraie question de B5 et
    pourquoi le taux moyen y répondrait à l'envers.
-3. **Il n'existe pas de calendrier des événements mobiles.** Le phasage de la phase 2 se
-   fera donc sur la courbe hebdomadaire du même mois de l'an dernier, alignée **par
-   semaine et non par date**, et l'écran déclarera que les événements mobiles ne sont pas
-   recalés. C'est une dégradation connue, pas une approximation silencieuse : un
-   décalage de calendrier a déjà produit ici une chute apparente de quarante pour cent
-   qui n'existait pas.
+3. **Il n'existe pas de calendrier des événements mobiles — et il n'en faut pas.**
+   L'alignement par semaine, d'abord retenu, a été cassé par le lecteur en une phrase :
+   il corrige la dérive d'un ou deux jours et ne corrige rien quand la fête des mères
+   passe de la deuxième à la troisième semaine, ou quand Black Friday change de semaine.
+   La réponse ne demande aucun calendrier : **au lieu d'affirmer une forme, mesurer si une
+   forme existe.** Avec plusieurs années, la dispersion d'une semaine dit tout. L'écran
+   rend donc une fourchette et non un point — étroite, elle se lit comme un point ; large,
+   elle dit que ce mois n'a pas de forme stable et que le lecteur ne doit rien en conclure.
+   Une seule année de référence ne vérifie rien et le déclare. Effet de bord précieux : le
+   fichier désigne de lui-même les marchés et les mois traversés par une date mobile.
 
 **Encore ouvert.**
 
