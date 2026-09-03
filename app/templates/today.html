@@ -305,6 +305,47 @@
                   Dernière lecture : {{ row.issue.readings[-1].conclusion }}
                 </p>
               {% endif %}
+
+              {# Les deux gestes que la doctrine réserve à un humain. Sans eux, arbitrer
+                 demandait une ligne de commande — c'est-à-dire, pour le lecteur de cet
+                 écran, ne pas être offert du tout. Pas de bouton « rouvrir » : un sujet
+                 clos qui reçoit un fait nouveau en ouvre un autre, qui déclare celui
+                 qu'il suit, et c'est ce lien qui rend la répétition calculable. #}
+              <details class="subject-actions">
+                <summary>Arbitrer</summary>
+                <form method="post" action="/issues/{{ row.issue.issue_id }}/accept">
+                  <p class="form-lede">
+                    Accepter l'écart : décider de ne rien faire, et que cela se voie. Le
+                    sujet dormira jusqu'à un fait postérieur à cette décision, ou jusqu'à
+                    la date de réexamen.
+                  </p>
+                  <label>Qui décide
+                    <input type="text" name="decided_by" required
+                           autocomplete="off" maxlength="200">
+                  </label>
+                  <label>Pourquoi
+                    <textarea name="reason" required rows="2"></textarea>
+                  </label>
+                  <label>Réexamen (facultatif)
+                    <input type="date" name="review_on">
+                  </label>
+                  <button type="submit">Accepter l'écart</button>
+                </form>
+                <form method="post" action="/issues/{{ row.issue.issue_id }}/close">
+                  <p class="form-lede">
+                    Clore : cause comprise, action faite, résultat constaté. Jamais
+                    prononcé par la machine.
+                  </p>
+                  <label>Qui clôt
+                    <input type="text" name="closed_by" required
+                           autocomplete="off" maxlength="200">
+                  </label>
+                  <label>Sur quoi
+                    <textarea name="reason" required rows="2"></textarea>
+                  </label>
+                  <button type="submit">Clore le sujet</button>
+                </form>
+              </details>
             </li>
           {% endfor %}
         </ol>

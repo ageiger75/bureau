@@ -413,3 +413,49 @@ def parse_review(form: Mapping[str, Any]) -> FormResult:
         "held_date": _optional_date(result, form, "held_date", "Date de la revue"),
     }
     return result
+
+# ------------------------------------------------------------------ sujets de management
+
+
+def parse_variance(form: Mapping[str, Any]) -> FormResult:
+    """Accepter un écart : décider de ne rien faire, et que la décision se voie.
+
+    Trois champs obligatoires et un optionnel, et aucun n'est décoratif. **Le décideur**
+    parce qu'une décision sans nom n'est pas une décision — la doctrine interdit à la
+    machine de prononcer celle-là. **La raison** parce que c'est elle qu'on relira dans six
+    mois, quand le sujet remontera et que personne ne se souviendra pourquoi il dormait.
+    **La date** parce qu'elle borne le sommeil : sans elle, un sujet arbitré dort jusqu'à
+    un fait nouveau, ce qui est correct mais laisse un écart accepté sans rendez-vous.
+    """
+    result = FormResult()
+    decided_by = _line(form, "decided_by")
+    reason = _text(form, "reason")
+    _require(result, "decided_by", decided_by,
+             "Qui accepte cet écart ? Une décision sans nom n'est pas une décision.")
+    _require(result, "reason", reason,
+             "Pourquoi ? C'est cette phrase qu'on relira quand le sujet remontera.")
+    result.values = {
+        "decided_by": decided_by,
+        "reason": reason,
+        "at": _optional_date(result, form, "at", "Date de la décision"),
+        "review_on": _optional_date(result, form, "review_on", "Date de réexamen"),
+    }
+    return result
+
+
+def parse_closure(form: Mapping[str, Any]) -> FormResult:
+    """Clore un sujet. Jamais prononcé par la machine (§C9), donc jamais sans un nom.
+
+    La machine sait constater qu'un chiffre est revenu dans sa zone — c'est la
+    normalisation, et elle est réversible. Elle ne sait pas dire qu'une cause est comprise
+    et qu'une action a produit un résultat. Un sujet clos sans motif écrit est un sujet
+    dont on ne saura plus, l'année suivante, s'il a été réglé ou abandonné.
+    """
+    result = FormResult()
+    closed_by = _line(form, "closed_by")
+    reason = _text(form, "reason")
+    _require(result, "closed_by", closed_by, "Qui clôt ce sujet ?")
+    _require(result, "reason", reason,
+             "Sur quoi ? Cause, action et résultat — sinon la clôture ne s'apprend pas.")
+    result.values = {"closed_by": closed_by, "reason": reason}
+    return result

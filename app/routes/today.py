@@ -176,7 +176,16 @@ def today(request: Request, session: Session = Depends(get_session)):
     # The dataset is handed over rather than re-read: a second read would cost another
     # warehouse query and, worse, could land on a different hour and therefore different
     # figures than the ones printed above it.
-    week, scan = week_of.read(session, dataset=dataset)
+    # `placing` : un sujet rendu dans un créneau d'attention **est** en attention, et son
+    # état doit le dire — sinon il reste « détecté » à vie et le lecteur ne peut plus le
+    # clore. C'est cet écran qui place, parce que c'est lui qui montre vraiment la semaine ;
+    # une inspection en terminal ne déplace rien.
+    week, scan = week_of.read(session, dataset=dataset, placing=True)
+    # La transaction se referme ici et pas dans le module de lecture : la politique de
+    # validation appartient à la surface, pas au domaine. Sans ce commit, la session ouverte
+    # par la dépendance se ferme sans écrire, et le registre paraissait sans mémoire alors
+    # qu'il l'avait — un état porté redevenait « détecté » au rechargement suivant.
+    session.commit()
 
     return render(
         request,

@@ -130,13 +130,49 @@ def observe(register, today: str = "", dataset=None) -> "Scan":
                 quiet=detection.silent(register, seen))
 
 
-def read(session, today: str = "", dataset=None,
-         save: bool = True) -> Tuple[object, "Scan"]:
+def place(week) -> int:
+    """Porter à leur état les sujets que la lecture met devant le lecteur.
+
+    Un sujet rendu dans un créneau d'attention **est** en attention : son état doit le
+    dire, sinon il reste « détecté » à vie et l'on ne peut plus le clore — la clôture n'est
+    permise que depuis un état porté, parce qu'un sujet qu'on n'a jamais regardé ne se
+    règle pas.
+
+    Le geste est réservé à la surface qui montre vraiment la semaine à son lecteur. Une
+    inspection en terminal ne place rien : regarder par-dessus l'épaule ne fait pas d'un
+    sujet un sujet porté, et un écran de contrôle qui déplacerait des états en les
+    affichant rendrait toute lecture destructrice.
+
+    Rend le nombre de sujets déplacés. Une transition interdite est ignorée sans bruit :
+    l'ordre du jour n'a pas à forcer un cycle de vie, il le suit.
+    """
+    from ..domain import issues as domain
+
+    moved = 0
+    for rows, wanted in ((week.attention, domain.IN_ATTENTION),
+                         (week.watch, domain.WATCHED)):
+        for row in rows:
+            if row.issue.status == wanted:
+                continue
+            try:
+                row.issue.move_to(wanted)
+            except domain.TransitionRefused:
+                continue
+            moved += 1
+    return moved
+
+
+def read(session, today: str = "", dataset=None, save: bool = True,
+         placing: bool = False) -> Tuple[object, "Scan"]:
     """La lecture entière : charger le registre, l'alimenter, le classer, l'écrire.
 
     Rend `(Week, Scan)` — ce qui remonte, et d'où cela vient. L'écriture est conditionnelle
     et le paramètre est explicite : une surface qui ne fait que regarder n'a pas à laisser
     de trace, et une surface qui alimente doit le faire exprès.
+
+    `placing` porte à leur état les sujets mis devant le lecteur — voir `place`. Faux par
+    défaut : seule la surface qui montre vraiment la semaine le demande, une inspection ne
+    déplace rien.
 
     Les poids stratégiques sont optionnels et leur absence est portée par la semaine
     (`weights_read`), jamais avalée : sans eux, le classement redevient un classement par
@@ -149,8 +185,11 @@ def read(session, today: str = "", dataset=None,
     today = today or date.today().isoformat()
     register = memory.load(session)
     scan = observe(register, today, dataset=dataset)
-    if save and scan.changed:
-        memory.save(session, register)
 
     read_weights = weights_module.current() if settings.has_weights_file else None
-    return selection_module.rank(register, today, weights=read_weights), scan
+    week = selection_module.rank(register, today, weights=read_weights)
+    moved = place(week) if placing else 0
+    if save and (scan.changed or moved):
+        memory.save(session, register)
+
+    return week, scan

@@ -8,6 +8,7 @@ from . import (
     commitments,
     decision,
     home,
+    issues,
     options,
     recommendation,
     reviews,
@@ -17,6 +18,7 @@ from . import (
 
 ROUTERS = (
     today.router,
+    issues.router,
     home.router,
     cases.router,
     claims.router,
