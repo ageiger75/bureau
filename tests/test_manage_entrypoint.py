@@ -120,3 +120,26 @@ def test_serving_on_a_busy_port_says_the_old_code_is_still_being_served(capsys):
         holder.close()
 
     assert not cli._port_taken(host, port)
+
+
+def test_an_option_value_is_never_taken_for_a_file_to_open():
+    """Le défaut s'est manifesté de la pire façon : `--spread 0.15` sans chemin, et la
+    commande annonçait « déposer le fichier à cet endroit : 0.15 ». Un message d'absence de
+    fichier, donc parfaitement crédible — le lecteur part chercher un fichier manquant qui
+    ne manque pas, et rien dans la sortie ne le détrompe."""
+    from app.cli import _positional
+
+    assert _positional(["--spread", "0.15", "--variation", "0.30"],
+                       ("--spread", "--variation")) == []
+    assert _positional(["var/phasing.csv", "--spread", "0.15"], ("--spread",)) \
+        == ["var/phasing.csv"]
+
+
+def test_a_flag_without_a_value_does_not_swallow_the_argument_that_follows():
+    """L'autre moitié de la règle, et la raison pour laquelle les drapeaux porteurs de
+    valeur sont déclarés plutôt que devinés : un drapeau booléen suivi d'un vrai argument
+    libre le ferait disparaître sans un mot."""
+    from app.cli import _positional
+
+    assert _positional(["--ytd", "var/actuals.xlsx"], ()) == ["var/actuals.xlsx"]
+    assert _positional(["--events", "--spread", "0.15"], ("--events", "--spread")) == []

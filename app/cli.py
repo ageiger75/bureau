@@ -500,6 +500,10 @@ NOTE_HEADER = ("market", "channel", "since", "kind", "note", "source", "question
                "action_owner")
 
 
+NOTE_VALUED = ("--ask", "--channel", "--for", "--forget", "--kind", "--since",
+               "--source")
+
+
 def cmd_note(argv: List[str]) -> int:
     """Consigne ce que les chiffres ne peuvent pas dire.
 
@@ -574,7 +578,7 @@ def cmd_note(argv: List[str]) -> int:
               % (len(existing), "" if len(existing) == 1 else "s"))
         return 0
 
-    positional = [a for a in argv if not a.startswith("--")]
+    positional = _positional(argv, NOTE_VALUED)
     # Les valeurs des options sont des positionnels aux yeux de ce découpage naïf ; on les
     # retire, sinon un `--since 2026-06` se ferait passer pour le texte de la note.
     for flag in ("--kind", "--since", "--channel", "--source", "--forget", "--ask",
@@ -838,6 +842,9 @@ def _print_notes(rows, path) -> int:
     return 0
 
 
+COMPARE_VALUED = ("--quarter",)
+
+
 def cmd_compare(argv: List[str]) -> int:
     """Confronte le trimestre clos du cockpit au reforecast de la Finance.
 
@@ -860,7 +867,7 @@ def cmd_compare(argv: List[str]) -> int:
     from .perf import reference, source as source_module
     from .perf.xlsx import WorkbookError
 
-    positional = [a for a in argv if not a.startswith("--")]
+    positional = _positional(argv, COMPARE_VALUED)
     if not positional:
         print(cmd_compare.__doc__, file=sys.stderr)
         return 2
@@ -3622,6 +3629,35 @@ def _silence_third_party_noise() -> None:
         warnings.filterwarnings("ignore", message=pattern)
 
 
+def _positional(argv: List[str], valued: Sequence[str] = ()) -> List[str]:
+    """Les arguments libres, une fois retirées les valeurs qui suivent un drapeau.
+
+    Le défaut que cette fonction ferme s'est manifesté de la pire façon : `--spread 0.15`
+    sans chemin de fichier, et la commande annonçait « déposer le fichier à cet endroit :
+    0.15 ». Le message était un message d'absence de fichier — donc parfaitement crédible,
+    et le lecteur va chercher un fichier manquant qui ne manque pas. Filtrer sur le seul
+    préfixe `--` retient la valeur du drapeau comme si c'était un chemin.
+
+    Les drapeaux porteurs de valeur sont **déclarés par chaque commande** plutôt que
+    devinés : deviner marcherait jusqu'au jour où un drapeau booléen précède un vrai
+    argument libre, et ce jour-là l'argument disparaîtrait sans un mot.
+    """
+    free: List[str] = []
+    index = 0
+    while index < len(argv):
+        argument = argv[index]
+        index += 1
+        if not argument.startswith("--"):
+            free.append(argument)
+            continue
+        # Un drapeau qui en suit un autre n'est pas sa valeur. La règle est la même que
+        # celle de `_option`, et elle doit l'être : deux lectures différentes du même
+        # `argv` rendraient le fichier lu ici et la valeur lue là-bas incohérents.
+        if argument in valued and index < len(argv) and not argv[index].startswith("--"):
+            index += 1
+    return free
+
+
 def _option(argv: List[str], flag: str) -> str:
     """Valeur suivant un drapeau, ou chaîne vide."""
     if flag in argv:
@@ -3651,6 +3687,12 @@ def _port_taken(host: str, port: int) -> bool:
         probe.close()
 
 
+#: Les drapeaux de `phasing` qui portent une valeur. Déclarés parce qu'un argument libre
+#: et la valeur d'un drapeau se ressemblent trait pour trait — voir `_positional`.
+PHASING_VALUED = ("--spread", "--variation", "--events", "--markets", "--exercice",
+                  "--avance")
+
+
 def cmd_phasing(argv: List[str]) -> int:
     """La forme des mois, ce que le fichier a de faux, et les mois sans forme stable.
 
@@ -3671,12 +3713,18 @@ def cmd_phasing(argv: List[str]) -> int:
     """
     from .perf import pace as pace_module
 
-    positional = [a for a in argv if not a.startswith("--")]
-    path = positional[0] if positional else str(settings.phasing_path)
+    positional = _positional(argv, PHASING_VALUED)
+    given = positional[0] if positional else ""
+    path = given or str(settings.phasing_path)
     read = pace_module.load(path)
     _print_faults(read.faults, limit=12)
     if not read.usable:
-        print("Déposer la forme des mois à cet endroit : %s" % path, file=sys.stderr)
+        if given:
+            print("Rien à lire dans %s." % path, file=sys.stderr)
+        else:
+            print("Aucune forme de mois déposée. Attendue ici : %s" % path,
+                  file=sys.stderr)
+        print("Colonnes : %s." % ", ".join(pace_module.REQUIRED), file=sys.stderr)
         return 2
 
     years = sorted({year for curve in read.curves.values() for year in curve.years})
