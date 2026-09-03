@@ -151,10 +151,15 @@ retours de l'agent entrepôt sont cités et vérifiés avant d'être commentés.
 6. **Un taux moyen ne répond jamais à une question marginale.** Ce qu'un canal a rapporté
    et ce que son prochain euro rapporterait sont deux nombres différents dès que les coûts
    ne suivent pas les ventes, et ils peuvent se classer dans l'ordre inverse.
-7. Aucune règle ne se déclenche sur une ligne à zéro.
-8. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
+7. **Une absence constatée dans une table n'est pas une absence dans l'entrepôt.** « Ce
+   champ n'existe pas » ne se dit qu'après avoir cherché ailleurs que dans la table qu'on
+   avait sous la main. Le statut de propriété des boutiques a été déclaré introuvable sur
+   la foi d'un seul référentiel ; il vivait dans un second, jamais ouvert, et cette
+   conclusion a fermé un chantier pendant plusieurs jours.
+8. Aucune règle ne se déclenche sur une ligne à zéro.
+9. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
    test catégorique — au ticket, à la ligne, au mois — qui tranche.
-9. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
+10. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
    l'en-tête le déclare.
 
 **Registre.** Observer d'abord, conclure après. Une conclusion remplacée exige une raison.
@@ -236,9 +241,18 @@ Ce que la phase construit :
 - `var/contribution.csv` porte le **taux moyen** par canal, qui est connu, et un **régime
   de coûts** par marché — loyer fixe ou variable. Un canal vendu que le fichier ne nomme
   pas est **ABSENT**, jamais pris à zéro ni à la moyenne des autres.
-- Le **taux marginal n'est pas connu** et n'est pas inventé : il demande la part fixe et la
-  part variable des coûts de chaque canal, qu'aucune source lue ici ne porte. L'écran le
-  déclare absent, nommément.
+- **La part loyer du coût marginal est mesurée, boutique par boutique.** Le référentiel
+  immobilier de l'entrepôt porte un pourcentage de loyer variable par bail : là où il
+  existe, un euro de plus vendu dans cette boutique perd exactement ce pourcentage ; là où
+  le loyer est fixe, il n'en perd rien. La distinction n'est donc plus une hypothèse par
+  marché, c'est une propriété de bail. **Elle se lit par boutique, jamais par marché**, et
+  chaque agrégat par marché porte son taux de renseignement — qui va de moins de quatre
+  pour cent à cinquante pour cent selon les pays, et vaut zéro dans plus de la moitié
+  d'entre eux.
+- **Le reste du taux marginal n'est pas connu** et n'est pas inventé : personnel, logistique
+  et marketing demandent une part fixe et une part variable qu'aucune source lue ici ne
+  porte. L'écran le déclare absent, nommément, et ne présente jamais la seule part loyer
+  comme un taux marginal complet.
 - L'écran affiche l'écart de mix contre le mix planifié et l'écart de ventes repondéré aux
   taux moyens — présenté comme un calcul, coefficients affichés, **jamais** comme un
   résultat, et jamais comme un EBITDA.
@@ -319,9 +333,13 @@ tout usage à plusieurs.
 **Encore ouvert.**
 
 4. **Decision Room** : conserver ou retirer. Sans réponse, on conserve.
-5. **La frontière des loyers variables.** La règle est donnée — variable en Asie, fixe à
-   l'Ouest — mais pas la liste des marchés. Nécessaire à la phase 3 pour que deux boutiques
-   de régimes différents ne soient jamais comparées sur le même taux.
+*Tranchée le 3 septembre, par la mesure et non par un avis.* Le régime de loyer se lit
+dans le référentiel immobilier de l'entrepôt, bail par bail. La règle donnée par le lecteur
+— variable en Asie, fixe à l'Ouest — est confirmée là où les baux sont renseignés, et de
+façon franche : un marché asiatique majeur porte plus de deux cents boutiques en variable
+seul contre trois en fixe, quand deux grands marchés européens n'ont aucune boutique en
+variable. Le marché nord-américain, lui, est massivement en mixte — minimum garanti plus
+pourcentage — ce qu'aucune règle à deux valeurs n'aurait dit.
 
 ## 7. Ce qui attend l'équipe data
 
