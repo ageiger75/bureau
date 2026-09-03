@@ -97,6 +97,11 @@ DEFAULT_PARTNERS_FILE = "var/partners.csv"
 #: depuis l'entrepôt : la norme de comparaison se calcule sur des dizaines de milliers de
 #: lignes, ce que le cockpit ne fait pas et n'a pas à faire.
 DEFAULT_DISTRIBUTION_FILE = "var/distribution_signals.csv"
+#: La forme d'un mois, semaine par semaine, telle que l'an dernier l'a écrite. Sans elle,
+#: « où j'en suis dans le mois » se calcule sur les jours écoulés — c'est-à-dire en
+#: supposant qu'un mois se vend à plat, ce qu'aucun mois ne fait. Un décalage de calendrier
+#: a déjà produit ici une chute apparente de quarante pour cent qui n'existait pas.
+DEFAULT_PHASING_FILE = "var/phasing.csv"
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -124,6 +129,7 @@ class Settings:
     divergence_file: str = DEFAULT_DIVERGENCE_FILE
     partners_file: str = DEFAULT_PARTNERS_FILE
     distribution_file: str = DEFAULT_DISTRIBUTION_FILE
+    phasing_file: str = DEFAULT_PHASING_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -212,6 +218,15 @@ class Settings:
     @property
     def has_distribution_file(self) -> bool:
         return self.distribution_path.exists()
+
+    @property
+    def phasing_path(self) -> Path:
+        path = Path(self.phasing_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_phasing_file(self) -> bool:
+        return self.phasing_path.exists()
 
     @property
     def actuals_folder(self) -> Path:
@@ -307,6 +322,7 @@ def load_settings() -> Settings:
         partners_file=_env("CEOOS_PARTNERS_FILE") or DEFAULT_PARTNERS_FILE,
         distribution_file=(_env("CEOOS_DISTRIBUTION_FILE")
                            or DEFAULT_DISTRIBUTION_FILE),
+        phasing_file=_env("CEOOS_PHASING_FILE") or DEFAULT_PHASING_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         snowflake_connection=snowflake_connection,
     )
