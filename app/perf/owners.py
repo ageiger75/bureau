@@ -11,15 +11,26 @@ real people and their remit; the repository is not the place for it, exactly as 
 planning workbook is not. `var/` is ignored by git, and this module holds the mechanism
 while the file holds the names.
 
-Resolution runs in two tiers, and the order matters:
+Resolution runs in two tiers, and the order matters. **It was the other way round, and
+that was wrong.**
 
-1. the country GM, when the directory names one for that market;
-2. otherwise the BU head, who genuinely owns everything in their business unit.
+1. the MD of the perimeter — the person who answers to the reader of this screen;
+2. otherwise the country GM, when no MD is placed above that market.
 
-The fallback is not a guess — a BU head does own an unlisted market in their BU. What is
-refused is inventing a person for a market in no BU, or expanding a named grouping
-("Nordics", "Central Europe") into countries the file never lists. Putting a real person
-in front of a question they do not own is worse than leaving the line blank.
+The first version put the country GM first, on the reasoning that the question goes to
+whoever answers for the number rather than to whoever is most senior. That reasoning is
+sound for a market review and false here. This screen has one reader, and the people who
+answer to him are his MDs — six of them. A card naming a country GM installs its reader
+one level below his own organisation: it proposes a conversation he does not hold, over
+the head of the person who does. The house maintains that line; a cockpit that quietly
+crosses it at every reading damages something real, politely, with nothing to signal it.
+
+The country GM is not lost, and is not merely decorative: named as `local_lead`, so the
+question reaches the MD and the detail stays with the person on the ground.
+
+What is still refused is inventing a person for a market in no BU, or expanding a named
+grouping ("Nordics", "Central Europe") into countries the file never lists. Putting a
+real person in front of a question they do not own is worse than leaving the line blank.
 """
 
 from __future__ import annotations
@@ -307,24 +318,27 @@ def _from_lookup(book) -> Optional["Directory"]:
             continue
         head = cell(md_at)
         gm = cell(gm_at)
-        # The accountable owner is the country or cluster GM where there is one, and the
-        # BU head otherwise. Both are real; the question goes to whoever answers for the
-        # number rather than to whoever is most senior.
-        name_of = gm or head
+        # The accountable owner is the MD of the perimeter, and the country GM only where
+        # no MD is placed. See the module docstring: this screen has one reader, and the
+        # people who answer to him are his MDs. Naming the country GM here proposed a
+        # conversation he does not hold, over the head of the person who does.
+        name_of = head or gm
         if not name_of:
             continue
         entries.append(
             Entry(
                 name=name_of,
                 role=titles.get(
-                    _key(name_of), "General Manager" if gm else "Managing Director"
+                    _key(name_of), "Managing Director" if head else "General Manager"
                 ),
                 bu=cell(bu_at),
                 zone=market,
-                level=COUNTRY_GM if gm else BU_HEAD,
+                level=BU_HEAD if head else COUNTRY_GM,
                 markets=[market],
-                escalates_to=head if gm and head != gm else "",
-                local_lead=cell(local_at),
+                # Rien au-dessus d'un MD sinon le lecteur lui-même : l'escalade n'a plus
+                # d'objet, et le GM pays devient le visage local plutôt que le destinataire.
+                escalates_to="",
+                local_lead=(gm if head and gm and gm != head else "") or cell(local_at),
             )
         )
     if not entries:

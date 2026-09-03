@@ -247,9 +247,12 @@ def looked_up(tmp_path):
     )
 
 
-def test_the_country_lookup_is_preferred_over_the_leaders_sheet(looked_up):
-    """It states the answer outright. Nothing has to be parsed out of a text field."""
-    assert owners.load(looked_up).owner_for("France", "GE COUNTRIES").name == "Sofia ROSSI"
+def test_the_market_answers_through_its_md_and_not_its_country_gm(looked_up):
+    """The rule this test used to hold was the opposite, and it was wrong. This screen has
+    one reader, and the people who answer to him are his MDs. Naming the country GM on the
+    card proposed a conversation he does not hold, over the head of the person who does —
+    politely, at every reading, with nothing to signal it."""
+    assert owners.load(looked_up).owner_for("France", "GE COUNTRIES").name == "Luc MARTIN"
 
 
 def test_a_market_with_no_gm_answers_to_its_bu_head(looked_up):
@@ -257,12 +260,13 @@ def test_a_market_with_no_gm_answers_to_its_bu_head(looked_up):
     assert owners.load(looked_up).owner_for("Slovakia", "GE COUNTRIES").name == "Luc MARTIN"
 
 
-def test_a_country_gm_carries_the_bu_head_above_them(looked_up):
-    """Not a chain of command to invoke by default. It is there so a conversation that
-    has already happened twice has somewhere to go."""
+def test_nothing_stands_above_an_md_but_the_reader(looked_up):
+    """Escalation had an object while the card named a country GM. Now that it names the
+    MD, the next step up is the reader himself — and a screen that offers to escalate to
+    its own reader is describing his job back to him."""
     owner = owners.load(looked_up).owner_for("France", "GE COUNTRIES")
 
-    assert owner.escalates_to == "Luc MARTIN"
+    assert owner.escalates_to == ""
 
 
 def test_a_bu_head_escalates_to_nobody(looked_up):
@@ -270,18 +274,23 @@ def test_a_bu_head_escalates_to_nobody(looked_up):
 
 
 def test_the_person_on_the_ground_is_named_beside_the_owner_not_instead(looked_up):
-    """The question goes to whoever answers for the number; the detail lives with whoever
-    runs the market day to day. Collapsing the two loses one of them."""
-    owner = owners.load(looked_up).owner_for("Thailand", "APAC")
+    """The question goes to the MD who answers for the number; the detail stays with
+    whoever runs the market day to day. Collapsing the two loses one of them — and which
+    of the two is lost was the whole defect."""
+    book = owners.load(looked_up)
+    owner = book.owner_for("Thailand", "APAC")
 
-    assert owner.name == "Sofia ROSSI"
-    assert owner.local_lead == "Nok SRISAI"
+    assert owner.name == "Luc MARTIN"
+    # Le second nom utile ici est celui juste sous le MD — la personne qu'il amènerait.
+    assert owner.local_lead == "Sofia ROSSI"
+    # Et là où aucun GM ne s'interpose, le MD répond seul : pas de second nom inventé.
+    assert book.owner_for("Slovakia", "GE COUNTRIES").local_lead == ""
 
 
 def test_job_titles_come_from_the_leaders_sheet(looked_up):
-    """The lookup names people but not their titles. "Managing Director France" is a name
-    the reader recognises; "General Manager" is a label."""
-    assert owners.load(looked_up).owner_for("France", "GE").role == "Managing Director France"
+    """The lookup names people but not their titles. "Managing Director EMEA" is a remit
+    the reader recognises; "Managing Director" alone is a label."""
+    assert owners.load(looked_up).owner_for("France", "GE").role == "Managing Director EMEA"
 
 
 def test_a_business_unit_owning_no_country_still_has_a_head(looked_up):

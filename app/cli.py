@@ -3772,6 +3772,25 @@ def cmd_phasing(argv: List[str]) -> int:
     return 0
 
 
+def _shares_at_the_event(by_year, series, month: str, lead: int, events_module):
+    """La part de la semaine qui porte l'événement, exercice par exercice.
+
+    C'est la grandeur que remue un jour fixe : le mois n'avance pas, mais la semaine du
+    14 février pèse davantage l'année où le 14 tombe un samedi.
+    """
+    shares = {}
+    for year, weeks in by_year.items():
+        event = series.by_year.get(year)
+        if event is None or not event.dated:
+            continue
+        place = events_module._place(event.start, year, month, lead)
+        if place in (None, events_module.BEFORE, events_module.AFTER):
+            continue
+        if 1 <= place <= len(weeks):
+            shares[year] = weeks[place - 1]
+    return shares
+
+
 def _phasing_against_calendar(argv: List[str], moving) -> int:
     """Confronter chaque mois qui bouge aux événements du calendrier.
 
@@ -3835,17 +3854,14 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         print("")
         print("%s · mois %s%s" % (curve.market, curve.month,
                                   "" if week else " — remue sans se déplacer"))
-        if not week:
-            print("  la variation ne se joue à aucune semaine : ce mois se compare "
-                  "événement par événement, pas par une frontière")
-            continue
-
         cumulative = {}
+        by_year = {}
         for exercice in curve.years:
             shares = curve.by_year[exercice]
-            if week <= len(shares):
-                cumulative[events_module.calendar_year(exercice, curve.month,
-                                                       convention)] = sum(shares[:week])
+            year = events_module.calendar_year(exercice, curve.month, convention)
+            by_year[year] = shares
+            if week and week <= len(shares):
+                cumulative[year] = sum(shares[:week])
 
         countries = markets.get(events_module.normal(curve.market))
         if countries is None:
@@ -3878,8 +3894,16 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
             continue
 
         for series in candidates:
-            verdict = events_module.weigh(cumulative, series, week, curve.month, lead,
-                                          mobility=movement.mobility)
+            if week:
+                verdict = events_module.weigh(cumulative, series, week, curve.month,
+                                              lead, mobility=movement.mobility)
+            else:
+                # Un mois qui remue sans se déplacer ne se juge pas à une frontière : ce
+                # qui bouge est le jour de semaine d'une date fixe, et la part de la
+                # semaine qui la porte. C'est là que vivent les moments de cadeau.
+                verdict = events_module.weigh_weekday(
+                    _shares_at_the_event(by_year, series, curve.month, lead, events_module),
+                    series, curve.month, lead, variation=movement.variation)
             marks = []
             if verdict.inside and verdict.outside:
                 marks.append(verdict.split)

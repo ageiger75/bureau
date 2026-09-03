@@ -75,6 +75,11 @@ IMMOBILE = "immobile"
 OUTSIDE = "hors semaine"
 THIN = "trop peu d'exercices"
 
+#: Les jours où un achat cadeau se fait. Une date de cadeau qui tombe un samedi ne se vend
+#: pas comme la même date un mardi : la semaine qui la porte gonfle, celle d'avant se vide.
+#: C'est le seul mouvement qu'un jour fixe puisse produire, et c'est un vrai mouvement.
+GIFTING_DAYS = (4, 5, 6)   # vendredi, samedi, dimanche
+
 
 def normal(text: str) -> str:
     """Un nom de pays réduit à ce qui se compare : sans accent, sans casse, sans espaces."""
@@ -312,6 +317,74 @@ def _place(start: str, year: str, month: str, lead: int = 0) -> Optional[int]:
     if day > last:
         return AFTER
     return (day.day + 6) // 7
+
+
+def falls_on_a_gifting_day(start: str) -> Optional[bool]:
+    """La date tombe-t-elle un vendredi, un samedi ou un dimanche ?
+
+    Lu de la date elle-même et non de la colonne du fichier : une colonne de jour de
+    semaine est une donnée dérivée, donc une donnée qui peut contredire sa propre source
+    sans que rien ne le dise.
+    """
+    try:
+        day = datetime.date(int(start[0:4]), int(start[5:7]), int(start[8:10]))
+    except (TypeError, ValueError):
+        return None
+    return day.weekday() in GIFTING_DAYS
+
+
+def weigh_weekday(shares: Dict[str, float], series: "Series", month: str,
+                  lead: int = 0, variation: Optional[float] = None) -> "Verdict":
+    """L'épreuve des mois qui remuent sans se déplacer.
+
+    Un moment de cadeau — la Saint-Valentin, le White Day, le 11.11 — tombe le même jour
+    du mois chaque année. Il ne peut donc **jamais** déplacer un mois, et l'épreuve des
+    cumuls le renvoie immobile à juste titre. Ce qui bouge est son jour de semaine, et un
+    cadeau acheté pour un samedi ne s'achète pas au même moment qu'un cadeau pour un
+    mardi : la semaine qui le porte gonfle les années de week-end et se dégonfle les
+    autres, sans que le mois avance d'un jour.
+
+    C'est exactement ce que mesure la variation totale et que la mobilité ne voit pas. Le
+    test est le même que l'autre — il doit pouvoir échouer : les exercices où la date
+    tombe en fin de semaine ont **tous** fait plus, dans la semaine qui la porte, que ceux
+    où elle tombe en milieu de semaine.
+    """
+    sides: Dict[str, List[str]] = {"fin": [], "milieu": []}
+    for year in sorted(shares):
+        event = series.by_year.get(year)
+        if event is None or not event.dated:
+            continue
+        if _place(event.start, year, month, lead) in (None, BEFORE, AFTER):
+            continue
+        weekend = falls_on_a_gifting_day(event.start)
+        if weekend is None:
+            continue
+        sides["fin" if weekend else "milieu"].append(year)
+
+    weekend_years, week_years = sides["fin"], sides["milieu"]
+    if len(weekend_years) + len(week_years) < 2:
+        return Verdict(series, THIN,
+                       "moins de deux exercices datés dans ce mois")
+    if not weekend_years or not week_years:
+        where = "toujours en fin de semaine" if week_years == [] else "toujours en semaine"
+        return Verdict(series, IMMOBILE,
+                       "%s : son jour ne change pas de nature d'un exercice à l'autre"
+                       % where, weekend_years, week_years)
+
+    low = min(shares[year] for year in weekend_years)
+    high = max(shares[year] for year in week_years)
+    if low <= high:
+        return Verdict(series, CONTRADICTS,
+                       "au moins un exercice va à contre-sens : %.3f de part en fin de "
+                       "semaine contre %.3f en milieu" % (low, high),
+                       weekend_years, week_years, margin=low - high)
+    margin = low - high
+    narrow = (variation is not None and variation > 0
+              and margin < CLEAR_SHARE * variation)
+    return Verdict(series, AGREES,
+                   "%.3f de part en plus quand la date tombe en fin de semaine%s"
+                   % (margin, ", soit presque rien de ce qui remue" if narrow else ""),
+                   weekend_years, week_years, margin=margin, narrow=narrow)
 
 
 def weigh(cumulative: Dict[str, float], series: "Series", week: int,

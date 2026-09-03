@@ -269,3 +269,54 @@ def test_a_candidate_that_separates_them_clearly_holds(tmp_path):
     verdict = E.weigh(cumulative, read.series["ev"], 2, "03", mobility=0.163)
 
     assert verdict.holds and verdict.split == "1 contre 2"
+
+
+def test_a_fixed_gifting_date_is_judged_on_its_weekday_and_not_on_a_boundary(tmp_path):
+    """La Saint-Valentin, le White Day, le 11.11 tombent le même jour du mois chaque
+    année : ils ne peuvent jamais déplacer un mois, et l'épreuve des cumuls les renvoie
+    immobiles à juste titre. Ce qui bouge est leur jour de semaine — et un cadeau acheté
+    pour un samedi ne s'achète pas au même moment qu'un cadeau pour un mardi. Sans cette
+    seconde épreuve, les moments qui font le plus de chiffre dans cette maison n'étaient
+    jamais testés du tout."""
+    read = E.load(_file(tmp_path, [
+        _row("2024", "2024-02-14", country="Corée du Sud"),   # mercredi
+        _row("2025", "2025-02-14", country="Corée du Sud"),   # vendredi
+        _row("2026", "2026-02-14", country="Corée du Sud")]))  # samedi
+    part = {"2024": 0.22, "2025": 0.40, "2026": 0.42}
+
+    verdict = E.weigh_weekday(part, read.series["ev"], "02", variation=0.30)
+
+    assert verdict.holds and verdict.inside == ["2025", "2026"]
+
+
+def test_the_weekday_test_can_fail_like_the_other_one(tmp_path):
+    read = E.load(_file(tmp_path, [
+        _row("2024", "2024-02-14", country="Corée du Sud"),
+        _row("2025", "2025-02-14", country="Corée du Sud"),
+        _row("2026", "2026-02-14", country="Corée du Sud")]))
+    part = {"2024": 0.42, "2025": 0.30, "2026": 0.31}
+
+    assert E.weigh_weekday(part, read.series["ev"], "02").label == E.CONTRADICTS
+
+
+def test_a_date_that_never_changes_the_nature_of_its_day_says_so(tmp_path):
+    """Trois années où la date tombe toujours en semaine : rien à comparer, et surtout
+    rien à conclure d'une part qui varie pour une autre raison."""
+    read = E.load(_file(tmp_path, [
+        _row("2024", "2024-02-14", country="Corée du Sud"),   # mercredi
+        _row("2027", "2027-02-14", country="Corée du Sud")]))  # dimanche → écarté ci-dessous
+    read.series["ev"].by_year.pop("2027")
+    read.series["ev"].by_year["2023"] = E.Event(
+        "Corée du Sud", "Fête", "fixe", "2023", "2023-02-14")   # mardi
+
+    verdict = E.weigh_weekday({"2023": 0.30, "2024": 0.22}, read.series["ev"], "02")
+
+    assert verdict.label == E.IMMOBILE
+
+
+def test_the_gifting_day_is_read_from_the_date_and_not_from_a_column():
+    """Une colonne de jour de semaine est une donnée dérivée, donc une donnée qui peut
+    contredire sa propre source sans que rien ne le signale."""
+    assert E.falls_on_a_gifting_day("2026-02-14") is True      # samedi
+    assert E.falls_on_a_gifting_day("2024-02-14") is False     # mercredi
+    assert E.falls_on_a_gifting_day("") is None
