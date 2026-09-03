@@ -38,6 +38,18 @@ si ce point se reproduit. Le module le déclare plutôt que de laisser croire à
 **Le mois se découvre instable sans qu'on lui dise où sont les fêtes.** C'est un effet de
 bord précieux : le fichier révèle de lui-même quels marchés et quels mois portent un
 événement mobile, ce qu'aucun calendrier tenu à la main ne resterait à jour pour dire.
+
+**Deux mesures, et aucune ne remplace l'autre.** La première version regardait l'étendue de
+la part hebdomadaire, à une semaine fixée. Deux défauts s'y cachaient. L'un : l'avancement
+est cumulé, donc un déplacement entre semaines voisines se compense en partie dans les parts
+et disparaît dans la somme — la bonne mesure du déplacement est l'étendue du **cumul**,
+balayée sur toutes les semaines. L'autre : la dernière semaine cumule à un par construction,
+elle ne peut rien dire, et un mois entièrement remué en son milieu s'y lirait « stable ».
+Mais le cumul, lui, ne voit pas ce qui bouge à l'intérieur du mois sans le déplacer — deux
+événements qui se croisent, une promotion qui glisse et revient. Le module rend donc la
+**mobilité cumulée** et la **variation totale** : la première dit de combien le mois se
+déplace, la seconde de combien il remue. Un mois peut avoir l'une sans l'autre, et les deux
+appellent des recherches différentes.
 """
 
 from __future__ import annotations
@@ -136,6 +148,125 @@ class Curve:
             return None
         return Band(min(seen), max(seen), len(seen))
 
+    @property
+    def span(self) -> int:
+        """Le nombre de semaines que **toutes** les années décrivent.
+
+        Au-delà, une année a une semaine et l'autre non : l'écart qu'on lirait là serait un
+        écart de découpage, pas un déplacement de commerce.
+        """
+        if not self.by_year:
+            return 0
+        return min(len(shares) for shares in self.by_year.values())
+
+    def mobility(self) -> Optional[Tuple[int, "Band"]]:
+        """La semaine où le cumul s'écarte le plus d'une année sur l'autre, et de combien.
+
+        **La dernière semaine ne peut rien dire : elle cumule à un par construction.** La
+        lire reviendrait à mesurer une identité et à conclure « stable » d'un mois dont
+        tout aurait bougé au milieu. Le balayage s'arrête donc une semaine avant la fin de
+        la portée commune.
+        """
+        worst: Optional[Tuple[int, "Band"]] = None
+        for week in range(1, self.span):
+            band = self.elapsed(week)
+            if band is None or not band.verified:
+                continue
+            if worst is None or band.spread > worst[1].spread:
+                worst = (week, band)
+        return worst
+
+    @property
+    def variation(self) -> Optional[float]:
+        """Combien le mois remue en interne : la somme des étendues des parts semaine à
+        semaine.
+
+        Elle répond à une autre question que la mobilité, et aucune des deux ne remplace
+        l'autre. Un événement qui se déplace de la deuxième à la troisième semaine déplace
+        le cumul et remue les parts : les deux le voient. Un événement qui se déplace **à
+        l'intérieur** d'une semaine, ou deux événements qui se compensent, ne déplacent
+        aucun cumul et remuent quand même les parts : seule celle-ci le voit. Et l'inverse
+        existe aussi — un mois qui glisse d'un bloc voit son cumul bouger sans que la
+        forme des semaines change beaucoup.
+
+        `None` sans deux années : une étendue sur un point n'existe pas.
+        """
+        span = self.span
+        if span < 1 or len(self.by_year) < YEARS_TO_VERIFY:
+            return None
+        total = 0.0
+        for index in range(span):
+            values = [shares[index] for shares in self.by_year.values()]
+            total += max(values) - min(values)
+        return total
+
+    def trending(self, week: int) -> bool:
+        """La série des cumuls est-elle monotone d'une année sur l'autre ?
+
+        Une date qui se déplace **oscille** : elle est tôt une année, tard la suivante, tôt
+        encore ensuite. Une série qui monte ou descend trois années de suite décrit autre
+        chose — une ouverture, une fermeture, une promotion arrêtée, un canal qui arrive.
+        La distinction décide de la suite du travail : chercher une fête pour expliquer une
+        tendance ne trouve rien, et coûte une recherche entière.
+
+        Deux exercices ne suffisent pas : entre deux points, une droite passe toujours.
+        """
+        values = [sum(self.by_year[year][:week]) for year in self.years
+                  if week <= len(self.by_year[year])]
+        if len(values) < 3:
+            return False
+        pairs = list(zip(values, values[1:]))
+        return all(b > a for a, b in pairs) or all(b < a for a, b in pairs)
+
+
+class Movement:
+    """Un mois qui ne se reproduit pas, avec les deux façons de le dire.
+
+    Les deux mesures sont portées ensemble parce qu'elles se contredisent utilement, et
+    qu'une seule d'entre elles ferait passer pour stable la moitié des cas.
+    """
+
+    __slots__ = ("curve", "week", "band", "variation")
+
+    def __init__(self, curve: "Curve", week: int, band: Optional["Band"],
+                 variation: Optional[float]) -> None:
+        self.curve = curve
+        #: La semaine où le cumul s'écarte le plus. `0` quand seule la variation parle.
+        self.week = week
+        #: L'écart des cumuls à cette semaine. `None` quand seule la variation parle.
+        self.band = band
+        self.variation = variation
+
+    @property
+    def market(self) -> str:
+        return self.curve.market
+
+    @property
+    def month(self) -> str:
+        return self.curve.month
+
+    @property
+    def mobility(self) -> float:
+        """De combien le mois se déplace. Zéro quand il remue sans se déplacer."""
+        return self.band.spread if self.band is not None else 0.0
+
+    @property
+    def years(self) -> int:
+        return len(self.curve.by_year)
+
+    @property
+    def trending(self) -> bool:
+        return self.week > 0 and self.curve.trending(self.week)
+
+    @property
+    def thin(self) -> bool:
+        """Deux exercices seulement : une étendue entre deux points, pas une dispersion.
+
+        Le mois entre quand même — il a bougé — mais il ne peut pas ouvrir une recherche à
+        lui seul : deux années suffisent à voir un écart et jamais à voir s'il se répète.
+        """
+        return self.years < 3
+
 
 class Phasing:
     """Les courbes lues, et ce que le fichier a de faux."""
@@ -158,8 +289,8 @@ class Phasing:
     def of(self, market: str, month: str) -> Optional["Curve"]:
         return self.curves.get((market.strip(), month.strip()[-2:]))
 
-    def unstable(self, spread: float) -> List[Tuple["Curve", int, "Band"]]:
-        """Les mois dont la forme ne se reproduit pas, et la semaine où cela se voit.
+    def moving(self, spread: float, variation: Optional[float] = None) -> List["Movement"]:
+        """Les mois dont la forme ne se reproduit pas, sur l'un ou l'autre des deux motifs.
 
         **Toutes les semaines sont balayées, jamais une seule.** L'avancement est cumulé :
         un événement qui passe de la deuxième à la troisième semaine ne change presque rien
@@ -167,38 +298,28 @@ class Phasing:
         change tout à celui de fin de deuxième. Fixer une semaine d'avance revient donc à
         choisir quels déplacements on accepte de ne pas voir.
 
+        **Et le cumul ne voit pas tout non plus.** Un déplacement qui se compense à
+        l'intérieur du mois laisse le cumul intact et remue les parts ; c'est ce que la
+        variation totale attrape, et le second seuil est là pour qu'un tel mois entre.
+
         Se lit comme une découverte plutôt que comme un défaut : ce sont les marchés et les
         mois traversés par quelque chose qui bouge, et le fichier les désigne sans qu'aucun
         calendrier de dates ait été tenu à la main.
         """
-        found: List[Tuple["Curve", int, "Band"]] = []
+        found: List["Movement"] = []
         for curve in self.curves.values():
-            worst: Optional[Tuple[int, "Band"]] = None
-            for week in range(1, 6):
-                band = curve.elapsed(week)
-                if band is None or not band.verified:
-                    continue
-                if worst is None or band.spread > worst[1].spread:
-                    worst = (week, band)
-            if worst is not None and worst[1].spread > spread:
-                found.append((curve, worst[0], worst[1]))
-        return sorted(found, key=lambda item: -item[2].spread)
-
-    def trending(self, curve: "Curve", week: int) -> bool:
-        """La série est-elle monotone d'une année sur l'autre ?
-
-        Une date qui se déplace **oscille** : elle est tôt une année, tard la suivante, tôt
-        encore ensuite. Une série qui monte ou descend trois années de suite décrit autre
-        chose — une ouverture, une fermeture, une promotion arrêtée, un canal qui arrive.
-        La distinction décide de la suite du travail : chercher une fête pour expliquer une
-        tendance ne trouve rien, et coûte une recherche entière.
-        """
-        values = [sum(curve.by_year[year][:week]) for year in curve.years
-                  if week <= len(curve.by_year[year])]
-        if len(values) < 3:
-            return False
-        pairs = list(zip(values, values[1:]))
-        return all(b > a for a, b in pairs) or all(b < a for a, b in pairs)
+            worst = curve.mobility()
+            churn = curve.variation
+            moved = worst is not None and worst[1].spread > spread
+            churned = (variation is not None and churn is not None
+                       and churn > variation)
+            if not moved and not churned:
+                continue
+            week, band = worst if worst is not None else (0, None)
+            if not moved:
+                week, band = 0, None
+            found.append(Movement(curve, week, band, churn))
+        return sorted(found, key=lambda item: (-item.mobility, -(item.variation or 0.0)))
 
 
 class Progress:

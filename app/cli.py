@@ -3655,10 +3655,19 @@ def cmd_phasing(argv: List[str]) -> int:
     """La forme des mois, ce que le fichier a de faux, et les mois sans forme stable.
 
     Le dernier bloc est le plus utile : il désigne les marchés et les mois traversés par
-    quelque chose qui bouge, sans qu'aucun calendrier de dates ait été tenu à la main. Mais
-    il ne dit pas *quoi* bouge — et une série qui décroît d'année en année n'est pas une
-    date qui se déplace, c'est une tendance. La distinction est affichée parce qu'elle
-    décide de la suite : chercher une fête pour une tendance ne trouve rien.
+    quelque chose qui bouge, sans qu'aucun calendrier de dates ait été tenu à la main.
+
+    Il porte **deux colonnes qui ne disent pas la même chose**. La mobilité est l'étendue du
+    cumul à la semaine où elle est la plus forte : de combien le mois se déplace. La
+    variation est la somme des étendues des parts semaine à semaine : de combien il remue.
+    Un mois peut remuer beaucoup sans se déplacer — un événement qui bouge à l'intérieur
+    d'une semaine, deux qui se compensent — et ce mois-là est invisible à la première
+    colonne. L'inverse existe aussi. Aucune ne remplace l'autre.
+
+    Deux mentions qualifient la ligne plutôt que de la sortir : une série monotone est une
+    tendance et non une date qui se déplace — chercher une fête pour l'expliquer ne trouve
+    rien et coûte une recherche entière ; et deux exercices seulement donnent un intervalle
+    entre deux points, pas une dispersion.
     """
     from .perf import pace as pace_module
 
@@ -3677,21 +3686,33 @@ def cmd_phasing(argv: List[str]) -> int:
           % (len(read), len(markets), ", ".join(years)))
 
     spread = _number_or_none(_option(argv, "--spread")) or 0.15
-    moving = read.unstable(spread)
+    variation = _number_or_none(_option(argv, "--variation")) or 0.30
+    moving = read.moving(spread, variation)
     print("")
-    print("Les formes qui ne se reproduisent pas d'une année sur l'autre, au-dessus de "
-          "%.0f points" % (spread * 100))
-    print("%-22s %-5s %-4s %8s  %s"
-          % ("Marché", "Mois", "sem.", "étendue", "cumul par exercice"))
+    print("Les formes qui ne se reproduisent pas : mobilité au-dessus de %.0f points, "
+          "ou variation au-dessus de %.0f" % (spread * 100, variation * 100))
+    print("%-22s %-5s %-4s %9s %10s  %s"
+          % ("Marché", "Mois", "sem.", "mobilité", "variation", "cumul par exercice"))
     if not moving:
         print("  aucune : les années s'accordent partout")
-    for curve, week, band in moving:
-        shares = ["%s %.3f" % (year, sum(curve.by_year[year][:week]))
-                  for year in curve.years if week <= len(curve.by_year[year])]
-        shape = "  ← tendance, pas une date" if read.trending(curve, week) else ""
-        print("%-22s %-5s %-4d %8.3f  %s%s"
-              % (curve.market[:22], curve.month, week, band.spread,
-                 " · ".join(shares), shape))
+    for movement in moving:
+        curve, week = movement.curve, movement.week
+        if week:
+            shares = " · ".join(
+                "%s %.3f" % (year, sum(curve.by_year[year][:week]))
+                for year in curve.years if week <= len(curve.by_year[year]))
+        else:
+            shares = "le mois remue sans se déplacer"
+        marks = []
+        if movement.trending:
+            marks.append("tendance, pas une date")
+        if movement.thin:
+            marks.append("deux exercices")
+        note = ("  ← " + " · ".join(marks)) if marks else ""
+        print("%-22s %-5s %-4s %9.3f %10s  %s%s"
+              % (curve.market[:22], curve.month, week or "—", movement.mobility,
+                 "—" if movement.variation is None else "%.3f" % movement.variation,
+                 shares, note))
     return 0
 
 

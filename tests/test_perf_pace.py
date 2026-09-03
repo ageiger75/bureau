@@ -83,9 +83,9 @@ def test_the_file_reveals_which_months_carry_a_moving_event(tmp_path):
         + _year([0.25, 0.25, 0.25, 0.25], market="Southland", year="2024")
         + _year([0.24, 0.26, 0.25, 0.25], market="Southland", year="2025")))
 
-    moving = read.unstable(spread=0.10)
+    moving = read.moving(spread=0.10)
 
-    assert [curve.market for curve, _week, _band in moving] == ["Northland"]
+    assert [movement.market for movement in moving] == ["Northland"]
 
 
 def test_a_week_beyond_a_year_curve_does_not_finish_that_year_month(tmp_path):
@@ -193,10 +193,10 @@ def test_every_week_is_scanned_because_the_progress_is_cumulative(tmp_path):
                            + _year([0.10, 0.15, 0.55, 0.20], year="2025")))
 
     at_three = read.of("Northland", "11").elapsed(3)
-    curve, week, band = read.unstable(spread=0.10)[0]
+    movement = read.moving(spread=0.10)[0]
 
-    assert at_three.spread < 0.01          # invisible à la semaine 3
-    assert week == 2 and band.spread > 0.3  # évident à la semaine 2
+    assert at_three.spread < 0.01                        # invisible à la semaine 3
+    assert movement.week == 2 and movement.mobility > 0.3  # évident à la semaine 2
 
 
 def test_a_monotone_series_is_a_trend_and_not_a_date_that_moves(tmp_path):
@@ -213,8 +213,73 @@ def test_a_monotone_series_is_a_trend_and_not_a_date_that_moves(tmp_path):
         + _year([0.10, 0.15, 0.55, 0.20], market="Moves", year="2025")
         + _year([0.10, 0.55, 0.15, 0.20], market="Moves", year="2026")))
 
-    verdicts = {curve.market: read.trending(curve, week)
-                for curve, week, _band in read.unstable(spread=0.10)}
+    verdicts = {movement.market: movement.trending
+                for movement in read.moving(spread=0.10)}
 
     assert verdicts["Trend"] is True
     assert verdicts["Moves"] is False
+
+
+def test_the_last_week_cumulates_to_one_and_is_therefore_never_read(tmp_path):
+    """Le défaut que ce retrait ferme : la dernière semaine vaut cent pour cent quelle que
+    soit l'année, par construction. La lire revient à mesurer une identité — et si les
+    autres semaines s'accordent mal, la mesurer *aussi* ne dit rien de plus. Elle ne peut
+    ni révéler ni masquer, elle occupe juste la place de la semaine qui parlait."""
+    read = pace.load(_file(tmp_path, _year([0.10, 0.50, 0.20, 0.20], year="2024")
+                           + _year([0.10, 0.15, 0.55, 0.20], year="2025")))
+
+    week, band = read.of("Northland", "11").mobility()
+
+    assert week != 4
+    assert abs(read.of("Northland", "11").elapsed(4).spread) < 1e-9
+
+
+def test_a_month_that_stirs_without_moving_is_seen_by_the_second_measure(tmp_path):
+    """Le cas que le cumul seul déclare stable à tort : deux événements qui s'échangent
+    leurs semaines à l'intérieur du mois. Le cumul revient au même à chaque semaine, la
+    forme du mois n'a rien à voir d'une année sur l'autre. Une seule colonne ferait passer
+    ce mois pour lisible."""
+    read = pace.load(_file(tmp_path, _year([0.20, 0.30, 0.20, 0.30], year="2024")
+                           + _year([0.30, 0.20, 0.30, 0.20], year="2025")))
+
+    curve = read.of("Northland", "11")
+
+    assert curve.mobility()[1].spread < 0.15   # le cumul ne s'écarte jamais beaucoup
+    assert curve.variation > 0.35              # et pourtant chaque semaine a changé
+    assert [item.market for item in read.moving(spread=0.35, variation=0.30)] == ["Northland"]
+    assert read.moving(spread=0.35)[0:1] == []  # une seule colonne l'aurait dit stable
+
+
+def test_a_month_that_moves_without_stirring_is_seen_by_the_first(tmp_path):
+    """L'inverse, qui garde les deux colonnes nécessaires : le mois glisse d'un bloc. Les
+    parts se ressemblent d'une année sur l'autre, seul le cumul le dit."""
+    read = pace.load(_file(tmp_path, _year([0.05, 0.05, 0.45, 0.45], year="2024")
+                           + _year([0.45, 0.45, 0.05, 0.05], year="2025")))
+
+    curve = read.of("Northland", "11")
+
+    assert curve.mobility()[1].spread > 0.75
+    assert [item.market for item in read.moving(spread=0.35)] == ["Northland"]
+
+
+def test_two_years_give_an_interval_between_two_points_and_say_so(tmp_path):
+    """Deux exercices suffisent à voir un écart et jamais à voir s'il se répète. Le mois
+    entre — il a bougé — mais il ne peut pas ouvrir une recherche à lui seul, et une
+    priorité de travail fondée dessus se paierait en recherche perdue."""
+    read = pace.load(_file(
+        tmp_path,
+        _year([0.20, 0.20, 0.40, 0.20], market="Deux", year="2024")
+        + _year([0.20, 0.55, 0.05, 0.20], market="Deux", year="2025")
+        + _year([0.20, 0.20, 0.40, 0.20], market="Trois", year="2024")
+        + _year([0.20, 0.55, 0.05, 0.20], market="Trois", year="2025")
+        + _year([0.20, 0.25, 0.35, 0.20], market="Trois", year="2026")))
+
+    thin = {item.market: item.thin for item in read.moving(spread=0.10)}
+
+    assert thin["Deux"] is True and thin["Trois"] is False
+
+
+def test_a_variation_needs_two_years_like_everything_else_here(tmp_path):
+    read = pace.load(_file(tmp_path, _year([0.25, 0.25, 0.25, 0.25])))
+
+    assert read.of("Northland", "11").variation is None
