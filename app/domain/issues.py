@@ -133,6 +133,18 @@ class ClosureRefused(ValueError):
     """Une clôture prononcée sans décideur humain."""
 
 
+#: Le montant est ce que le sujet met en jeu : un écart au plan, une perte, un manque.
+#: Comparable d'un sujet à l'autre, donc utilisable pour ordonner.
+STAKE = "stake"
+#: Le montant est un flux qui passe : le chiffre d'affaires d'un partenaire, un volume
+#: facturé. Matériel, souvent le plus gros nombre de l'écran, et **non comparable** à un
+#: écart : il dit combien circule, pas combien est en jeu.
+FLOW = "flow"
+#: Rien n'a été déclaré. Traité comme un flux pour l'ordre — c'est-à-dire pas ordonné —
+#: parce qu'un montant dont on ignore le sens ne peut pas décider de la semaine du lecteur.
+BASES: Tuple[str, ...] = (STAKE, FLOW)
+
+
 # ------------------------------------------------------------------------- observations
 
 
@@ -154,6 +166,13 @@ class Observation:
     statement: str = ""
     #: L'ordre de grandeur en jeu. Sert la matérialité, jamais l'identité.
     amount: Optional[float] = None
+    #: **Ce que le montant mesure.** Un écart au plan et un flux qu'on ne sait pas nommer
+    #: sont tous deux des euros, et les classer sur le même axe met toujours le second
+    #: devant : un flux est structurellement dix à cent fois un écart. Le défaut était réel
+    #: — un centre de profit portant un flux entier occupait le premier créneau devant tous
+    #: les marchés sous plan. Un montant qui ne dit pas ce qu'il mesure n'ordonne donc rien,
+    #: exactement comme deux bases qu'on n'additionne jamais en silence.
+    basis: str = ""
     confidence: str = ESTABLISHED
     #: D'où vient le fait — une clé du registre de provenance, pas une phrase.
     measure: str = ""

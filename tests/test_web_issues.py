@@ -19,7 +19,7 @@ def _subject(db_session, statement="Un écart qui ne se referme pas"):
     register = I.Register()
     issue = register.observe(I.Observation(
         kind="gap_to_plan", scope="Northland", seen_at="2026-08-01",
-        statement=statement, amount=-900_000.0))
+        statement=statement, amount=-900_000.0, basis=I.STAKE))
     memory.save(db_session, register)
     db_session.commit()
     return issue.issue_id

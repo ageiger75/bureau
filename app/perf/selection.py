@@ -63,6 +63,9 @@ WATCH_SLOTS = 5
 #: portent dans l'ordre reste interne. Les libellés sont ce que le lecteur lira dans
 #: « pourquoi ce sujet », donc ils disent le fait et non la catégorie.
 MONEY = "montant en jeu"
+#: Un flux passe par ce sujet, sans qu'on sache combien est en jeu. Nommé pour que le
+#: lecteur voie la matérialité, jamais compté pour ordonner.
+FLOW_SEEN = "flux important, enjeu non chiffré"
 PERSISTENCE = "dure depuis plusieurs lectures"
 REPETITION = "déjà signalé une fois, et revenu"
 NO_OWNER = "personne n'en répond"
@@ -191,6 +194,21 @@ def awake(issue, today: str) -> bool:
     return any(item.seen_at > arbitration.at for item in issue.evidence)
 
 
+def _stake(issue) -> bool:
+    """Le dernier montant porté par ce sujet est-il un enjeu comparable ?
+
+    Faux quand la preuve ne le dit pas : un montant dont on ignore le sens ne peut pas
+    décider de l'ordre du jour d'un lecteur, et le supposer comparable est précisément la
+    faute qu'on ferme ici.
+    """
+    from ..domain import issues as domain
+
+    for observation in reversed(issue.evidence):
+        if observation.amount:
+            return observation.basis == domain.STAKE
+    return False
+
+
 def _latest_amount(issue) -> Optional[float]:
     """Le montant de la preuve la plus récente qui en porte un.
 
@@ -213,8 +231,18 @@ def factors_of(issue, today: str, weight: float) -> Tuple[List[str], float]:
     factors: List[str] = []
     amount = _latest_amount(issue)
     money = abs(amount) if amount else 0.0
-    if money:
+    # Seul un enjeu ordonne. Un flux — le chiffre d'affaires d'un partenaire qu'on ne sait
+    # pas nommer — est matériel et souvent le plus gros nombre de l'écran, mais il n'est pas
+    # comparable à un écart au plan : un flux vaut structurellement dix à cent fois un
+    # écart, et le classer sur le même axe le met devant tous les marchés, à jamais. Le
+    # défaut était réel et occupait le premier créneau. Le montant reste affiché ; ce qu'il
+    # perd, c'est le droit de décider de la semaine.
+    if money and _stake(issue):
         factors.append(MONEY)
+    else:
+        if money:
+            factors.append(FLOW_SEEN)
+        money = 0.0
 
     #: La matérialité au-delà des euros (§C8). Chaque facteur multiplie plutôt qu'il
     #: n'additionne : deux faiblesses sur le même sujet se composent — un écart qui dure

@@ -2526,6 +2526,7 @@ def cmd_issues(argv: List[str]) -> int:
 
         manage.py issues
         manage.py issues --observe gap_to_plan:Brazil --say "Écart qui ne se referme pas"
+        manage.py issues --observe … --amount 900000 --basis stake   (stake ordonne, flow non)
         manage.py issues --attach ISS-001 --observe gap_to_plan:India --say "..."
         manage.py issues --conclude ISS-001 --say "Trois magasins mal codés" --because "..."
         manage.py issues --accept ISS-001 --by "Nom" --reason "..." --review-on 2026-11-30
@@ -2556,11 +2557,18 @@ def cmd_issues(argv: List[str]) -> int:
                 print("Écrire l'observation TYPE:PÉRIMÈTRE, par exemple "
                       "gap_to_plan:Brazil.", file=sys.stderr)
                 return 2
+            basis = (_option(argv, "--basis") or "").strip().lower()
+            if basis and basis not in domain.BASES:
+                print("La base d'un montant est « %s ». Un enjeu se compare et ordonne, "
+                      "un flux dit ce qui circule et n'ordonne pas."
+                      % " » ou « ".join(domain.BASES), file=sys.stderr)
+                return 2
             seen = domain.Observation(
                 kind=kind.strip(), scope=scope.strip(),
                 seen_at=_option(argv, "--at") or today,
                 statement=_option(argv, "--say"),
                 amount=_number_or_none(_option(argv, "--amount")),
+                basis=basis,
                 measure=_option(argv, "--measure"),
             )
             try:

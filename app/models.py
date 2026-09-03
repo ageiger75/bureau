@@ -543,6 +543,9 @@ class IssueEvidence(Base):
     #: source a écrit, et le domaine convertit. Un arrondi binaire sur un écart au plan est
     #: invisible et faux.
     amount: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+    #: Ce que le montant mesure — « stake » ou « flow ». Vide quand la source ne l'a pas
+    #: dit : un montant sans sens déclaré n'ordonne rien, il ne se lit pas comme un enjeu.
+    basis: Mapped[str] = mapped_column(String(10), nullable=False, default="")
     confidence: Mapped[str] = mapped_column(String(20), nullable=False, default="established")
     #: La clé du registre de provenance, pour remonter d'un fait à sa source.
     measure: Mapped[str] = mapped_column(String(60), nullable=False, default="")

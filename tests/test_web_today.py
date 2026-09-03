@@ -613,7 +613,8 @@ def test_the_screen_shows_the_register_and_not_a_fresh_recount(client, db_sessio
     register = I.Register()
     issue = register.observe(I.Observation(
         kind="gap_to_plan", scope="Northland", seen_at="2026-08-01",
-        statement="Un écart qui ne se referme pas", amount=-900_000.0))
+        statement="Un écart qui ne se referme pas", amount=-900_000.0,
+        basis=I.STAKE))
     issue.accountable = "Une dirigeante"
     memory.save(db_session, register)
     db_session.commit()
@@ -646,7 +647,7 @@ def test_the_screen_never_prints_the_score_that_orders_the_subjects(client, db_s
     register = I.Register()
     register.observe(I.Observation(kind="gap_to_plan", scope="Northland",
                                    seen_at="2026-08-01", statement="Un écart",
-                                   amount=-900_000.0))
+                                   amount=-900_000.0, basis=I.STAKE))
     memory.save(db_session, register)
     db_session.commit()
 

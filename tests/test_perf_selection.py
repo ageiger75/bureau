@@ -23,7 +23,8 @@ def _issue(reference="ISS-001", kind=D.GAP_TO_PLAN, scope="Northland", amount=-1
     for index in range(readings):
         issue.record(I.Observation(kind=kind, scope=scope,
                                    seen_at="2026-0%d-01" % (index + 1),
-                                   amount=amount, confidence=confidence))
+                                   amount=amount, basis=I.STAKE,
+                                   confidence=confidence))
     return issue
 
 
@@ -192,3 +193,40 @@ def test_the_weights_are_optional_and_their_absence_is_declared():
 
     assert not week.weights_read
     assert week.attention[0].weight == 1.0
+
+
+def test_a_flow_never_outranks_a_gap_on_the_strength_of_being_bigger():
+    """Le défaut, vu à l'écran sur de vraies données : deux règles portent le chiffre
+    d'affaires entier d'un partenaire là où les autres portent un écart au plan. Un flux
+    vaut structurellement dix à cent fois un écart, donc il occupait le premier créneau
+    devant tous les marchés sous plan — et il l'aurait occupé à jamais.
+
+    Les euros restent affichés. Ce qu'ils perdent, c'est le droit de décider de la semaine
+    d'un lecteur qui a demandé à voir le plus gros écart au plan."""
+    flow = I.Issue(issue_id="ISS-001", title="Un flux qu'on ne sait pas nommer",
+                   accountable="Une dirigeante")
+    flow.record(I.Observation(kind=D.PARTNER_UNNAMED, scope="999AAAWP",
+                              seen_at="2026-08-01", amount=-34_000_000.0, basis=I.FLOW))
+    gap = _issue("ISS-002", scope="Northland", amount=-900_000.0)
+
+    week = S.rank(I.Register([flow, gap]), "2026-09-01")
+
+    assert week.attention[0].issue.issue_id == "ISS-002"
+    assert S.MONEY in week.attention[0].factors
+    assert S.MONEY not in week.attention[1].factors
+    assert S.FLOW_SEEN in week.attention[1].factors
+
+
+def test_an_amount_that_does_not_say_what_it_measures_orders_nothing():
+    """Un montant sans sens déclaré n'est pas un enjeu par défaut. Le supposer comparable
+    est exactement la faute qu'on ferme ici, et elle serait invisible : le sujet monterait
+    en tête sans que rien ne le signale."""
+    silent = I.Issue(issue_id="ISS-001", title="Un montant sans base déclarée",
+                     accountable="Une dirigeante")
+    silent.record(I.Observation(kind="hand_written", scope="Northland",
+                                seen_at="2026-08-01", amount=-34_000_000.0))
+    gap = _issue("ISS-002", scope="Northland", amount=-900_000.0)
+
+    week = S.rank(I.Register([silent, gap]), "2026-09-01")
+
+    assert week.attention[0].issue.issue_id == "ISS-002"

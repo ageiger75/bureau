@@ -31,7 +31,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Sequence
 
-from ..domain.issues import ESTABLISHED, PROBABLE, UNCERTAIN, Observation
+from ..domain.issues import (ESTABLISHED, FLOW, PROBABLE, STAKE, UNCERTAIN,
+                             Observation)
 
 #: Les types d'observation. Ce sont les préfixes des clés, donc ils ne changent jamais
 #: sans casser l'identité de tous les sujets ouverts : renommer `gap_to_plan` rouvrirait
@@ -95,7 +96,7 @@ def from_units(units: Sequence, period: str = "", today: str = "") -> List["Obse
             seen.append(Observation(
                 kind=GAP_TO_PLAN, scope=market, seen_at=when,
                 statement="%d mois consécutifs sous le plan" % months,
-                amount=_amount(unit.gap_vs_budget),
+                amount=_amount(unit.gap_vs_budget), basis=STAKE,
                 # La confiance du fait suit la vitesse à laquelle l'écran a le droit de
                 # tourner sur ce marché : un écart mesuré là où les deux systèmes ne
                 # s'accordent pas est un écart dont on ne sait pas encore la taille.
@@ -117,7 +118,7 @@ def from_units(units: Sequence, period: str = "", today: str = "") -> List["Obse
             seen.append(Observation(
                 kind=PLAN_VS_RECORD, scope=market, seen_at=when,
                 statement=chronic,
-                amount=_amount(getattr(unit, "gap_vs_budget", None)),
+                amount=_amount(getattr(unit, "gap_vs_budget", None)), basis=STAKE,
                 confidence=ESTABLISHED,
                 measure="plan_reference",
             ))
@@ -177,7 +178,7 @@ def from_partners(read, period: str, today: str = "") -> List["Observation"]:
             seen.append(Observation(
                 kind=PARTNER_UNNAMED, scope=line.profit_centre, seen_at=when,
                 statement=line.note or "flux sans marque commerciale attribuable",
-                amount=_amount(line.revenue),
+                amount=_amount(line.revenue), basis=FLOW,
                 confidence=ESTABLISHED,
                 measure="partners",
             ))
@@ -193,7 +194,7 @@ def from_partners(read, period: str, today: str = "") -> List["Observation"]:
         seen.append(Observation(
             kind=PARTNER_RATE, scope=line.profit_centre, seen_at=when,
             statement="taux non calculable : %s" % line.rate_withheld,
-            amount=_amount(line.revenue),
+            amount=_amount(line.revenue), basis=FLOW,
             confidence=ESTABLISHED,
             measure="partners",
         ))

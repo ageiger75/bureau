@@ -90,7 +90,7 @@ def to_domain(row: "ManagementIssue") -> "domain.Issue":
         domain.Observation(
             kind=item.kind, scope=item.scope, seen_at=item.seen_at,
             statement=item.statement, amount=_amount(item.amount),
-            confidence=item.confidence, measure=item.measure,
+            basis=item.basis, confidence=item.confidence, measure=item.measure,
         )
         for item in row.evidence
     ]
@@ -165,7 +165,7 @@ def save(session: Session, register: "domain.Register") -> int:
                 position=index, kind=item.kind, scope=item.scope, seen_at=item.seen_at,
                 statement=item.statement,
                 amount="" if item.amount is None else repr(item.amount),
-                confidence=item.confidence, measure=item.measure,
+                basis=item.basis, confidence=item.confidence, measure=item.measure,
             )
             for index, item in enumerate(issue.evidence)
         ]

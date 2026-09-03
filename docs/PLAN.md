@@ -339,6 +339,19 @@ tout usage à plusieurs.
 **Encore ouvert.**
 
 4. **Decision Room** : conserver ou retirer. Sans réponse, on conserve.
+
+*Tranchée le 3 septembre.* **Pas de pondération stratégique pour l'instant : le classement
+se fait sur le plus gros écart au plan.** L'argument du lecteur tient — le plan porte déjà
+des croissances par canal et par pays, donc l'intention stratégique y est encodée. La
+réserve, à garder en tête : un écart en euros favorise les grands marchés par construction,
+et un petit marché qui rate une croissance ambitieuse peut compter davantage qu'un grand
+qui rate de peu. Le fichier de poids reste lisible le jour où cette réserve devient gênante.
+
+En le posant, un défaut réel a été trouvé et fermé : deux règles portaient le **flux**
+entier d'un partenaire là où les autres portent un **écart**. Un flux vaut structurellement
+dix à cent fois un écart, donc il occupait le premier créneau devant tous les marchés sous
+plan, et il l'aurait occupé à jamais. Un montant déclare désormais ce qu'il mesure ; seul
+un enjeu ordonne.
 *Tranchée le 3 septembre, par la mesure et non par un avis.* Le régime de loyer se lit
 dans le référentiel immobilier de l'entrepôt, bail par bail. La règle donnée par le lecteur
 — variable en Asie, fixe à l'Ouest — est confirmée là où les baux sont renseignés, et de

@@ -258,8 +258,10 @@
     ordonne ces lignes n'est pas affiché — ce qui se discute est la matérialité, l'urgence
     et la fiabilité, jamais un nombre.
     {% if not week.weights_read %}
-      Les poids stratégiques ne sont pas lus : tous les périmètres pèsent pareil, et le
-      classement redevient un classement par taille.
+      Classé sur le plus gros écart au plan, sans pondération stratégique — c'est la
+      décision du lecteur, et elle tient parce que le plan porte déjà des croissances par
+      canal et par pays. Un flux reste affiché mais n'ordonne pas : il dit ce qui circule,
+      pas ce qui est en jeu.
     {% endif %}
     {% if week_sources.missing %}
       Sources non ouvertes à cette lecture : {{ week_sources.missing | join(', ') }} —
