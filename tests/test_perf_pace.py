@@ -83,9 +83,9 @@ def test_the_file_reveals_which_months_carry_a_moving_event(tmp_path):
         + _year([0.25, 0.25, 0.25, 0.25], market="Southland", year="2024")
         + _year([0.24, 0.26, 0.25, 0.25], market="Southland", year="2025")))
 
-    moving = read.unstable(week=2, spread=0.10)
+    moving = read.unstable(spread=0.10)
 
-    assert [curve.market for curve in moving] == ["Northland"]
+    assert [curve.market for curve, _week, _band in moving] == ["Northland"]
 
 
 def test_a_week_beyond_a_year_curve_does_not_finish_that_year_month(tmp_path):
@@ -183,3 +183,38 @@ def test_a_file_missing_the_year_says_so(tmp_path):
 
     assert not read.usable
     assert "year" in read.faults[0]
+
+
+def test_every_week_is_scanned_because_the_progress_is_cumulative(tmp_path):
+    """Un événement qui passe de la deuxième à la troisième semaine ne change presque rien
+    au cumul de fin de troisième semaine — il est dedans dans les deux cas. Fixer une
+    semaine d'avance revient à choisir quels déplacements on accepte de ne pas voir."""
+    read = pace.load(_file(tmp_path, _year([0.10, 0.50, 0.20, 0.20], year="2024")
+                           + _year([0.10, 0.15, 0.55, 0.20], year="2025")))
+
+    at_three = read.of("Northland", "11").elapsed(3)
+    curve, week, band = read.unstable(spread=0.10)[0]
+
+    assert at_three.spread < 0.01          # invisible à la semaine 3
+    assert week == 2 and band.spread > 0.3  # évident à la semaine 2
+
+
+def test_a_monotone_series_is_a_trend_and_not_a_date_that_moves(tmp_path):
+    """Une date qui se déplace oscille : tôt une année, tard la suivante, tôt encore
+    ensuite. Une série qui descend trois années de suite décrit autre chose — une
+    fermeture, une promotion arrêtée, un canal qui part. Chercher une fête pour expliquer
+    une tendance ne trouve rien et coûte une recherche entière."""
+    read = pace.load(_file(
+        tmp_path,
+        _year([0.25, 0.25, 0.25, 0.25], market="Trend", year="2024")
+        + _year([0.10, 0.10, 0.60, 0.20], market="Trend", year="2025")
+        + _year([0.05, 0.05, 0.75, 0.15], market="Trend", year="2026")
+        + _year([0.10, 0.50, 0.20, 0.20], market="Moves", year="2024")
+        + _year([0.10, 0.15, 0.55, 0.20], market="Moves", year="2025")
+        + _year([0.10, 0.55, 0.15, 0.20], market="Moves", year="2026")))
+
+    verdicts = {curve.market: read.trending(curve, week)
+                for curve, week, _band in read.unstable(spread=0.10)}
+
+    assert verdicts["Trend"] is True
+    assert verdicts["Moves"] is False

@@ -47,6 +47,7 @@
     python -m app.cli partners       le digital non détenu, une base à la fois
                                      --sell-in · --sell-out · --unnamed · --deductions
     python -m app.cli distribution   les entités qui s'écartent de la norme de leur canal
+    python -m app.cli phasing        la forme des mois, et ceux qui n'en ont pas de stable
                                      --sell-in · --sell-out · --distance · --markets
                                      retail par défaut · --outlets · --all-channels
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -3650,6 +3651,50 @@ def _port_taken(host: str, port: int) -> bool:
         probe.close()
 
 
+def cmd_phasing(argv: List[str]) -> int:
+    """La forme des mois, ce que le fichier a de faux, et les mois sans forme stable.
+
+    Le dernier bloc est le plus utile : il désigne les marchés et les mois traversés par
+    quelque chose qui bouge, sans qu'aucun calendrier de dates ait été tenu à la main. Mais
+    il ne dit pas *quoi* bouge — et une série qui décroît d'année en année n'est pas une
+    date qui se déplace, c'est une tendance. La distinction est affichée parce qu'elle
+    décide de la suite : chercher une fête pour une tendance ne trouve rien.
+    """
+    from .perf import pace as pace_module
+
+    positional = [a for a in argv if not a.startswith("--")]
+    path = positional[0] if positional else str(settings.phasing_path)
+    read = pace_module.load(path)
+    _print_faults(read.faults, limit=12)
+    if not read.usable:
+        print("Déposer la forme des mois à cet endroit : %s" % path, file=sys.stderr)
+        return 2
+
+    years = sorted({year for curve in read.curves.values() for year in curve.years})
+    markets = sorted({curve.market for curve in read.curves.values()})
+    print("Source             %s" % path)
+    print("Courbes lues       %d · %d marchés · exercices %s"
+          % (len(read), len(markets), ", ".join(years)))
+
+    spread = _number_or_none(_option(argv, "--spread")) or 0.15
+    moving = read.unstable(spread)
+    print("")
+    print("Les formes qui ne se reproduisent pas d'une année sur l'autre, au-dessus de "
+          "%.0f points" % (spread * 100))
+    print("%-22s %-5s %-4s %8s  %s"
+          % ("Marché", "Mois", "sem.", "étendue", "cumul par exercice"))
+    if not moving:
+        print("  aucune : les années s'accordent partout")
+    for curve, week, band in moving:
+        shares = ["%s %.3f" % (year, sum(curve.by_year[year][:week]))
+                  for year in curve.years if week <= len(curve.by_year[year])]
+        shape = "  ← tendance, pas une date" if read.trending(curve, week) else ""
+        print("%-22s %-5s %-4d %8.3f  %s%s"
+              % (curve.market[:22], curve.month, week, band.spread,
+                 " · ".join(shares), shape))
+    return 0
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -3701,6 +3746,8 @@ def main(argv: List[str]) -> int:
         return cmd_partners(argv[1:])
     if command == "issues":
         return cmd_issues(argv[1:])
+    if command == "phasing":
+        return cmd_phasing(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

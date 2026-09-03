@@ -158,19 +158,47 @@ class Phasing:
     def of(self, market: str, month: str) -> Optional["Curve"]:
         return self.curves.get((market.strip(), month.strip()[-2:]))
 
-    def unstable(self, week: int, spread: float) -> List["Curve"]:
-        """Les mois dont la forme ne se reproduit pas, à la semaine donnée.
+    def unstable(self, spread: float) -> List[Tuple["Curve", int, "Band"]]:
+        """Les mois dont la forme ne se reproduit pas, et la semaine où cela se voit.
+
+        **Toutes les semaines sont balayées, jamais une seule.** L'avancement est cumulé :
+        un événement qui passe de la deuxième à la troisième semaine ne change presque rien
+        au cumul de fin de troisième semaine — il est dedans dans les deux cas — mais il
+        change tout à celui de fin de deuxième. Fixer une semaine d'avance revient donc à
+        choisir quels déplacements on accepte de ne pas voir.
 
         Se lit comme une découverte plutôt que comme un défaut : ce sont les marchés et les
-        mois traversés par un événement mobile, et le fichier les désigne sans qu'aucun
+        mois traversés par quelque chose qui bouge, et le fichier les désigne sans qu'aucun
         calendrier de dates ait été tenu à la main.
         """
-        found = []
+        found: List[Tuple["Curve", int, "Band"]] = []
         for curve in self.curves.values():
-            band = curve.elapsed(week)
-            if band is not None and band.verified and band.spread > spread:
-                found.append(curve)
-        return sorted(found, key=lambda item: (item.market, item.month))
+            worst: Optional[Tuple[int, "Band"]] = None
+            for week in range(1, 6):
+                band = curve.elapsed(week)
+                if band is None or not band.verified:
+                    continue
+                if worst is None or band.spread > worst[1].spread:
+                    worst = (week, band)
+            if worst is not None and worst[1].spread > spread:
+                found.append((curve, worst[0], worst[1]))
+        return sorted(found, key=lambda item: -item[2].spread)
+
+    def trending(self, curve: "Curve", week: int) -> bool:
+        """La série est-elle monotone d'une année sur l'autre ?
+
+        Une date qui se déplace **oscille** : elle est tôt une année, tard la suivante, tôt
+        encore ensuite. Une série qui monte ou descend trois années de suite décrit autre
+        chose — une ouverture, une fermeture, une promotion arrêtée, un canal qui arrive.
+        La distinction décide de la suite du travail : chercher une fête pour expliquer une
+        tendance ne trouve rien, et coûte une recherche entière.
+        """
+        values = [sum(curve.by_year[year][:week]) for year in curve.years
+                  if week <= len(curve.by_year[year])]
+        if len(values) < 3:
+            return False
+        pairs = list(zip(values, values[1:]))
+        return all(b > a for a, b in pairs) or all(b < a for a, b in pairs)
 
 
 class Progress:
