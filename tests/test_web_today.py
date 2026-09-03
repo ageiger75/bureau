@@ -600,3 +600,60 @@ def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
     assert "Units per transaction" in page
     assert "markets are below this" in page
     assert "Finland" in page
+
+
+def test_the_screen_shows_the_register_and_not_a_fresh_recount(client, db_session):
+    """Le défaut que la doctrine appelle amnésie hebdomadaire : l'écran recalculait ses
+    sujets à chaque lecture et présentait chaque lundi les mêmes marchés comme des
+    découvertes. Une référence affichée doit désigner le même sujet d'une lecture à
+    l'autre — c'est la seule preuve que la page se souvient."""
+    from app.domain import issues as I
+    from app.perf import memory
+
+    register = I.Register()
+    issue = register.observe(I.Observation(
+        kind="gap_to_plan", scope="Northland", seen_at="2026-08-01",
+        statement="Un écart qui ne se referme pas", amount=-900_000.0))
+    issue.accountable = "Une dirigeante"
+    memory.save(db_session, register)
+    db_session.commit()
+
+    first = client.get("/").text
+    second = client.get("/").text
+
+    assert issue.issue_id in first
+    assert "Un écart qui ne se referme pas" in first
+    assert issue.issue_id in second
+
+
+def test_a_source_the_reading_did_not_open_is_named_on_the_screen(client):
+    """« Rien à signaler » et « je n'ai pas regardé » ne s'écrivent jamais pareil. Le
+    défaut serait invisible : un écran muet sur une source absente se lit comme un écran
+    qui a tout vu."""
+    page = client.get("/").text
+
+    assert "Sources non ouvertes" in page
+
+
+def test_the_screen_never_prints_the_score_that_orders_the_subjects(client, db_session):
+    """§C6. Un nombre affiché à côté d'un marché invite à discuter le nombre, alors que ce
+    qui se discute est la matérialité, l'urgence et la fiabilité. Ce qui est vérifié ici
+    est la valeur elle-même, pas le mot : un test sur le mot tomberait sur la phrase qui
+    explique justement qu'on ne l'affiche pas."""
+    from app.domain import issues as I
+    from app.perf import memory, selection
+
+    register = I.Register()
+    register.observe(I.Observation(kind="gap_to_plan", scope="Northland",
+                                   seen_at="2026-08-01", statement="Un écart",
+                                   amount=-900_000.0))
+    memory.save(db_session, register)
+    db_session.commit()
+
+    row = selection.rank(register, "2026-09-01").attention[0]
+    response = client.get("/")
+    page = page_text(response)
+
+    assert row.why in page
+    for rendered in (repr(row._score), "%.2f" % row._score, "%d" % int(row._score)):
+        assert rendered not in page

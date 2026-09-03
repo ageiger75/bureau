@@ -243,6 +243,91 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------------------- le registre #}
+
+{# La seule chose de cette page qui se souvienne. Tout ce qui suit est recalculé à chaque
+   lecture et présenterait les mêmes marchés comme des découvertes chaque lundi — l'amnésie
+   hebdomadaire que la doctrine interdit. Ces sujets-là portent leur identité, leurs
+   arbitrages et les lectures déjà faites d'eux. #}
+<section class="panel">
+  <h2>Les sujets</h2>
+  <p class="lede">
+    Ce que le cockpit sait déjà, d'une lecture à l'autre. Trois créneaux d'attention et
+    cinq de surveillance : un écran qui rendrait tout ce qu'il a trouvé rendrait la
+    sélection au lecteur, c'est-à-dire le travail qu'il venait chercher. Le score qui
+    ordonne ces lignes n'est pas affiché — ce qui se discute est la matérialité, l'urgence
+    et la fiabilité, jamais un nombre.
+    {% if not week.weights_read %}
+      Les poids stratégiques ne sont pas lus : tous les périmètres pèsent pareil, et le
+      classement redevient un classement par taille.
+    {% endif %}
+    {% if week_sources.missing %}
+      Sources non ouvertes à cette lecture : {{ week_sources.missing | join(', ') }} —
+      ce n'est pas « rien à signaler », c'est « je n'ai pas regardé ».
+    {% endif %}
+  </p>
+
+  {% if not week.attention and not week.watch %}
+    <p class="empty">
+      {% if week.considered %}
+        {{ week.considered }} sujet{{ '' if week.considered == 1 else 's' }} au registre,
+        aucun n'appelle d'intervention cette semaine.
+      {% else %}
+        Le registre est vide. C'est un fait, pas un silence : rien n'a encore été porté.
+      {% endif %}
+    </p>
+  {% else %}
+    {% for label, rows, note in [
+        ('À faire cette semaine', week.attention,
+         'au plus trois — le reste attendra, et c\'est le but'),
+        ('Sous surveillance', week.watch,
+         'suivis, pas portés : interlocuteur, tendance, prochaine échéance')] %}
+      {% if rows %}
+        <h3 class="subject-heading">{{ label }} <span class="muted">— {{ note }}</span></h3>
+        <ol class="subject-list">
+          {% for row in rows %}
+            <li class="subject">
+              <p class="subject-title">
+                <span class="badge">{{ row.role }}</span>
+                <span class="subject-ref">{{ row.issue.issue_id }}</span>
+                {{ row.issue.title }}
+              </p>
+              <p class="subject-why">Pourquoi : {{ row.why }}</p>
+              <p class="subject-who">
+                {% if row.issue.accountable %}
+                  {{ row.issue.accountable }}
+                {% else %}
+                  <span class="muted">aucun interlocuteur dans l'annuaire</span>
+                {% endif %}
+              </p>
+              {% if row.issue.readings %}
+                <p class="subject-reading">
+                  Dernière lecture : {{ row.issue.readings[-1].conclusion }}
+                </p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+
+  {% if week.sleeping %}
+    <p class="subject-sleeping">
+      {{ week.sleeping | length }} sujet{{ '' if week.sleeping | length == 1 else 's' }}
+      arbitré{{ '' if week.sleeping | length == 1 else 's' }} — ne remonte
+      {{ '' if week.sleeping | length == 1 else 'nt' }} que sur un fait nouveau ou à leur
+      date de réexamen. Arbitrer doit servir à quelque chose.
+    </p>
+  {% endif %}
+  {% if week.annex %}
+    <p class="subject-annex">
+      {{ week.annex | length }} autre{{ '' if week.annex | length == 1 else 's' }} au
+      registre, hors des créneaux : vus et comptés, pas portés cette semaine.
+    </p>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ where to push #}
 
 <section class="panel">

@@ -12,11 +12,14 @@ from __future__ import annotations
 
 from typing import Dict, List, Sequence
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
+from sqlalchemy.orm import Session
 
+from ..db import get_session
 from ..perf import analytics, routing
 from ..perf import kpi as kpi_rules
 from ..perf import provenance
+from ..perf import week as week_of
 from ..perf.commitments import board
 from ..perf.source import current_source
 from ..web import render
@@ -76,7 +79,7 @@ def freshness():
 
 
 @router.get("/")
-def today(request: Request):
+def today(request: Request, session: Session = Depends(get_session)):
     source = current_source()
     # `?refresh=1` forces a fresh read. Not a button, deliberately: a CEO who can make the
     # screen wait three minutes with one click will do it by reflex and learn that the
@@ -164,6 +167,17 @@ def today(request: Request):
         )
     linked = [(issue, [attach(fire) for fire in issue.fires]) for issue in issues]
 
+    # The register, which is the only thing on this page that remembers. Everything above
+    # is recomputed from the current reading and would present the same three markets as
+    # discoveries every Monday — the weekly amnesia the doctrine forbids. The subjects
+    # below carry their own identity, their arbitrations and the readings already made of
+    # them, and they are ranked by an engine with hard caps rather than by size.
+    #
+    # The dataset is handed over rather than re-read: a second read would cost another
+    # warehouse query and, worse, could land on a different hour and therefore different
+    # figures than the ones printed above it.
+    week, scan = week_of.read(session, dataset=dataset)
+
     return render(
         request,
         "today.html",
@@ -190,6 +204,11 @@ def today(request: Request):
                 ),
             },
             "issues": linked,
+            # Three slots, five under watch, and the rest counted in an annex. The caps
+            # are hard on both sides: a screen that renders everything it found hands the
+            # selection back to the reader, which is the work they came for.
+            "week": week,
+            "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
             # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the
             # number under it — and the guess is usually wrong, since the platform most

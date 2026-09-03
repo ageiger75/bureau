@@ -59,7 +59,7 @@ Et les chapitres de la doctrine V6.1 :
 
 | Chapitre | État |
 | --- | --- |
-| §C Sélection et mémoire des sujets | **Construit en CLI, absent de l'écran** — c'est l'écart le plus grave |
+| §C Sélection et mémoire des sujets | Construit, **et à l'écran depuis le 3 septembre** — restent les deux gestes humains (accepter une variance, clore) en formulaire |
 | §D Trajectoire (atterrissage, plan non bridgé, saisonnalisé) | Absent |
 | §E Surface (ordre d'écran, navigation, langue) | Absent |
 | §F Câblage des KPI par contrat | Partiel (lecteur du tracker) |
@@ -92,9 +92,9 @@ Et les chapitres de la doctrine V6.1 :
 
 ### Ce qui manque
 
-1. **Le registre n'atteint pas l'écran.** L'écran que le CEO ouvre chaque matin recalcule
-   ses sujets à chaque lecture — exactement l'« amnésie hebdomadaire » que la doctrine
-   interdit. Toute la mémoire construite ces quatre jours ne se voit que dans un terminal.
+1. ~~**Le registre n'atteint pas l'écran.**~~ Fait le 3 septembre : l'écran charge le
+   registre, le classe et le rend, avec ses trois créneaux, ses arbitrages endormis et
+   les sources qu'il n'a pas ouvertes. Restent les deux gestes humains en formulaire.
 2. **Trois des sept besoins n'ont aucun code** : B3, B5, B6. Le besoin le plus important
    selon le CEO (B5) est à zéro.
 3. **Le produit est devenu une ligne de commande.** Trois mille sept cents lignes de CLI,
