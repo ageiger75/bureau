@@ -335,3 +335,17 @@ def test_a_hand_written_subject_says_where_before_it_says_what():
         statement="Produit retrouvé chez un distributeur hors réseau"))
 
     assert issue.title == "Travel Retail · Produit retrouvé chez un distributeur hors réseau"
+
+
+def test_a_subject_can_be_extended_by_a_key_it_already_covers():
+    """Les références sont attribuées par machine et ne désignent pas le même sujet sur
+    deux postes. Une clé d'observation, elle, désigne la même chose partout — ce qui rend
+    une instruction transmissible sans obliger son lecteur à relire son écran d'abord."""
+    register = I.Register()
+    first = register.observe(I.Observation(kind="goods_out_no_sale", scope="Taiwan",
+                                           seen_at="2026-09-02"))
+
+    held = register.holding(("goods_out_no_sale", "Taiwan"))
+
+    assert held is first
+    assert register.of(first.issue_id) is first

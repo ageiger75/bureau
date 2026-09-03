@@ -2564,8 +2564,21 @@ def cmd_issues(argv: List[str]) -> int:
                 measure=_option(argv, "--measure"),
             )
             try:
-                issue = (register.attach(target, seen) if target
-                         else register.observe(seen))
+                if target:
+                    # Le sujet visé se désigne par sa référence **ou** par une clé qu'il
+                    # couvre déjà. Les références sont attribuées par machine : ISS-032 ne
+                    # désigne pas le même sujet sur deux postes qui n'ont pas lu les
+                    # sources dans le même ordre, et une instruction qui en cite une exige
+                    # que le lecteur relise son écran avant de pouvoir la suivre. Les
+                    # autres gestes acceptaient déjà les deux formes ; celui-ci non, et
+                    # c'était le seul à obliger à corriger la commande à la main.
+                    held = _issue_named(register, target)
+                    if held is None:
+                        print("Aucun sujet %s." % target, file=sys.stderr)
+                        return 2
+                    issue = register.attach(held.issue_id, seen)
+                else:
+                    issue = register.observe(seen)
             except (KeyError, domain.TransitionRefused) as refused:
                 print("  %s" % refused, file=sys.stderr)
                 return 1
