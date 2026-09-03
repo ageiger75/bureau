@@ -62,6 +62,13 @@ REQUIRED = ("country", "family", "year", "start_date")
 BEFORE = 0
 AFTER = 6
 
+#: Part de la mobilité qu'un candidat doit séparer pour être dit « accordé » sans réserve.
+#: Sans elle, « accordé » veut seulement dire « aucun contre-exemple » : deux exercices
+#: séparés d'un millième passent le test aussi bien que deux séparés de dix points, et la
+#: sortie donne le même mot aux deux. Le seuil est un choix, il est écrit ici pour être
+#: discuté plutôt que subi.
+CLEAR_SHARE = 0.2
+
 AGREES = "accordé"
 CONTRADICTS = "contredit"
 IMMOBILE = "immobile"
@@ -130,6 +137,29 @@ class Event:
     def month(self) -> str:
         return month_of(self.start)
 
+    def touches(self, month: str) -> bool:
+        """L'événement recouvre-t-il ce mois, en tout ou en partie ?
+
+        Une fenêtre qui enjambe une fin d'année couvre les deux mois qu'elle relie. Sans
+        cela, une campagne de six semaines n'appartiendrait qu'au mois où elle s'ouvre.
+        """
+        month = (month or "").strip()[-2:]
+        if self.month == month:
+            return True
+        end = month_of(self.end)
+        if not end or not self.end or self.end < self.start:
+            return False
+        # Du mois de début au mois de fin, en tournant sur douze si la fenêtre passe l'an.
+        try:
+            first, last, wanted = int(self.month), int(end), int(month)
+        except ValueError:
+            return False
+        while first != last:
+            first = 1 if first == 12 else first + 1
+            if first == wanted:
+                return True
+        return False
+
 
 class Series:
     """Un événement suivi d'un exercice à l'autre. C'est ici que « mobile » se vérifie."""
@@ -191,20 +221,32 @@ class Series:
 class Verdict:
     """Ce qu'un candidat devient à l'épreuve d'un mois qui bouge."""
 
-    __slots__ = ("series", "label", "why", "inside", "outside")
+    __slots__ = ("series", "label", "why", "inside", "outside", "margin", "narrow")
 
     def __init__(self, series: "Series", label: str, why: str,
-                 inside: Sequence[str] = (), outside: Sequence[str] = ()) -> None:
+                 inside: Sequence[str] = (), outside: Sequence[str] = (),
+                 margin: Optional[float] = None, narrow: bool = False) -> None:
         self.series = series
         self.label = label
         self.why = why
         #: Les exercices où l'événement tombe dans les semaines déjà écoulées.
         self.inside = list(inside)
         self.outside = list(outside)
+        #: De combien les deux groupes se séparent. C'est ce que le candidat explique
+        #: réellement ; l'absence de contre-exemple ne dit que ce qu'il n'infirme pas.
+        self.margin = margin
+        #: Vrai quand ils se séparent trop peu au regard de ce qu'il faut expliquer.
+        self.narrow = narrow
+
+    @property
+    def split(self) -> str:
+        """Combien d'exercices de chaque côté. Un contre un ne prouve rien : n'importe
+        quel événement qui bouge dans le bon sens sépare deux points."""
+        return "%d contre %d" % (len(self.inside), len(self.outside))
 
     @property
     def holds(self) -> bool:
-        return self.label == AGREES
+        return self.label == AGREES and not self.narrow
 
 
 class Calendar:
@@ -234,17 +276,23 @@ class Calendar:
                 if same_country(item.country, country)]
 
     def in_month(self, country: str, month: str) -> List["Series"]:
-        """Les séries dont au moins une occurrence datée tombe dans ce mois.
+        """Les séries dont au moins une occurrence **touche** ce mois.
 
-        Le filtre est volontairement large — une seule occurrence suffit. Un événement qui
-        entre et sort du mois selon l'exercice est précisément le suspect qu'on cherche ;
-        exiger qu'il y soit toutes les années le ferait disparaître au moment où il devient
-        intéressant.
+        Toucher, pas commencer. Des soldes qui courent du 25 décembre au 31 janvier
+        couvrent janvier entier tout en commençant en décembre : filtrer sur le mois de
+        début les faisait disparaître, et l'écran annonçait alors « aucun événement ne
+        tombe en janvier » — une absence fausse, c'est-à-dire la seule chose pire qu'un
+        trou, puisqu'elle referme la question au lieu de l'ouvrir.
+
+        Le filtre reste volontairement large : une seule occurrence suffit. Un événement
+        qui entre et sort du mois selon l'exercice est précisément le suspect qu'on
+        cherche ; exiger qu'il y soit toutes les années le ferait disparaître au moment où
+        il devient intéressant.
         """
         month = (month or "").strip()[-2:]
         found = []
         for item in self.of_country(country):
-            if any(event.month == month for event in item.dated.values()):
+            if any(event.touches(month) for event in item.dated.values()):
                 found.append(item)
         return sorted(found, key=lambda item: item.name)
 
@@ -267,7 +315,7 @@ def _place(start: str, year: str, month: str, lead: int = 0) -> Optional[int]:
 
 
 def weigh(cumulative: Dict[str, float], series: "Series", week: int,
-          month: str, lead: int = 0) -> "Verdict":
+          month: str, lead: int = 0, mobility: Optional[float] = None) -> "Verdict":
     """L'épreuve : l'événement ordonne-t-il les exercices comme il le devrait ?
 
     `cumulative` porte, par exercice, la part du mois faite à la fin de la semaine mesurée.
@@ -298,14 +346,21 @@ def weigh(cumulative: Dict[str, float], series: "Series", week: int,
 
     low = min(cumulative[year] for year in inside)
     high = max(cumulative[year] for year in outside)
-    if low > high:
-        return Verdict(series, AGREES,
-                       "les exercices où il est déjà passé ont tous fait plus (%.3f au "
-                       "minimum) que ceux où il ne l'est pas (%.3f au maximum)"
-                       % (low, high), inside, outside)
-    return Verdict(series, CONTRADICTS,
-                   "au moins un exercice va à contre-sens : %.3f d'un côté contre %.3f "
-                   "de l'autre" % (low, high), inside, outside)
+    if low <= high:
+        return Verdict(series, CONTRADICTS,
+                       "au moins un exercice va à contre-sens : %.3f d'un côté contre "
+                       "%.3f de l'autre" % (low, high), inside, outside,
+                       margin=low - high)
+    # Un candidat qui sépare les exercices d'un millième les ordonne sans rien expliquer
+    # de la distance qu'on lui demande d'expliquer. « Aucun contre-exemple » n'est pas
+    # « voilà la cause », et les deux ne doivent pas s'écrire du même mot.
+    margin = low - high
+    narrow = mobility is not None and mobility > 0 and margin < CLEAR_SHARE * mobility
+    return Verdict(series, AGREES,
+                   "%.3f d'écart entre les deux groupes%s"
+                   % (margin, ", soit presque rien de la mobilité à expliquer"
+                      if narrow else ""),
+                   inside, outside, margin=margin, narrow=narrow)
 
 
 def _column(header: Sequence[str], names: Sequence[str]) -> Optional[str]:

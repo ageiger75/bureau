@@ -3852,8 +3852,18 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
             countries = [curve.market]
         known = [country for country in countries if calendar.of_country(country)]
         candidates = []
+        seen = set()
         for country in known:
-            candidates.extend(calendar.in_month(country, curve.month))
+            for series in calendar.in_month(country, curve.month):
+                # Un marché rattaché à deux pays voisins voit deux fois la même fête, aux
+                # mêmes dates. La lister deux fois donnerait à un candidat unique le poids
+                # apparent de deux.
+                signature = (series.name, tuple(sorted(
+                    (year, event.start) for year, event in series.dated.items())))
+                if signature in seen:
+                    continue
+                seen.add(signature)
+                candidates.append(series)
         # Les deux absences sont séparées parce qu'elles appellent deux gestes différents,
         # et surtout parce que la première ressemble à la seconde : un marché que le
         # calendrier ne connaît pas rend exactement la même page vide qu'un mois sans fête.
@@ -3868,10 +3878,18 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
             continue
 
         for series in candidates:
-            verdict = events_module.weigh(cumulative, series, week, curve.month, lead)
-            flag = " ⚠ fin de fenêtre constante" if series.conventional_end else ""
+            verdict = events_module.weigh(cumulative, series, week, curve.month, lead,
+                                          mobility=movement.mobility)
+            marks = []
+            if verdict.inside and verdict.outside:
+                marks.append(verdict.split)
+            if verdict.narrow:
+                marks.append("de justesse")
+            if series.conventional_end:
+                marks.append("fin de fenêtre constante")
+            note = ("  [" + " · ".join(marks) + "]") if marks else ""
             print("  %-9s %-40s %s%s"
-                  % (verdict.label, series.name[:40], verdict.why, flag))
+                  % (verdict.label, series.name[:40], verdict.why, note))
             if series.absent:
                 print("            %s : sans date dans le fichier"
                       % ", ".join(series.absent))

@@ -231,3 +231,41 @@ def test_an_unlisted_country_still_joins_to_itself(tmp_path):
     read = E.load(_file(tmp_path, [_row("2024", "2024-04-05", country="Marchés inventés")]))
 
     assert read.of_country("marches inventes")
+
+
+def test_a_window_that_opens_in_another_month_still_covers_this_one(tmp_path):
+    """L'absence fausse que ce filtre ferme : des soldes du 25 décembre au 31 janvier
+    couvrent janvier entier. Filtrées sur leur mois d'ouverture, elles disparaissaient, et
+    l'écran annonçait « aucun événement ne tombe en janvier » — ce qui referme la question
+    au lieu de l'ouvrir, et c'est pire qu'un trou."""
+    read = E.load(_file(tmp_path, [
+        _row("2024", "2023-12-25", country="Suède", end="2024-01-31"),
+        _row("2025", "2024-12-25", country="Suède", end="2025-01-31")]))
+
+    assert read.in_month("Suède", "01") and read.in_month("Suède", "12")
+    assert not read.in_month("Suède", "03")
+
+
+def test_a_candidate_that_separates_the_years_by_nothing_is_marked(tmp_path):
+    """« Aucun contre-exemple » n'est pas « voilà la cause ». Un candidat qui ordonne les
+    exercices d'un millième les ordonne sans expliquer un point de la distance qu'on lui
+    demande d'expliquer — et sans cette réserve, il s'écrit du même mot qu'un candidat qui
+    en sépare dix points."""
+    read = E.load(_file(tmp_path, [_row("2023", "2023-03-05"), _row("2024", "2024-03-25"),
+                                   _row("2025", "2025-03-22")]))
+    cumulative = {"2023": 0.523, "2024": 0.522, "2025": 0.373}
+
+    verdict = E.weigh(cumulative, read.series["ev"], 2, "03", mobility=0.150)
+
+    assert verdict.label == E.AGREES and verdict.narrow and not verdict.holds
+    assert abs(verdict.margin - 0.001) < 1e-9
+
+
+def test_a_candidate_that_separates_them_clearly_holds(tmp_path):
+    read = E.load(_file(tmp_path, [_row("2023", "2023-03-05"), _row("2024", "2024-03-25"),
+                                   _row("2025", "2025-03-22")]))
+    cumulative = {"2023": 0.869, "2024": 0.765, "2025": 0.770}
+
+    verdict = E.weigh(cumulative, read.series["ev"], 2, "03", mobility=0.163)
+
+    assert verdict.holds and verdict.split == "1 contre 2"
