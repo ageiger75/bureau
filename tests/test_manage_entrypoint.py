@@ -97,3 +97,26 @@ def test_reset_est_refuse_hors_environnement_local(tmp_path):
 
     assert result.returncode == 2
     assert "Refusé" in result.stderr
+
+
+def test_serving_on_a_busy_port_says_the_old_code_is_still_being_served(capsys):
+    """Le message du serveur — « address already in use » et un numéro d'erreur — dit ce
+    qui a échoué et jamais ce qui se passe. Une fenêtre laissée ouverte continue de servir
+    l'**ancien** code : le lecteur relance, voit l'échec, retourne à son navigateur et lit
+    un écran sans les corrections qu'il vient de tirer. Deux fenêtres qui disent le même
+    produit et n'en servent pas le même, c'est un défaut qui ne se voit pas."""
+    import socket
+
+    from app import cli
+
+    holder = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    holder.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    holder.bind(("127.0.0.1", 0))
+    holder.listen(1)
+    host, port = holder.getsockname()
+    try:
+        assert cli._port_taken(host, port)
+    finally:
+        holder.close()
+
+    assert not cli._port_taken(host, port)

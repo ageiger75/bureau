@@ -3630,12 +3630,41 @@ def _option(argv: List[str], flag: str) -> str:
     return ""
 
 
+def _port_taken(host: str, port: int) -> bool:
+    """Quelque chose écoute-t-il déjà sur ce port ?
+
+    Question posée avant de démarrer plutôt qu'après, parce que le message du serveur —
+    « address already in use » et un numéro d'erreur — dit ce qui a échoué et jamais ce
+    qui se passe : une fenêtre laissée ouverte continue de servir, **avec l'ancien code**.
+    Le lecteur relance, voit l'échec, retourne à son navigateur, et lit un écran qui n'a
+    pas les corrections qu'il vient de tirer. C'est un défaut silencieux ordinaire, et il
+    coûte cher : les deux fenêtres disent le même produit et n'en servent pas le même.
+    """
+    import socket
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.settimeout(0.4)
+    try:
+        return probe.connect_ex((host, port)) == 0
+    finally:
+        probe.close()
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
 
     create_all()
     host, port = serve_config()
+    if _port_taken(host, port):
+        print("Un serveur écoute déjà sur %s:%d." % (host, port), file=sys.stderr)
+        print("C'est presque toujours une fenêtre restée ouverte — et elle sert l'ancien "
+              "code, donc l'écran que vous avez sous les yeux n'a pas les corrections que "
+              "vous venez de tirer.", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("  Ctrl-C dans la fenêtre qui sert, puis relancer ici.", file=sys.stderr)
+        print("  Ou, sans la chercher :  kill $(lsof -ti tcp:%d)" % port, file=sys.stderr)
+        return 1
     print("CEO OS · http://%s:%d" % (host, port))
     uvicorn.run(
         "app.main:app",
