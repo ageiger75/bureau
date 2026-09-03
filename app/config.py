@@ -102,6 +102,15 @@ DEFAULT_DISTRIBUTION_FILE = "var/distribution_signals.csv"
 #: supposant qu'un mois se vend à plat, ce qu'aucun mois ne fait. Un décalage de calendrier
 #: a déjà produit ici une chute apparente de quarante pour cent qui n'existait pas.
 DEFAULT_PHASING_FILE = "var/phasing.csv"
+
+#: Le calendrier des dates mobiles : quel événement, quel pays, quel exercice, quelle date.
+#: Il ne sert qu'au rapprochement — aucune règle ne se déclenche dessus, et son absence ne
+#: retire rien à la mesure des mois qui bougent, elle retire seulement les explications.
+DEFAULT_CALENDAR_FILE = "var/calendar_events.csv"
+
+#: Optionnel : quel marché de la maison correspond à quel pays du calendrier. Sans lui, le
+#: rapprochement se fait sur le nom, et les marchés qu'il n'a pas su joindre sont nommés.
+DEFAULT_MARKETS_FILE = "var/markets.csv"
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -130,6 +139,8 @@ class Settings:
     partners_file: str = DEFAULT_PARTNERS_FILE
     distribution_file: str = DEFAULT_DISTRIBUTION_FILE
     phasing_file: str = DEFAULT_PHASING_FILE
+    calendar_file: str = DEFAULT_CALENDAR_FILE
+    markets_file: str = DEFAULT_MARKETS_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -229,6 +240,24 @@ class Settings:
         return self.phasing_path.exists()
 
     @property
+    def calendar_path(self) -> Path:
+        path = Path(self.calendar_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_calendar_file(self) -> bool:
+        return self.calendar_path.exists()
+
+    @property
+    def markets_path(self) -> Path:
+        path = Path(self.markets_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_markets_file(self) -> bool:
+        return self.markets_path.exists()
+
+    @property
     def actuals_folder(self) -> Path:
         path = Path(self.actuals_folder_name)
         return path if path.is_absolute() else ROOT / path
@@ -323,6 +352,8 @@ def load_settings() -> Settings:
         distribution_file=(_env("CEOOS_DISTRIBUTION_FILE")
                            or DEFAULT_DISTRIBUTION_FILE),
         phasing_file=_env("CEOOS_PHASING_FILE") or DEFAULT_PHASING_FILE,
+        calendar_file=_env("CEOOS_CALENDAR_FILE") or DEFAULT_CALENDAR_FILE,
+        markets_file=_env("CEOOS_MARKETS_FILE") or DEFAULT_MARKETS_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         snowflake_connection=snowflake_connection,
     )

@@ -283,3 +283,46 @@ def test_a_variation_needs_two_years_like_everything_else_here(tmp_path):
     read = pace.load(_file(tmp_path, _year([0.25, 0.25, 0.25, 0.25])))
 
     assert read.of("Northland", "11").variation is None
+
+
+def test_the_end_of_month_remainder_is_not_a_week_and_does_not_count(tmp_path):
+    """Le découpage par rang de jour donne quatre blocs de sept jours et un reliquat de
+    deux ou trois. Ce reliquat contient un samedi une année et pas la suivante : sa part
+    bouge sans qu'aucun commerce n'ait bougé. Le laisser entrer dans la variation ferait
+    remonter un mois pour la position d'un week-end, et la recherche partirait chercher
+    une fête là où il n'y a qu'un calendrier."""
+    read = pace.load(_file(tmp_path, _year([0.24, 0.24, 0.24, 0.24, 0.04], year="2024")
+                           + _year([0.24, 0.24, 0.24, 0.24, 0.04], year="2025")))
+    stirred = pace.load(_file(tmp_path, _year([0.24, 0.24, 0.24, 0.24, 0.04], year="2024")
+                              + _year([0.20, 0.20, 0.20, 0.20, 0.20], year="2025")))
+
+    assert read.of("Northland", "11").variation == 0.0
+    # Seul le reliquat diffère de seize points ; les quatre blocs pleins bougent aussi,
+    # et la variation ne retient que ceux-là : quatre fois quatre points, pas vingt.
+    assert abs(stirred.of("Northland", "11").variation - 0.16) < 1e-9
+
+
+def test_the_last_full_block_is_read_when_the_month_spills_past_it(tmp_path):
+    """L'inverse du retrait précédent, et c'est ce qui sauve Black Friday : dans un mois de
+    trente jours, le cumul de fin de quatrième bloc n'est pas un — il vaut tout sauf les
+    29 et 30. Une fête qui passe du 28 au 29 ne se voit que là."""
+    read = pace.load(_file(tmp_path, _year([0.20, 0.20, 0.20, 0.35, 0.05], year="2024")
+                           + _year([0.20, 0.20, 0.20, 0.05, 0.35], year="2025")))
+
+    week, band = read.of("Northland", "11").mobility()
+
+    assert week == 4 and abs(band.spread - 0.30) < 1e-9
+
+
+def test_a_mobility_leaning_on_the_end_of_month_remainder_says_so(tmp_path):
+    """La ligne reste vraie et utile — c'est là que se lit une fête qui passe du 28 au 29.
+    Mais l'étendue mesurée *est* celle du reliquat, qui contient un samedi une année et pas
+    la suivante. Le lecteur doit savoir que ces deux causes occupent le même endroit, sinon
+    il attribuera à la fête ce que le week-end explique."""
+    read = pace.load(_file(tmp_path, _year([0.20, 0.20, 0.20, 0.35, 0.05], year="2024")
+                           + _year([0.20, 0.20, 0.20, 0.05, 0.35], year="2025")))
+    plain = pace.load(_file(tmp_path, _year([0.10, 0.50, 0.20, 0.20], year="2024")
+                            + _year([0.10, 0.15, 0.55, 0.20], year="2025")))
+
+    assert read.moving(spread=0.10)[0].on_remainder
+    assert not plain.moving(spread=0.10)[0].on_remainder

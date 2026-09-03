@@ -1,0 +1,10 @@
+country,event_name,family,year,start_date,end_date,start_weekday,date_status,source,rule,region,event_id
+Northland,Fête mobile du printemps,règle,2024,2024-04-05,2024-04-05,vendredi,observée,comput national,Premier vendredi suivant la pleine lune de printemps,National,north-spring
+Northland,Fête mobile du printemps,règle,2025,2025-04-20,2025-04-20,dimanche,observée,comput national,Premier vendredi suivant la pleine lune de printemps,National,north-spring
+Northland,Fête mobile du printemps,règle,2026,2026-04-05,2026-04-05,dimanche,observée,comput national,Premier vendredi suivant la pleine lune de printemps,National,north-spring
+Northland,Semaine promotionnelle,décidée,2024,2024-11-21,2024-12-02,jeudi,annoncée,enseigne,,National,north-promo
+Northland,Semaine promotionnelle,décidée,2025,2025-11-20,2025-12-01,jeudi,annoncée,enseigne,,National,north-promo
+Northland,Semaine promotionnelle,décidée,2026,,,,à annoncer,enseigne,,National,north-promo
+Repère,Vendredi de fin novembre,décidée,2024,2024-11-29,2024-11-29,vendredi,observée,usage,Lendemain du quatrième jeudi de novembre,Transnational,repere-vendredi
+Repère,Vendredi de fin novembre,décidée,2025,2025-11-28,2025-11-28,vendredi,observée,usage,Lendemain du quatrième jeudi de novembre,Transnational,repere-vendredi
+Repère,Vendredi de fin novembre,décidée,2026,2026-11-27,2026-11-27,vendredi,calculée,usage,Lendemain du quatrième jeudi de novembre,Transnational,repere-vendredi

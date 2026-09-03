@@ -3706,6 +3706,8 @@ def cmd_phasing(argv: List[str]) -> int:
         marks = []
         if movement.trending:
             marks.append("tendance, pas une date")
+        if movement.on_remainder:
+            marks.append("adossée au reliquat")
         if movement.thin:
             marks.append("deux exercices")
         note = ("  ← " + " · ".join(marks)) if marks else ""
@@ -3713,6 +3715,97 @@ def cmd_phasing(argv: List[str]) -> int:
               % (curve.market[:22], curve.month, week or "—", movement.mobility,
                  "—" if movement.variation is None else "%.3f" % movement.variation,
                  shares, note))
+
+    if "--events" in argv:
+        return _phasing_against_calendar(argv, moving)
+    if settings.has_calendar_file:
+        print("")
+        print("Un calendrier est déposé : ajouter --events pour l'épreuve des causes.")
+    return 0
+
+
+def _phasing_against_calendar(argv: List[str], moving) -> int:
+    """Confronter chaque mois qui bouge aux événements du calendrier.
+
+    Le tableau ne conclut pas et c'est voulu. Il rend, pour chaque couple, ce que devient
+    chaque candidat à l'épreuve — et « aucun candidat ne tient » est un résultat, pas un
+    échec de la commande. Un mois qui bouge sans cause identifiée reste un mois qui bouge.
+    """
+    from .perf import events as events_module
+
+    path = _option(argv, "--events") or str(settings.calendar_path)
+    calendar = events_module.load(path)
+    _print_faults(calendar.faults, limit=8)
+    if not calendar.usable:
+        print("Déposer le calendrier des dates mobiles ici : %s" % path, file=sys.stderr)
+        return 2
+
+    convention = (_option(argv, "--exercice") or "calendaire").strip().lower()
+    if convention not in events_module.CONVENTIONS:
+        print("Convention d'exercice inconnue : %s. Attendu : %s."
+              % (convention, ", ".join(events_module.CONVENTIONS)), file=sys.stderr)
+        return 2
+
+    markets_path = _option(argv, "--markets") or str(settings.markets_path)
+    markets, market_faults = events_module.load_markets(markets_path)
+    _print_faults(market_faults, limit=6)
+    lead = int(_number_or_none(_option(argv, "--avance")) or 0)
+
+    print("")
+    print("Calendrier          %s" % path)
+    print("Séries lues         %d · %d pays · %s"
+          % (len(calendar), len(calendar.countries), events_module.BLOC_RULE))
+    print("Exercice            %s%s" % (convention, {
+        "calendaire": " — l'exercice est l'année du calendrier",
+        "ouverture": " — l'exercice porte l'année de son mois d'avril",
+        "cloture": " — l'exercice porte l'année de son mois de mars",
+    }[convention]))
+    if markets:
+        print("Correspondances     %s · %d marchés" % (markets_path, len(markets)))
+    else:
+        print("Correspondances     aucune : jointure sur le nom du marché seul")
+    if lead:
+        print("Avance              %d jours — l'événement est daté du jour où il se vend, "
+              "pas du jour où il tombe" % lead)
+
+    for movement in moving:
+        curve = movement.curve
+        week = movement.week
+        print("")
+        print("%s · mois %s%s" % (curve.market, curve.month,
+                                  "" if week else " — remue sans se déplacer"))
+        if not week:
+            print("  la variation ne se joue à aucune semaine : ce mois se compare "
+                  "événement par événement, pas par une frontière")
+            continue
+
+        cumulative = {}
+        for exercice in curve.years:
+            shares = curve.by_year[exercice]
+            if week <= len(shares):
+                cumulative[events_module.calendar_year(exercice, curve.month,
+                                                       convention)] = sum(shares[:week])
+
+        countries = markets.get(events_module.normal(curve.market))
+        if countries is None:
+            countries = [curve.market]
+        candidates = []
+        for country in countries:
+            candidates.extend(calendar.in_month(country, curve.month))
+        if not candidates:
+            print("  aucun candidat : %s n'est pas joint au calendrier, ou aucun "
+                  "événement de ce pays ne tombe dans ce mois. Une jointure vide n'est "
+                  "pas une absence de cause." % " / ".join(countries))
+            continue
+
+        for series in candidates:
+            verdict = events_module.weigh(cumulative, series, week, curve.month, lead)
+            flag = " ⚠ fin de fenêtre constante" if series.conventional_end else ""
+            print("  %-9s %-40s %s%s"
+                  % (verdict.label, series.name[:40], verdict.why, flag))
+            if series.absent:
+                print("            %s : sans date dans le fichier"
+                      % ", ".join(series.absent))
     return 0
 
 

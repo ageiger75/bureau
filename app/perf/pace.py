@@ -69,6 +69,14 @@ REQUIRED = ("market", "month", "week", "share", "year")
 #: faux d'exactement ce qui manque.
 SUM_TOLERANCE = 0.01
 
+#: Les blocs de sept jours pleins d'un mois. Le découpage qui produit ces fichiers — le
+#: rang du jour divisé par sept, arrondi au-dessus — donne quatre blocs de sept jours puis
+#: un reliquat de zéro à trois jours. Ce reliquat n'est pas une semaine : il contient un
+#: samedi une année et pas la suivante, ce qui suffit à faire bouger sa part sans qu'aucun
+#: commerce n'ait bougé. Il est donc exclu des deux mesures, qui ne comparent que des blocs
+#: de même longueur.
+FULL_BLOCS = 4
+
 #: En dessous de ce nombre d'années, une forme n'est pas vérifiée : elle peut être vraie,
 #: rien ne le dit. Deux est le minimum pour qu'une dispersion existe.
 YEARS_TO_VERIFY = 2
@@ -159,16 +167,28 @@ class Curve:
             return 0
         return min(len(shares) for shares in self.by_year.values())
 
+    @property
+    def has_remainder(self) -> bool:
+        """Le mois déborde-t-il des quatre blocs pleins ?"""
+        return self.span > FULL_BLOCS
+
+    @property
+    def full(self) -> int:
+        """Les blocs de sept jours pleins, seuls comparables entre eux et d'une année sur
+        l'autre. Le reliquat de fin de mois n'en est pas un — voir `FULL_BLOCS`."""
+        return min(self.span, FULL_BLOCS)
+
     def mobility(self) -> Optional[Tuple[int, "Band"]]:
         """La semaine où le cumul s'écarte le plus d'une année sur l'autre, et de combien.
 
-        **La dernière semaine ne peut rien dire : elle cumule à un par construction.** La
-        lire reviendrait à mesurer une identité et à conclure « stable » d'un mois dont
-        tout aurait bougé au milieu. Le balayage s'arrête donc une semaine avant la fin de
-        la portée commune.
+        Le balayage couvre tous les blocs pleins. **Le dernier ne peut rien dire quand le
+        mois s'y termine : il cumule à un par construction**, son étendue est nulle et il
+        s'exclut donc tout seul, sans qu'aucune règle n'ait à le retirer. Quand le mois
+        déborde sur un reliquat, ce même bloc porte au contraire l'information la plus
+        utile — c'est là que se lit un événement de fin de mois qui change de bloc.
         """
         worst: Optional[Tuple[int, "Band"]] = None
-        for week in range(1, self.span):
+        for week in range(1, self.full + 1):
             band = self.elapsed(week)
             if band is None or not band.verified:
                 continue
@@ -191,11 +211,11 @@ class Curve:
 
         `None` sans deux années : une étendue sur un point n'existe pas.
         """
-        span = self.span
-        if span < 1 or len(self.by_year) < YEARS_TO_VERIFY:
+        full = self.full
+        if full < 1 or len(self.by_year) < YEARS_TO_VERIFY:
             return None
         total = 0.0
-        for index in range(span):
+        for index in range(full):
             values = [shares[index] for shares in self.by_year.values()]
             total += max(values) - min(values)
         return total
@@ -257,6 +277,19 @@ class Movement:
     @property
     def trending(self) -> bool:
         return self.week > 0 and self.curve.trending(self.week)
+
+    @property
+    def on_remainder(self) -> bool:
+        """La mobilité s'appuie-t-elle sur le reliquat de fin de mois ?
+
+        Quand elle tombe au dernier bloc plein d'un mois qui déborde, l'étendue mesurée
+        **est** celle de la part du reliquat — le cumul de fin de quatrième bloc vaut un
+        moins elle. Or ce reliquat contient un samedi une année et pas la suivante. La
+        ligne reste vraie et elle reste utile : c'est là que se lit une fête qui passe du
+        28 au 29. Mais elle est confondue avec la position d'un week-end, et le seul moyen
+        de les séparer est un marché témoin — même calendrier, pas la même fête.
+        """
+        return self.week == self.curve.full and self.curve.has_remainder
 
     @property
     def thin(self) -> bool:
