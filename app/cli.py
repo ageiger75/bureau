@@ -3788,7 +3788,14 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         print("Déposer le calendrier des dates mobiles ici : %s" % path, file=sys.stderr)
         return 2
 
-    convention = (_option(argv, "--exercice") or "calendaire").strip().lower()
+    labels = sorted({year for movement in moving for year in movement.curve.years})
+    fiscal = any(events_module.is_fiscal(label) for label in labels)
+    chosen = (_option(argv, "--exercice") or "").strip().lower()
+    # Un libellé « FY2024 » annonce lui-même un exercice. Le lire comme une année civile
+    # comparerait le mois d'un exercice aux fêtes d'une autre année — sans rien casser et
+    # sans rien signaler. La convention n'est donc pas devinée en silence : elle est
+    # déduite du libellé, affichée avec un exemple, et le lecteur peut la contredire.
+    convention = chosen or ("cloture" if fiscal else "calendaire")
     if convention not in events_module.CONVENTIONS:
         print("Convention d'exercice inconnue : %s. Attendu : %s."
               % (convention, ", ".join(events_module.CONVENTIONS)), file=sys.stderr)
@@ -3808,6 +3815,11 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         "ouverture": " — l'exercice porte l'année de son mois d'avril",
         "cloture": " — l'exercice porte l'année de son mois de mars",
     }[convention]))
+    if labels:
+        example = labels[0]
+        print("                    %s · novembre → novembre %s%s"
+              % (example, events_module.calendar_year(example, "11", convention),
+                 "" if chosen else "  (déduit du libellé ; forcer avec --exercice)"))
     if markets:
         print("Correspondances     %s · %d marchés" % (markets_path, len(markets)))
     else:
@@ -3816,6 +3828,7 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         print("Avance              %d jours — l'événement est daté du jour où il se vend, "
               "pas du jour où il tombe" % lead)
 
+    unjoined: List[str] = []
     for movement in moving:
         curve = movement.curve
         week = movement.week
@@ -3837,13 +3850,21 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         countries = markets.get(events_module.normal(curve.market))
         if countries is None:
             countries = [curve.market]
+        known = [country for country in countries if calendar.of_country(country)]
         candidates = []
-        for country in countries:
+        for country in known:
             candidates.extend(calendar.in_month(country, curve.month))
+        # Les deux absences sont séparées parce qu'elles appellent deux gestes différents,
+        # et surtout parce que la première ressemble à la seconde : un marché que le
+        # calendrier ne connaît pas rend exactement la même page vide qu'un mois sans fête.
+        if not known:
+            unjoined.append(curve.market)
+            print("  pays absent du calendrier : %s. Ce n'est pas une absence de cause, "
+                  "c'est une absence de jointure." % " / ".join(countries))
+            continue
         if not candidates:
-            print("  aucun candidat : %s n'est pas joint au calendrier, ou aucun "
-                  "événement de ce pays ne tombe dans ce mois. Une jointure vide n'est "
-                  "pas une absence de cause." % " / ".join(countries))
+            print("  %s est au calendrier, mais aucun de ses événements ne tombe en mois "
+                  "%s." % (" / ".join(known), curve.month))
             continue
 
         for series in candidates:
@@ -3854,6 +3875,13 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
             if series.absent:
                 print("            %s : sans date dans le fichier"
                       % ", ".join(series.absent))
+
+    if unjoined:
+        print("")
+        print("Marchés que le calendrier ne connaît pas : %s"
+              % ", ".join(sorted(set(unjoined))))
+        print("Deux lignes « marché,pays » dans %s les joignent — et c'est aussi là que "
+              "s'écrit à quels marchés un repère sans pays s'applique." % markets_path)
     return 0
 
 

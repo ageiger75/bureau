@@ -197,3 +197,37 @@ def test_the_other_column_name_is_accepted_because_two_files_already_exist(tmp_p
                         header="country,event,family,year,start_date"))
 
     assert len(read) == 1
+
+
+def test_a_fiscal_label_is_read_as_an_exercise_and_not_as_a_calendar_year():
+    """« FY2024 » annonce de lui-même un exercice. Lu comme une année civile, le
+    rapprochement compare le mois d'un exercice aux fêtes d'une autre année — sans rien
+    casser et sans rien signaler. Le seul symptôme visible était « trop peu d'exercices »
+    sur chaque ligne, ce qui ressemble à un calendrier trop court."""
+    assert E.is_fiscal("FY2024") and not E.is_fiscal("2024")
+    assert E.calendar_year("FY2024", "11", "cloture") == "2023"
+    assert E.calendar_year("FY2024", "02", "cloture") == "2024"
+    assert E.calendar_year("EX 2024", "11", "calendaire") == "2024"
+
+
+def test_a_label_without_four_digits_is_left_alone_rather_than_invented():
+    assert E.calendar_year("provisoire", "11", "cloture") == "provisoire"
+
+
+def test_the_same_country_written_in_two_languages_still_joins():
+    """La forme des mois vient de l'entrepôt, en anglais ; les calendriers d'une recherche,
+    en français. Sans cette table, seuls les pays qui s'écrivent pareil se joignaient — et
+    un pays non joint rend exactement la même page vide qu'un pays sans fête."""
+    assert E.same_country("CZECH REPUBLIC", "Tchéquie")
+    assert E.same_country("KOREA", "Corée du Sud")
+    assert E.same_country("USA", "États-Unis")
+    assert E.same_country("Hong Kong", "hong kong")
+    assert not E.same_country("SWEDEN", "Suisse")
+
+
+def test_an_unlisted_country_still_joins_to_itself(tmp_path):
+    """La table est un secours, pas une autorité : un pays qu'elle ignore doit continuer à
+    se joindre à son propre nom, sinon l'ajout d'un marché casserait la lecture."""
+    read = E.load(_file(tmp_path, [_row("2024", "2024-04-05", country="Marchés inventés")]))
+
+    assert read.of_country("marches inventes")

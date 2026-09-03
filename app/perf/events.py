@@ -230,8 +230,8 @@ class Calendar:
         return sorted({item.country for item in self.series.values()})
 
     def of_country(self, country: str) -> List["Series"]:
-        wanted = normal(country)
-        return [item for item in self.series.values() if normal(item.country) == wanted]
+        return [item for item in self.series.values()
+                if same_country(item.country, country)]
 
     def in_month(self, country: str, month: str) -> List["Series"]:
         """Les séries dont au moins une occurrence datée tombe dans ce mois.
@@ -378,6 +378,57 @@ def current(path: Optional[str] = None) -> "Calendar":
 CONVENTIONS = ("calendaire", "ouverture", "cloture")
 
 
+#: Les noms d'un même pays dans les deux langues où ces fichiers existent. La forme des
+#: mois vient de l'entrepôt, en anglais ; les calendriers viennent d'une recherche, en
+#: français. Sans cette table, aucun marché ne se joint sauf ceux qui s'écrivent pareil —
+#: et un pays non joint ressemble à un pays sans événement, ce qui est le pire des deux.
+#: Elle n'est qu'un secours : `var/markets.csv` la précède toujours, et ce qui ne se joint
+#: pas est nommé plutôt que compté comme joint.
+COUNTRY_NAMES = (
+    ("germany", "allemagne"), ("austria", "autriche"), ("belgium", "belgique"),
+    ("bulgaria", "bulgarie"), ("canada",), ("chile", "chili"), ("china", "chine"),
+    ("south korea", "korea", "coree du sud", "coree"), ("croatia", "croatie"),
+    ("denmark", "danemark"), ("spain", "espagne"), ("estonia", "estonie"),
+    ("united states", "usa", "us", "etats unis"), ("finland", "finlande"),
+    ("france",), ("greece", "grece"), ("hong kong",), ("hungary", "hongrie"),
+    ("ireland", "irlande"), ("italy", "italie"), ("japan", "japon"),
+    ("latvia", "lettonie"), ("lithuania", "lituanie"), ("luxembourg",),
+    ("macau", "macao"), ("malaysia", "malaisie"), ("mexico", "mexique"),
+    ("norway", "norvege"), ("netherlands", "pays bas", "holland"),
+    ("poland", "pologne"), ("portugal",), ("czech republic", "czechia", "tchequie",
+    "republique tcheque"), ("romania", "roumanie"), ("united kingdom", "uk",
+    "royaume uni", "great britain"), ("russia", "russie"),
+    ("saudi arabia", "arabie saoudite"), ("singapore", "singapour"),
+    ("slovakia", "slovaquie"), ("slovenia", "slovenie"), ("sweden", "suede"),
+    ("switzerland", "suisse"), ("taiwan",), ("thailand", "thailande"),
+    ("turkey", "turquie"), ("united arab emirates", "uae", "emirats arabes unis"),
+    ("vietnam", "viet nam"), ("australia", "australie"), ("brazil", "bresil"),
+    ("india", "inde"), ("indonesia", "indonesie"), ("philippines",),
+    ("new zealand", "nouvelle zelande"), ("south africa", "afrique du sud"),
+    ("israel", "israel"), ("ukraine",), ("serbia", "serbie"), ("greece", "grece"),
+)
+
+#: Chaque écriture d'un pays vers un même repère.
+_SAME_COUNTRY = {normal(name): group[0]
+                 for group in COUNTRY_NAMES for name in group}
+
+
+def same_country(left: str, right: str) -> bool:
+    """Deux écritures désignent-elles le même pays ?"""
+    one, two = normal(left), normal(right)
+    return one == two or (_SAME_COUNTRY.get(one, one) == _SAME_COUNTRY.get(two, two))
+
+
+def is_fiscal(exercice: str) -> bool:
+    """Le libellé annonce-t-il un exercice plutôt qu'une année civile ?
+
+    « FY2024 » le dit de lui-même. Le lire comme une année du calendrier comparerait le mois
+    d'un exercice aux fêtes d'une autre année, sans rien casser et sans rien signaler.
+    """
+    text = str(exercice or "").strip()
+    return bool(text) and not text.isdigit() and any(c.isdigit() for c in text)
+
+
 def calendar_year(exercice: str, month: str, convention: str = "calendaire") -> str:
     """L'année du calendrier où tombe ce mois de cet exercice.
 
@@ -386,10 +437,10 @@ def calendar_year(exercice: str, month: str, convention: str = "calendaire") -> 
     l'exercice porte l'année de son mois de mars — la convention de la maison, où l'exercice
     27 s'ouvre en avril 26.
     """
-    try:
-        year = int(str(exercice).strip())
-    except (TypeError, ValueError):
-        return str(exercice).strip()
+    digits = "".join(c for c in str(exercice or "") if c.isdigit())
+    if len(digits) != 4:
+        return str(exercice or "").strip()
+    year = int(digits)
     number = (month or "").strip()[-2:]
     try:
         index = int(number)
