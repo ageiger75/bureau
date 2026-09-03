@@ -633,7 +633,9 @@ def test_a_source_the_reading_did_not_open_is_named_on_the_screen(client):
     qui a tout vu."""
     page = client.get("/").text
 
-    assert "Sources non ouvertes" in page
+    # Assertion portée sur ce qui distingue, pas sur la formule : l'écran a été raccourci
+    # une fois et ce test est tombé sans qu'aucun comportement ait changé.
+    assert "je n'ai pas regardé" in page
 
 
 def test_the_screen_never_prints_the_score_that_orders_the_subjects(client, db_session):

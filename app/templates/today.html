@@ -22,9 +22,8 @@
        carries it — the third time in this screen's life that a caveat outlived the source
        it described, and the reason each of them is worth a commit of its own. #}
     <p class="cockpit-caveat">
-      Every channel, hospitality and corporate gifts included: the whole perimeter the
-      house publishes, on its own figures. Nothing here is assembled from what the
-      warehouse happens to read.
+      The house's published perimeter, on its own figures: every channel, hospitality
+      and corporate gifts included.
     </p>
   {% elif perimeter_note %}
     {# The most-read figure on the screen is also the most incomplete one. Saying what it
@@ -35,9 +34,8 @@
     {# Naming them is the point. A reader looking for a large market and not finding it
        assumes the screen lost it, and stops trusting the rest of the list. #}
     <p class="cockpit-caveat">
-      Sold on platforms rather than on a site of ours, so counted without a funnel:
-      {{ markets_without_own_site | join(", ") }}. The revenue is real; the conversion
-      behind it belongs to the platform and cannot be read here.
+      Sold on platforms, so no funnel of ours behind them:
+      {{ markets_without_own_site | join(", ") }}.
     </p>
   {% endif %}
   <ul class="cockpit-variances">
@@ -99,24 +97,10 @@
          from the first can never disagree with the figure the house recognises — which is
          the whole reason it is here. #}
       <p class="cockpit-caveat">
-        Both systems measure the same sales and neither is an estimate. The consolidation
-        closes the group's books from SAP and TM1 — one perimeter, one set of rates, and the
-        figure the house quotes. The warehouse counts transactions, which is the only place
-        a reason for a gap exists.
-        {% if header.published %}
-          <br>The figure above and its variance are the consolidation's own, for its whole
-          perimeter — not assembled here from what the warehouse can read. Below,
-          {{ dataset.reported_share | share }} of the money is measured against plan the
-          same way; the rest is the warehouse and says so on its card. Every driver
-          breakdown comes from the warehouse either way: the gap is closed by one,
-          explained by the other.
-        {% else %}
-          <br>{{ dataset.reported_share | share }} of the money below is measured against
-          plan by the consolidation, so those variances cannot disagree with what the house
-          publishes. The rest is measured by the warehouse and says so on its card. Every
-          driver breakdown comes from the warehouse either way: the gap is closed by one,
-          explained by the other.
-        {% endif %}
+        Two sources, the same sales: the consolidation gives the figure and its
+        variance, the warehouse gives the reason.
+        {{ dataset.reported_share | share }} of the money below is measured against plan
+        by the consolidation; the rest by the warehouse, and says so on its card.
       </p>
     {% endif %}
     {% if dataset.unbudgeted_sales %}
@@ -125,12 +109,11 @@
          counted in nothing — so the month came out far ahead of a plan that never
          covered it, inside a year that was behind. Named here, never absorbed. #}
       <p class="cockpit-caveat">
-        In the ranked list below — not in the figure above, which is the accounts' own —
-        {{ dataset.unbudgeted_sales | eur }} sold across
+        {{ dataset.unbudgeted_sales | eur }} across
         {{ dataset.unbudgeted | length }}
-        line{{ '' if dataset.unbudgeted | length == 1 else 's' }} carries no plan at all,
-        and is left out of those comparisons rather than measured against nothing.
-        Everything the warehouse reads this month is {{ dataset.read_sales | eur }}.
+        line{{ '' if dataset.unbudgeted | length == 1 else 's' }} carries no plan, and is
+        left out of the comparisons below. The warehouse reads
+        {{ dataset.read_sales | eur }} this month.
       </p>
     {% endif %}
     {% if dataset.plan_set_aside %}
@@ -140,10 +123,10 @@
          absorbed — a reader owed a group figure is owed the size of what it does not
          cover, or the figure quietly means something narrower than its label. #}
       <p class="cockpit-caveat">
-        {{ dataset.plan_set_aside | eur }} of plan is held out of the figures below,
-        across {{ dataset.unreadable | length }}
+        {{ dataset.plan_set_aside | eur }} of plan is held out below, across
+        {{ dataset.unreadable | length }}
         line{{ '' if dataset.unreadable | length == 1 else 's' }} whose sales nothing here
-        can read. Counted in, they would read as a shortfall nobody measured.
+        reads.
         {% for unit in dataset.unreadable %}
           <br><strong>{{ unit.label }}</strong> — {{ unit.not_read_reason }}
         {% endfor %}
@@ -177,13 +160,11 @@
            scope's terms come from it — and the share says how much of the year that is. #}
         <p class="cockpit-caveat">
           {% if dataset.ytd.reported_share >= 0.999 %}
-            Both terms of this figure are the consolidation's own, for its whole perimeter
-            — not assembled here from anything. It is the variance the house publishes,
-            and the warehouse below explains it rather than competing with it.
+            Both terms are the consolidation's own: the variance the house publishes.
           {% else %}
-            {{ dataset.ytd.reported_share | share }} of this year's comparison takes both
-            of its terms from the consolidation, so that part cannot disagree with what the
-            house publishes. The rest is the warehouse against the workbook.
+            {{ dataset.ytd.reported_share | share }} of this year's comparison takes
+            both terms from the consolidation; the rest is the warehouse against the
+            workbook.
           {% endif %}
         </p>
       {% endif %}
@@ -198,9 +179,8 @@
            the share comes first, because a total with no denominator cannot be judged. #}
         <p class="cockpit-caveat">
           {% if dataset.ytd.covered %}
-            A plan covers {{ dataset.ytd.covered_label }} of what was
-            sold over this period. The rest is left out of both totals rather than summed
-            against nothing:
+            A plan covers {{ dataset.ytd.covered_label }} of what was sold. The rest is
+            out of both totals:
           {% else %}
             Months where one side is missing are left out of both totals rather than
             summed against nothing.
@@ -227,14 +207,12 @@
            sell-in is what partners were invoiced. Added together they are the Maison's
            revenue as the accounts recognise it — which is the figure Finance reports, and
            the reason it must never be quietly swapped for a sell-through one. #}
-        Sold and shipped together, as the accounts recognise them: stores and own sites at
-        the point of sale, partners at the invoice.
+        Sold and shipped together, as the accounts recognise them: stores and own sites
+        at the point of sale, partners at the invoice.
         {% if dataset.ytd.hospitality_actual %}
-          Hospitality and corporate gifts are inside this figure now that the published
-          file measures them — {{ dataset.ytd.hospitality_actual | eur }} sold,
-          {{ dataset.ytd.hospitality_gap | eur }} against their plan. Leaving them out
-          would put this screen a fraction of a point away from the figure the house
-          quotes, for no reason anyone could defend.
+          Hospitality and corporate gifts included —
+          {{ dataset.ytd.hospitality_actual | eur }} sold,
+          {{ dataset.ytd.hospitality_gap | eur }} against plan.
         {% else %}
           Hospitality and corporate gifts are still outside — about 3% of the plan.
         {% endif %}
@@ -252,20 +230,14 @@
 <section class="panel">
   <h2>Les sujets</h2>
   <p class="lede">
-    Ce que le cockpit sait déjà, d'une lecture à l'autre. Trois créneaux d'attention et
-    cinq de surveillance : un écran qui rendrait tout ce qu'il a trouvé rendrait la
-    sélection au lecteur, c'est-à-dire le travail qu'il venait chercher. Le score qui
-    ordonne ces lignes n'est pas affiché — ce qui se discute est la matérialité, l'urgence
-    et la fiabilité, jamais un nombre.
+    Ce que le cockpit retient d'une lecture à l'autre. Trois créneaux d'attention, cinq
+    de surveillance.
     {% if not week.weights_read %}
-      Classé sur le plus gros écart au plan, sans pondération stratégique — c'est la
-      décision du lecteur, et elle tient parce que le plan porte déjà des croissances par
-      canal et par pays. Un flux reste affiché mais n'ordonne pas : il dit ce qui circule,
-      pas ce qui est en jeu.
+      Classé sur le plus gros écart au plan.
     {% endif %}
     {% if week_sources.missing %}
-      Sources non ouvertes à cette lecture : {{ week_sources.missing | join(', ') }} —
-      ce n'est pas « rien à signaler », c'est « je n'ai pas regardé ».
+      Non ouvert à cette lecture : {{ week_sources.missing | join(', ') }} — pas
+      « rien à signaler », « je n'ai pas regardé ».
     {% endif %}
   </p>
 
@@ -376,14 +348,8 @@
 <section class="panel">
   <h2>Where to push</h2>
   <p class="lede">
-    The five subjects where attention is worth the most money today — subjects, not
-    channels: a market losing ground in two of them is one conversation with one person.
-    Ranked by euros at stake rather than by percentage — a -3% miss on a large market
-    outweighs -30% on a small one — then weighted by how long the gap has lasted and
-    whether it is widening. Evidence does not enter the ranking: a gap nobody can explain
-    stays exactly where its size puts it, and what the evidence decides is the move. Each
-    entry shows its own arithmetic, so an order that looks wrong can be checked rather
-    than argued with.
+    The five subjects worth the most money today, ranked by euros at stake rather than
+    by percentage, then by how long the gap has lasted. Each shows its own arithmetic.
   </p>
 
   {% if not issues %}
@@ -590,11 +556,8 @@
 <section class="panel">
   <h2>Markets that moved between channels</h2>
   <p class="lede">
-    A country can decide mid-year to push one channel rather than another. The channel it
-    left falls below plan, the one it chose rises above it, and the market delivers what it
-    promised. Read channel by channel that looks like a serious problem in one place and a
-    triumph in another — two confident findings about a decision somebody made on purpose.
-    They are neither, so they are here rather than in the two lists above.
+One channel dropped, another picked up, and the market delivers what it promised.
+    Read channel by channel that reads as a problem and a triumph; it is neither.
   </p>
   <ul class="reallocation-list">
     {% for item in reallocations %}
@@ -637,10 +600,8 @@
 <section class="panel">
   <h2>Plans the record does not support</h2>
   <p class="lede">
-    Plans asking for more than this business has ever delivered. Not the month's miss —
-    what the rest of the year still embeds, which is a different amount and a different
-    conversation. They will be missed every month, and the misses will not be news. A
-    market's lead cannot correct a number they did not set: this is Finance and the region.
+    Plans asking for more than this business has ever delivered, and what the rest of
+    the year still embeds. Finance and the region, not the market's lead.
   </p>
   {{ plan_list(plans_above) }}
 </section>
@@ -650,12 +611,8 @@
 <section class="panel">
   <h2>Plans to re-forecast</h2>
   <p class="lede">
-    The other direction, and a different conversation: plans below what the business is
-    already doing. Apparent sandbagging or deliberate caution — Finance requalifies which.
-    Never mixed with the list above, where the two would cancel each other out.
-    <em>Base effect</em> marks a line whose comparison rests on a near-empty base or an
-    accounting boundary already noted: the plan may still be wrong, but nobody can tell
-    from this percentage.
+    Plans below what the business is already doing. Finance requalifies sandbagging
+    from caution. <em>Base effect</em> marks a comparison resting on a near-empty base.
   </p>
   {{ plan_list(plans_below) }}
 </section>
@@ -665,10 +622,9 @@
 <section class="panel">
   <h2>Not a commercial conversation</h2>
   <p class="lede">
-    Real money whose question belongs to somebody other than the market: a boundary in the
-    accounts, a yardstick that changed, deliveries stopped on purpose. They keep their card
-    and their figure. What they do not keep is a slot in the week's five — which is what
-    they were taking, on size alone, from markets genuinely trading badly.
+    Real money whose question belongs to somebody other than the market: a boundary in
+    the accounts, a yardstick that changed, deliveries stopped on purpose. No slot in the
+    week's five.
   </p>
   <ul class="routed-list">
     {% for fire in elsewhere %}
@@ -697,8 +653,8 @@
 <section class="panel">
   <h2>Opportunities</h2>
   <p class="lede">
-    Revenue the business has already proved it can achieve — recovering a driver to a level
-    it held last year. Every figure below is an estimate, and shows its assumption.
+    Recovering a driver to a level it held last year. Every figure is an estimate and
+    shows its assumption.
   </p>
   {% if not opportunities %}
     <p class="empty">No recoverable gap of material size right now.</p>
@@ -728,10 +684,8 @@
 <section class="panel">
   <h2>This week's conversations</h2>
   <p class="lede">
-    Owners whose area needs you this week. This ranks business areas, never people — the
-    reason shown is always a number. Only subjects this screen can take apart, or plans
-    somebody set, appear here: a gap whose cause is not measured is real work and it is
-    not a conversation with a market's lead.
+    Areas that need you this week — never people, and the reason shown is always a
+    number. A gap whose cause is not measured is work, not a conversation.
   </p>
   <ul class="people-list">
     {% for push in people %}
@@ -788,13 +742,9 @@
 <section class="panel">
   <h2>Where the bulk is answering for the shoppers</h2>
   <p class="lede">
-    Bulk is real turnover and it belongs in the accounts. It answers a different question
-    from the one this screen asks: a pallet leaving at half price and a shopper buying a
-    cream are both revenue, but only the second says whether the brand is working, and the
-    first moves in lumps. In these markets it is large enough to answer the wrong
-    question — so the figure to read is the second one. Markets where the two bases agree
-    do not appear here. Sold only: what the Maison invoices to its partners does not carry
-    this flag and is not in these figures.
+    A pallet at half price and a shopper buying a cream are both revenue; only the
+    second says whether the brand is working. Here bulk is large enough to answer the
+    wrong question, so read the second figure. Sold only.
   </p>
   <ul class="suspect-list">
     {% for item in bulk_findings %}
@@ -820,10 +770,8 @@
 <section class="panel">
   <h2>Boundaries under review</h2>
   <p class="lede">
-    A note saying revenue is filed on the wrong side of a channel boundary makes a claim
-    that can be checked: what one channel gained, its neighbour should have lost. It is
-    also easy to write down backwards — and a note pointing at the wrong side sends
-    someone to correct the source that was right. So the claim is tested here rather than
+    A note placing revenue on the wrong side of a boundary makes a claim that can be
+    checked: what one channel gained, its neighbour should have lost. Tested, not
     trusted.
   </p>
   <ul class="suspect-list">
@@ -853,11 +801,8 @@
 <section class="panel">
   <h2>Figures we cannot read yet</h2>
   <p class="lede">
-    These look like breaks in the data rather than events in the business, so they are
-    kept out of the ranking above. A data incident at the top of that list would teach you
-    to stop reading it. One incident, one diagnosis: where several markets fail the same
-    way in the same month, that is one fault with several symptoms, and the markets are
-    its detail rather than a second explanation of it.
+    Breaks in the data rather than events in the business, so they are out of the
+    ranking above. Several markets failing the same way in one month is one fault.
   </p>
 
   <ul class="incident-list">
@@ -894,10 +839,8 @@
 <section class="panel">
   <h2>Managed KPIs</h2>
   <p class="lede">
-    Grouped under the pillar the tracker files each one under — the domain comes from
-    there and from nowhere else. They may signal pressure before it shows in sales; that
-    they lead the figures above by months is a claim nothing here has demonstrated, so it
-    is not made.
+    Grouped under the pillar the tracker files each one under. Whether they lead the
+    figures above is not demonstrated here, so it is not claimed.
   </p>
 
   {% if "kpis" in unavailable %}

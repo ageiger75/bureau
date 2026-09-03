@@ -163,8 +163,7 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
     if is_suspect:
         return Routed(
             DATA, NO_CEO_ACTION, "Data team",
-            "the figures behind this line look like a break in the feed rather than an "
-            "event in the business",
+            "a break in the feed rather than an event in the business",
         )
 
     reclassified = _note_of(unit, context.RECLASSIFIED)
@@ -172,8 +171,8 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
         return Routed(
             ACCOUNTING, NO_CEO_ACTION,
             reclassified.action_owner or "Consolidation",
-            "the plan and the accounts file this revenue under different segments, so "
-            "the gap is a boundary and not a result",
+            "plan and accounts file this revenue under different segments: a boundary, "
+            "not a result",
         )
 
     basis_change = _note_of(unit, context.BASIS_CHANGE)
@@ -181,16 +180,14 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
         return Routed(
             DEFINITION, NO_CEO_ACTION,
             basis_change.action_owner or "Finance",
-            "the plan and the actual are no longer measured the same way here, so the "
-            "distance between them is not a measure of trading",
+            "plan and actual are no longer measured the same way here",
         )
 
     on_hold = _note_of(unit, context.ON_HOLD)
     if on_hold is not None:
         return Routed(
             RISK, NO_CEO_ACTION, on_hold.action_owner,
-            "trading is deliberately stopped until a condition is met; the revenue is "
-            "genuinely missing and the reason is known",
+            "trading deliberately stopped; the revenue is missing and the reason known",
         )
 
     # A result, then. What separates the moves is not how large it is — that decides the
@@ -198,18 +195,17 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
     if unit.has_driver_breakdown:
         return Routed(
             PERFORMANCE, CHALLENGE, "",
-            "the drivers behind this gap are measured, so it can be taken apart and put "
-            "to the market",
+            "the drivers behind this gap are measured",
         )
     if unit.basis == "shipped":
         return Routed(
             PERFORMANCE, INVESTIGATE, "",
-            "shipments carry no funnel, and a month of them can be a partner's ordering "
-            "rhythm as easily as a loss of demand",
+            "no funnel behind a shipment, and one month of them is a partner's "
+            "ordering rhythm as much as demand",
         )
     return Routed(
         PERFORMANCE, REQUEST_DATA, "",
-        "the gap is real and nothing connected here measures its cause",
+        "nothing connected here measures the cause",
     )
 
 
