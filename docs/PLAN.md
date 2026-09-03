@@ -151,15 +151,21 @@ retours de l'agent entrepôt sont cités et vérifiés avant d'être commentés.
 6. **Un taux moyen ne répond jamais à une question marginale.** Ce qu'un canal a rapporté
    et ce que son prochain euro rapporterait sont deux nombres différents dès que les coûts
    ne suivent pas les ventes, et ils peuvent se classer dans l'ordre inverse.
-7. **Une absence constatée dans une table n'est pas une absence dans l'entrepôt.** « Ce
+7. **Un remplissage en forme de valeur n'est pas une valeur.** Une absence écrite
+   « N/A » joint, compare, s'agrège et se moyenne, quand un `NULL` s'annonce. Ce défaut a
+   été trouvé quatre fois par quatre chemins différents et a chaque fois produit une
+   lecture fausse et confiante. Les sentinelles connues vivent dans `app/perf/sentinels`,
+   avec la condition SQL à recopier telle quelle dans les briefs : un `IS NULL` seul y est
+   insuffisant par construction.
+8. **Une absence constatée dans une table n'est pas une absence dans l'entrepôt.** « Ce
    champ n'existe pas » ne se dit qu'après avoir cherché ailleurs que dans la table qu'on
    avait sous la main. Le statut de propriété des boutiques a été déclaré introuvable sur
    la foi d'un seul référentiel ; il vivait dans un second, jamais ouvert, et cette
    conclusion a fermé un chantier pendant plusieurs jours.
-8. Aucune règle ne se déclenche sur une ligne à zéro.
-9. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
+9. Aucune règle ne se déclenche sur une ligne à zéro.
+10. Un signal ne conclut jamais : il désigne ce qu'il faut aller vérifier, et c'est un
    test catégorique — au ticket, à la ligne, au mois — qui tranche.
-10. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
+11. Deux bases ne s'additionnent jamais en silence. Quand elles sont comparées à dessein,
    l'en-tête le déclare.
 
 **Registre.** Observer d'abord, conclure après. Une conclusion remplacée exige une raison.

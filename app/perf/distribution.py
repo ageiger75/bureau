@@ -39,6 +39,8 @@ import io
 import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from . import sentinels
+
 #: Les deux bases, jamais additionnées — la règle vaut ici comme partout ailleurs.
 SELL_IN = "sell_in"
 SELL_OUT = "sell_out"
@@ -71,11 +73,13 @@ MIN_COMPUTABLE = 2
 
 #: Ce qu'une source écrit quand elle n'a pas d'identifiant. Ce ne sont pas des identités :
 #: soixante lignes portaient « N/A » dans la vraie source, et la règle de doublon les a
-#: toutes rejetées comme des répétitions les unes des autres. Le dépôt connaissait déjà ce
-#: défaut — un `any_value` sur une clé « N/A » avait un jour attribué le pool mondial à un
-#: seul pays — et le lecteur y est retombé. Une ligne sans identifiant garde sa place ; ce
-#: qu'on perd, c'est le droit de la comparer à une autre, pas son existence.
-PLACEHOLDER_IDS = ("", "n/a", "na", "-", "—", "null", "none", "#n/a")
+#: toutes rejetées comme des répétitions les unes des autres. Une ligne sans identifiant
+#: garde sa place ; ce qu'on perd, c'est le droit de la comparer à une autre.
+#:
+#: La liste vit dans `sentinels` et non plus ici : le même défaut est réapparu quatre fois
+#: par quatre chemins différents, et une liste par lecteur garantit qu'un cinquième lecteur
+#: la redécouvrira à ses frais.
+PLACEHOLDER_IDS = sentinels.MISSING_IDS
 
 #: Part de couverture en dessous de laquelle un montant par marché ne se lit pas comme un
 #: montant. Un marché mesuré à zéro pour cent affiche zéro euro, et zéro euro se lit comme
@@ -470,7 +474,7 @@ def load(path: str) -> "Distribution":
             continue
 
         entity_id = (record.get("entity_id") or "").strip()
-        if entity_id.lower() not in PLACEHOLDER_IDS:
+        if not sentinels.missing_id(entity_id):
             identity = "%s|%s|%s" % (base, (record.get("window") or "").strip(), entity_id)
             if identity in seen:
                 faults.append("ligne %d : %s figure déjà ligne %d — aucune des deux "
