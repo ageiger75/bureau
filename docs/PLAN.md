@@ -364,6 +364,17 @@ depuis lundi, marché par marché), qui demande une lecture au jour que l'entrep
 pas encore au cockpit, et les white spaces, dont la donnée externe (Beauté Research pour
 l'Asie) reste à voir.
 
+**L'écran d'accueil refait autour des questions d'un CEO, le 4 septembre 2026.** Dans
+leur ordre : où on atterrit, sommes-nous en ligne, qu'est-ce qui décroche et qui en
+répond, qu'est-ce que je décide cette semaine, où est l'upside, le plan est-il crédible,
+la donnée est-elle saine. L'atterrissage ouvre l'écran ; le verdict nomme sa composition
+— « en ligne au total · en retard : Brésil, Japon », et « hors Greater China : en retard »
+quand un seul périmètre porte le total ; aucun mot sur le mois avant une semaine pleine
+lue, parce que quatre jours sans week-end ne mesurent rien ; le mois marché par marché
+est replié sous chaque périmètre ; un seul cumul, une seule langue ; la provenance vit
+dans « Comment lire cet écran ». Reste de la phase 6 : les phrases générées en anglais
+dans les cartes (feux, plans, opportunités), à passer en français.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

@@ -4128,6 +4128,10 @@ def cmd_track(argv: List[str]) -> int:
 
     show(track.month_title, track.group.month)
     show(track.year_title, track.group.year)
+    for sentence in (track.year_sentence, track.year_without, track.month_sentence,
+                     track.month_without):
+        if sentence:
+            print("  " + sentence)
     print("")
     print("  %-28s %-12s %-14s %-12s %-14s" % ("Périmètre", "mois", "écart", "exercice", "écart"))
     for scope in track.perimeters:

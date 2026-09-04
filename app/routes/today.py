@@ -140,6 +140,31 @@ def _track(dataset, month):
                               org=org, directory=directory)
 
 
+def _landings(track, month):
+    """L'atterrissage du groupe et de chaque périmètre, ou pourquoi il manque."""
+    from ..config import settings
+    from ..perf import actuals as actuals_module
+    from ..perf import budget as budget_module
+    from ..perf import owners
+    from ..perf import page as page_module
+
+    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    budget = None
+    if settings.has_budget_file:
+        try:
+            budget = budget_module.load(settings.budget_path)
+        except Exception:  # noqa: BLE001 — un classeur illisible ne fait pas tomber la page
+            budget = None
+    period = getattr(track, "period", "") or ""
+    closed = getattr(track, "closed_through", "") or ""
+    group = page_module.landing(None, published, budget, period, closed)
+    directory = owners.current() if settings.has_owners_file else None
+    known = page_module.perimeters(directory, month)
+    landings = {name: page_module.landing(item["markets"], published, budget, period, closed)
+                for name, item in known.items()}
+    return group, landings
+
+
 def _perimeter_inputs(session):
     """Ce que les pages par périmètre lisent : la même lecture que l'écran du jour."""
     from ..config import settings
@@ -284,6 +309,10 @@ def today(request: Request, session: Session = Depends(get_session)):
     mix = _mix_review(dataset)
     track = _track(dataset, month)
     stores = _stores_review()
+    landing, landings = _landings(track, month)
+    month_groups = {group.name: group for group in month.groups}
+    if month.loose:
+        month_groups[month.loose.name] = month.loose
 
     fires = analytics.fires(dataset)
     # The subjects, which is what the reader ends up with: a market losing ground in two
@@ -378,6 +407,9 @@ def today(request: Request, session: Session = Depends(get_session)):
             "month": month,
             "mix": mix,
             "track": track,
+            "landing": landing,
+            "landings": landings,
+            "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who

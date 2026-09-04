@@ -7,379 +7,145 @@
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
 
 <section class="cockpit-header" data-read-at="{{ read_at }}">
-  {# The year leads and the month follows. Decided after a screen that opened on a month
-     at −1.6% inside a year at −0.2%: a single month is a noisy figure, and placed first it
-     manufactures a worry the year disproves three lines later. The house judges the
-     exercise; so does this screen now. #}
+  {# L'écran s'ouvre sur les questions d'un CEO, dans leur ordre : où on atterrit, si on
+     est en ligne, ce qui décroche et qui en répond. La provenance est dans « Comment lire
+     cet écran », pas ici. #}
   <p class="cockpit-eyebrow" id="freshness-line">
-    {% if dataset.ytd %}{{ dataset.ytd.label }} · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }} · {% endif %}as of {{ dataset.as_of }}
+    {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>
-  <p class="cockpit-total">{{ (dataset.ytd.actual if dataset.ytd else header.actual) | eur }}</p>
   {% if dataset.published_note %}
-    {# A file is there and is not used: it speaks for another month. Said at the top,
-       because the alternative was June's figures under an August heading. #}
     <p class="cockpit-caveat">{{ dataset.published_note }}</p>
   {% endif %}
-  {% if header.published %}
-    {# It stopped being the incomplete figure the moment it stopped being assembled here.
-       The old sentence named an exclusion that no longer exists, under a total that now
-       carries it — the third time in this screen's life that a caveat outlived the source
-       it described, and the reason each of them is worth a commit of its own. #}
-    <p class="cockpit-caveat">
-      The house's published perimeter, on its own figures: every channel, hospitality
-      and corporate gifts included.
-    </p>
-  {% elif perimeter_note %}
-    {# The most-read figure on the screen is also the most incomplete one. Saying what it
-       excludes belongs next to it, not in a footnote at the bottom of the page. #}
-    <p class="cockpit-caveat">{{ perimeter_note }}</p>
-  {% endif %}
-  {% if markets_without_own_site %}
-    {# Naming them is the point. A reader looking for a large market and not finding it
-       assumes the screen lost it, and stops trusting the rest of the list. #}
-    <p class="cockpit-caveat">
-      Sold on platforms, so no funnel of ours behind them:
-      {{ markets_without_own_site | join(", ") }}.
-    </p>
-  {% endif %}
-  <ul class="cockpit-variances">
-    {% if dataset.ytd %}
-    <li>
-      <span class="variance-value {{ 'is-down' if dataset.ytd.gap < 0 else 'is-up' }}">
-        {{ dataset.ytd.gap | eur }}
-      </span>
-      <span class="variance-label">vs plan{% if dataset.ytd.pct is not none %} · {{ dataset.ytd.pct | pct }}{% endif %}</span>
-    </li>
-    {% if dataset.ytd.growth is not none %}
-    <li>
-      {# Kept at group level and removed from the cards. "Is the business growing" is a
-         question about the house; "are we holding what we promised" is the question a
-         card answers. Mixing them put a comparison on every card that no plan was ever
-         set against. #}
-      <span class="variance-value {{ 'is-down' if dataset.ytd.growth < 0 else 'is-up' }}">
-        {{ (dataset.ytd.actual - dataset.ytd.last_year) | eur }}
-      </span>
-      <span class="variance-label">vs last year · {{ dataset.ytd.growth | pct }}</span>
-    </li>
-    {% endif %}
-    {% else %}
-    <li>
-      <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
-        {{ header.vs_budget.gap | eur }}
-      </span>
-      <span class="variance-label">vs budget · {{ header.vs_budget.pct | pct }}</span>
-    </li>
-    <li>
-      <span class="variance-value {{ 'is-down' if header.vs_last_year.gap < 0 else 'is-up' }}">
-        {{ header.vs_last_year.gap | eur }}
-      </span>
-      <span class="variance-label">vs last year · {{ header.vs_last_year.pct | pct }}</span>
-    </li>
-    {% endif %}
-    <li>
-      {# A forecast of exactly zero is not a forecast of nothing: it is the absence of one.
-         Printing €0 would put a number where no one has made a commitment, which is the
-         one habit this cockpit is built to break. #}
-      {% if header.forecast %}
-        <span class="variance-value is-neutral">{{ header.forecast | eur }}</span>
-        <span class="variance-label">full-period forecast</span>
-      {% else %}
-        <span class="variance-value is-absent">—</span>
-        <span class="variance-label">no forecast reported</span>
-      {% endif %}
-    </li>
-  </ul>
 
-  {% if dataset.ytd %}
-    {# A month is the loudest number on this screen and the least reliable one: a shipment
-       that slips across a month end shows here as a collapse. The year to date is the
-       same business read without that noise. #}
-    {% if dataset.reported %}
-      {# Which source is speaking, said once at the top rather than on every card. The
-         screen carries two and they answer different questions: the accounts say what
-         happened and how far it is from plan, the warehouse says why. A variance taken
-         from the first can never disagree with the figure the house recognises — which is
-         the whole reason it is here. #}
-      <p class="cockpit-caveat">
-        Two sources, the same sales: the consolidation gives the figure and its
-        variance, the warehouse gives the reason.
-        {{ dataset.reported_share | share }} of the money below is measured against plan
-        by the consolidation; the rest by the warehouse, and says so on its card.
-      </p>
-    {% endif %}
-    {% if dataset.unbudgeted_sales %}
-      {# The mirror of the block below, and the bigger of the two. Sales with no
-         commitment used to count in the month's numerator while their absent plan
-         counted in nothing — so the month came out far ahead of a plan that never
-         covered it, inside a year that was behind. Named here, never absorbed. #}
-      <p class="cockpit-caveat">
-        {{ dataset.unbudgeted_sales | eur }} across
-        {{ dataset.unbudgeted | length }}
-        line{{ '' if dataset.unbudgeted | length == 1 else 's' }} carries no plan, and is
-        left out of the comparisons below. The warehouse reads
-        {{ dataset.read_sales | eur }} this month.
-      </p>
-    {% endif %}
-    {% if dataset.plan_set_aside %}
-      {# A group variance shrank when this was written, and the shrinking is the point:
-         business the plan commits to and no source here reads was bringing its whole
-         commitment to the denominator and nothing to the numerator. Named rather than
-         absorbed — a reader owed a group figure is owed the size of what it does not
-         cover, or the figure quietly means something narrower than its label. #}
-      <p class="cockpit-caveat">
-        {{ dataset.plan_set_aside | eur }} of plan is held out below, across
-        {{ dataset.unreadable | length }}
-        line{{ '' if dataset.unreadable | length == 1 else 's' }} whose sales nothing here
-        reads.
-        {% for unit in dataset.unreadable %}
-          <br><strong>{{ unit.label }}</strong> — {{ unit.not_read_reason }}
-        {% endfor %}
-      </p>
-    {% endif %}
-    <div class="cockpit-second">
-      {# The month, second. It is read for pace and for what moved, never for whether the
-         year is being held — which is the question above it. #}
-      <p class="cockpit-eyebrow">{{ dataset.period_label }}</p>
-      <ul class="cockpit-variances">
-        <li>
-          <span class="variance-value is-neutral">{{ header.actual | eur }}</span>
-          <span class="variance-label">sold this month</span>
-        </li>
-        <li>
-          <span class="variance-value {{ 'is-down' if header.vs_budget.gap < 0 else 'is-up' }}">
-            {{ header.vs_budget.gap | eur }}
-          </span>
-          {# Which plan, named. Two sources of very different standing can sit behind this
-             figure — a workbook that reconciles with the consolidated accounts, and a
-             warehouse fact that covers little more than half of measured sales. A reader
-             who cannot tell them apart cannot judge the number. #}
-          <span class="variance-label">vs plan · {{ header.vs_budget.pct | pct }}</span>
-        </li>
-      </ul>
-      {% if dataset.ytd.reported_share %}
-        {# The same sentence the month carries, for the same reason. A year assembled from
-           a warehouse actual and a workbook plan is a ratio across two perimeters, and it
-           is what put a shortfall of millions on this screen for a house publishing a
-           fraction of a point. Where the published file covers a scope, both of that
-           scope's terms come from it — and the share says how much of the year that is. #}
-        <p class="cockpit-caveat">
-          {% if dataset.ytd.reported_share >= 0.999 %}
-            Both terms are the consolidation's own: the variance the house publishes.
-          {% else %}
-            {{ dataset.ytd.reported_share | share }} of this year's comparison takes
-            both terms from the consolidation; the rest is the warehouse against the
-            workbook.
-          {% endif %}
-        </p>
-      {% endif %}
-      {% if dataset.ytd.basis_caveat %}
-        {# Only printed when the two perimeters close on different months, which is not
-           most of them. Said every time, it would be read none of the time. #}
-        <p class="cockpit-caveat">{{ dataset.ytd.basis_caveat }}</p>
-      {% endif %}
-      {% if dataset.ytd.has_unmatched %}
-        {# The reason this figure is trustworthy is the reason it looks smaller than the
-           warehouse total. Saying so here is not a disclaimer; it is the finding — and
-           the share comes first, because a total with no denominator cannot be judged. #}
-        <p class="cockpit-caveat">
-          {% if dataset.ytd.covered %}
-            A plan covers {{ dataset.ytd.covered_label }} of what was sold. The rest is
-            out of both totals:
-          {% else %}
-            Months where one side is missing are left out of both totals rather than
-            summed against nothing.
-          {% endif %}
-          {% if dataset.ytd.unbudgeted_actual %}
-            {{ dataset.ytd.unbudgeted_actual | eur }} sold across
-            {{ dataset.ytd.unbudgeted_lines }} market-months carrying no plan at all.
-          {% endif %}
-          {% if dataset.ytd.zero_goal_actual %}
-            {# A different conversation from the line above: a target nobody set, versus
-               a target someone set to nothing. Folded into the total, the second would
-               read as beating the plan by everything sold. #}
-            {{ dataset.ytd.zero_goal_actual | eur }} sold across
-            {{ dataset.ytd.zero_goal_lines }} market-months whose plan is exactly zero.
-          {% endif %}
-          {% if dataset.ytd.unsold_budget %}
-            {{ dataset.ytd.unsold_budget | eur }} planned across
-            {{ dataset.ytd.unsold_lines }} market-months with no sales recorded against it.
-          {% endif %}
-        </p>
-      {% endif %}
-      <p class="cockpit-caveat">
-        {# Two bases in one total, so the total says so. Sell-out is what shoppers bought;
-           sell-in is what partners were invoiced. Added together they are the Maison's
-           revenue as the accounts recognise it — which is the figure Finance reports, and
-           the reason it must never be quietly swapped for a sell-through one. #}
-        Sold and shipped together, as the accounts recognise them: stores and own sites
-        at the point of sale, partners at the invoice.
-        {% if header.published and dataset.published_month.hospitality %}
-          {# The month's own figure. The year's used to sit here, under the month's
-             heading, five times larger than the month it appeared to describe. #}
-          Hospitality and corporate gifts included —
-          {{ dataset.published_month.hospitality | eur }} sold this month,
-          {{ dataset.published_month.hospitality_gap | eur }} against plan.
-        {% elif dataset.ytd.hospitality_actual %}
-          Hospitality and corporate gifts included in the year.
-        {% else %}
-          Hospitality and corporate gifts are still outside — about 3% of the plan.
-        {% endif %}
-      </p>
-    </div>
+  {% if landing and landing.usable %}
+    <p class="cockpit-total">{{ landing.at_pace | eur }}</p>
+    <p class="lede">
+      À ce rythme, l'exercice atterrit à {{ landing.at_pace | eur }}, soit
+      <strong>{{ landing.gap_at_pace | eur }}</strong> contre un plan de {{ landing.full_plan | eur }}.
+      Si le reste tient le plan : {{ landing.at_plan | eur }}, soit {{ landing.gap_at_plan | eur }}.
+      {{ landing.months_left }} mois restent ; le rythme des mois clos est de {{ landing.pace_label }}.
+    </p>
+  {% elif landing %}
+    <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
   {% endif %}
-</section>
 
-<section class="panel" id="en-ligne">
-  <h2>Sommes-nous en ligne avec le plan ?</h2>
   {% if track and track.usable %}
     <div class="verdicts">
-      <div class="verdict">
-        <p class="verdict-title">{{ track.month_title }}</p>
-        {% if track.group.month.usable %}
-          <p class="verdict-word is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</p>
-          <p class="verdict-figures">{{ track.group.month.actual | eur }} vendus · attendu {% if track.group.month.narrow %}{{ track.group.month.middle | eur }}{% else %}{{ track.group.month.low | eur }} à {{ track.group.month.high | eur }}{% endif %} · <strong>{{ track.group.month.gap_label }}</strong></p>
-          <p class="verdict-basis">{{ track.group.month.basis }} · {{ track.group.month.coverage_label }} du plan sell-out du mois</p>
-        {% else %}
-          <p class="verdict-word is-absent">—</p>
-          <p class="verdict-basis">{{ track.group.month.absent }}</p>
-        {% endif %}
-      </div>
       <div class="verdict">
         <p class="verdict-title">{{ track.year_title }}</p>
         {% if track.group.year.usable %}
           <p class="verdict-word is-{{ track.group.year.label | replace(' ', '-') }}">{{ track.group.year.label }}</p>
           <p class="verdict-figures">{{ track.group.year.actual | eur }} vendus · attendu {% if track.group.year.narrow %}{{ track.group.year.middle | eur }}{% else %}{{ track.group.year.low | eur }} à {{ track.group.year.high | eur }}{% endif %} · <strong>{{ track.group.year.gap_label }}</strong></p>
-          <p class="verdict-basis">{{ track.group.year.basis }}</p>
+          <p class="verdict-basis">{{ track.year_sentence }}{% if track.year_without %} · {{ track.year_without }}{% endif %}</p>
         {% else %}
           <p class="verdict-word is-absent">—</p>
           <p class="verdict-basis">{{ track.group.year.absent }}</p>
+        {% endif %}
+      </div>
+      <div class="verdict">
+        <p class="verdict-title">{{ track.month_title }}</p>
+        {% if track.group.month.usable %}
+          <p class="verdict-word is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</p>
+          <p class="verdict-figures">{{ track.group.month.actual | eur }} vendus · attendu {% if track.group.month.narrow %}{{ track.group.month.middle | eur }}{% else %}{{ track.group.month.low | eur }} à {{ track.group.month.high | eur }}{% endif %} · <strong>{{ track.group.month.gap_label }}</strong></p>
+          <p class="verdict-basis">{{ track.month_sentence }}{% if track.month_without %} · {{ track.month_without }}{% endif %}</p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">{{ track.group.month.absent }}</p>
         {% endif %}
       </div>
     </div>
     {% if track.perimeters %}
       <table class="month-table mix-table">
         <thead>
-          <tr><th>Périmètre</th><th>Mois à date</th><th>Écart</th><th>Exercice à date</th><th>Écart</th></tr>
+          <tr><th>Périmètre</th><th>Exercice à date</th><th>Écart</th><th>Atterrissage à ce rythme</th><th>Mois à date</th><th>Écart</th></tr>
         </thead>
         <tbody>
         {% for scope in track.perimeters %}
+          {% set land = landings.get(scope.name) %}
           <tr>
             <td>{% if scope.name != 'Sans périmètre' %}<a href="/perimetre/{{ scope.name | slug }}">{{ scope.name }}</a>{% else %}{{ scope.name }}{% endif %}{% if scope.lead %} <small>· {{ scope.lead }}</small>{% endif %}</td>
-            {% if scope.month.usable %}
-              <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
-              <td class="num" title="{{ scope.month.basis }} · {{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
-            {% else %}
-              <td class="absent" colspan="2">{{ scope.month.absent }}</td>
-            {% endif %}
             {% if scope.year.usable %}
               <td class="verdict-cell is-{{ scope.year.label | replace(' ', '-') }}">{{ scope.year.label }}</td>
-              <td class="num" title="{{ scope.year.basis }}">{{ scope.year.gap_label }}</td>
+              <td class="num">{{ scope.year.gap_label }}</td>
             {% else %}
               <td class="absent" colspan="2">{{ scope.year.absent }}</td>
             {% endif %}
+            <td class="num">{% if land and land.usable %}{{ land.at_pace | eur }} <small>({{ land.gap_at_pace | eur }})</small>{% else %}—{% endif %}</td>
+            {% if scope.month.usable %}
+              <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
+              <td class="num" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
+            {% else %}
+              <td class="absent" colspan="2">{{ scope.month.absent }}</td>
+            {% endif %}
           </tr>
+          {% set group = month_groups.get(scope.name) %}
+          {% if group and group.lines %}
+          <tr class="month-detail">
+            <td colspan="6">
+              <details>
+                <summary>Où en est le mois, marché par marché</summary>
+                <table class="month-table">
+                  <thead><tr><th>Marché</th><th>Attendu à date</th><th>Réalisé</th><th>Écart</th></tr></thead>
+                  <tbody>
+                  {% for line in group.shown %}
+                    <tr>
+                      <td>{{ line.market }}</td>
+                      {% if line.readable %}
+                        <td class="num">{{ line.expected }}{% if line.thin %} <small>sur 2 exercices</small>{% endif %}</td>
+                        <td class="num">{{ line.done }}{% if line.lumpy %} <small class="absent">{{ line.first_day_note }}</small>{% endif %}</td>
+                        <td class="num">{{ line.gap }}</td>
+                      {% else %}
+                        <td class="num">{{ line.expected or "—" }}</td>
+                        <td class="num">{{ line.done or "—" }}</td>
+                        <td class="absent">{{ line.absent }}</td>
+                      {% endif %}
+                    </tr>
+                  {% endfor %}
+                  {% if group.rest %}
+                    <tr class="month-rest" title="{{ group.rest.names | join(', ') }}">
+                      <td>{{ group.rest.label }}</td>
+                      <td class="num">{{ group.rest.expected or "—" }}</td>
+                      <td class="num">{{ group.rest.done or "—" }}</td>
+                      <td class="num"></td>
+                    </tr>
+                  {% endif %}
+                  </tbody>
+                </table>
+              </details>
+            </td>
+          </tr>
+          {% endif %}
         {% endfor %}
         </tbody>
       </table>
     {% endif %}
-    <p class="cockpit-caveat">
-      En ligne : le réalisé est dans l'attendu, à {{ track.tolerance_label }} près. L'attendu du
-      mois est le plan du mois multiplié par la part que chaque marché fait d'ordinaire à
-      cette date, une fourchette quand ses exercices ne s'accordent pas. Un écart en
-      fourchette se lit du pire au meilleur cas.
-    </p>
-    {% for caveat in track.caveats %}<p class="cockpit-caveat">{{ caveat }}</p>{% endfor %}
     {% for reason in track.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
-  {% else %}
+  {% elif track %}
     <p class="empty">
       {% for reason in track.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
     </p>
   {% endif %}
-</section>
 
-{# ------------------------------------------------------------------- le registre #}
-
-{# La seule chose de cette page qui se souvienne. Tout ce qui suit est recalculé à chaque
-   lecture et présenterait les mêmes marchés comme des découvertes chaque lundi — l'amnésie
-   hebdomadaire que la doctrine interdit. Ces sujets-là portent leur identité, leurs
-   arbitrages et les lectures déjà faites d'eux. #}
-{# Où en est le mois — B3. Deux taux par marché, jamais un seul : la part du mois
-   derrière nous selon la forme des années passées, et la part de l'objectif déjà faite.
-   Leur écart est l'information. Le premier est une fourchette quand les années ne
-   s'accordent pas, et c'est voulu : un point serait une affirmation déguisée en mesure. #}
-<section class="panel" id="mois">
-  <h2>Où en est le mois</h2>
-  {% if month and month.usable %}
-    <p class="lede">
-      {{ month.month }} · jour {{ month.day }} sur {{ month.days_in_month }} —
-      <strong>{{ (month.elapsed * 100) | round | int }} % du mois écoulé</strong>, lu jusqu'au {{ month.through }}.
-      Par marché : ce qu'il fait d'ordinaire à cette date, ce qu'il a fait, l'écart en points.
-    </p>
-    {% macro month_rows(group) %}
-      <table class="month-table">
-        <thead>
-          <tr><th>Marché</th><th>Attendu à date</th><th>Réalisé</th><th>Écart</th></tr>
-        </thead>
-        <tbody>
-        {% for line in group.shown %}
-          <tr>
-            <td>{{ line.market }}</td>
-            {% if line.readable %}
-              <td class="num">{{ line.expected }}{% if line.thin %} <small title="La forme de ce mois ne repose que sur deux exercices dans le fichier de phasage : un intervalle entre deux points, pas une dispersion.">sur 2 exercices</small>{% endif %}</td>
-              <td class="num">{{ line.done }}{% if line.lumpy %} <small class="absent" title="Le 1er encaisse une campagne de plateforme, pré-vendue le mois d'avant. Ce sont des ventes, mais leur date bouge d'un exercice à l'autre : l'avancement de ce mois ne se compare pas, et il est sorti du verdict.">{{ line.first_day_note }}</small>{% endif %}</td>
-              <td class="num">{{ line.gap }}</td>
-            {% else %}
-              <td class="num">{{ line.expected or "—" }}</td>
-              <td class="num">{{ line.done or "—" }}{% if line.lumpy %} <small class="absent">{{ line.first_day_note }}</small>{% endif %}</td>
-              <td class="absent">{{ line.absent }}</td>
-            {% endif %}
-          </tr>
-        {% endfor %}
-        {% if group.rest %}
-          <tr class="month-rest" title="{{ group.rest.names | join(', ') }}">
-            <td>{{ group.rest.label }}</td>
-            <td class="num">{{ group.rest.expected or "—" }}</td>
-            <td class="num">{{ group.rest.done or "—" }}</td>
-            <td class="num"></td>
-          </tr>
-        {% endif %}
-        </tbody>
-      </table>
-    {% endmacro %}
-    {% for group in month.groups %}
-      <h3 class="month-perimeter">{{ group.name }}{% if group.lead %} · {{ group.lead }}{% endif %}</h3>
-      {{ month_rows(group) }}
-    {% endfor %}
-    {% if month.loose %}
-      <h3 class="month-perimeter">Sans périmètre</h3>
-      {{ month_rows(month.loose) }}
+  <p class="cockpit-caveat">
+    Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :
+    {{ header.actual | eur }} vendus, {{ header.vs_budget.gap | eur }} contre le plan ({{ header.vs_budget.pct | pct }}),
+    {{ header.vs_last_year.pct | pct }} contre l'an dernier{% if header.published %}, consolidation{% else %}, entrepôt{% endif %}.
+    {% if header.forecast %}Prévision de la période : {{ header.forecast | eur }}.{% else %}Aucune prévision remontée.{% endif %}
+    {% if dataset.ytd and dataset.ytd.unbudgeted_actual %}
+      {{ dataset.ytd.unbudgeted_actual | eur }} vendus sur {{ dataset.ytd.unbudgeted_lines }} marché-mois sans plan, hors des comparaisons.
     {% endif %}
-    <p class="cockpit-caveat">
-      Attendu : la part du plan du mois que ce marché fait d'ordinaire à cette date, selon
-      ses trois derniers exercices — une fourchette quand ils ne s'accordent pas, et
-      « sur 2 exercices » quand l'entrepôt n'en porte que deux pour ce marché. Écart
-      positif : en avance. Un réalisé dont une grande part est encaissée le 1er le dit :
-      c'est une campagne de plateforme, et l'écart de ce mois ne se lit pas.
-    </p>
-    <p class="cockpit-caveat">{{ month.sell_in }}</p>
-    {% for reason in month.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
-  {% else %}
-    <p class="empty">
-      {% for reason in month.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
-    </p>
-  {% endif %}
+    {% if dataset.ytd and dataset.ytd.unsold_budget %}
+      {{ dataset.ytd.unsold_budget | eur }} planifiés sur {{ dataset.ytd.unsold_lines }} marché-mois sans vente lue.
+    {% endif %}
+  </p>
 </section>
 
 <section class="panel" id="mix">
   <h2>L'euro gagné est-il le bon euro</h2>
   {% if mix and mix.usable %}
-    <p class="lede">
-      {{ mix.period }} · par canal, la part au plan et la part réalisée.
-      {% if mix.weighs %}Puis l'écart de ventes de chaque canal multiplié par son taux moyen de
-      contribution — un calcul dont les coefficients sont affichés, pas un résultat.{% endif %}
-    </p>
-    <table class="month-table mix-table">
+    <p class="lede">{{ mix.period }} · le mix par canal contre le plan{% if mix.weighs %}, et l'écart de ventes pesé au taux moyen de chaque canal{% endif %}.</p>
+<table class="month-table mix-table">
       <thead>
         <tr><th>Canal</th><th>Part au plan</th><th>Réalisée</th><th>Mix</th>{% if mix.weighs %}<th>Taux moyen</th><th>Écart de ventes</th><th>× taux</th>{% endif %}</tr>
       </thead>
@@ -416,9 +182,6 @@
       </dl>
     {% endif %}
     {% if mix.uncovered_note %}<p class="cockpit-caveat">{{ mix.uncovered_note }}</p>{% endif %}
-    <p class="cockpit-caveat">{{ mix.marginal }}</p>
-    <p class="cockpit-caveat">{{ mix.no_ranking }}</p>
-    {% if mix.partners_note %}<p class="cockpit-caveat">{{ mix.partners_note }}</p>{% endif %}
     {% for reason in mix.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% else %}
     <p class="empty">
@@ -430,12 +193,7 @@
 <section class="panel" id="loyers">
   <h2>La part loyer du prochain euro</h2>
   {% if stores and stores.usable %}
-    <p class="lede">
-      Par marché, ce que le loyer prend sur un euro de plus vendu en boutique — lu bail par
-      bail dans le référentiel immobilier, pondéré par les ventes des boutiques dont le bail
-      est connu. La couverture dit de quelles boutiques le taux parle.
-    </p>
-    <p class="cockpit-caveat">{{ stores.join_label }} · bail connu sur {{ stores.coverage_label }} des ventes en boutique.</p>
+    <p class="lede">Par marché, ce que le loyer prend sur un euro de plus vendu en boutique · bail connu sur {{ stores.coverage_label }} des ventes en boutique.</p>
     <table class="month-table mix-table">
       <thead>
         <tr><th>Marché</th><th>Boutiques</th><th>Bail connu</th><th>Couverture</th><th>Part loyer variable</th><th>Loyer fixe</th>{% if stores.third_party %}<th>Tiers</th>{% endif %}<th>Inconnu</th></tr>
@@ -462,7 +220,6 @@
       {% endif %}
       </tbody>
     </table>
-    <p class="cockpit-caveat">{{ stores.marginal }} Un marché n'est jamais comparé à un autre sur un taux qui ne couvre pas la même part de ses ventes.</p>
     {% for reason in stores.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
     {% for fault in stores.register_faults[:5] %}<p class="cockpit-caveat">référentiel : {{ fault }}</p>{% endfor %}
   {% else %}
@@ -473,10 +230,9 @@
 </section>
 
 <section class="panel">
-  <h2>Les sujets</h2>
+  <h2>Qu'est-ce que je décide cette semaine</h2>
   <p class="lede">
-    Ce que le cockpit retient d'une lecture à l'autre. Trois créneaux d'attention, cinq
-    de surveillance.
+    Ce que le cockpit retient d'une lecture à l'autre. Trois sujets à porter, cinq sous surveillance.
     {% if not week.weights_read %}
       Classé sur le plus gros écart au plan.
     {% endif %}
@@ -591,11 +347,8 @@
 {# ------------------------------------------------------------------ where to push #}
 
 <section class="panel">
-  <h2>Where to push</h2>
-  <p class="lede">
-    The five subjects worth the most money today, ranked by euros at stake rather than
-    by percentage, then by how long the gap has lasted. Each shows its own arithmetic.
-  </p>
+  <h2>Où pousser</h2>
+  <p class="lede">Les cinq sujets qui pèsent le plus aujourd'hui, classés en euros puis par durée de l'écart. Chacun montre son calcul.</p>
 
   {% if not issues %}
     <p class="empty">No market is materially below plan. Nothing here needs you today.</p>
@@ -799,11 +552,8 @@
 
 {% if reallocations %}
 <section class="panel">
-  <h2>Markets that moved between channels</h2>
-  <p class="lede">
-One channel dropped, another picked up, and the market delivers what it promised.
-    Read channel by channel that reads as a problem and a triumph; it is neither.
-  </p>
+  <h2>Marchés qui ont bougé entre canaux</h2>
+  <p class="lede">Un canal cède, un autre prend, et le marché tient sa promesse. Ni un problème ni un exploit.</p>
   <ul class="reallocation-list">
     {% for item in reallocations %}
       <li class="reallocation">
@@ -843,34 +593,24 @@ One channel dropped, another picked up, and the market delivers what it promised
 
 {% if plans_above %}
 <section class="panel">
-  <h2>Plans the record does not support</h2>
-  <p class="lede">
-    Plans asking for more than this business has ever delivered, and what the rest of
-    the year still embeds. Finance and the region, not the market's lead.
-  </p>
+  <h2>Plans que le réalisé ne soutient pas</h2>
+  <p class="lede">Des plans qui demandent plus que ce business n'a jamais livré, et ce que le reste de l'année embarque encore. Une question pour la Finance et la région, pas pour le marché.</p>
   {{ plan_list(plans_above) }}
 </section>
 {% endif %}
 
 {% if plans_below %}
 <section class="panel">
-  <h2>Plans to re-forecast</h2>
-  <p class="lede">
-    Plans below what the business is already doing. Finance requalifies sandbagging
-    from caution. <em>Base effect</em> marks a comparison resting on a near-empty base.
-  </p>
+  <h2>Plans à reprévoir</h2>
+  <p class="lede">Des plans sous ce que le business fait déjà. <em>Effet de base</em> signale une comparaison assise sur presque rien.</p>
   {{ plan_list(plans_below) }}
 </section>
 {% endif %}
 
 {% if elsewhere %}
 <section class="panel">
-  <h2>Not a commercial conversation</h2>
-  <p class="lede">
-    Real money whose question belongs to somebody other than the market: a boundary in
-    the accounts, a yardstick that changed, deliveries stopped on purpose. No slot in the
-    week's five.
-  </p>
+  <h2>Pas une conversation commerciale</h2>
+  <p class="lede">De l'argent réel dont la question appartient à quelqu'un d'autre que le marché : une frontière comptable, une mesure qui a changé, des livraisons arrêtées exprès.</p>
   <ul class="routed-list">
     {% for fire in elsewhere %}
       <li class="routed">
@@ -896,11 +636,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------------ opportunities #}
 
 <section class="panel">
-  <h2>Opportunities</h2>
-  <p class="lede">
-    Recovering a driver to a level it held last year. Every figure is an estimate and
-    shows its assumption.
-  </p>
+  <h2>Opportunités</h2>
+  <p class="lede">Ramener un levier au niveau qu'il tenait l'an dernier. Chaque chiffre est une estimation et montre son hypothèse.</p>
   {% if not opportunities %}
     <p class="empty">No recoverable gap of material size right now.</p>
   {% else %}
@@ -927,11 +664,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------------ people #}
 
 <section class="panel">
-  <h2>This week's conversations</h2>
-  <p class="lede">
-    Areas that need you this week — never people, and the reason shown is always a
-    number. A gap whose cause is not measured is work, not a conversation.
-  </p>
+  <h2>Les conversations de la semaine</h2>
+  <p class="lede">Ce qui a besoin de vous cette semaine, avec la question prête. Un écart dont la cause n'est pas mesurée est du travail, pas une conversation.</p>
   <ul class="people-list">
     {% for push in people %}
       <li class="person">
@@ -954,15 +688,13 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------------ wins #}
 
 <section class="panel">
-  <h2>Wins</h2>
+  <h2>Ce qui marche</h2>
   {% if not wins %}
     {# One line, not a section with a heading, a lede and an empty box under it. Three
        lines to say nothing happened is three lines taken from what did. #}
-    <p class="empty">Nothing is beating plan by enough to call it a win.</p>
+    <p class="empty">Rien ne dépasse assez le plan pour être copié.</p>
   {% else %}
-  <p class="lede">
-    Unusually strong performance, surfaced to be copied rather than congratulated.
-  </p>
+  <p class="lede">Des performances inhabituelles, montrées pour être copiées, pas félicitées.</p>
   <ul class="win-list">
     {% for win in wins %}
       <li class="win">
@@ -985,12 +717,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 
 {% if bulk_findings %}
 <section class="panel">
-  <h2>Where the bulk is answering for the shoppers</h2>
-  <p class="lede">
-    A pallet at half price and a shopper buying a cream are both revenue; only the
-    second says whether the brand is working. Here bulk is large enough to answer the
-    wrong question, so read the second figure. Sold only.
-  </p>
+  <h2>Là où le vrac répond à la place des clients</h2>
+  <p class="lede">Une palette à moitié prix et une cliente qui achète une crème sont du chiffre ; seule la seconde dit si la marque marche. Lire le second chiffre.</p>
   <ul class="suspect-list">
     {% for item in bulk_findings %}
       <li class="suspect">
@@ -1013,12 +741,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 
 {% if reclassifications %}
 <section class="panel">
-  <h2>Boundaries under review</h2>
-  <p class="lede">
-    A note placing revenue on the wrong side of a boundary makes a claim that can be
-    checked: what one channel gained, its neighbour should have lost. Tested, not
-    trusted.
-  </p>
+  <h2>Frontières à vérifier</h2>
+  <p class="lede">Une note qui place du chiffre du mauvais côté d'une frontière affirme quelque chose de vérifiable : ce qu'un canal gagne, son voisin doit l'avoir perdu.</p>
   <ul class="suspect-list">
     {% for check in reclassifications %}
       <li class="suspect">
@@ -1044,11 +768,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 
 {% if incidents %}
 <section class="panel">
-  <h2>Figures we cannot read yet</h2>
-  <p class="lede">
-    Breaks in the data rather than events in the business, so they are out of the
-    ranking above. Several markets failing the same way in one month is one fault.
-  </p>
+  <h2>Chiffres illisibles</h2>
+  <p class="lede">Des ruptures de donnée, pas des faits de commerce : hors du classement. Plusieurs marchés qui échouent pareil le même mois, c'est une seule panne.</p>
 
   <ul class="incident-list">
     {% for incident in incidents %}
@@ -1082,11 +803,8 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------------ customers #}
 
 <section class="panel">
-  <h2>Managed KPIs</h2>
-  <p class="lede">
-    Grouped under the pillar the tracker files each one under. Whether they lead the
-    figures above is not demonstrated here, so it is not claimed.
-  </p>
+  <h2>KPI suivis</h2>
+  <p class="lede">Groupés sous le pilier du tableau de suivi. Qu'ils expliquent les chiffres du haut n'est pas démontré ici, donc pas affirmé.</p>
 
   {% if "kpis" in unavailable %}
     <p class="empty">
@@ -1173,7 +891,7 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------------ commitments #}
 
 <section class="panel">
-  <h2>Commitments</h2>
+  <h2>Engagements</h2>
   {% if "commitments" in unavailable %}
   <p class="empty">
     Not connected to this source yet. An empty board would read as "nothing outstanding",
@@ -1213,11 +931,24 @@ One channel dropped, another picked up, and the market delivers what it promised
 {# ------------------------------------------------------------ methodology #}
 
 <section class="panel panel-quiet">
-  <h2>How to read this screen</h2>
+  <h2>Comment lire cet écran</h2>
   <details class="unsettled">
     <summary>
-      What the badges mean, what each channel is, and how the arithmetic is built.
+      D'où vient chaque chiffre, ce que les badges veulent dire, et comment le calcul est construit.
     </summary>
+
+    <h3 class="kpi-pillar">D'où viennent les chiffres</h3>
+    <ul class="provenance-list">
+      <li class="provenance"><p class="provenance-note"><strong>Le verdict.</strong> « En ligne » : le réalisé est dans l'attendu à {{ track.tolerance_label if track else "2 %" }} près. L'attendu du mois est le plan du mois multiplié par la part que chaque marché fait d'ordinaire à cette date, selon ses trois derniers exercices, une fourchette quand ils ne s'accordent pas. Un écart en fourchette se lit du pire au meilleur cas. Aucun mot avant une semaine pleine lue. Un marché dont le 1er encaisse une campagne de plateforme sort du verdict, avec sa part du 1er affichée. Le sell-in n'entre pas dans le mois : une facture tombe quand elle tombe.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>Vendu et expédié ensemble</strong>, comme les comptes les reconnaissent : boutiques et sites au moment de la vente, partenaires à la facture. Hospitality et cadeaux d'entreprise inclus.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>Le mix.</strong> L'écart de ventes de chaque canal multiplié par son taux moyen de contribution, sommé, puis séparé en effet volume et effet mix. Un calcul avec ses coefficients, jamais un résultat. Taux marginal : absent : personnel, logistique et marketing ne sont dans aucune source lue ici. Aucun canal n'est classé sur son taux moyen, parce que ce taux dit ce qu'un canal a rapporté, pas ce que son prochain euro rapporterait. Une ligne de partenaire est lue et jamais posée sur un canal entier.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>La part loyer.</strong> Lue bail par bail dans le référentiel immobilier, pondérée par les ventes des boutiques dont le bail est connu ; la couverture dit de quelles boutiques le taux parle. Un zéro à côté d'un loyer mensuel est un loyer fixe ; un zéro seul est douteux et ne compte pas ; « sans bail à notre nom » est du travel retail tenu par l'opérateur. Ce n'est qu'une part du coût marginal, et deux marchés ne se comparent jamais sur un taux qui ne couvre pas la même part de leurs ventes.</p></li>
+      {% if track %}{% for caveat in track.caveats %}<li class="provenance"><p class="provenance-note">{{ caveat }}</p></li>{% endfor %}{% endif %}
+      {% if mix and mix.usable %}{% if mix.partners_note %}<li class="provenance"><p class="provenance-note">{{ mix.partners_note }}</p></li>{% endif %}{% endif %}
+      {% if stores and stores.usable %}<li class="provenance"><p class="provenance-note">{{ stores.join_label }}.</p></li>{% endif %}
+    </ul>
 
     <h3 class="kpi-pillar">Badges</h3>
     <ul class="provenance-list">

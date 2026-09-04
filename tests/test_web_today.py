@@ -29,7 +29,7 @@ def test_decision_room_is_still_reachable(client):
 def test_where_the_business_is_underperforming(client):
     page = page_text(client.get("/"))
 
-    assert "Where to push" in page
+    assert "Où pousser" in page
     assert "Japan E-commerce" in page
 
 
@@ -49,14 +49,14 @@ def test_how_much_money_is_involved(client):
 def test_where_the_upside_is(client):
     page = page_text(client.get("/"))
 
-    assert "Opportunities" in page
+    assert "Opportunités" in page
     assert "Assumes conversion returns to last year" in page
 
 
 def test_who_to_challenge(client):
     page = page_text(client.get("/"))
 
-    assert "This week's conversations" in page
+    assert "Les conversations de la semaine" in page
     assert "Naoki" in page
 
 
@@ -166,7 +166,7 @@ def test_managed_kpis_are_grouped_by_the_pillar_the_tracker_files_them_under(cli
     """
     page = page_text(client.get("/"))
 
-    assert "Managed KPIs" in page
+    assert "KPI suivis" in page
     assert "Client Acquisition" in page
     assert "Brand Elevation" in page
     assert "3P People" in page
@@ -210,7 +210,7 @@ def test_a_kpi_off_on_both_axes_is_listed_once(client):
     it is what makes the card worth more than the number alone.
     """
     page = page_text(client.get("/"))
-    panel = page.split("Managed KPIs")[-1].split("Commitments")[0]
+    panel = page.split("KPI suivis")[-1].split("Engagements")[0]
 
     assert panel.count("CLV — top customers") == 1
     assert "Reading overdue" in panel
@@ -326,7 +326,7 @@ def test_a_missing_forecast_is_a_dash_not_a_zero(monkeypatch):
     with TestClient(app) as client:
         page = page_text(client.get("/"))
 
-    assert "no forecast reported" in page
+    assert "Aucune prévision remontée" in page
 
 
 def test_a_name_and_a_role_do_not_run_together_when_copied():
@@ -433,10 +433,10 @@ def test_the_year_leads_and_the_month_follows(client):
     page = page_text(client.get("/"))
     body = page[page.index("cockpit-header"):]
 
-    assert "to date" in body
-    assert "sold this month" in body
+    assert "Exercice à date" in body
+    assert "Dernier mois clos" in body
     # Order, not merely presence: the year's figure has to come first on the page.
-    assert body.index("to date") < body.index("sold this month")
+    assert body.index("Exercice à date") < body.index("Dernier mois clos")
 
 
 def test_the_year_to_date_says_what_it_could_not_compare(client):
@@ -445,16 +445,16 @@ def test_the_year_to_date_says_what_it_could_not_compare(client):
     budget into a year ahead of it, so it is named rather than absorbed."""
     page = page_text(client.get("/"))
 
-    assert "carrying no plan" in page
-    assert "no sales recorded against it" in page
+    assert "sans plan, hors des comparaisons" in page
+    assert "sans vente lue" in page
     # And the basis of the total, said in the same breath as the figure. Two bases are
     # added together here — shoppers at the till, partners at the invoice — which is how
     # the accounts recognise revenue and why it must never be swapped for a sell-through
     # figure without saying so.
-    assert "Sold and shipped together" in page
+    assert "Vendu et expédié ensemble" in page
     # A fragment that survives the template's own line wrapping: asserting a phrase
     # that spans two source lines tests the indentation, not the sentence.
-    assert "Hospitality and corporate gifts" in page
+    assert "Hospitality et cadeaux d'entreprise" in page
 
 
 def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
@@ -540,7 +540,7 @@ def test_a_repeated_paragraph_becomes_a_badge_and_a_note(client):
     assert "Shipped, not sold (June): invoiced to a partner" not in page
     assert "No commitment recorded against this gap" not in page
     # And said once, where a reader who wants it can find it.
-    assert "How to read this screen" in page
+    assert "Comment lire cet écran" in page
     assert page.count("Invoiced to a partner, which is when the accounts recognise it") == 1
 
 
@@ -571,7 +571,7 @@ def test_a_market_whose_bulk_hides_its_shoppers_says_so_on_both_bases(client):
     """
     page = page_text(client.get("/"))
 
-    assert "Where the bulk is answering for the shoppers" in page
+    assert "Là où le vrac répond à la place des clients" in page
     assert "Hong Kong" in page
     assert "excluding bulk" in page
 
@@ -668,8 +668,8 @@ def test_the_month_in_progress_is_on_the_screen_with_two_rates_per_market(client
     marchés — ou dit ce qui manque pour les lire."""
     page = page_text(client.get("/"))
 
-    assert "Où en est le mois" in page
-    assert "n'avance pas en jours" in page
+    assert "à date" in page
+    assert "une facture tombe quand elle tombe" in page
 
 def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
     """B5, première pièce : le mix par canal contre le plan se lit sans aucun taux, le
@@ -697,9 +697,9 @@ def test_the_screen_answers_whether_we_are_in_line_with_the_plan(client):
     base à côté — ou ce qui manque pour répondre."""
     page = page_text(client.get("/"))
 
-    assert "Sommes-nous en ligne avec le plan ?" in page
-    assert "Mois en cours" in page or "à date, jour" in page
     assert "Exercice à date" in page
+    assert "Mois en cours" in page or "à date, jour" in page
+    assert "Atterrissage" in page
 
 
 def test_the_perimeter_pages_exist_and_an_unknown_one_is_refused(client):

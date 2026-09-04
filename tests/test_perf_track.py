@@ -180,3 +180,32 @@ def test_an_unread_month_yields_no_verdict_and_says_why():
 
     assert not track.usable
     assert track.absent == ["aucune vente lue sur le mois en cours"]
+
+
+def test_no_word_before_a_full_week_but_the_figures_stay(tmp_path):
+    """Quatre jours lus, aucun week-end : le mot attend, les chiffres se montrent."""
+    review = M.build(_rows(120_000.0, 60_000.0, through="2026-09-04"),
+                     {"Northland": 1_000_000.0, "Southland": 500_000.0},
+                     _phasing(tmp_path), directory=DIRECTORY)
+    track = T.build(review)
+
+    month = track.group.month
+    assert month.usable and month.early and not month.decided
+    assert month.label == T.TOO_EARLY
+    assert month.actual == 180_000.0
+    assert track.month_sentence.startswith("Trop tôt pour conclure : 4 jours lus")
+    assert track.month_without == ""
+
+
+def test_the_sentence_names_who_is_ahead_and_who_is_behind(tmp_path):
+    """« En ligne au total » ne suffit pas : un périmètre en avance peut en cacher un
+    autre en retard. La phrase nomme les deux côtés, et dit ce que vaut le total sans le
+    seul périmètre qui le porte."""
+    review = _review(tmp_path, north=800_000.0, south=100_000.0)
+    track = T.build(review)
+
+    sentence = track.month_sentence
+    assert sentence.startswith("En ")
+    assert "en avance : Nord" in sentence
+    assert "en retard : Sud" in sentence
+    assert track.month_without.startswith("hors Nord : en retard")

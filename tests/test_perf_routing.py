@@ -208,13 +208,13 @@ def test_the_screen_shows_where_a_routed_item_went(monkeypatch):
     with TestClient(app) as client:
         page = client.get("/").text
 
-    assert "Not a commercial conversation" in page
+    assert "Pas une conversation commerciale" in page
     assert "United States Chain Wholesale" in page
     assert "Consolidation" in page
     assert "No CEO action" in page
 
     # And the ranking above it holds the market, not the boundary.
-    where_to_push = page.split("Not a commercial conversation")[0]
+    where_to_push = page.split("Pas une conversation commerciale")[0]
     assert "Japan E-commerce" in where_to_push
     assert "United States Chain Wholesale" not in where_to_push
 

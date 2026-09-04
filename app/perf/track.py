@@ -38,6 +38,13 @@ TOLERANCE = 0.02
 IN_LINE = "en ligne"
 AHEAD = "en avance"
 BEHIND = "en retard"
+TOO_EARLY = "trop tôt"
+
+#: Avant une semaine pleine, aucun mot sur le mois. Le 1er septembre 2026 est un mardi :
+#: quatre jours lus, aucun week-end, et la forme du mois suppose des jours égaux — une
+#: Amérique du Nord « en retard de quarante-cinq pour cent » n'était pas un fait, c'était
+#: l'absence de samedi. Les chiffres restent affichés ; le mot attend.
+MIN_DAYS = 7
 
 MONTHS_FR = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
              "septembre", "octobre", "novembre", "décembre")
@@ -67,10 +74,11 @@ def _fiscal_start(period: str) -> str:
 class Verdict:
     """Un réalisé contre une fourchette d'attendu, et le mot qui en sort."""
 
-    __slots__ = ("actual", "low", "high", "coverage", "basis", "absent")
+    __slots__ = ("actual", "low", "high", "coverage", "basis", "absent", "early")
 
     def __init__(self, actual: float = 0.0, low: float = 0.0, high: float = 0.0,
-                 coverage: float = 1.0, basis: str = "", absent: str = "") -> None:
+                 coverage: float = 1.0, basis: str = "", absent: str = "",
+                 early: bool = False) -> None:
         self.actual = actual
         self.low = low
         self.high = high
@@ -78,10 +86,17 @@ class Verdict:
         self.coverage = coverage
         self.basis = basis
         self.absent = absent
+        #: Moins d'une semaine pleine lue : les chiffres se montrent, le mot attend.
+        self.early = early
 
     @property
     def usable(self) -> bool:
         return not self.absent and self.high > 0
+
+    @property
+    def decided(self) -> bool:
+        """Un mot qui engage : lisible, et lu sur assez de jours pour conclure."""
+        return self.usable and not self.early
 
     @property
     def middle(self) -> float:
@@ -102,6 +117,15 @@ class Verdict:
 
     @property
     def label(self) -> str:
+        if not self.usable:
+            return ""
+        if self.early:
+            return TOO_EARLY
+        return self.direction
+
+    @property
+    def direction(self) -> str:
+        """Le mot que les chiffres donneraient, jours comptés ou non."""
         if not self.usable:
             return ""
         margin = TOLERANCE * self.middle
@@ -178,15 +202,83 @@ class Track:
     def tolerance_label(self) -> str:
         return "%.0f %%" % (TOLERANCE * 100)
 
+    @property
+    def days_label(self) -> str:
+        return "%d jour%s lu%s" % (self.day, "s" if self.day > 1 else "",
+                                   "s" if self.day > 1 else "")
+
+    def _named(self, which: str, label: str) -> List[str]:
+        return [scope.name for scope in self.perimeters
+                if scope.name != "Sans périmètre"
+                and getattr(scope, which).usable and getattr(scope, which).direction == label]
+
+    def sentence(self, which: str) -> str:
+        """Le verdict avec sa composition : « en ligne au total · en retard : Brésil, Japon ».
+
+        Un total en ligne cache un périmètre à moins seize pour cent, et un mois en ligne
+        peut l'être grâce à un seul périmètre qui compense cinq autres. La phrase entière
+        nomme les deux côtés ; le mot seul ne suffit pas à un lecteur qui doit appeler
+        quelqu'un.
+        """
+        verdict = getattr(self.group, which)
+        if not verdict.usable:
+            return ""
+        if verdict.early:
+            head = "Trop tôt pour conclure : %s, revoir après une semaine pleine" % self.days_label
+        else:
+            head = "%s au total (%s)" % (verdict.label.capitalize(), verdict.gap_label)
+        parts = [head]
+        ahead = self._named(which, AHEAD)
+        behind = self._named(which, BEHIND)
+        if ahead:
+            parts.append("en avance : %s" % ", ".join(ahead))
+        if behind:
+            parts.append("en retard : %s" % ", ".join(behind))
+        return " · ".join(parts)
+
+    @property
+    def month_sentence(self) -> str:
+        return self.sentence("month")
+
+    @property
+    def year_sentence(self) -> str:
+        return self.sentence("year")
+
+    @property
+    def month_without(self) -> str:
+        """« Hors Greater China : en retard » quand un seul périmètre porte le total."""
+        return self._without("month")
+
+    @property
+    def year_without(self) -> str:
+        return self._without("year")
+
+    def _without(self, which: str) -> str:
+        verdict = getattr(self.group, which)
+        if not verdict.decided:
+            return ""
+        ahead = [scope for scope in self.perimeters
+                 if getattr(scope, which).usable and getattr(scope, which).direction == AHEAD]
+        if len(ahead) != 1 or verdict.direction == BEHIND:
+            return ""
+        top = ahead[0]
+        rest = Verdict(verdict.actual - getattr(top, which).actual,
+                       verdict.low - getattr(top, which).low,
+                       verdict.high - getattr(top, which).high)
+        if rest.usable and rest.direction != verdict.direction:
+            return "hors %s : %s (%s)" % (top.name, rest.direction, rest.gap_label)
+        return ""
+
 
 # --------------------------------------------------------------------- le mois
 
 
-def month_verdict(lines: Sequence["month_module.Line"]) -> Verdict:
+def month_verdict(lines: Sequence["month_module.Line"], day: int = MIN_DAYS) -> Verdict:
     """Le verdict du mois sur un ensemble de marchés : ceux qui se lisent, sommés.
 
     Un marché sans plan ou sans forme de mois n'entre ni au réalisé ni à l'attendu — les
     deux termes portent sur les mêmes marchés — et la couverture dit ce qu'ils pèsent.
+    Avant `MIN_DAYS` jours lus, le mot est « trop tôt » et les chiffres restent.
     """
     # Un marché dont le 1er encaisse une campagne de plateforme sort du verdict : son
     # avancement au 3 compare un jour d'encaissement à des exercices sans. Il reste à
@@ -202,7 +294,8 @@ def month_verdict(lines: Sequence["month_module.Line"]) -> Verdict:
     covered = sum(line.target for line in readable)
     return Verdict(actual, low, high, covered / plan if plan else 0.0,
                    basis="entrepôt, sell-out, %d marché%s" % (len(readable),
-                                                              "s" if len(readable) > 1 else ""))
+                                                              "s" if len(readable) > 1 else ""),
+                   early=day < MIN_DAYS)
 
 
 # -------------------------------------------------------------------- l'année
@@ -252,7 +345,7 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
     period = review.month
     groups = list(review.groups) + ([review.loose] if review.loose else [])
     every_line = [line for group in groups for line in group.lines]
-    group_month = month_verdict(every_line)
+    group_month = month_verdict(every_line, review.day)
     if not group_month.usable:
         absent.append("Mois en cours : %s." % group_month.absent)
     campaign = [line.market for line in every_line if line.lumpy and line.target > 0]
@@ -333,7 +426,7 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
             caveats.append("%s du cumul publié n'est dans aucun périmètre : %s."
                            % (format_eur(loose_actual), ", ".join(loose)))
     for group in review.groups:
-        month = month_verdict(group.lines)
+        month = month_verdict(group.lines, review.day)
         if closed_through and published is not None:
             mine = [market for market, name in published_markets.items() if name == group.name]
             actual, budget = _closed_for(published, mine)
@@ -344,7 +437,7 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
             year = Verdict(absent=year_absent)
         perimeters.append(Scope(group.name, group.lead, month, year))
     if review.loose:
-        loose_month = month_verdict(review.loose.lines)
+        loose_month = month_verdict(review.loose.lines, review.day)
         perimeters.append(Scope("Sans périmètre", "", loose_month,
                                 Verdict(absent="marchés qu'aucun périmètre ne place")))
 
