@@ -492,7 +492,7 @@ def load(path: str) -> "Calendar":
     return Calendar(series, faults, path)
 
 
-def same_event(left: "Series", right: "Series") -> bool:
+def same_event(left: "Series", right: "Series", across_countries: bool = False) -> bool:
     """Deux séries décrivent-elles le même événement ?
 
     Par leurs dates, jamais par leur nom : « Black Friday », « Black Friday — jour
@@ -500,8 +500,12 @@ def same_event(left: "Series", right: "Series") -> bool:
     sont les mêmes jours sous des intitulés que deux auteurs ont choisis séparément. Deux
     séries d'un même pays qui tombent aux mêmes dates sur au moins deux exercices communs
     sont une seule série, et l'afficher deux fois donne à un candidat le poids de deux.
+
+    `across_countries` sert au rapprochement d'un marché rattaché à deux pays voisins :
+    la mi-automne de la Chine et celle de Hong Kong tombent le même jour, et pour Macao
+    c'est la même fête.
     """
-    if not same_country(left.country, right.country):
+    if not across_countries and not same_country(left.country, right.country):
         return False
     shared = set(left.dated) & set(right.dated)
     if len(shared) < 2:

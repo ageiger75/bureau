@@ -3881,7 +3881,8 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
                 # Un marché rattaché à deux pays voisins voit deux fois la même fête, aux
                 # mêmes dates. La lister deux fois donnerait à un candidat unique le poids
                 # apparent de deux.
-                if any(events_module.same_event(held, series) for held in candidates):
+                if any(events_module.same_event(held, series, across_countries=True)
+                       for held in candidates):
                     continue
                 candidates.append(series)
         # Les deux absences sont séparées parce qu'elles appellent deux gestes différents,
