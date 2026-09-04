@@ -45,6 +45,8 @@ COUNTRY_ALIASES = {
     "japon": "Japan",
     "chine": "China",
     "hong kong": "Hong Kong",
+    "macao": "Macau",
+    "macau": "Macau",
     "brésil": "Brazil",
     "bresil": "Brazil",
     "france": "France",

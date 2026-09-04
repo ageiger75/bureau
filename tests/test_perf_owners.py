@@ -368,3 +368,18 @@ def test_a_directory_edited_while_the_server_runs_is_seen_at_the_next_reading(
 
     assert owners.current().owner_for("Nordland").name == "Un DIRIGEANT"
     owners.reset()
+
+
+def test_macao_is_named_as_the_warehouse_names_it(tmp_path):
+    """La ligne existait dans l'annuaire, sous son nom français, et le module refusait de
+    la revendiquer faute de savoir la traduire. Un membre qu'il ne sait pas nommer est un
+    membre qu'il ne revendique pas — la règle est juste, la table était incomplète."""
+    book = directory_file(
+        tmp_path,
+        rows=[LEADERS_HEADER,
+              ["Greater Nord", "MD", "Une", "DIRIGEANTE", "Managing Director", "Macao", ""]],
+        lookup=[LOOKUP_HEADER, ["Macao", "Greater Nord", "Une DIRIGEANTE", "", "", ""]],
+        name="lookup.xlsx",
+    )
+
+    assert owners.load(book).owner_for("Macau").name == "Une DIRIGEANTE"
