@@ -292,6 +292,7 @@ def dataset() -> Dataset:
         period_label="Sales MTD",
         as_of=today().isoformat(),
         units=units(),
+        period=today().strftime("%Y-%m"),
         # Invented like everything else here, but present: a block that only ever renders
         # against the warehouse is a block nobody looks at until it is wrong in front of
         # the person it was built for. The unmatched amounts are included on purpose —

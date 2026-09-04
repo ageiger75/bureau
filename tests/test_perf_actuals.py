@@ -433,3 +433,40 @@ def test_the_month_is_read_from_a_name_that_writes_it_in_words():
     # Digits still win where both are written.
     both = actuals.period_of("Sales April 2026_05.xlsx")
     assert (both.year, both.month) == (2026, 5)
+
+
+def test_the_reading_declares_the_month_it_speaks_for(tmp_path):
+    """June's figures once sat under an August heading because nothing compared the two.
+    Each layout says its month somewhere — the sheet name, the Period cell, the file
+    name — and the reading carries it."""
+    named = _workbook(tmp_path / "Sales by country by channel August 26.xlsx", {
+        "DATA AUGUST": _named([[MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out",
+                                "Retail", 1.0, 1.0, 1.0]])})
+    read = actuals.load(named)
+    assert (read.year, read.month, read.period) == (2026, 8, "2026-08")
+    assert read.month_label == "August"
+
+    legacy = actuals.load(str(tmp_path / "nowhere 2026 05.xlsx"))
+    assert legacy.month is None  # a missing file declares nothing
+
+
+def test_the_cfo_extract_declares_its_month_from_its_own_cells(tmp_path):
+    blank = [None, None]
+    rows = [
+        [None, None, "SAL_RE_015 - Sales Data Set"],
+        [None, "Scenario", "FY27_ACT - Actual 2027"],
+        [None, "Period", "05 - August"],
+        blank + [None] * 6 + ["Published rate", None, "Constant rate", None, "Published rate"],
+        blank + [None] * 6 + ["Actual 2027", "Actual 2026", "Actual 2027", "Actual 2026",
+                              "Budget 2027"],
+        blank + ["Brand", "Entities", "Management Unit - Parent", "Management Unit - Lowest",
+                 "PCC - Parent", "PCC - Lowest", "Sales", "Sales", "Sales", "Sales", "Sales"],
+        blank + [MAISON, "E001", "Greater Europe", "Northland", "Sell out", "Retail",
+                 9.0, 9.0, 1.0, 1.0, 1.0],
+    ]
+    path = _workbook(tmp_path / "extract.xlsx", {"Sales Data Set MTD": rows})
+    read = actuals.load(path)
+
+    assert (read.year, read.month) == (2026, 8)
+    # FY27 opens in April 2026: a January would belong to 2027.
+    assert actuals._dataset_period([[None, "Scenario", "FY27_ACT"], [None, "Period", "10 - January"]]) == (2027, 1)

@@ -50,6 +50,8 @@
     python -m app.cli phasing        la forme des mois, et ceux qui n'en ont pas de stable
                                      --sell-in · --sell-out · --distance · --markets
                                      retail par défaut · --outlets · --all-channels
+    python -m app.cli track          sommes-nous en ligne avec le plan : le mois en cours
+                                     et l'exercice à date, groupe et périmètres
     python -m app.cli mix            le mix du mois contre le plan, repondéré aux taux
                                      moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
@@ -4093,6 +4095,56 @@ def cmd_stores(argv: List[str]) -> int:
     return 0
 
 
+def cmd_track(argv: List[str]) -> int:
+    """Sommes-nous en ligne avec le plan — le mois en cours et l'exercice à date.
+
+    Le mois se lit dans l'entrepôt, en sell-out, contre la forme des mois ; l'exercice
+    additionne les mois clos publiés par la consolidation et le mois en cours. Un mot par
+    période et par périmètre, avec la base et l'écart à côté.
+    """
+    from .perf.analytics import format_eur
+    from .perf.source import current_source
+    from .routes.today import _month_review, _track
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    review = _month_review(source)
+    track = _track(dataset, review)
+    if not track.usable:
+        for reason in track.absent:
+            print(reason, file=sys.stderr)
+        return 2
+
+    def show(title, verdict):
+        if verdict.usable:
+            expected = (format_eur(verdict.middle) if verdict.narrow
+                        else "%s à %s" % (format_eur(verdict.low), format_eur(verdict.high)))
+            print("%-36s %-10s  réalisé %s · attendu %s · %s"
+                  % (title, verdict.label.upper(), format_eur(verdict.actual), expected,
+                     verdict.gap_label))
+            print("%-36s %s" % ("", verdict.basis))
+        else:
+            print("%-36s —  %s" % (title, verdict.absent))
+
+    show(track.month_title, track.group.month)
+    show(track.year_title, track.group.year)
+    print("")
+    print("  %-28s %-12s %-14s %-12s %-14s" % ("Périmètre", "mois", "écart", "exercice", "écart"))
+    for scope in track.perimeters:
+        month = (scope.month.label, scope.month.gap_label) if scope.month.usable else ("—", "")
+        year = (scope.year.label, scope.year.gap_label) if scope.year.usable else ("—", "")
+        print("  %-28s %-12s %-14s %-12s %-14s" % (
+            (scope.name + (" · " + scope.lead if scope.lead else ""))[:28],
+            month[0], month[1], year[0], year[1]))
+    print("")
+    print("En ligne : réalisé dans l'attendu à %s près." % track.tolerance_label)
+    for caveat in track.caveats:
+        print(caveat)
+    for reason in track.absent:
+        print(reason)
+    return 0
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -4148,6 +4200,8 @@ def main(argv: List[str]) -> int:
         return cmd_phasing(argv[1:])
     if command == "month":
         return cmd_month(argv[1:])
+    if command == "track":
+        return cmd_track(argv[1:])
     if command == "mix":
         return cmd_mix(argv[1:])
     if command == "stores":

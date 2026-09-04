@@ -416,11 +416,44 @@ def _inputs_generation():
 
 
 def _published_month():
-    """The month as Finance publishes it, whole, or nothing where the file is absent."""
+    """The month as Finance publishes it, whole, or nothing where the file is absent.
+
+    Carries the month the file declares, because the screen once showed June's figures
+    under an August heading: the amounts came from the file, the heading from the
+    warehouse, and nothing compared the two.
+    """
     from . import actuals as actuals_module
 
     read = actuals_module.current(month=True)
-    return read.totals() if read.lines else None
+    if not read.lines:
+        return None
+    totals = read.totals()
+    hospitality = read.totals((actuals_module.HOSPITALITY,))
+    totals["hospitality"] = hospitality["actual"]
+    totals["hospitality_gap"] = hospitality["actual"] - hospitality["budget"]
+    totals["period"] = read.period
+    totals["month"] = read.month
+    totals["month_label"] = read.month_label
+    return totals
+
+
+def _published_for(period: str):
+    """The published month if it is the month on the headline; otherwise a note."""
+    published = _published_month()
+    if published is None:
+        return None, ""
+    declared = published.get("month")
+    try:
+        wanted = int(period[5:7])
+    except (TypeError, ValueError):
+        wanted = None
+    if declared and wanted and declared != wanted:
+        return None, ("The published file speaks for %s, the screen for %s: its figures "
+                      "are not on this headline. Drop the month's file into var/ to read "
+                      "the month as Finance closed it."
+                      % (published.get("month_label") or "another month",
+                         _MONTHS[wanted - 1]))
+    return published, ""
 
 
 def _published_year():
@@ -723,6 +756,7 @@ class SnowflakeSource:
         # quiet inaccuracy that costs a screen its standing the first time anyone checks
         # it against the accounts.
         shipped = {str(r.get("period") or "") for r in current if r.get("segment")}
+        published_month, published_note = _published_for(period)
         built = Dataset(
             period_label=_period_label(period, max(shipped) if shipped else ""),
             # The moment of the read, not the period — and to the minute, because the
@@ -741,7 +775,9 @@ class SnowflakeSource:
                             published=_published_year())
             if history is not None
             else None,
-            published_month=_published_month(),
+            published_month=published_month,
+            period=period,
+            published_note=published_note,
         )
         if stored is None:
             _write_disk_cache(rows, stamp, read_at_text)

@@ -188,13 +188,29 @@ class Line:
 class Actuals:
     """Everything the file carries for one Maison, and what it could not read."""
 
-    __slots__ = ("lines", "faults", "path", "sheet")
+    __slots__ = ("lines", "faults", "path", "sheet", "year", "month")
 
-    def __init__(self, lines, faults, path="", sheet="") -> None:
+    def __init__(self, lines, faults, path="", sheet="", year=None, month=None) -> None:
         self.lines = list(lines)
         self.faults = list(faults)
         self.path = path
         self.sheet = sheet
+        #: The month this reading speaks for, when the file says. A screen once showed
+        #: June's figures under an August heading because nothing checked: the amounts
+        #: came from the file, the heading from the warehouse, and the file was old.
+        self.year = year
+        self.month = month
+
+    @property
+    def period(self) -> str:
+        """`2026-08`, or empty when the file does not say which year — or which month."""
+        if self.year and self.month:
+            return "%04d-%02d" % (self.year, self.month)
+        return ""
+
+    @property
+    def month_label(self) -> str:
+        return MONTH_NAMES[self.month - 1].title() if self.month else ""
 
     @property
     def usable(self) -> bool:
@@ -503,6 +519,53 @@ def _lines_dataset(rows: Sequence, brand: str):
     return _lines_from(rows, brand, at, index + 1, keys)
 
 
+def _dataset_period(rows: Sequence):
+    """The month the CFO's extract declares: `Period 05 - August`, `Scenario FY27_ACT`."""
+    month = year = None
+    for row in rows[:12]:
+        cells = [" ".join(str(cell).split()) for cell in row if cell not in (None, "")]
+        for index, cell in enumerate(cells[:-1]):
+            if cell.lower() == "period":
+                name = cells[index + 1].split("-")[-1].strip().upper()
+                if name in MONTH_NAMES:
+                    month = MONTH_NAMES.index(name) + 1
+            if cell.lower() == "scenario":
+                text = cells[index + 1].upper()
+                if text.startswith("FY") and text[2:4].isdigit():
+                    year = 2000 + int(text[2:4])
+    if month and year:
+        # FY27 opens in April 2026: a month from April on belongs to the calendar year
+        # before the fiscal label, the rest to the same year.
+        year = year - 1 if month >= FISCAL_OPENS else year
+    return year, month
+
+
+def _period_for(path: str, found: str, layout: str, rows: Sequence):
+    """(year, month) the sheet speaks for, from wherever the workbook writes it."""
+    named = period_of(path)
+    if layout == LAYOUT_DATASET:
+        year, month = _dataset_period(rows)
+        if month:
+            return year or (named.year if named and named.month == month else None), month
+    if layout == LAYOUT_NAMED:
+        upper = " ".join(found.split()).upper()
+        rest = upper[len("DATA YTD "):] if upper.startswith("DATA YTD ") else upper[len("DATA "):]
+        if rest.strip() in MONTH_NAMES:
+            month = MONTH_NAMES.index(rest.strip()) + 1
+            if named and named.month == month:
+                return named.year, month
+            # The sheet names its month and nothing in the workbook names the year. A
+            # closing file is published within weeks of its month, so the month is the
+            # most recent one of that name already behind us.
+            import datetime
+
+            today = datetime.date.today()
+            return (today.year if month < today.month else today.year - 1), month
+    if named is not None:
+        return named.year, named.month
+    return None, None
+
+
 def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
     """Read one sheet of the published file, in whichever layout the workbook uses.
 
@@ -541,7 +604,8 @@ def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
         lines, faults = _lines_dataset(rows, brand)
     if not lines:
         faults.append("aucune ligne %s dans %r" % (brand, found))
-    return Actuals(lines, faults, path, found)
+    year, month = _period_for(path, found, layout, rows)
+    return Actuals(lines, faults, path, found, year=year, month=month)
 
 
 def by_scope(read: "Actuals") -> Dict[str, "Line"]:

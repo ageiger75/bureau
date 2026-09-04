@@ -16,6 +16,11 @@
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>
   <p class="cockpit-total">{{ (dataset.ytd.actual if dataset.ytd else header.actual) | eur }}</p>
+  {% if dataset.published_note %}
+    {# A file is there and is not used: it speaks for another month. Said at the top,
+       because the alternative was June's figures under an August heading. #}
+    <p class="cockpit-caveat">{{ dataset.published_note }}</p>
+  {% endif %}
   {% if header.published %}
     {# It stopped being the incomplete figure the moment it stopped being assembled here.
        The old sentence named an exclusion that no longer exists, under a total that now
@@ -209,15 +214,87 @@
            the reason it must never be quietly swapped for a sell-through one. #}
         Sold and shipped together, as the accounts recognise them: stores and own sites
         at the point of sale, partners at the invoice.
-        {% if dataset.ytd.hospitality_actual %}
+        {% if header.published and dataset.published_month.hospitality %}
+          {# The month's own figure. The year's used to sit here, under the month's
+             heading, five times larger than the month it appeared to describe. #}
           Hospitality and corporate gifts included —
-          {{ dataset.ytd.hospitality_actual | eur }} sold,
-          {{ dataset.ytd.hospitality_gap | eur }} against plan.
+          {{ dataset.published_month.hospitality | eur }} sold this month,
+          {{ dataset.published_month.hospitality_gap | eur }} against plan.
+        {% elif dataset.ytd.hospitality_actual %}
+          Hospitality and corporate gifts included in the year.
         {% else %}
           Hospitality and corporate gifts are still outside — about 3% of the plan.
         {% endif %}
       </p>
     </div>
+  {% endif %}
+</section>
+
+<section class="panel" id="en-ligne">
+  <h2>Sommes-nous en ligne avec le plan ?</h2>
+  {% if track and track.usable %}
+    <div class="verdicts">
+      <div class="verdict">
+        <p class="verdict-title">{{ track.month_title }}</p>
+        {% if track.group.month.usable %}
+          <p class="verdict-word is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</p>
+          <p class="verdict-figures">{{ track.group.month.actual | eur }} vendus · attendu {% if track.group.month.narrow %}{{ track.group.month.middle | eur }}{% else %}{{ track.group.month.low | eur }} à {{ track.group.month.high | eur }}{% endif %} · <strong>{{ track.group.month.gap_label }}</strong></p>
+          <p class="verdict-basis">{{ track.group.month.basis }} · {{ track.group.month.coverage_label }} du plan sell-out du mois</p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">{{ track.group.month.absent }}</p>
+        {% endif %}
+      </div>
+      <div class="verdict">
+        <p class="verdict-title">{{ track.year_title }}</p>
+        {% if track.group.year.usable %}
+          <p class="verdict-word is-{{ track.group.year.label | replace(' ', '-') }}">{{ track.group.year.label }}</p>
+          <p class="verdict-figures">{{ track.group.year.actual | eur }} vendus · attendu {% if track.group.year.narrow %}{{ track.group.year.middle | eur }}{% else %}{{ track.group.year.low | eur }} à {{ track.group.year.high | eur }}{% endif %} · <strong>{{ track.group.year.gap_label }}</strong></p>
+          <p class="verdict-basis">{{ track.group.year.basis }}</p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">{{ track.group.year.absent }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% if track.perimeters %}
+      <table class="month-table mix-table">
+        <thead>
+          <tr><th>Périmètre</th><th>Mois à date</th><th>Écart</th><th>Exercice à date</th><th>Écart</th></tr>
+        </thead>
+        <tbody>
+        {% for scope in track.perimeters %}
+          <tr>
+            <td>{{ scope.name }}{% if scope.lead %} <small>· {{ scope.lead }}</small>{% endif %}</td>
+            {% if scope.month.usable %}
+              <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
+              <td class="num" title="{{ scope.month.basis }} · {{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
+            {% else %}
+              <td class="absent" colspan="2">{{ scope.month.absent }}</td>
+            {% endif %}
+            {% if scope.year.usable %}
+              <td class="verdict-cell is-{{ scope.year.label | replace(' ', '-') }}">{{ scope.year.label }}</td>
+              <td class="num" title="{{ scope.year.basis }}">{{ scope.year.gap_label }}</td>
+            {% else %}
+              <td class="absent" colspan="2">{{ scope.year.absent }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+    <p class="cockpit-caveat">
+      En ligne : le réalisé est dans l'attendu, à {{ track.tolerance_label }} près. L'attendu du
+      mois est le plan du mois multiplié par la part que chaque marché fait d'ordinaire à
+      cette date, une fourchette quand ses exercices ne s'accordent pas. Un écart en
+      fourchette se lit du pire au meilleur cas.
+    </p>
+    {% for caveat in track.caveats %}<p class="cockpit-caveat">{{ caveat }}</p>{% endfor %}
+    {% for reason in track.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">
+      {% for reason in track.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
   {% endif %}
 </section>
 

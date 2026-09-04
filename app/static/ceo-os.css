@@ -933,3 +933,16 @@ input:focus, textarea:focus, select:focus {
 .mix-calc dt { font-weight: 600; }
 .mix-calc dd { margin: 0; font-variant-numeric: tabular-nums; }
 .mix-calc small { opacity: 0.75; }
+
+/* ---- Sommes-nous en ligne : deux verdicts, un mot chacun, la base dessous ---- */
+.verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.2rem; margin: 0.6rem 0 1.2rem; }
+.verdict { padding: 0.9rem 1rem; background: var(--paper-warm, rgba(127, 127, 127, 0.08)); }
+.verdict-title { margin: 0 0 0.2rem; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.8; }
+.verdict-word { margin: 0; font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.verdict-figures { margin: 0.3rem 0 0; font-variant-numeric: tabular-nums; }
+.verdict-basis { margin: 0.3rem 0 0; font-size: 0.85rem; opacity: 0.75; }
+.verdict-cell { font-weight: 600; white-space: nowrap; }
+.is-en-ligne { color: var(--ink); }
+.is-en-avance { color: var(--good, #2e6b3a); }
+.is-en-retard { color: var(--warn, #9a3b2e); }
+.verdict-word.is-absent { opacity: 0.5; }

@@ -329,6 +329,27 @@ def targets_from_budget(budget, period: str) -> Dict[str, Optional[float]]:
     return found
 
 
+def place_markets(markets: Sequence[str], org=None, directory=None):
+    """Marché → périmètre, et périmètre → MD. L'annuaire d'abord, l'organigramme ensuite."""
+    from . import perimeter as perimeter_module
+
+    placed: Dict[str, str] = {}
+    leads: Dict[str, str] = {}
+    if directory is not None and len(directory):
+        for market in markets:
+            entry = directory.entry_for(market)
+            if entry is not None and entry.bu:
+                placed[market] = entry.bu
+                leads.setdefault(entry.bu, entry.name)
+    if org is not None and getattr(org, "usable", False):
+        for market, name in perimeter_module.place(
+                org, [market for market in markets if market not in placed]).items():
+            placed[market] = name
+        for name, person in org.leads().items():
+            leads.setdefault(name, person.name)
+    return placed, leads
+
+
 def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
           phasing: Optional["pace_module.Phasing"], org=None,
           directory=None) -> "Review":
@@ -343,8 +364,6 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
     le second, et dix-neuf marchés se retrouvaient « sans périmètre » alors que le
     lecteur avait déjà donné la réponse, pays par pays, dans le premier.
     """
-    from . import perimeter as perimeter_module
-
     absent: List[str] = []
     days = [_day(row.get("read_through")) for row in rows]
     days = [day for day in days if day is not None]
@@ -372,20 +391,7 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
                                         within=within)
         lines.append(Line(market, progress, first_day=_number(row.get("first_day_sales"))))
 
-    placed: Dict[str, str] = {}
-    leads: Dict[str, str] = {}
-    if directory is not None and len(directory):
-        for line in lines:
-            entry = directory.entry_for(line.market)
-            if entry is not None and entry.bu:
-                placed[line.market] = entry.bu
-                leads.setdefault(entry.bu, entry.name)
-    if org is not None and getattr(org, "usable", False):
-        for market, name in perimeter_module.place(
-                org, [line.market for line in lines if line.market not in placed]).items():
-            placed[market] = name
-        for name, person in org.leads().items():
-            leads.setdefault(name, person.name)
+    placed, leads = place_markets([line.market for line in lines], org, directory)
     if not placed:
         absent.append("ni annuaire ni organigramme : les marchés ne sont pas rangés "
                       "par périmètre")

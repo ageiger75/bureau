@@ -690,3 +690,13 @@ def test_the_rent_share_panel_is_on_the_screen_or_says_what_it_waits_for(client)
 
     assert "La part loyer du prochain euro" in page
     assert "stores-sales.xlsx" in page
+
+
+def test_the_screen_answers_whether_we_are_in_line_with_the_plan(client):
+    """La question que le lecteur pose en ouvrant l'écran, avec un mot par période et la
+    base à côté — ou ce qui manque pour répondre."""
+    page = page_text(client.get("/"))
+
+    assert "Sommes-nous en ligne avec le plan ?" in page
+    assert "Mois en cours" in page or "à date, jour" in page
+    assert "Exercice à date" in page

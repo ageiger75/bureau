@@ -46,7 +46,16 @@ def test_the_units_are_rebuilt_when_the_published_file_changes(monkeypatch):
         before = SnowflakeSource().dataset()
         assert not before.headline_is_published
 
+        # The screen is July's; a file speaking for August is refused, and says so.
         _workbook(path, {"DATA AUGUST": _named([
+            [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Retail",
+             120.0, 110.0, 100.0],
+        ])})
+        wrong_month = SnowflakeSource().dataset()
+        assert not wrong_month.headline_is_published
+        assert "August" in wrong_month.published_note and "July" in wrong_month.published_note
+
+        _workbook(path, {"DATA JULY": _named([
             [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Retail",
              120.0, 110.0, 100.0],
         ])})
@@ -54,6 +63,7 @@ def test_the_units_are_rebuilt_when_the_published_file_changes(monkeypatch):
 
         assert after.headline_is_published
         assert after.headline_actual == 120_000.0
+        assert after.published_note == ""
     finally:
         if path.exists():
             os.remove(str(path))

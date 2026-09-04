@@ -124,6 +124,22 @@ def _stores_review():
     return stores_module.build(sales, register)
 
 
+def _track(dataset, month):
+    """Sommes-nous en ligne avec le plan — le mois en cours et l'exercice à date."""
+    from ..config import settings
+    from ..perf import actuals as actuals_module
+    from ..perf import owners
+    from ..perf import perimeter as perimeter_module
+    from ..perf import track as track_module
+
+    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    return track_module.build(month, published=published,
+                              warehouse_year=getattr(dataset, "ytd", None),
+                              org=org, directory=directory)
+
+
 @router.get("/freshness")
 def freshness():
     """When the figures in memory were read. Polled by the page, never by a person.
@@ -188,6 +204,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     bulk_findings = getattr(source, "bulk_findings", list)()
     month = _month_review(source)
     mix = _mix_review(dataset)
+    track = _track(dataset, month)
     stores = _stores_review()
 
     fires = analytics.fires(dataset)
@@ -282,6 +299,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "week": week,
             "month": month,
             "mix": mix,
+            "track": track,
             "stores": stores,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who

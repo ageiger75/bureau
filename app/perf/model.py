@@ -638,7 +638,8 @@ class BusinessUnit:
 class Dataset:
     """The whole normalised dataset for one period."""
 
-    __slots__ = ("period_label", "as_of", "units", "ytd", "published_month")
+    __slots__ = ("period_label", "as_of", "units", "ytd", "published_month", "period",
+                 "published_note")
 
     def __init__(
         self,
@@ -647,10 +648,17 @@ class Dataset:
         units: Sequence[BusinessUnit],
         ytd=None,
         published_month=None,
+        period: str = "",
+        published_note: str = "",
     ) -> None:
         self.period_label = period_label
         self.as_of = as_of
         self.units = list(units)
+        #: `2026-08` — the month the units describe. Empty where the source does not say.
+        self.period = period
+        #: Why the published month is not on the headline, when a file is there and is
+        #: not used: it speaks for another month than the one the screen is headed with.
+        self.published_note = published_note
         #: The fiscal year to date, when a history was read. None means no history, which
         #: the screen says rather than papering over with a single month's figure.
         self.ytd = ytd
