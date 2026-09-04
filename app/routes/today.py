@@ -89,9 +89,12 @@ def _month_review(source):
         targets = source.month_targets(period) if period else {}
     except NotImplementedError as why:
         targets = {}
+    from ..perf import owners
+
     phasing = pace_module.current() if settings.has_phasing_file else None
     org = perimeter_module.current() if settings.has_org_file else None
-    return month_module.build(rows, targets, phasing, org)
+    directory = owners.current() if settings.has_owners_file else None
+    return month_module.build(rows, targets, phasing, org, directory=directory)
 
 
 @router.get("/freshness")

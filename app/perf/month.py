@@ -298,11 +298,18 @@ def targets_from_budget(budget, period: str) -> Dict[str, Optional[float]]:
 
 
 def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
-          phasing: Optional["pace_module.Phasing"], org=None) -> "Review":
+          phasing: Optional["pace_module.Phasing"], org=None,
+          directory=None) -> "Review":
     """Joindre le réalisé du mois, le plan et la forme des mois, et ranger par périmètre.
 
     `rows` est le contrat de `MONTH_TO_DATE` : `market · iso2 · sales_to_date ·
     read_through`. `targets` est indexé par le nom de marché normalisé du plan.
+
+    **L'annuaire place d'abord, l'organigramme ensuite.** L'annuaire nomme chaque pays
+    avec sa BU et son MD, un par ligne ; l'organigramme nomme des zones — « Nordics »,
+    « Europe du Sud » — que le code refuse d'ouvrir. La première version ne lisait que
+    le second, et dix-neuf marchés se retrouvaient « sans périmètre » alors que le
+    lecteur avait déjà donné la réponse, pays par pays, dans le premier.
     """
     from . import perimeter as perimeter_module
 
@@ -335,12 +342,21 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
 
     placed: Dict[str, str] = {}
     leads: Dict[str, str] = {}
+    if directory is not None and len(directory):
+        for line in lines:
+            entry = directory.entry_for(line.market)
+            if entry is not None and entry.bu:
+                placed[line.market] = entry.bu
+                leads.setdefault(entry.bu, entry.name)
     if org is not None and getattr(org, "usable", False):
-        placed = perimeter_module.place(org, [line.market for line in lines])
+        for market, name in perimeter_module.place(
+                org, [line.market for line in lines if line.market not in placed]).items():
+            placed[market] = name
         for name, person in org.leads().items():
-            leads[name] = person.name
-    else:
-        absent.append("organigramme absent : les marchés ne sont pas rangés par périmètre")
+            leads.setdefault(name, person.name)
+    if not placed:
+        absent.append("ni annuaire ni organigramme : les marchés ne sont pas rangés "
+                      "par périmètre")
 
     by_perimeter: Dict[str, List[Line]] = {}
     unplaced: List[Line] = []

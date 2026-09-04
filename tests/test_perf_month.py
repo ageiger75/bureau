@@ -95,7 +95,7 @@ def test_without_an_org_the_markets_are_still_read_and_the_absence_is_named(tmp_
     review = M.build(_rows(), {"Japan": 4_000_000.0}, _phasing(tmp_path), org=None)
 
     assert review.usable and not review.groups
-    assert any("organigramme absent" in reason for reason in review.absent)
+    assert any("ni annuaire ni organigramme" in reason for reason in review.absent)
 
 
 def test_a_month_with_nothing_read_is_an_absence_and_not_a_month_at_zero():
@@ -228,3 +228,30 @@ def test_the_fold_never_swallows_the_only_market(tmp_path):
 
     assert [line.market for line in review.loose.shown] == ["Japan"]
     assert review.loose.rest is None
+
+
+def test_the_directory_places_a_country_the_org_chart_only_names_by_zone(tmp_path):
+    """Le lecteur avait déjà donné la réponse, pays par pays, dans l'annuaire ; le code
+    ne lisait que l'organigramme, qui nomme des zones qu'il refuse d'ouvrir. Dix-neuf
+    marchés « sans périmètre » pour une réponse déjà écrite."""
+    from app.perf import owners
+
+    class Entry:
+        def __init__(self, name, bu):
+            self.name, self.bu = name, bu
+
+    class Directory:
+        def __len__(self):
+            return 2
+
+        def entry_for(self, market, region=""):
+            return {"Japan": Entry("Une dirigeante", "Japon"),
+                    "Northland": Entry("Un dirigeant", "EMEA")}.get(market)
+
+    review = M.build(_rows(), {"Japan": 4_000_000.0, "Northland": 1_000_000.0},
+                     _phasing(tmp_path), org=None, directory=Directory())
+
+    assert sorted(group.name for group in review.groups) == ["EMEA", "Japon"]
+    assert not review.unplaced
+    assert {g.name: g.lead for g in review.groups} == {"Japon": "Une dirigeante",
+                                                       "EMEA": "Un dirigeant"}

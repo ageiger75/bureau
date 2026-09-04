@@ -118,7 +118,7 @@ class Week:
         return len(self.attention) + len(self.watch) + len(self.annex)
 
 
-def assign_owners(register, org, markets=()) -> int:
+def assign_owners(register, org, markets=(), directory=None) -> int:
     """Donner à chaque sujet de marché le MD qui en répond, quand la source le place.
 
     Sans cette étape, « personne n'en répond » se déclenchait sur tous les sujets à la
@@ -134,18 +134,25 @@ def assign_owners(register, org, markets=()) -> int:
     """
     from . import perimeter as perimeter_module
 
-    if org is None or not org.usable:
-        return 0
-    placed = perimeter_module.place(org, list(markets) or _scopes_of(register))
+    scopes = list(markets) or _scopes_of(register)
+    placed = {}
+    if org is not None and getattr(org, "usable", False):
+        placed = perimeter_module.place(org, scopes)
     given = 0
     for issue in register.open_issues():
         if issue.accountable:
             continue
         for scope in issue.scopes:
             name = placed.get(scope)
-            lead = org.lead_for(name) if name else None
-            if lead is not None:
-                issue.accountable = lead.name
+            lead = org.lead_for(name) if (name and org is not None) else None
+            who = lead.name if lead is not None else ""
+            # L'annuaire nomme chaque pays avec son MD ; l'organigramme nomme des zones.
+            # Quand la zone ne s'ouvre pas, le pays répond quand même — par l'annuaire.
+            if not who and directory is not None and len(directory):
+                entry = directory.entry_for(scope)
+                who = entry.name if entry is not None else ""
+            if who:
+                issue.accountable = who
                 given += 1
                 break
     return given

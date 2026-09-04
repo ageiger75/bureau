@@ -121,9 +121,13 @@ def observe(register, today: str = "", dataset=None) -> "Scan":
     # Rattacher les sujets de marché à leur MD **avant** de compter quoi que ce soit.
     # Sans cette étape, « personne n'en répond » se déclenchait sur tous les sujets à la
     # fois : un facteur qui s'applique partout n'ordonne rien et n'explique rien.
-    if settings.has_org_file:
-        org = perimeter_module.load(str(settings.org_path))
-        sources.owners_given = selection_module.assign_owners(register, org)
+    if settings.has_org_file or settings.has_owners_file:
+        from . import owners as owners_module
+
+        org = perimeter_module.load(str(settings.org_path)) if settings.has_org_file else None
+        directory = owners_module.current() if settings.has_owners_file else None
+        sources.owners_given = selection_module.assign_owners(register, org,
+                                                              directory=directory)
 
     return Scan(sources=sources, fired=len(seen), opened=result["opened"],
                 grew=result["grew"], returning=result["returning"],
