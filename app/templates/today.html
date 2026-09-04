@@ -12,7 +12,7 @@
      manufactures a worry the year disproves three lines later. The house judges the
      exercise; so does this screen now. #}
   <p class="cockpit-eyebrow" id="freshness-line">
-    {% if dataset.ytd %}{{ dataset.ytd.label }} to date · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }} · {% endif %}as of {{ dataset.as_of }}
+    {% if dataset.ytd %}{{ dataset.ytd.label }} · {{ dataset.ytd.months }} month{{ '' if dataset.ytd.months == 1 else 's' }} · {% endif %}as of {{ dataset.as_of }}
     {% if unsettled %}<span class="badge badge-beta">beta</span>{% endif %}
   </p>
   <p class="cockpit-total">{{ (dataset.ytd.actual if dataset.ytd else header.actual) | eur }}</p>

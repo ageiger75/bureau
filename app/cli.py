@@ -3800,12 +3800,15 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
     """
     from .perf import events as events_module
 
-    path = _option(argv, "--events") or str(settings.calendar_path)
-    calendar = events_module.load(path)
+    given = _option(argv, "--events")
+    paths = ([piece.strip() for piece in given.split(",") if piece.strip()] if given
+             else events_module.default_paths())
+    calendar = events_module.load_many(paths)
     _print_faults(calendar.faults, limit=8)
     if not calendar.usable:
-        print("Déposer le calendrier des dates mobiles ici : %s" % path, file=sys.stderr)
+        print("Aucun calendrier lisible. Attendu : var/calendar*.csv", file=sys.stderr)
         return 2
+    path = calendar.path
 
     labels = sorted({year for movement in moving for year in movement.curve.years})
     fiscal = any(events_module.is_fiscal(label) for label in labels)
@@ -3867,6 +3870,11 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         if countries is None:
             countries = [curve.market]
         known = [country for country in countries if calendar.of_country(country)]
+        # Un fichier de correspondance écrit pour un calendrier peut nommer des repères
+        # qu'un autre calendrier n'a pas. Quand rien de ce qu'il nomme n'existe, le nom
+        # du marché reste la meilleure jointure — et non « pays absent ».
+        if not known and calendar.of_country(curve.market):
+            known = [curve.market]
         candidates = []
         seen = set()
         for country in known:

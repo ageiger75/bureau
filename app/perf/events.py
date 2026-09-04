@@ -492,10 +492,49 @@ def load(path: str) -> "Calendar":
     return Calendar(series, faults, path)
 
 
-def current(path: Optional[str] = None) -> "Calendar":
+def load_many(paths: Sequence[str]) -> "Calendar":
+    """Plusieurs calendriers lus comme un seul.
+
+    Deux fichiers existent déjà — une recherche et un relevé d'entrepôt — et ils se
+    complètent plus qu'ils ne se recouvrent : l'un porte les soldes suédoises, l'autre les
+    fêtes coréennes. Demander au lecteur de choisir à chaque commande lequel confronter,
+    c'est lui demander de savoir ce que contient chacun, ce qui est précisément le travail
+    qu'il ne doit pas faire. Une même série présente dans les deux garde la première lue ;
+    ce qui est en double est nommé, pas fusionné en silence.
+    """
+    merged: Dict[str, "Series"] = {}
+    faults: List[str] = []
+    for path in paths:
+        read = load(path)
+        faults.extend("%s : %s" % (os.path.basename(path), fault) for fault in read.faults)
+        # Le doublon se cherche entre fichiers, jamais dans un même fichier : deux séries
+        # d'un même fichier sous le même nom sont deux séries voulues — une fête nationale
+        # et sa variante régionale — et les fondre en perdrait une.
+        earlier = list(merged.values())
+        for key, series in read.series.items():
+            if key in merged:
+                continue
+            if any(same_country(held.country, series.country)
+                   and normal(held.name) == normal(series.name) for held in earlier):
+                continue
+            merged[key] = series
+    return Calendar(merged, faults, ", ".join(os.path.basename(p) for p in paths))
+
+
+def default_paths() -> List[str]:
+    """Tous les calendriers déposés, par leur nom : `var/calendar*.csv`."""
+    import glob
+
     from ..config import settings
 
-    return load(path or str(settings.calendar_path))
+    folder = str(settings.calendar_path.parent)
+    return sorted(glob.glob(os.path.join(folder, "calendar*.csv")))
+
+
+def current(path: Optional[str] = None) -> "Calendar":
+    if path:
+        return load_many([piece.strip() for piece in path.split(",") if piece.strip()])
+    return load_many(default_paths())
 
 
 #: Comment l'exercice de la forme des mois se traduit en année du calendrier. Trois

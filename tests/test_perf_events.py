@@ -320,3 +320,19 @@ def test_the_gifting_day_is_read_from_the_date_and_not_from_a_column():
     assert E.falls_on_a_gifting_day("2026-02-14") is True      # samedi
     assert E.falls_on_a_gifting_day("2024-02-14") is False     # mercredi
     assert E.falls_on_a_gifting_day("") is None
+
+
+def test_two_calendars_read_as_one_and_a_series_in_both_is_kept_once(tmp_path):
+    """Une recherche et un relevé d'entrepôt se complètent plus qu'ils ne se recouvrent :
+    l'un porte les soldes suédoises, l'autre les fêtes coréennes. Demander au lecteur
+    lequel confronter, c'est lui demander de savoir ce que contient chacun."""
+    first = _file(tmp_path, [_row("2024", "2024-02-14", country="Suède", name="Fête",
+                                  event_id="a")], name="calendar_a.csv")
+    second = _file(tmp_path, [
+        _row("2024", "2024-02-14", country="Suede", name="Fete", event_id="b"),
+        _row("2024", "2024-09-10", country="Corée du Sud", name="Autre", event_id="c")],
+        name="calendar_b.csv")
+
+    read = E.load_many([first, second])
+
+    assert len(read) == 2 and "a" in read.series and "c" in read.series
