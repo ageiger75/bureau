@@ -397,6 +397,24 @@ def _period_label(period: str, shipped: str = "") -> str:
     return label
 
 
+def _inputs_generation():
+    """What the units in memory were built from, beyond the warehouse rows.
+
+    The notes, and the file Finance publishes. Either changing means the units held for
+    the hour describe a screen that no longer exists — and the published file is dropped
+    into `var/` from a terminal while the server runs, exactly as the notes are. Without
+    this, a new closing file waited an hour or a restart to reach the top of the screen,
+    while every command in the terminal already read it.
+    """
+    from . import context as context_module
+
+    try:
+        published = settings.actuals_path.stat().st_mtime
+    except OSError:
+        published = 0.0
+    return (context_module.generation(), published)
+
+
 def _published_month():
     """The month as Finance publishes it, whole, or nothing where the file is absent."""
     from . import actuals as actuals_module
@@ -631,7 +649,7 @@ class SnowflakeSource:
             dataset, stored_at, conflicts, unnamed, note, generation = _cached
             if (
                 time.time() - stored_at < CACHE_SECONDS
-                and generation == context_module.generation()
+                and generation == _inputs_generation()
             ):
                 self.conflicts = conflicts
                 self.markets_without_owner = unnamed
@@ -733,7 +751,7 @@ class SnowflakeSource:
             self.conflicts,
             self.markets_without_owner,
             self.perimeter_note,
-            context_module.generation(),
+            _inputs_generation(),
         )
         return built
 
