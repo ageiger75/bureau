@@ -38,6 +38,14 @@ NARROW = 0.03
 COVERAGE = 0.80
 MOST = 5
 
+#: Au-delà de cette part du plan du mois versée le 1er, l'écran le dit. Un mois plat
+#: fait trois pour cent par jour ; une campagne d'ouverture peut en faire dix. Quatre
+#: dixièmes du mois en un jour n'est pas une vente, c'est un versement — le sell-out de
+#: certains marchés arrive par paquets datés du 1er. La part est rendue telle quelle,
+#: jamais retirée du réalisé : corriger en silence ferait disparaître le défaut au lieu
+#: de le faire réparer. Le seuil est un choix, écrit ici pour être discuté.
+FIRST_DAY_NOTE = 0.10
+
 
 def week_of(day: int) -> int:
     """Le bloc de sept jours où tombe un jour du mois — la règle du fichier de phasage."""
@@ -89,13 +97,35 @@ def _points(share: float) -> str:
 class Line:
     """Un marché : ses deux taux, ou ce qui manque pour les donner."""
 
-    __slots__ = ("market", "progress", "perimeter")
+    __slots__ = ("market", "progress", "perimeter", "first_day")
 
     def __init__(self, market: str, progress: "pace_module.Progress",
-                 perimeter: str = "") -> None:
+                 perimeter: str = "", first_day: Optional[float] = None) -> None:
         self.market = market
         self.progress = progress
         self.perimeter = perimeter
+        #: Ce que le 1er du mois a porté, en euros. `None` quand la lecture ne le dit pas.
+        self.first_day = first_day
+
+    @property
+    def first_day_share(self) -> Optional[float]:
+        """La part du plan du mois versée le 1er. `None` sans plan ou sans lecture."""
+        if self.first_day is None or not self.target:
+            return None
+        return self.first_day / self.target
+
+    @property
+    def lumpy(self) -> bool:
+        """Le 1er du mois porte-t-il plus que ce qu'un jour de vente peut porter ?"""
+        share = self.first_day_share
+        return share is not None and share >= FIRST_DAY_NOTE
+
+    @property
+    def first_day_note(self) -> str:
+        share = self.first_day_share
+        if share is None:
+            return ""
+        return "%.0f %% du plan du mois versés le 1er" % (share * 100)
 
     @property
     def expected(self) -> str:
@@ -340,7 +370,7 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
         target = targets.get(market)
         progress = pace_module.progress(raw, month, week, actual, target, phasing,
                                         within=within)
-        lines.append(Line(market, progress))
+        lines.append(Line(market, progress, first_day=_number(row.get("first_day_sales"))))
 
     placed: Dict[str, str] = {}
     leads: Dict[str, str] = {}

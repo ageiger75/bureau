@@ -3959,9 +3959,10 @@ def cmd_month(argv: List[str]) -> int:
         print("  %-24s %10s %9s %14s" % ("Marché", "attendu", "réalisé", "écart"))
         for line in group.shown:
             if line.readable:
-                print("  %-24s %10s %9s %14s" % (
+                print("  %-24s %10s %9s %14s%s" % (
                     line.market[:24], line.expected + (" ²" if line.thin else ""),
-                    line.done, line.gap))
+                    line.done, line.gap,
+                    ("  ← " + line.first_day_note) if line.lumpy else ""))
             else:
                 print("  %-24s %10s %9s  %s" % (line.market[:24], line.expected or "—",
                                                 line.done or "—", line.absent))

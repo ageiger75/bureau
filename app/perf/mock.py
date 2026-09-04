@@ -798,9 +798,12 @@ def month_to_date() -> List[dict]:
     today = datetime.date.today()
     through = today.replace(day=min(17, today.day)).isoformat()
     return [
-        {"market": "JAPAN", "iso2": "JP", "sales_to_date": 2_150_000.0, "read_through": through},
-        {"market": "FRANCE", "iso2": "FR", "sales_to_date": 1_310_000.0, "read_through": through},
-        {"market": "CHINA", "iso2": "CN", "sales_to_date": 3_020_000.0, "read_through": through},
+        {"market": "JAPAN", "iso2": "JP", "sales_to_date": 2_150_000.0,
+         "read_through": through, "first_day_sales": 140_000.0},
+        {"market": "FRANCE", "iso2": "FR", "sales_to_date": 1_310_000.0,
+         "read_through": through, "first_day_sales": 80_000.0},
+        {"market": "CHINA", "iso2": "CN", "sales_to_date": 3_020_000.0,
+         "read_through": through, "first_day_sales": 2_100_000.0},
     ]
 
 

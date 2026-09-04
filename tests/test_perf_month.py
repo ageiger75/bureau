@@ -255,3 +255,37 @@ def test_the_directory_places_a_country_the_org_chart_only_names_by_zone(tmp_pat
     assert not review.unplaced
     assert {g.name: g.lead for g in review.groups} == {"Japon": "Une dirigeante",
                                                        "EMEA": "Un dirigeant"}
+
+
+def test_a_month_paid_in_lumps_on_the_first_is_said_and_never_corrected(tmp_path):
+    """Trouvé par l'agent entrepôt sur un grand marché : jusqu'à quatre dixièmes du mois
+    datés du 1er. Lu comme une vente, ce paquet met le marché « en avance » de vingt
+    points le 3. La part est rendue telle quelle — corriger en silence ferait
+    disparaître le défaut au lieu de le faire réparer — et l'écart reste calculé, avec
+    la mention qui dit de ne pas le lire."""
+    rows = [{"market": "JAPAN", "iso2": "JP", "sales_to_date": 1_600_000.0,
+             "read_through": "2026-09-03", "first_day_sales": 1_400_000.0}]
+
+    review = M.build(rows, {"Japan": 4_000_000.0}, _phasing(tmp_path))
+
+    japan = review.lines[0]
+    assert japan.lumpy and japan.first_day_note == "35 % du plan du mois versés le 1er"
+    assert japan.done == "40 %"            # le réalisé n'est pas retouché
+
+
+def test_an_ordinary_first_day_carries_no_note(tmp_path):
+    rows = [{"market": "JAPAN", "iso2": "JP", "sales_to_date": 400_000.0,
+             "read_through": "2026-09-03", "first_day_sales": 130_000.0}]
+
+    review = M.build(rows, {"Japan": 4_000_000.0}, _phasing(tmp_path))
+
+    assert not review.lines[0].lumpy
+
+
+def test_a_reading_without_the_first_day_column_says_nothing_about_it(tmp_path):
+    """Un cache écrit avant la colonne, ou une source qui ne la donne pas : rien à dire,
+    plutôt qu'un zéro qui se lirait comme un 1er du mois exemplaire."""
+    review = M.build(_rows(through="2026-09-03"), {"Japan": 4_000_000.0},
+                     _phasing(tmp_path))
+
+    assert review.lines[0].first_day_share is None and not review.lines[0].lumpy

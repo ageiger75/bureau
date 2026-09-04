@@ -250,7 +250,7 @@
             <td>{{ line.market }}</td>
             {% if line.readable %}
               <td class="num">{{ line.expected }}{% if line.thin %} <small title="La forme de ce mois ne repose que sur deux exercices dans le fichier de phasage : un intervalle entre deux points, pas une dispersion.">sur 2 exercices</small>{% endif %}</td>
-              <td class="num">{{ line.done }}</td>
+              <td class="num">{{ line.done }}{% if line.lumpy %} <small class="absent" title="Le sell-out de ce marché arrive par paquets datés du 1er. Lu comme une vente, ce paquet met le marché en avance de ce qu'il pèse. Un défaut d'alimentation à faire réparer, pas un fait de commerce.">{{ line.first_day_note }}</small>{% endif %}</td>
               <td class="num">{{ line.gap }}</td>
             {% else %}
               <td class="num">{{ line.expected or "—" }}</td>
@@ -282,7 +282,8 @@
       Attendu : la part du plan du mois que ce marché fait d'ordinaire à cette date, selon
       ses trois derniers exercices — une fourchette quand ils ne s'accordent pas, et
       « sur 2 exercices » quand l'entrepôt n'en porte que deux pour ce marché. Écart
-      positif : en avance.
+      positif : en avance. Un réalisé dont une grande part est datée du 1er le dit : c'est
+      un versement, pas une vente, et l'écart qui en découle ne se lit pas.
     </p>
     <p class="cockpit-caveat">{{ month.sell_in }}</p>
     {% for reason in month.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}

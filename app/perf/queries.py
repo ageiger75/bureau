@@ -1185,24 +1185,39 @@ FORECAST_HISTORY = ""
 #: Bornée au mois : c'est la plus petite lecture de ce fichier, et elle doit le rester,
 #: parce qu'elle est la seule que l'écran a le droit de payer sans cache chaud.
 #:
-#: Contrat : `market · iso2 · sales_to_date · read_through`, une ligne par marché.
+#: Contrat : `market · iso2 · sales_to_date · read_through · first_day_sales`, une ligne
+#: par marché.
 MONTH_TO_DATE = """
-select
-    store_country                 as market,
-    store_country_iso2            as iso2,
-    sum(net_sales_eur)            as sales_to_date,
-    max(transaction_date)         as read_through
-from semantic_view(
-    dwh.semantic_layer.v_sl_ai_sellout_analysis
-    dimensions
-        d_stores.store_country,
-        d_stores.store_country_iso2,
-        f_sellout_sales_details.transaction_date
-    metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
-    where d_stores.store_brand = 'L''OCCITANE'
-      and f_sellout_sales_details.transaction_date >= date_trunc('month', current_date)
+with day as (
+    select
+        store_country                 as market,
+        store_country_iso2            as iso2,
+        transaction_date,
+        net_sales_eur
+    from semantic_view(
+        dwh.semantic_layer.v_sl_ai_sellout_analysis
+        dimensions
+            d_stores.store_country,
+            d_stores.store_country_iso2,
+            f_sellout_sales_details.transaction_date
+        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+        where d_stores.store_brand = 'L''OCCITANE'
+          and f_sellout_sales_details.transaction_date >= date_trunc('month', current_date)
+    )
 )
-group by store_country, store_country_iso2
+select
+    market,
+    iso2,
+    sum(net_sales_eur)                                   as sales_to_date,
+    max(transaction_date)                                as read_through,
+    -- Le 1er du mois à part. Un marché dont le sell-out est versé par paquets porte
+    -- jusqu'à quatre dixièmes de son mois sur ce seul jour ; lu comme une vente, ce
+    -- paquet met le marché « en avance » de vingt points le 3 du mois. La part est
+    -- rendue, jamais corrigée : c'est un défaut d'alimentation, pas un fait de commerce.
+    sum(iff(transaction_date = date_trunc('month', current_date), net_sales_eur, 0))
+                                                         as first_day_sales
+from day
+group by market, iso2
 """
 
 
