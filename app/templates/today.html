@@ -254,7 +254,7 @@
               <td class="num">{{ line.gap }}</td>
             {% else %}
               <td class="num">{{ line.expected or "—" }}</td>
-              <td class="num">{{ line.done or "—" }}</td>
+              <td class="num">{{ line.done or "—" }}{% if line.lumpy %} <small class="absent">{{ line.first_day_note }}</small>{% endif %}</td>
               <td class="absent">{{ line.absent }}</td>
             {% endif %}
           </tr>

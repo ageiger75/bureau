@@ -194,6 +194,15 @@ def _write_kpi_cache(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), KPI_CACHE_FILE)
 
 
+def month_cache_forget() -> None:
+    """Oublier la seule lecture du mois en cours — quelques secondes à repayer, contre
+    des minutes pour le reste. Pour une colonne ajoutée à la requête, comme pour les KPI."""
+    try:
+        _cache_path(MONTH_CACHE_FILE).unlink()
+    except OSError:
+        pass
+
+
 def _read_month_cache():
     stored = _read_disk_cache(MONTH_CACHE_FILE)
     return None if stored is None else stored[0]

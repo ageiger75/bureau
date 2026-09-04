@@ -1636,6 +1636,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
         source.kpi_cache_forget()
         print("Relevés KPI oubliés. L'historique reste en cache.")
         return 0
+    if "--month" in tuple(argv):
+        source.month_cache_forget()
+        print("Lecture du mois en cours oubliée. Le reste reste en cache.")
+        return 0
     source.cache_forget()
     print("Cache oublié. La prochaine lecture ira à l'entrepôt.")
     return 0
@@ -3964,8 +3968,9 @@ def cmd_month(argv: List[str]) -> int:
                     line.done, line.gap,
                     ("  ← " + line.first_day_note) if line.lumpy else ""))
             else:
-                print("  %-24s %10s %9s  %s" % (line.market[:24], line.expected or "—",
-                                                line.done or "—", line.absent))
+                print("  %-24s %10s %9s  %s%s" % (
+                    line.market[:24], line.expected or "—", line.done or "—", line.absent,
+                    ("  ← " + line.first_day_note) if line.lumpy else ""))
         if group.rest:
             print("  %-24s %10s %9s" % (group.rest.label[:24], group.rest.expected or "—",
                                         group.rest.done or "—"))
