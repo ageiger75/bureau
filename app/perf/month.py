@@ -73,6 +73,12 @@ def _number(value) -> Optional[float]:
         return None
 
 
+def _points(share: float) -> str:
+    """« +4 », « -8 », « 0 » — jamais « -0 » : un signe sur rien est une affirmation."""
+    points = int(round(share * 100))
+    return "0" if points == 0 else "%+d" % points
+
+
 class Line:
     """Un marché : ses deux taux, ou ce qui manque pour les donner."""
 
@@ -107,8 +113,8 @@ class Line:
         if band is None:
             return ""
         if band.spread <= NARROW:
-            return "%+.0f pts" % (band.middle * 100)
-        return "%+.0f à %+.0f pts" % (band.low * 100, band.high * 100)
+            return "%s pts" % _points(band.middle)
+        return "%s à %s pts" % (_points(band.low), _points(band.high))
 
     @property
     def readable(self) -> bool:

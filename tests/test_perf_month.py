@@ -162,3 +162,8 @@ def test_the_last_block_of_the_month_is_measured_on_its_own_length():
     assert abs(M.within_week(datetime.date(2026, 9, 29)) - 0.5) < 1e-9   # 29-30 : 2 jours
     assert abs(M.within_week(datetime.date(2026, 10, 31)) - 1.0) < 1e-9  # 29-31 : 3 jours
     assert abs(M.within_week(datetime.date(2026, 9, 7)) - 1.0) < 1e-9
+
+
+def test_a_gap_of_nothing_is_written_without_a_sign():
+    assert M._points(-0.003) == "0" and M._points(0.004) == "0"
+    assert M._points(0.041) == "+4" and M._points(-0.08) == "-8"
