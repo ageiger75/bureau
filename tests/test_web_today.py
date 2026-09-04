@@ -660,3 +660,13 @@ def test_the_screen_never_prints_the_score_that_orders_the_subjects(client, db_s
     assert row.why in page
     for rendered in (repr(row._score), "%.2f" % row._score, "%d" % int(row._score)):
         assert rendered not in page
+
+
+def test_the_month_in_progress_is_on_the_screen_with_two_rates_per_market(client):
+    """B3, tel que le lecteur l'a dit : « savoir où j'en suis dans le mois, pas seulement
+    à la fin ». Le panneau existe, il nomme le sell-in pour ce qu'il est, et il porte des
+    marchés — ou dit ce qui manque pour les lire."""
+    page = page_text(client.get("/"))
+
+    assert "Où en est le mois" in page
+    assert "n'avance pas en jours" in page

@@ -64,6 +64,36 @@ def settled_now(unavailable: Sequence[str] = ()) -> List[str]:
     return settled
 
 
+def _month_review(source):
+    """Où en est le mois, ou pourquoi on ne peut pas le dire.
+
+    Jamais une page qui tombe : sans requête écrite ou sans plan, le panneau dit ce qui
+    manque. Et jamais une page qui attend — la lecture est bornée au mois, la forme des
+    mois et l'organigramme sont des fichiers locaux.
+    """
+    from ..config import settings
+    from ..perf import month as month_module
+    from ..perf import pace as pace_module
+    from ..perf import perimeter as perimeter_module
+
+    try:
+        rows = source.month_to_date()
+    except NotImplementedError as why:
+        return month_module.Review("", 0, "", [], [], [str(why)])
+    except Exception as why:  # pragma: no cover — l'entrepôt, pas le code
+        return month_module.Review("", 0, "", [], [],
+                                   ["lecture du mois en cours impossible : %s" % why])
+    days = sorted(str(row.get("read_through") or "")[:7] for row in rows)
+    period = days[-1] if days and days[-1] else ""
+    try:
+        targets = source.month_targets(period) if period else {}
+    except NotImplementedError as why:
+        targets = {}
+    phasing = pace_module.current() if settings.has_phasing_file else None
+    org = perimeter_module.current() if settings.has_org_file else None
+    return month_module.build(rows, targets, phasing, org)
+
+
 @router.get("/freshness")
 def freshness():
     """When the figures in memory were read. Polled by the page, never by a person.
@@ -126,6 +156,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     # Not in `unavailable`: nothing here dims when it is empty. Empty means the two bases
     # agree everywhere, which is a good state and not a missing panel.
     bulk_findings = getattr(source, "bulk_findings", list)()
+    month = _month_review(source)
 
     fires = analytics.fires(dataset)
     # The subjects, which is what the reader ends up with: a market losing ground in two
@@ -217,6 +248,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             # are hard on both sides: a screen that renders everything it found hands the
             # selection back to the reader, which is the work they came for.
             "week": week,
+            "month": month,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
             # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the

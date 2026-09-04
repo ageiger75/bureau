@@ -918,3 +918,11 @@ input:focus, textarea:focus, select:focus {
 .reallocation-head { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
 .reallocation-legs { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 4px; font-size: 14px; }
 .reallocation-legs li > span { display: inline-block; min-width: 5.5em; font-variant-numeric: tabular-nums; }
+
+/* ---- Où en est le mois : deux taux par marché, un tableau par périmètre ---- */
+.month-perimeter { margin: 1.4rem 0 0.4rem; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.month-table { border-collapse: collapse; width: 100%; max-width: 44rem; font-size: 0.92rem; }
+.month-table th { text-align: left; font-weight: 600; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0 0.8rem 0.35rem 0; border-bottom: 1px solid currentColor; }
+.month-table td { padding: 0.4rem 0.8rem 0.4rem 0; border-bottom: 1px solid rgba(127, 127, 127, 0.25); vertical-align: top; }
+.month-table td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.month-table td.absent { opacity: 0.7; font-size: 0.88rem; }

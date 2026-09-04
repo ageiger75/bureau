@@ -1178,6 +1178,34 @@ COMMITMENTS = ""
 #: Successive forecasts for the same period, oldest first — the forecast credibility flag.
 FORECAST_HISTORY = ""
 
+#: Le mois en cours, marché par marché, jusqu'au dernier jour lu. Sell-out seulement : le
+#: sell-in n'avance pas en jours — une facture tombe quand elle tombe — et tant qu'aucun
+#: calendrier d'expédition n'est connecté, il n'a pas d'avancement à afficher.
+#:
+#: Bornée au mois : c'est la plus petite lecture de ce fichier, et elle doit le rester,
+#: parce qu'elle est la seule que l'écran a le droit de payer sans cache chaud.
+#:
+#: Contrat : `market · iso2 · sales_to_date · read_through`, une ligne par marché.
+MONTH_TO_DATE = """
+select
+    store_country                 as market,
+    store_country_iso2            as iso2,
+    sum(net_sales_eur)            as sales_to_date,
+    max(transaction_date)         as read_through
+from semantic_view(
+    dwh.semantic_layer.v_sl_ai_sellout_analysis
+    dimensions
+        d_stores.store_country,
+        d_stores.store_country_iso2,
+        f_sellout_sales_details.transaction_date
+    metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+    where d_stores.store_brand = 'L''OCCITANE'
+      and f_sellout_sales_details.transaction_date >= date_trunc('month', current_date)
+)
+group by store_country, store_country_iso2
+"""
+
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1187,6 +1215,7 @@ ALL = {
     "MARKET_INDEX": MARKET_INDEX,
     "COMMITMENTS": COMMITMENTS,
     "FORECAST_HISTORY": FORECAST_HISTORY,
+    "MONTH_TO_DATE": MONTH_TO_DATE,
 }
 
 

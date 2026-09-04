@@ -227,6 +227,66 @@
    lecture et présenterait les mêmes marchés comme des découvertes chaque lundi — l'amnésie
    hebdomadaire que la doctrine interdit. Ces sujets-là portent leur identité, leurs
    arbitrages et les lectures déjà faites d'eux. #}
+{# Où en est le mois — B3. Deux taux par marché, jamais un seul : la part du mois
+   derrière nous selon la forme des années passées, et la part de l'objectif déjà faite.
+   Leur écart est l'information. Le premier est une fourchette quand les années ne
+   s'accordent pas, et c'est voulu : un point serait une affirmation déguisée en mesure. #}
+<section class="panel" id="mois">
+  <h2>Où en est le mois</h2>
+  {% if month and month.usable %}
+    <p class="lede">
+      {{ month.month }} · semaine {{ month.week }} · lu jusqu'au {{ month.through }}.
+      Deux taux par marché : le mois écoulé selon les années passées, l'objectif déjà fait.
+      Leur écart est ce qui se lit.
+    </p>
+    {% for group in month.groups %}
+      <h3 class="month-perimeter">{{ group.name }}{% if group.lead %} · {{ group.lead }}{% endif %}</h3>
+      <table class="month-table">
+        <thead>
+          <tr><th>Marché</th><th>Mois écoulé</th><th>Objectif fait</th><th>Écart</th></tr>
+        </thead>
+        <tbody>
+        {% for line in group.lines %}
+          <tr>
+            <td>{{ line.market }}</td>
+            {% if line.readable %}
+              <td class="num">{{ line.month_done }}</td>
+              <td class="num">{{ line.target_done }}</td>
+              <td class="num">{{ line.behind }}</td>
+            {% else %}
+              <td class="num">{{ line.month_done or "—" }}</td>
+              <td class="num">{{ line.target_done or "—" }}</td>
+              <td class="absent">{{ line.absent }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+    {% if month.unplaced %}
+      <h3 class="month-perimeter">Sans périmètre</h3>
+      <table class="month-table">
+        <tbody>
+        {% for line in month.unplaced %}
+          <tr>
+            <td>{{ line.market }}</td>
+            <td class="num">{{ line.month_done or "—" }}</td>
+            <td class="num">{{ line.target_done or "—" }}</td>
+            <td class="{{ 'num' if line.readable else 'absent' }}">{{ line.behind if line.readable else line.absent }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+    <p class="cockpit-caveat">{{ month.sell_in }}</p>
+    {% for reason in month.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">
+      {% for reason in month.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+  {% endif %}
+</section>
+
 <section class="panel">
   <h2>Les sujets</h2>
   <p class="lede">

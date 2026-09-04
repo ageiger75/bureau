@@ -110,6 +110,11 @@ Et les chapitres de la doctrine V6.1 :
 
 ### Ce qui doit être amélioré
 
+- **L'écran attend l'entrepôt sans signe de vie.** À cache froid, la page met des minutes
+  et l'onglet reste blanc : indiscernable d'un serveur planté. Le cache est bien conçu ;
+  ce qui manque est un écran qui s'ouvre sur la dernière lecture et dit qu'une nouvelle
+  arrive. `manage.py refresh` avant d'ouvrir contourne le problème sans le régler.
+
 - **Les briefs envoyés à l'agent entrepôt encodaient des hypothèses non testées**, et
   plusieurs ont fabriqué des défauts : classer sur une valeur qui appartient presque
   entièrement à un seul marché ; interdire une comparaison entre canaux qui masquait une
@@ -225,6 +230,16 @@ n'est connecté, il affiche « non disponible ».
 
 *Recette* : pour chaque périmètre, deux nombres lisibles en une seconde, chacun avec sa
 base ; un canal sans phasage connu le dit au lieu d'interpoler.
+
+*État (4 septembre)* : fait, sous réserve d'une requête à valider. Le module `pace` rend
+les deux taux en fourchette ; `month` les joint au plan et à l'organigramme par
+périmètre ; le panneau « Où en est le mois » est sous l'en-tête ; `manage.py month` rend
+la même chose au terminal. La requête `MONTH_TO_DATE` — un mois, une dimension, bornée —
+est écrite sur le modèle des autres et n'a pas encore tourné contre l'entrepôt : c'est
+la première chose que la commande vérifiera. La forme des mois n'est pas alignée sur les
+événements mobiles mais **mesurée** : là où les années ne s'accordent pas, la fourchette
+le dit, et le calendrier sert à expliquer, jamais à corriger. Reste à faire : le sell-in,
+qui attend un calendrier d'expédition.
 
 ### Phase 3 — B5, le mix
 

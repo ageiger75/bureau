@@ -61,6 +61,11 @@ SELL_IN_HISTORY_CACHE_FILE = "warehouse-sell-in-history.json"
 #: waiting on it — a panel is worth a stale figure, never the whole page.
 KPI_CACHE_FILE = "warehouse-kpis.json"
 
+#: Le mois en cours, marché par marché. La plus petite lecture de ce fichier — un mois,
+#: une dimension — et la seule que l'écran a le droit de payer sans cache chaud. Une
+#: heure comme la lecture principale : le mois bouge chaque jour, pas chaque minute.
+MONTH_CACHE_FILE = "warehouse-month.json"
+
 #: A day. Bounded not by time but by the anchor: a cached history whose last month is not
 #: the month on screen is re-read whatever its age, because that is the only staleness
 #: that can actually mislead anyone.
@@ -90,7 +95,7 @@ def cache_forget() -> None:
     """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
     for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE,
-                 KPI_CACHE_FILE):
+                 KPI_CACHE_FILE, MONTH_CACHE_FILE):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -187,6 +192,15 @@ def _read_kpi_cache():
 
 def _write_kpi_cache(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), KPI_CACHE_FILE)
+
+
+def _read_month_cache():
+    stored = _read_disk_cache(MONTH_CACHE_FILE)
+    return None if stored is None else stored[0]
+
+
+def _write_month_cache(rows) -> None:
+    _write_disk_cache(rows, time.time(), read_at(), MONTH_CACHE_FILE)
 
 
 def _sell_in_month(rows, sold_in, period: str):
@@ -422,6 +436,12 @@ class MockSource:
 
     def bulk_findings(self) -> List:
         return mock.bulk_findings()
+
+    def month_to_date(self) -> List[dict]:
+        return mock.month_to_date()
+
+    def month_targets(self, period: str) -> dict:
+        return mock.month_targets(period)
 
 
 class SnowflakeSource:
@@ -745,6 +765,28 @@ class SnowflakeSource:
         self.kpi_judged = len(report.kpis)
         self.kpi_tracked = len(registry.entries)
         return report.kpis
+
+    def month_to_date(self) -> List[dict]:
+        """Le mois en cours, marché par marché, jusqu'au dernier jour lu.
+
+        Son propre cache, court. La requête est bornée au mois et c'est ce qui l'autorise
+        ici : une lecture de quelques secondes peut être payée à l'ouverture, une lecture
+        de trois minutes jamais — voir `client_kpis` pour la règle inverse.
+        """
+        self._refuse_if_unwritten("MONTH_TO_DATE")
+        from . import queries, warehouse
+
+        rows = _read_month_cache()
+        if rows is None:
+            rows = warehouse.rows(queries.MONTH_TO_DATE, label="MONTH_TO_DATE")
+            _write_month_cache(rows)
+        return rows
+
+    def month_targets(self, period: str) -> dict:
+        """L'objectif sell-out du mois par marché, tel que le plan l'écrit."""
+        from . import month as month_module
+
+        return month_module.targets_from_budget(self._budget(), period)
 
     def bulk_findings(self) -> List:
         """The markets whose two bases disagree — and only those.

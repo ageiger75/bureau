@@ -3932,6 +3932,51 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
     return 0
 
 
+def cmd_month(argv: List[str]) -> int:
+    """Où en est le mois, marché par marché, tel que l'écran le rendra.
+
+    Le terminal lit la même chose que l'écran et rien d'autre : deux taux par marché, la
+    fourchette quand les années ne s'accordent pas, et les absences nommées. Ce que
+    l'agent entrepôt vérifie ici, l'écran l'affichera tel quel.
+    """
+    from .perf.source import current_source
+    from .routes.today import _month_review
+
+    review = _month_review(current_source())
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print("Mois %s · semaine %d · lu jusqu'au %s" % (review.month, review.week,
+                                                     review.through))
+    print("%d marchés lus · %d lisibles sur les deux taux"
+          % (len(review.lines), review.readable))
+    for group in review.groups + ([_Unplaced(review.unplaced)] if review.unplaced else []):
+        print("")
+        print("%s%s" % (group.name, (" · " + group.lead) if group.lead else ""))
+        print("  %-22s %10s %10s %14s" % ("Marché", "mois", "objectif", "écart"))
+        for line in group.lines:
+            if line.readable:
+                print("  %-22s %10s %10s %14s" % (line.market[:22], line.month_done,
+                                                  line.target_done, line.behind))
+            else:
+                print("  %-22s %10s %10s  %s" % (line.market[:22], line.month_done or "—",
+                                                 line.target_done or "—", line.absent))
+    print("")
+    print(review.sell_in)
+    for reason in review.absent:
+        print(reason)
+    return 0
+
+
+class _Unplaced:
+    name = "Sans périmètre"
+    lead = ""
+
+    def __init__(self, lines) -> None:
+        self.lines = lines
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -3985,6 +4030,8 @@ def main(argv: List[str]) -> int:
         return cmd_issues(argv[1:])
     if command == "phasing":
         return cmd_phasing(argv[1:])
+    if command == "month":
+        return cmd_month(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

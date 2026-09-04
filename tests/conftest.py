@@ -103,6 +103,8 @@ def fresh_warehouse_cache(monkeypatch):
         ("partners_path", "partners.csv"),
         ("distribution_path", "distribution_signals.csv"),
         ("phasing_path", "phasing.csv"),
+        ("calendar_path", "calendar_events.csv"),
+        ("markets_path", "markets.csv"),
     ):
         monkeypatch.setattr(
             type(settings), name,

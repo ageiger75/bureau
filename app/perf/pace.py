@@ -320,7 +320,13 @@ class Phasing:
         return bool(self.curves)
 
     def of(self, market: str, month: str) -> Optional["Curve"]:
-        return self.curves.get((market.strip(), month.strip()[-2:]))
+        """La courbe d'un marché pour un mois. Le marché se compare sans sa casse : le
+        fichier l'écrit comme l'entrepôt, en capitales, et l'écran comme le plan."""
+        return self.curves.get(self._key(market, month))
+
+    @staticmethod
+    def _key(market: str, month: str) -> Tuple[str, str]:
+        return ((market or "").strip().upper(), (month or "").strip()[-2:])
 
     def moving(self, spread: float, variation: Optional[float] = None) -> List["Movement"]:
         """Les mois dont la forme ne se reproduit pas, sur l'un ou l'autre des deux motifs.
@@ -455,7 +461,8 @@ def load(path: str) -> "Phasing":
             continue
         by_key.setdefault((market, month), {})[year] = shares
 
-    curves = {key: Curve(key[0], key[1], years) for key, years in by_key.items()}
+    curves = {Phasing._key(key[0], key[1]): Curve(key[0], key[1], years)
+              for key, years in by_key.items()}
     return Phasing(curves, faults, path)
 
 

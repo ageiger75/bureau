@@ -789,3 +789,20 @@ def _behind(kpi, markets_read, behind):
     kpi.markets_read = markets_read
     kpi.behind = list(behind)
     return kpi
+
+
+def month_to_date() -> List[dict]:
+    """Le mois en cours, inventé : trois marchés, lus jusqu'au 17."""
+    import datetime
+
+    today = datetime.date.today()
+    through = today.replace(day=min(17, today.day)).isoformat()
+    return [
+        {"market": "JAPAN", "iso2": "JP", "sales_to_date": 2_150_000.0, "read_through": through},
+        {"market": "FRANCE", "iso2": "FR", "sales_to_date": 1_310_000.0, "read_through": through},
+        {"market": "CHINA", "iso2": "CN", "sales_to_date": 3_020_000.0, "read_through": through},
+    ]
+
+
+def month_targets(period: str) -> dict:
+    return {"Japan": 4_000_000.0, "France": 2_400_000.0, "China": 6_500_000.0}
