@@ -396,18 +396,20 @@ class Progress:
         return self.through_month is not None and self.through_target is not None
 
     @property
-    def behind(self) -> Optional["Band"]:
-        """De combien de points l'objectif est en retard sur le mois, en fourchette.
+    def ahead(self) -> Optional["Band"]:
+        """De combien de points le réalisé dépasse ce que la forme du mois attendait.
 
-        Positif : il reste à rattraper. La fourchette se propage — un avancement connu à
-        vingt-cinq points près donne un retard connu à vingt-cinq points près, et c'est
+        **Positif : en avance. Négatif : en retard.** C'est le sens naturel — réalisé
+        moins attendu — et la première version l'avait inversé, ce qui se lit comme une
+        faute de signe sur chaque ligne. La fourchette se propage : un attendu connu à
+        vingt-cinq points près donne un écart connu à vingt-cinq points près, et c'est
         cette largeur qui dit si le lecteur peut conclure quelque chose.
         """
         if not self.readable:
             return None
         band = self.through_month
-        return Band(band.low - self.through_target,
-                    band.high - self.through_target, band.years)
+        return Band(self.through_target - band.high,
+                    self.through_target - band.low, band.years)
 
 
 def _number(raw: str) -> Optional[float]:

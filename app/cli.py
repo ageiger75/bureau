@@ -3933,11 +3933,11 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
 
 
 def cmd_month(argv: List[str]) -> int:
-    """Où en est le mois, marché par marché, tel que l'écran le rendra.
+    """Où en est le mois, tel que l'écran le rendra.
 
-    Le terminal lit la même chose que l'écran et rien d'autre : deux taux par marché, la
-    fourchette quand les années ne s'accordent pas, et les absences nommées. Ce que
-    l'agent entrepôt vérifie ici, l'écran l'affichera tel quel.
+    Le terminal lit la même chose que l'écran et rien d'autre : le temps écoulé une fois
+    en tête, puis par marché ce qu'il fait d'ordinaire à cette date, ce qu'il a fait, et
+    l'écart — positif en avance. Les gros marchés d'abord, le reste replié.
     """
     from .perf.source import current_source
     from .routes.today import _month_review
@@ -3947,34 +3947,34 @@ def cmd_month(argv: List[str]) -> int:
         for reason in review.absent:
             print(reason, file=sys.stderr)
         return 2
-    print("Mois %s · jour %d, semaine %d · lu jusqu'au %s"
-          % (review.month, review.day, review.week, review.through))
+    print("Mois %s · jour %d sur %d · %.0f %% du mois écoulé · lu jusqu'au %s"
+          % (review.month, review.day, review.days_in_month, review.elapsed * 100,
+             review.through))
     print("%d marchés lus · %d lisibles sur les deux taux"
           % (len(review.lines), review.readable))
-    for group in review.groups + ([_Unplaced(review.unplaced)] if review.unplaced else []):
+    groups = review.groups + ([review.loose] if review.loose else [])
+    for group in groups:
         print("")
         print("%s%s" % (group.name, (" · " + group.lead) if group.lead else ""))
-        print("  %-22s %10s %10s %14s" % ("Marché", "mois", "objectif", "écart"))
-        for line in group.lines:
+        print("  %-24s %10s %9s %14s" % ("Marché", "attendu", "réalisé", "écart"))
+        for line in group.shown:
             if line.readable:
-                print("  %-22s %10s %10s %14s" % (line.market[:22], line.month_done,
-                                                  line.target_done, line.behind))
+                print("  %-24s %10s %9s %14s" % (
+                    line.market[:24], line.expected + (" ²" if line.thin else ""),
+                    line.done, line.gap))
             else:
-                print("  %-22s %10s %10s  %s" % (line.market[:22], line.month_done or "—",
-                                                 line.target_done or "—", line.absent))
+                print("  %-24s %10s %9s  %s" % (line.market[:24], line.expected or "—",
+                                                line.done or "—", line.absent))
+        if group.rest:
+            print("  %-24s %10s %9s" % (group.rest.label[:24], group.rest.expected or "—",
+                                        group.rest.done or "—"))
     print("")
+    print("Attendu : part du plan du mois faite d'ordinaire à cette date (² deux exercices). "
+          "Écart positif : en avance.")
     print(review.sell_in)
     for reason in review.absent:
         print(reason)
     return 0
-
-
-class _Unplaced:
-    name = "Sans périmètre"
-    lead = ""
-
-    def __init__(self, lines) -> None:
-        self.lines = lines
 
 
 def cmd_serve(argv: List[str]) -> int:

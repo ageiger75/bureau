@@ -235,49 +235,54 @@
   <h2>Où en est le mois</h2>
   {% if month and month.usable %}
     <p class="lede">
-      {{ month.month }} · jour {{ month.day }}, semaine {{ month.week }} · lu jusqu'au {{ month.through }}.
-      Deux taux par marché : le mois écoulé selon les années passées, l'objectif déjà fait.
-      Leur écart est ce qui se lit.
+      {{ month.month }} · jour {{ month.day }} sur {{ month.days_in_month }} —
+      <strong>{{ (month.elapsed * 100) | round | int }} % du mois écoulé</strong>, lu jusqu'au {{ month.through }}.
+      Par marché : ce qu'il fait d'ordinaire à cette date, ce qu'il a fait, l'écart en points.
     </p>
-    {% for group in month.groups %}
-      <h3 class="month-perimeter">{{ group.name }}{% if group.lead %} · {{ group.lead }}{% endif %}</h3>
+    {% macro month_rows(group) %}
       <table class="month-table">
         <thead>
-          <tr><th>Marché</th><th>Mois écoulé</th><th>Objectif fait</th><th>Écart</th></tr>
+          <tr><th>Marché</th><th>Attendu à date</th><th>Réalisé</th><th>Écart</th></tr>
         </thead>
         <tbody>
-        {% for line in group.lines %}
+        {% for line in group.shown %}
           <tr>
             <td>{{ line.market }}</td>
             {% if line.readable %}
-              <td class="num">{{ line.month_done }}</td>
-              <td class="num">{{ line.target_done }}</td>
-              <td class="num">{{ line.behind }}</td>
+              <td class="num">{{ line.expected }}{% if line.thin %} <small>2 ex.</small>{% endif %}</td>
+              <td class="num">{{ line.done }}</td>
+              <td class="num">{{ line.gap }}</td>
             {% else %}
-              <td class="num">{{ line.month_done or "—" }}</td>
-              <td class="num">{{ line.target_done or "—" }}</td>
+              <td class="num">{{ line.expected or "—" }}</td>
+              <td class="num">{{ line.done or "—" }}</td>
               <td class="absent">{{ line.absent }}</td>
             {% endif %}
           </tr>
         {% endfor %}
-        </tbody>
-      </table>
-    {% endfor %}
-    {% if month.unplaced %}
-      <h3 class="month-perimeter">Sans périmètre</h3>
-      <table class="month-table">
-        <tbody>
-        {% for line in month.unplaced %}
-          <tr>
-            <td>{{ line.market }}</td>
-            <td class="num">{{ line.month_done or "—" }}</td>
-            <td class="num">{{ line.target_done or "—" }}</td>
-            <td class="{{ 'num' if line.readable else 'absent' }}">{{ line.behind if line.readable else line.absent }}</td>
+        {% if group.rest %}
+          <tr class="month-rest" title="{{ group.rest.names | join(', ') }}">
+            <td>{{ group.rest.label }}</td>
+            <td class="num">{{ group.rest.expected or "—" }}</td>
+            <td class="num">{{ group.rest.done or "—" }}</td>
+            <td class="num"></td>
           </tr>
-        {% endfor %}
+        {% endif %}
         </tbody>
       </table>
+    {% endmacro %}
+    {% for group in month.groups %}
+      <h3 class="month-perimeter">{{ group.name }}{% if group.lead %} · {{ group.lead }}{% endif %}</h3>
+      {{ month_rows(group) }}
+    {% endfor %}
+    {% if month.loose %}
+      <h3 class="month-perimeter">Sans périmètre</h3>
+      {{ month_rows(month.loose) }}
     {% endif %}
+    <p class="cockpit-caveat">
+      Attendu : la part du plan du mois que ce marché fait d'ordinaire à cette date, selon
+      ses trois derniers exercices — une fourchette quand ils ne s'accordent pas, « 2 ex. »
+      quand il n'y en a que deux. Écart positif : en avance.
+    </p>
     <p class="cockpit-caveat">{{ month.sell_in }}</p>
     {% for reason in month.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% else %}

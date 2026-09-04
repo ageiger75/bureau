@@ -38,9 +38,9 @@ def test_the_two_rates_are_read_side_by_side_and_never_alone(tmp_path):
     assert japan.readable
     # Deux semaines pleines et trois jours sur sept de la troisième :
     # 0.45 + 0.25 × 3/7 = 0.557, pour les deux exercices.
-    assert japan.month_done == "56 %"
-    assert japan.target_done == "50 %"
-    assert japan.behind == "+6 pts"
+    assert japan.expected == "56 %"
+    assert japan.done == "50 %"
+    assert japan.gap == "-6 pts"          # réalisé 50 sous un attendu 56 : en retard
 
 
 def test_a_market_without_a_month_shape_says_so_instead_of_using_the_days_elapsed(tmp_path):
@@ -50,7 +50,7 @@ def test_a_market_without_a_month_shape_says_so_instead_of_using_the_days_elapse
     northland = next(line for line in review.lines if line.market == "Northland")
     assert not northland.readable
     assert "forme du mois non mesurée" in northland.absent
-    assert northland.target_done == "50 %"   # l'objectif se lit quand même
+    assert northland.done == "50 %"   # l'objectif se lit quand même
 
 
 def test_a_market_without_a_plan_line_is_not_a_market_at_zero(tmp_path):
@@ -88,6 +88,7 @@ def test_markets_are_grouped_by_perimeter_and_the_md_is_named(tmp_path):
     assert [group.name for group in review.groups] == ["Japon"]
     assert review.groups[0].lead == "Une dirigeante"
     assert [line.market for line in review.unplaced] == ["Northland"]
+    assert review.loose is not None and review.loose.name == "Sans périmètre"
 
 
 def test_without_an_org_the_markets_are_still_read_and_the_absence_is_named(tmp_path):
@@ -119,8 +120,8 @@ def test_the_shape_uncertainty_is_kept_as_a_range_on_the_screen(tmp_path):
     japan = next(line for line in review.lines if line.market == "Japan")
     # Le 10 est au troisième jour de la deuxième semaine : 0.20 + 0.20 × 3/7 = 0.286 et
     # 0.20 + 0.55 × 3/7 = 0.436. La fourchette reste, elle ne fait que rétrécir.
-    assert japan.month_done == "29–44 %"
-    assert japan.behind == "-21 à -6 pts"
+    assert japan.expected == "29–44 %"
+    assert japan.gap == "+6 à +21 pts"   # 50 réalisé contre 29 à 44 attendus : en avance
 
 
 def test_targets_come_from_sell_out_lines_of_the_month_only():
@@ -153,7 +154,7 @@ def test_the_third_day_of_the_month_does_not_credit_the_whole_first_week(tmp_pat
 
     japan = next(line for line in review.lines if line.market == "Japan")
     assert review.day == 3 and review.week == 1
-    assert japan.month_done == "9 %"        # 0.20 × 3/7 = 0.086, pas 20 %
+    assert japan.expected == "9 %"        # 0.20 × 3/7 = 0.086, pas 20 %
 
 
 def test_the_last_block_of_the_month_is_measured_on_its_own_length():
@@ -167,3 +168,63 @@ def test_the_last_block_of_the_month_is_measured_on_its_own_length():
 def test_a_gap_of_nothing_is_written_without_a_sign():
     assert M._points(-0.003) == "0" and M._points(0.004) == "0"
     assert M._points(0.041) == "+4" and M._points(-0.08) == "-8"
+
+
+def test_the_time_elapsed_is_the_same_for_everyone_and_said_once(tmp_path):
+    """« Trois jours, ce n'est pas seize pour cent du mois écoulé. » Le temps écoulé est
+    le même pour tous et s'écrit une fois ; ce qui diffère par marché est ce qu'il fait
+    d'ordinaire à cette date, et cela s'appelle « attendu », pas « écoulé »."""
+    review = M.build(_rows(through="2026-09-03"), {"Japan": 4_000_000.0},
+                     _phasing(tmp_path))
+
+    assert abs(review.elapsed - 3 / 30) < 1e-9 and review.days_in_month == 30
+
+
+def test_a_positive_gap_means_ahead(tmp_path):
+    """Le signe naturel, réalisé moins attendu. L'inverse se lisait comme une faute sur
+    chaque ligne."""
+    review = M.build([{"market": "JAPAN", "iso2": "JP", "sales_to_date": 3_000_000.0,
+                       "read_through": "2026-09-17"}],
+                     {"Japan": 4_000_000.0}, _phasing(tmp_path))
+
+    japan = review.lines[0]
+    assert japan.done == "75 %" and japan.expected == "56 %" and japan.gap == "+19 pts"
+
+
+def _many(tmp_path):
+    rows, targets, shape = [], {}, ["market,month,week,share,year"]
+    for index, (name, plan) in enumerate((("BIGLAND", 50.0), ("MIDLAND", 25.0),
+                                          ("SMALLA", 10.0), ("SMALLB", 8.0),
+                                          ("TINYA", 4.0), ("TINYB", 2.0), ("TINYC", 1.0))):
+        rows.append({"market": name, "iso2": "X%d" % index, "sales_to_date": plan * 0.1,
+                     "read_through": "2026-09-03"})
+        targets[name.title()] = plan
+        for year in ("FY2025", "FY2026"):
+            for week, share in enumerate((0.25, 0.25, 0.25, 0.25)):
+                shape.append("%s,09,%d,%s,%s" % (name, week + 1, share, year))
+    path = tmp_path / "phasing.csv"
+    path.write_text("\n".join(shape) + "\n", encoding="utf-8")
+    return rows, targets, pace.load(str(path))
+
+
+def test_only_the_markets_that_carry_the_plan_are_shown_and_the_rest_is_folded(tmp_path):
+    """Trente-quatre marchés à plat rendaient la sélection au lecteur. Les marchés qui
+    font quatre cinquièmes du plan prennent une ligne chacun ; les autres en partagent
+    une, qui garde leur poids et leur réalisé — un repli n'est pas une disparition."""
+    rows, targets, phasing = _many(tmp_path)
+
+    review = M.build(rows, targets, phasing)
+    group = review.loose
+
+    assert [line.market for line in group.shown] == ["Bigland", "Midland", "Smalla"]
+    assert group.rest.count == 4 and abs(group.rest.share - 0.15) < 1e-9
+    assert group.rest.done == "10 %"
+    assert "Tinyc" in group.rest.names
+
+
+def test_the_fold_never_swallows_the_only_market(tmp_path):
+    review = M.build(_rows(through="2026-09-03")[:1], {"Japan": 4_000_000.0},
+                     _phasing(tmp_path))
+
+    assert [line.market for line in review.loose.shown] == ["Japan"]
+    assert review.loose.rest is None

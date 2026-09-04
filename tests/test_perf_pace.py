@@ -144,11 +144,11 @@ def test_the_uncertainty_of_the_shape_travels_into_the_gap(tmp_path):
     read = pace.load(_file(tmp_path, _year([0.20, 0.20, 0.40, 0.20], year="2024")
                            + _year([0.20, 0.55, 0.05, 0.20], year="2025")))
 
-    behind = pace.progress("Northland", "2026-11", 2, 400.0, 1000.0, read).behind
+    ahead = pace.progress("Northland", "2026-11", 2, 400.0, 1000.0, read).ahead
 
-    assert abs(behind.low - 0.0) < 1e-9      # 40 % du mois − 40 % du plan
-    assert abs(behind.high - 0.35) < 1e-9    # 75 % du mois − 40 % du plan
-    assert behind.spread > 0.3
+    assert abs(ahead.high - 0.0) < 1e-9      # 40 % du plan − 40 % attendu
+    assert abs(ahead.low + 0.35) < 1e-9      # 40 % du plan − 75 % attendu : en retard
+    assert ahead.spread > 0.3
 
 
 def test_the_shape_repeats_from_one_year_to_the_next_so_the_year_is_not_a_key(tmp_path):

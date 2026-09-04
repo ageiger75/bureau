@@ -31,6 +31,13 @@ SELL_IN_NOTE = ("Le sell-in n'avance pas en jours : une facture tombe quand elle
 #: Sous cette largeur, une fourchette se lit comme un point.
 NARROW = 0.03
 
+#: Ce qu'un périmètre montre de ses marchés : ceux qui, du plus gros au plus petit, font
+#: cette part de son plan — et jamais plus de `MOST` lignes. Le reste est replié en une
+#: ligne qui garde son poids et son réalisé. Trente-quatre marchés à plat rendaient la
+#: sélection au lecteur, c'est-à-dire le travail qu'il venait chercher.
+COVERAGE = 0.80
+MOST = 5
+
 
 def week_of(day: int) -> int:
     """Le bloc de sept jours où tombe un jour du mois — la règle du fichier de phasage."""
@@ -91,9 +98,15 @@ class Line:
         self.perimeter = perimeter
 
     @property
-    def month_done(self) -> str:
-        """« 45–70 % » quand les années ne s'accordent pas, « 62 % » quand elles
-        s'accordent, et l'absence nommée sinon."""
+    def expected(self) -> str:
+        """La part du plan du mois que ce marché fait d'ordinaire à cette date.
+
+        Ce n'est **pas** le temps écoulé — celui-là est le même pour tout le monde et
+        s'écrit une fois, en tête du panneau. C'est la forme du mois de ce marché : un
+        marché qui fait un tiers de son mois dans la première semaine est attendu à
+        seize pour cent le troisième jour, et l'écrire « mois écoulé » se lisait comme
+        une erreur de calendrier. « 45–70 % » quand les années ne s'accordent pas.
+        """
         band = self.progress.through_month
         if band is None:
             return ""
@@ -102,19 +115,29 @@ class Line:
         return "%.0f–%.0f %%" % (band.low * 100, band.high * 100)
 
     @property
-    def target_done(self) -> str:
+    def thin(self) -> bool:
+        """La forme ne repose que sur deux exercices : un intervalle, pas une dispersion."""
+        band = self.progress.through_month
+        return band is not None and band.years < 3
+
+    @property
+    def done(self) -> str:
         share = self.progress.through_target
         return "" if share is None else "%.0f %%" % (share * 100)
 
     @property
-    def behind(self) -> str:
-        """Les points de retard sur le mois, en fourchette. Positif : reste à rattraper."""
-        band = self.progress.behind
+    def gap(self) -> str:
+        """Réalisé moins attendu, en points. Positif : en avance. Négatif : en retard."""
+        band = self.progress.ahead
         if band is None:
             return ""
         if band.spread <= NARROW:
             return "%s pts" % _points(band.middle)
         return "%s à %s pts" % (_points(band.low), _points(band.high))
+
+    @property
+    def target(self) -> float:
+        return self.progress.target or 0.0
 
     @property
     def readable(self) -> bool:
@@ -125,26 +148,92 @@ class Line:
         return self.progress.absent
 
 
-class Group:
-    """Un périmètre : son MD, ses marchés."""
+class Rest:
+    """Les marchés repliés d'un périmètre, en une ligne qui garde leur poids."""
 
-    __slots__ = ("name", "lead", "lines")
+    __slots__ = ("count", "share", "done", "expected", "names")
+
+    def __init__(self, count: int, share: float, done: str, expected: str,
+                 names: Sequence[str]) -> None:
+        self.count = count
+        #: Leur part du plan du périmètre.
+        self.share = share
+        self.done = done
+        self.expected = expected
+        self.names = list(names)
+
+    @property
+    def label(self) -> str:
+        return "%d autres marchés · %.0f %% du plan" % (self.count, self.share * 100)
+
+
+class Group:
+    """Un périmètre : son MD, les marchés qui pèsent, et le reste replié."""
+
+    __slots__ = ("name", "lead", "lines", "shown", "rest")
 
     def __init__(self, name: str, lead: str, lines: Sequence["Line"]) -> None:
         self.name = name
         self.lead = lead
         self.lines = list(lines)
+        self.shown, self.rest = _select(self.lines)
+
+    @property
+    def plan(self) -> float:
+        return sum(line.target for line in self.lines)
+
+
+def _select(lines: Sequence["Line"]):
+    """Les marchés qui font `COVERAGE` du plan, du plus gros au plus petit, et le reste.
+
+    Un marché sans plan ne pèse rien ici et part dans le reste : il n'a pas de quoi
+    prendre une ligne, et son absence de plan est déjà nommée là où on le lira.
+    """
+    ordered = sorted(lines, key=lambda line: -line.target)
+    total = sum(line.target for line in ordered)
+    shown: List[Line] = []
+    covered = 0.0
+    for line in ordered:
+        if shown and (len(shown) >= MOST or (total and covered / total >= COVERAGE)):
+            break
+        if line.target <= 0 and shown:
+            break
+        shown.append(line)
+        covered += line.target
+    rest_lines = [line for line in ordered if line not in shown]
+    if not rest_lines:
+        return shown, None
+    plan = sum(line.target for line in rest_lines)
+    actual = sum(line.progress.actual or 0.0 for line in rest_lines)
+    done = "%.0f %%" % (actual / plan * 100) if plan else ""
+    # L'attendu du reste : la moyenne des formes, pondérée par le plan, quand assez de
+    # marchés en ont une pour que la moyenne parle ; sinon rien plutôt qu'un chiffre
+    # assis sur la moitié du poids.
+    shaped = [line for line in rest_lines
+              if line.progress.through_month is not None and line.target > 0]
+    weight = sum(line.target for line in shaped)
+    expected = ""
+    if plan and weight / plan >= COVERAGE:
+        low = sum(line.progress.through_month.low * line.target for line in shaped) / weight
+        high = sum(line.progress.through_month.high * line.target for line in shaped) / weight
+        expected = ("%.0f %%" % (((low + high) / 2) * 100) if high - low <= NARROW
+                    else "%.0f–%.0f %%" % (low * 100, high * 100))
+    return shown, Rest(len(rest_lines), plan / total if total else 0.0, done, expected,
+                       [line.market for line in rest_lines])
 
 
 class Review:
     """La lecture entière du mois, prête à rendre."""
 
     __slots__ = ("month", "week", "day", "through", "groups", "unplaced", "absent",
-                 "sell_in")
+                 "sell_in", "loose")
 
     def __init__(self, month: str, week: int, through: str,
                  groups: Sequence["Group"], unplaced: Sequence["Line"],
-                 absent: Sequence[str], day: int = 0) -> None:
+                 absent: Sequence[str], day: int = 0, loose=None) -> None:
+        #: Les marchés sans périmètre, sélectionnés comme un périmètre : les gros
+        #: d'abord, le reste replié.
+        self.loose = loose
         #: Le mois lu, « 2026-09 », le jour et la semaine du mois où la lecture s'arrête.
         self.month = month
         self.week = week
@@ -158,6 +247,26 @@ class Review:
         #: Ce qui a manqué à la lecture, nommé.
         self.absent = list(absent)
         self.sell_in = SELL_IN_NOTE
+
+    @property
+    def elapsed(self) -> float:
+        """Le temps écoulé, le même pour tous : le jour lu sur les jours du mois."""
+        import calendar
+
+        try:
+            year, month = int(self.month[:4]), int(self.month[5:7])
+        except ValueError:
+            return 0.0
+        return self.day / float(calendar.monthrange(year, month)[1])
+
+    @property
+    def days_in_month(self) -> int:
+        import calendar
+
+        try:
+            return calendar.monthrange(int(self.month[:4]), int(self.month[5:7]))[1]
+        except ValueError:
+            return 0
 
     @property
     def usable(self) -> bool:
@@ -253,4 +362,5 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
     groups.sort(key=lambda group: -sum(line.progress.target or 0.0
                                        for line in group.lines))
     return Review(month, week, through.isoformat(), groups, order(unplaced), absent,
-                  day=through.day)
+                  day=through.day, loose=Group("Sans périmètre", "", unplaced)
+                  if unplaced else None)
