@@ -164,6 +164,8 @@ class Rest:
 
     @property
     def label(self) -> str:
+        if self.count == 1:
+            return "1 autre marché · %.0f %% du plan" % (self.share * 100)
         return "%d autres marchés · %.0f %% du plan" % (self.count, self.share * 100)
 
 

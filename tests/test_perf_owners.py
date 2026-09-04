@@ -316,3 +316,20 @@ def test_a_first_name_is_never_mistaken_for_a_surname(looked_up):
 
     first, _, last = owner.name.partition(" ")
     assert first != last
+
+
+def test_the_czech_republic_is_named_as_the_rest_of_the_cockpit_names_it(tmp_path):
+    """L'annuaire traduisait « République tchèque » en « Czechia » quand le plan et
+    l'entrepôt disent « Czech Republic ». Le pays était dans le fichier, avec son MD, et
+    il ressortait « sans périmètre » — une absence de jointure déguisée en absence de
+    réponse."""
+    book = directory_file(
+        tmp_path,
+        rows=[LEADERS_HEADER,
+              ["EMEA", "MD", "Luc", "MARTIN", "Managing Director EMEA", "France", ""]],
+        lookup=[LOOKUP_HEADER,
+                ["République tchèque", "EMEA", "Luc MARTIN", "", "", ""]],
+        name="lookup.xlsx",
+    )
+
+    assert owners.load(book).owner_for("Czech Republic", "GE COUNTRIES").name == "Luc MARTIN"
