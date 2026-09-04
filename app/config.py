@@ -111,6 +111,12 @@ DEFAULT_CALENDAR_FILE = "var/calendar_events.csv"
 #: Optionnel : quel marché de la maison correspond à quel pays du calendrier. Sans lui, le
 #: rapprochement se fait sur le nom, et les marchés qu'il n'a pas su joindre sont nommés.
 DEFAULT_MARKETS_FILE = "var/markets.csv"
+#: Le taux de contribution moyen par canal, tel que la maison le connaît — et rien
+#: d'autre. Il dit ce qu'un canal a rapporté, pas ce que le prochain euro rapporterait :
+#: le taux marginal n'est dans aucune source lue ici, et ce fichier ne le remplace pas.
+#: Un canal vendu qu'il ne nomme pas est absent, jamais pris à zéro ni à la moyenne.
+DEFAULT_CONTRIBUTION_FILE = "var/contribution.csv"
+
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -141,6 +147,7 @@ class Settings:
     phasing_file: str = DEFAULT_PHASING_FILE
     calendar_file: str = DEFAULT_CALENDAR_FILE
     markets_file: str = DEFAULT_MARKETS_FILE
+    contribution_file: str = DEFAULT_CONTRIBUTION_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -256,6 +263,15 @@ class Settings:
     @property
     def has_markets_file(self) -> bool:
         return self.markets_path.exists()
+
+    @property
+    def contribution_path(self) -> Path:
+        path = Path(self.contribution_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_contribution_file(self) -> bool:
+        return self.contribution_path.exists()
 
     @property
     def actuals_folder(self) -> Path:

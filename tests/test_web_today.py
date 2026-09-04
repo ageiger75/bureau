@@ -670,3 +670,14 @@ def test_the_month_in_progress_is_on_the_screen_with_two_rates_per_market(client
 
     assert "Où en est le mois" in page
     assert "n'avance pas en jours" in page
+
+def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
+    """B5, première pièce : le mix par canal contre le plan se lit sans aucun taux, le
+    taux marginal est dit absent, et rien ne s'appelle EBITDA ni résultat."""
+    page = page_text(client.get("/"))
+
+    assert "L'euro gagné est-il le bon euro" in page
+    assert "Part au plan" in page
+    assert "Taux marginal : absent" in page
+    assert "Aucun canal n'est classé sur son taux moyen" in page
+    assert "EBITDA" not in page

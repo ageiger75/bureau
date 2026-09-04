@@ -50,6 +50,8 @@
     python -m app.cli phasing        la forme des mois, et ceux qui n'en ont pas de stable
                                      --sell-in · --sell-out · --distance · --markets
                                      retail par défaut · --outlets · --all-channels
+    python -m app.cli mix            le mix du mois contre le plan, repondéré aux taux
+                                     moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
@@ -3983,6 +3985,62 @@ def cmd_month(argv: List[str]) -> int:
     return 0
 
 
+def cmd_mix(argv: List[str]) -> int:
+    """Le mix du mois contre le plan, tel que l'écran le rendra.
+
+    Par canal, du plus lourd au plan au plus léger — jamais rangé par taux : la part au
+    plan, la part réalisée, les points de mix ; puis, quand `var/contribution.csv` porte
+    un taux moyen, l'écart de ventes multiplié par ce taux, et sa séparation en effet
+    volume et effet mix. Un calcul avec ses coefficients, pas un résultat.
+    """
+    from .perf import mix as mix_module
+    from .perf.analytics import format_eur
+    from .perf.source import current_source
+    from .routes.today import _mix_review
+
+    review = _mix_review(current_source().dataset())
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print("%s · %d canaux · ventes %s contre plan %s"
+          % (review.period, len(review.slices), format_eur(review.total_actual),
+             format_eur(review.total_budget)))
+    print("")
+    head = "  %-24s %8s %8s %6s" % ("Canal", "plan", "réalisé", "mix")
+    if review.weighs:
+        head += " %8s %12s %12s" % ("taux", "écart", "× taux")
+    print(head)
+    for piece in review.slices:
+        row = "  %-24s %8s %8s %6s" % (piece.label[:24], piece.plan_share_label,
+                                       piece.actual_share_label, piece.mix_gap_label)
+        if review.weighs:
+            row += " %8s %12s %12s" % (
+                piece.rate_label, format_eur(piece.sales_gap),
+                format_eur(piece.weighted) if piece.covered else "—")
+        print(row)
+    print("")
+    if review.weighs:
+        print("Σ taux × écart : %s, sur %s des ventes du mois%s"
+              % (format_eur(review.weighted), review.coverage_label,
+                 " — moins de la moitié" if review.thin else ""))
+        print("  dont volume : %s = écart total %s × taux moyen du plan %s"
+              % (format_eur(review.volume_effect), format_eur(review.sales_gap),
+                 review.plan_rate_label))
+        print("  dont mix    : %s = ventes × Σ taux × points de mix"
+              % format_eur(review.mix_effect))
+        print("")
+    if review.uncovered_note:
+        print(review.uncovered_note)
+    print(mix_module.MARGINAL_ABSENT)
+    print(mix_module.NO_RANKING)
+    if review.partners_note:
+        print(review.partners_note)
+    for reason in review.absent:
+        print(reason)
+    return 0
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -4038,6 +4096,8 @@ def main(argv: List[str]) -> int:
         return cmd_phasing(argv[1:])
     if command == "month":
         return cmd_month(argv[1:])
+    if command == "mix":
+        return cmd_mix(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

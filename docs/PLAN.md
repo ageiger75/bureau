@@ -286,6 +286,16 @@ produit ni suggéré ; la base de chaque chiffre est affichée ; le taux margina
 absent plutôt que remplacé par le taux moyen ; deux marchés de régimes différents ne sont
 jamais comparés sur le même taux sans que l'écran le dise.
 
+**État au 4 septembre 2026 — première pièce livrée.** `var/contribution.csv` se lit tel que
+la maison l'écrit (`name,kind,average_rate,as_of,source` ; un nom peut couvrir deux canaux du
+plan ; une ligne de partenaire est lue et jamais posée sur un canal). L'écran et `manage.py
+mix` rendent, par canal et par poids au plan, la part planifiée, la part réalisée et les
+points de mix — sans aucun taux — puis, quand le fichier en porte, l'écart de ventes × taux
+moyen, séparé en effet volume et effet mix, identité gardée par test. Un canal sans taux est
+absent avec son poids, la couverture est affichée, le taux marginal est déclaré absent, et
+aucune ligne n'est rangée par taux. Reste à faire : le régime de coûts par marché, et la
+part loyer du coût marginal lue par boutique dans le référentiel immobilier.
+
 ### Phase 4 — B1, une page par périmètre
 
 Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,

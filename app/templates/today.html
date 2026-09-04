@@ -294,6 +294,62 @@
   {% endif %}
 </section>
 
+<section class="panel" id="mix">
+  <h2>L'euro gagné est-il le bon euro</h2>
+  {% if mix and mix.usable %}
+    <p class="lede">
+      {{ mix.period }} · par canal, la part au plan et la part réalisée.
+      {% if mix.weighs %}Puis l'écart de ventes de chaque canal multiplié par son taux moyen de
+      contribution — un calcul dont les coefficients sont affichés, pas un résultat.{% endif %}
+    </p>
+    <table class="month-table mix-table">
+      <thead>
+        <tr><th>Canal</th><th>Part au plan</th><th>Réalisée</th><th>Mix</th>{% if mix.weighs %}<th>Taux moyen</th><th>Écart de ventes</th><th>× taux</th>{% endif %}</tr>
+      </thead>
+      <tbody>
+      {% for piece in mix.slices %}
+        <tr>
+          <td>{{ piece.label }}</td>
+          <td class="num">{{ piece.plan_share_label }}</td>
+          <td class="num">{{ piece.actual_share_label }}</td>
+          <td class="num" title="Points de mix contre le plan. Positif : plus lourd que prévu.">{{ piece.mix_gap_label }}</td>
+          {% if mix.weighs %}
+            {% if piece.covered %}
+              <td class="num">{{ piece.rate_label }}</td>
+              <td class="num">{{ piece.sales_gap | eur }}</td>
+              <td class="num">{{ piece.weighted | eur }}</td>
+            {% else %}
+              <td class="absent">absent</td>
+              <td class="num">{{ piece.sales_gap | eur }}</td>
+              <td class="absent">—</td>
+            {% endif %}
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if mix.weighs %}
+      <dl class="mix-calc">
+        <dt>Σ taux × écart</dt>
+        <dd>{{ mix.weighted | eur }} <small>sur {{ mix.coverage_label }} des ventes du mois{% if mix.thin %} — moins de la moitié{% endif %}</small></dd>
+        <dt>dont volume</dt>
+        <dd>{{ mix.volume_effect | eur }} <small>= écart total de ventes {{ mix.sales_gap | eur }} × taux moyen du plan {{ mix.plan_rate_label }}</small></dd>
+        <dt>dont mix</dt>
+        <dd>{{ mix.mix_effect | eur }} <small>= ventes × Σ taux × points de mix</small></dd>
+      </dl>
+    {% endif %}
+    {% if mix.uncovered_note %}<p class="cockpit-caveat">{{ mix.uncovered_note }}</p>{% endif %}
+    <p class="cockpit-caveat">{{ mix.marginal }}</p>
+    <p class="cockpit-caveat">{{ mix.no_ranking }}</p>
+    {% if mix.partners_note %}<p class="cockpit-caveat">{{ mix.partners_note }}</p>{% endif %}
+    {% for reason in mix.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">
+      {% for reason in mix.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+  {% endif %}
+</section>
+
 <section class="panel">
   <h2>Les sujets</h2>
   <p class="lede">

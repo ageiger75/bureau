@@ -97,6 +97,19 @@ def _month_review(source):
     return month_module.build(rows, targets, phasing, org, directory=directory)
 
 
+def _mix_review(dataset):
+    """Le mix du mois contre le plan, repondéré aux taux moyens quand un fichier les porte.
+
+    Le fichier est local et facultatif : sans lui, les parts par canal se lisent quand
+    même, et le panneau dit ce qu'il attend.
+    """
+    from ..config import settings
+    from ..perf import mix as mix_module
+
+    contribution = mix_module.current() if settings.has_contribution_file else None
+    return mix_module.build(dataset, contribution)
+
+
 @router.get("/freshness")
 def freshness():
     """When the figures in memory were read. Polled by the page, never by a person.
@@ -160,6 +173,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     # agree everywhere, which is a good state and not a missing panel.
     bulk_findings = getattr(source, "bulk_findings", list)()
     month = _month_review(source)
+    mix = _mix_review(dataset)
 
     fires = analytics.fires(dataset)
     # The subjects, which is what the reader ends up with: a market losing ground in two
@@ -252,6 +266,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             # selection back to the reader, which is the work they came for.
             "week": week,
             "month": month,
+            "mix": mix,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
             # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the
