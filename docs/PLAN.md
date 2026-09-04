@@ -296,6 +296,16 @@ absent avec son poids, la couverture est affichée, le taux marginal est déclar
 aucune ligne n'est rangée par taux. Reste à faire : le régime de coûts par marché, et la
 part loyer du coût marginal lue par boutique dans le référentiel immobilier.
 
+**Le fichier de clôture a changé de forme en août 2026**, et le fichier de la CFO est une
+troisième forme des mêmes lignes. Le lecteur reconnaît les trois depuis les feuilles du
+classeur — positions pour le flash d'origine, colonnes nommées pour le fichier de clôture
+(une feuille par mois, la plus récente lue), taux constant pour l'extraction de la CFO —
+et reproduit à l'euro le total, le budget et l'an dernier que le récapitulatif publie. Au
+passage, une ligne qui ne porte qu'un an dernier est gardée : l'ancien lecteur la laissait
+tomber, et l'an dernier de mai manquait d'un demi-million contre le flash. L'extraction de
+la CFO porte aussi une feuille **par boutique**, avec son budget : c'est la maille de la
+pièce suivante de cette phase, le régime de loyer lu bail par bail.
+
 ### Phase 4 — B1, une page par périmètre
 
 Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,

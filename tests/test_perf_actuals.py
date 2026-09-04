@@ -223,3 +223,213 @@ def test_an_absent_folder_reports_rather_than_raises():
     read = actuals.series("/nowhere/at/all")
     assert not read.usable
     assert read.faults
+
+
+# --- Three layouts of the same rows ----------------------------------------------------
+#
+# Finance changed the export twice in one year without changing what it says. The reader
+# has to recognise each from the workbook itself, read the same three figures from each,
+# and spell the markets the way the plan does whatever the file called them.
+
+import zipfile
+
+_CONTENT_TYPES = (
+    '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/'
+    'content-types"><Default Extension="xml" ContentType="application/xml"/></Types>'
+)
+
+
+def _cell(reference, value):
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)):
+        return '<c r="%s"><v>%s</v></c>' % (reference, value)
+    return '<c r="%s" t="inlineStr"><is><t>%s</t></is></c>' % (reference, value)
+
+
+def _sheet_xml(rows):
+    body = []
+    for index, row in enumerate(rows, start=1):
+        cells = [_cell("%s%d" % (chr(ord("A") + position), index), value)
+                 for position, value in enumerate(row)]
+        body.append('<row r="%d">%s</row>' % (index, "".join(cells)))
+    return ('<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/'
+            'spreadsheetml/2006/main"><sheetData>%s</sheetData></worksheet>' % "".join(body))
+
+
+def _workbook(path, sheets):
+    """Write a workbook of several named sheets, the way Excel lays the package out."""
+    names = list(sheets)
+    workbook = ('<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/'
+                'spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/'
+                'officeDocument/2006/relationships"><sheets>%s</sheets></workbook>'
+                % "".join('<sheet name="%s" sheetId="%d" r:id="rId%d"/>' % (name, i, i)
+                          for i, name in enumerate(names, start=1)))
+    rels = ('<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/'
+            'package/2006/relationships">%s</Relationships>'
+            % "".join('<Relationship Id="rId%d" Target="worksheets/sheet%d.xml" '
+                      'Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+                      'relationships/worksheet"/>' % (i, i)
+                      for i in range(1, len(names) + 1)))
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", _CONTENT_TYPES)
+        archive.writestr("xl/workbook.xml", workbook)
+        archive.writestr("xl/_rels/workbook.xml.rels", rels)
+        for i, name in enumerate(names, start=1):
+            archive.writestr("xl/worksheets/sheet%d.xml" % i, _sheet_xml(sheets[name]))
+    return str(path)
+
+
+MAISON = "L'Occitane en Provence"
+NAMED_HEADER = ["Brand", "Entities", "Region", "Country", "PCC - Parent", "Channel",
+                "ACTUAL N", "ACTUAL N-1", "BUDGET N"]
+
+
+def _named(rows):
+    return [NAMED_HEADER] + rows
+
+
+def test_the_closing_file_is_read_from_its_latest_month_sheet(tmp_path):
+    """From August 2026 the file keeps one sheet per month, `DATA APRIL`, `DATA MAY`…, in
+    an older shape for the earlier months, and speaks for the latest. The reader ranks
+    the sheets in fiscal order and reads that one — August over April, and the year to
+    date from its own sheet."""
+    path = _workbook(tmp_path / "Sales by country  by channel August 26.xlsx", {
+        "DATA APRIL ": [["Brand", "Country", "Channel", "ACTUAL N", "BUDGET N"],
+                        [MAISON, "Northland", "Retail", 1.0, 1.0]],
+        "DATA AUGUST": _named([
+            [MAISON, "E001 - Northland", "GE COUNTRIES", "Northland", "Sell out", "Retail",
+             120.0, 110.0, 100.0],
+            [MAISON, "E001 - Northland", "GE COUNTRIES", "Northland", "Sell In",
+             "Web partners", 30.0, 25.0, 40.0],
+            ["Another Maison", "E002 - X", "GE COUNTRIES", "Northland", "Sell out", "Retail",
+             999.0, 999.0, 999.0],
+        ]),
+        "DATA YTD AUGUST": _named([
+            [MAISON, "E001 - Northland", "GE COUNTRIES", "Northland", "Sell out", "Retail",
+             520.0, 480.0, 500.0],
+        ]),
+    })
+
+    month = actuals.load(path, actuals.MONTH_SHEET)
+    assert month.sheet == "DATA AUGUST"
+    assert not month.faults
+    assert (month.actual, month.last_year, month.budget) == (150_000.0, 135_000.0, 140_000.0)
+    assert {line.basis for line in month.lines} == {actuals.SOLD, actuals.SHIPPED}
+    assert {line.channel for line in month.lines} == {"retail", "webp"}
+
+    ytd = actuals.load(path, actuals.YTD_SHEET)
+    assert ytd.sheet == "DATA YTD AUGUST"
+    assert ytd.actual == 520_000.0
+
+
+def test_the_cfo_data_set_reads_the_constant_rate_columns(tmp_path):
+    """The CFO's extract carries each actual twice — at published rate and at constant
+    rate — under a merged header that is written once over the columns it covers. The
+    cockpit reads the constant-rate pair, the basis every published percentage rests on,
+    and the budget, which has one rate only."""
+    blank = [None, None]
+    rows = [
+        [None, None, "SAL_RE_015 - Sales Data Set"],
+        [None, "Scenario", "FY27_ACT - Actual 2027"],
+        [None, "Period", "05 - August"],
+        blank + [None] * 6 + ["Published rate", None, "Constant rate", None, "Published rate"],
+        blank + [None] * 6 + ["Actual 2027", "Actual 2026", "Actual 2027", "Actual 2026",
+                              "Budget 2027"],
+        blank + ["Brand", "Entities", "Management Unit - Parent", "Management Unit - Lowest",
+                 "PCC - Parent", "PCC - Lowest", "Sales", "Sales", "Sales", "Sales", "Sales"],
+        blank + [None] * 6 + ["Actual 2027", "Actual 2026", "Actual 2027", "Actual 2026",
+                              "Budget 2027"],
+        blank + [None] * 6 + ["Sales"] * 5,
+        blank + [MAISON, "E001 - Northland", "Greater Europe", "Northland", "Sell out",
+                 "Retail", 999.0, 999.0, 120.0, 110.0, 100.0],
+        blank + [MAISON, "E001 - Northland", "Greater Europe", "Northland", "Total B2B",
+                 "Corporate Gifts", 999.0, 999.0, 5.0, 4.0, 6.0],
+    ]
+    path = _workbook(tmp_path / "OCC FS DATA SET 2026_08.xlsx", {
+        "Sales Data Set MTD": rows, "Sales Data by Store MTD": [["ignored"]],
+        "Sales Data Set YTD": rows,
+    })
+
+    month = actuals.load(path, actuals.MONTH_SHEET)
+    assert month.sheet == "Sales Data Set MTD"
+    assert not month.faults
+    assert (month.actual, month.last_year, month.budget) == (125_000.0, 114_000.0, 106_000.0)
+    assert month.by_basis() == {actuals.SOLD: 120_000.0, actuals.HOSPITALITY: 5_000.0}
+    assert actuals.load(path, actuals.YTD_SHEET).sheet == "Sales Data Set YTD"
+
+
+def test_markets_are_spelt_as_the_plan_spells_them_whatever_the_file_called_them(tmp_path):
+    """Three files, three spellings, one plan. Aligned through the consolidation entity
+    and kept explicit: a market spelt its own way joins no plan line, and a market that
+    joins no plan line shows as a business with no commitment."""
+    path = _workbook(tmp_path / "August 26.xlsx", {"DATA AUGUST": _named([
+        [MAISON, "E035", "GE COUNTRIES", "Czek Republic", "Sell out", "Retail", 1.0, 1.0, 1.0],
+        [MAISON, "E010", "GE COUNTRIES", "Netherland", "Sell out", "Retail", 1.0, 1.0, 1.0],
+        [MAISON, "E086", "GE COUNTRIES", "86 Champs", "Sell out", "Cafe", 1.0, 1.0, 1.0],
+        [MAISON, "E098", "GE DISTRIBUTORS", "MIDDLE EAST", "Sell In", "Distributors",
+         1.0, 1.0, 1.0],
+        [MAISON, "E007", "APAC", "HK TR", "Sell In", "Travel Retail", 1.0, 1.0, 1.0],
+        [MAISON, "E004", "N.AMERICA", "USA", "Sell out", "E-Business", 1.0, 1.0, 1.0],
+        [MAISON, "E007", "CHINA", "CHINA CROSS BORDER", "Sell In", "Web partners",
+         1.0, 1.0, 1.0],
+    ])})
+
+    assert actuals.load(path).markets() == [
+        "86Cr", "China", "Czech Republic", "Middle East", "Netherlands",
+        "Travel retail Asia", "United States",
+    ]
+    # The CFO's own spellings reach the same names.
+    for theirs, ours in (("Japan Management Unit", "Japan"), ("Brazil business", "Brazil"),
+                         ("Hong Kong Local", "Hong Kong"),
+                         ("Hong Kong Distributors", "Hong Kong distributors"),
+                         ("Travel Retail LOI Business", "Travel retail international"),
+                         ("Export Europe", "Loi Distributors"),
+                         ("China Cross border", "China")):
+        assert actuals._market(theirs) == ours, theirs
+
+
+def test_a_channel_the_table_does_not_know_is_refused_and_named(tmp_path):
+    path = _workbook(tmp_path / "August 26.xlsx", {"DATA AUGUST": _named([
+        [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Retail", 1.0, 1.0, 1.0],
+        [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Drones", 1.0, 1.0, 1.0],
+    ])})
+    read = actuals.load(path)
+
+    assert len(read.lines) == 1
+    assert read.faults == ["canaux inconnus, non comptés : drones"]
+
+
+def test_a_workbook_with_no_recognised_sheet_says_which_sheets_it_has(tmp_path):
+    path = _workbook(tmp_path / "other.xlsx", {"Summary": [["x"]], "Notes": [["y"]]})
+    read = actuals.load(path)
+
+    assert not read.lines
+    assert read.faults[0].startswith("aucune feuille du mois reconnue — feuilles : Summary, Notes")
+
+
+def test_a_row_carrying_only_last_year_is_kept(tmp_path):
+    """A business that stopped has a last year and nothing else. Dropping the row left the
+    comparison against last year half a million short of the figure the flash published
+    beside it — found on May, and true of every month before."""
+    path = _workbook(tmp_path / "August 26.xlsx", {"DATA AUGUST": _named([
+        [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Retail", 100.0, 90.0, 95.0],
+        [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell In", "Department Stores",
+         None, 12.0, None],
+    ])})
+    read = actuals.load(path)
+
+    assert len(read.lines) == 2
+    assert read.last_year == 102_000.0
+    assert read.actual == 100_000.0
+
+
+def test_the_month_is_read_from_a_name_that_writes_it_in_words():
+    august = actuals.period_of("Sales by country  by channel August 26.xlsx")
+    assert (august.year, august.month) == (2026, 8)
+    assert august.fiscal_index == 5
+    march = actuals.period_of("Sales by country by channel march 2027.xlsx")
+    assert (march.year, march.month) == (2027, 3)
+    # Digits still win where both are written.
+    both = actuals.period_of("Sales April 2026_05.xlsx")
+    assert (both.year, both.month) == (2026, 5)

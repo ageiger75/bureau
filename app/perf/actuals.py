@@ -28,7 +28,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from .budget import normalise_market
-from .xlsx import read_sheet
+from .xlsx import Workbook, read_sheet
 
 #: The sheets carrying one row per country × channel. `Data Periodic` is the month;
 #: `Data YTD` is the fiscal year to date on the same shape.
@@ -96,6 +96,74 @@ CHANNELS = {
 SOLD = "SELL_OUT"
 SHIPPED = "SELL_IN"
 HOSPITALITY = "B2BT"
+
+#: Three layouts of the same rows, and the reader has to know all three because Finance
+#: changed the export twice in one year without changing what it says. The first is the
+#: original flash: merged headers, columns read by position. The second is the closing
+#: file from August 2026 on — one sheet per month, `DATA AUGUST`, with a real header row.
+#: The third is the CFO's own extract from the consolidation tool, `Sales Data Set MTD`,
+#: which carries the same rows at published and constant rates side by side, and a sheet
+#: by store beneath it. Which one a workbook is, is read from its sheets, never assumed.
+LAYOUT_LEGACY = "positions"
+LAYOUT_NAMED = "named columns"
+LAYOUT_DATASET = "consolidation data set"
+
+DATASET_MONTH_SHEET = "Sales Data Set MTD"
+DATASET_YTD_SHEET = "Sales Data Set YTD"
+
+#: The fiscal year opens in April. Needed here to rank the month sheets of one file.
+FISCAL_OPENS = 4
+
+MONTH_NAMES = ("JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST",
+               "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER")
+
+#: The channel as the newer layouts write it, to the code the older one used. The plan's
+#: sixteen codes are the pivot; a name missing here is refused, not guessed.
+CHANNEL_LABELS = {
+    "retail": "RET",
+    "e-business": "EBU",
+    "market place": "MKTP",
+    "web partners": "WEBP",
+    "wholesale chains": "WHOCH",
+    "wholesale independant accounts": "WHOIN",
+    "wholesale independent accounts": "WHOIN",
+    "wholesale spa": "WHOSP",
+    "department stores": "DPT",
+    "distributors": "DIS",
+    "travel retail": "TRA",
+    "tv channels": "TVC",
+    "b2b": "B2B",
+    "corporate gifts": "COPG",
+    "cafe": "CAF",
+    "café": "CAF",
+    "spa": "SPA",
+    "direct selling": "DDS",
+    "digital direct selling": "DDS",
+}
+
+#: How the newer layouts name the basis, to the codes the older one carried.
+BASIS_LABELS = {
+    "sell in": SHIPPED,
+    "sell out": SOLD,
+    "total b2b": HOSPITALITY,
+}
+
+#: Market spellings the newer layouts use, to the plan's own. Aligned through the
+#: consolidation entity, which is the one key all three files share, and kept explicit:
+#: a market spelt three ways is three markets to a join, and two of them carry no plan.
+FILE_MARKETS = {
+    "CZEK REPUBLIC": "CZECH REPUBLIC",
+    "NETHERLAND": "NETHERLANDS",
+    "86 CHAMPS": "86CR",
+    "MIDDLE EAST": "EXPORT MIDDLE EAST",
+    "JAPAN MANAGEMENT UNIT": "JAPAN",
+    "BRAZIL BUSINESS": "BRAZIL",
+    "HONG KONG LOCAL": "HK",
+    "HONG KONG DISTRIBUTORS": "HK DISTRIBUTORS",
+    "TRAVEL RETAIL HONG KONG BUSINESS": "HK TR",
+    "TRAVEL RETAIL LOI BUSINESS": "LOI TR",
+    "EXPORT EUROPE": "LOI DISTRIBUTORS",
+}
 
 
 class Line:
@@ -211,32 +279,61 @@ def _locate_brand(rows: Sequence, brand: str) -> Optional[int]:
     return None
 
 
-def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
-    """Read one sheet of the published file.
+def _market(raw: str) -> str:
+    """A market as the plan spells it, whatever this file's layout called it."""
+    upper = " ".join(str(raw or "").split()).upper()
+    return normalise_market(FILE_MARKETS.get(upper, upper))
 
-    Rows of another Maison are skipped rather than summed, and a row whose channel code is
-    not in the table is refused rather than dropped: a channel appearing in the accounts
-    and not here is a hole in the screen, and a hole that reports itself is worth more than
-    one that quietly narrows a total.
-    """
-    try:
-        rows = read_sheet(path, sheet)
-    except Exception as exc:  # noqa: BLE001 — the message matters more than the type
-        return Actuals([], ["%s" % exc], path, sheet)
 
+def _sheet_for(names: Sequence[str], month: bool):
+    """Which sheet carries the rows asked for, and in which layout. Empty when none does."""
+    wanted = MONTH_SHEET if month else YTD_SHEET
+    if wanted in names:
+        return wanted, LAYOUT_LEGACY
+    # The closing file keeps every month of the year side by side — `DATA APRIL`, `DATA
+    # MAY`, … — and speaks for the latest one. Fiscal order, so August outranks April and
+    # March outranks both.
+    dated = []
+    for name in names:
+        upper = " ".join(name.split()).upper()
+        if not upper.startswith("DATA "):
+            continue
+        is_ytd = upper.startswith("DATA YTD ")
+        rest = (upper[len("DATA YTD "):] if is_ytd else upper[len("DATA "):]).strip()
+        if rest in MONTH_NAMES and is_ytd is not month:
+            calendar = MONTH_NAMES.index(rest) + 1
+            fiscal = calendar - 3 if calendar >= FISCAL_OPENS else calendar + 9
+            dated.append((fiscal, name))
+    if dated:
+        return max(dated)[1], LAYOUT_NAMED
+    wanted = DATASET_MONTH_SHEET if month else DATASET_YTD_SHEET
+    for name in names:
+        if " ".join(name.split()).lower() == wanted.lower():
+            return name, LAYOUT_DATASET
+    return "", ""
+
+
+def _header_row(rows: Sequence, *needed: str):
+    """The first row carrying every name asked for, and where each sits."""
+    for index, row in enumerate(rows):
+        cells = {" ".join(str(cell).split()): at for at, cell in enumerate(row)
+                 if isinstance(cell, str)}
+        if all(name in cells for name in needed):
+            return index, cells
+    return None, {}
+
+
+def _lines_legacy(rows: Sequence, brand: str):
+    """The original flash: merged headers, columns known by position."""
     brand_at = _locate_brand(rows, brand)
     if brand_at is None:
-        return Actuals([], ["%s introuvable dans %r — la colonne marque a bougé"
-                            % (brand, sheet)], path, sheet)
-
+        return [], ["%s introuvable — la colonne marque a bougé" % brand]
     lines: List[Line] = []
-    faults: List[str] = []
     unknown_channels = set()
-
-    for number, row in enumerate(rows, start=1):
+    for row in rows:
         if len(row) <= BUDGET_AT:
-            continue
-        if str(row[brand_at] or "").strip() != brand:
+            row = list(row) + [None] * (BUDGET_AT + 1 - len(row))
+        if len(row) <= brand_at or str(row[brand_at] or "").strip() != brand:
             continue
         code = str(row[CHANNEL_AT] or "").split(" - ")[0].strip().upper()
         if not code:
@@ -247,7 +344,10 @@ def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
             continue
         actual = _number(row[ACTUAL_AT])
         budget = _number(row[BUDGET_AT])
-        if actual is None and budget is None:
+        last_year = _number(row[LAST_YEAR_AT])
+        # A row carrying only last year is a business that stopped — real to the
+        # comparison against last year, and dropped for months before anyone noticed.
+        if actual is None and budget is None and last_year is None:
             continue
         lines.append(Line(
             market=normalise_market(str(row[COUNTRY_AT] or "").strip()),
@@ -255,16 +355,193 @@ def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
             channel=channel,
             basis=str(row[BASIS_AT] or "").strip(),
             actual=(actual or 0.0) * THOUSANDS,
-            last_year=(_number(row[LAST_YEAR_AT]) or 0.0) * THOUSANDS,
+            last_year=(last_year or 0.0) * THOUSANDS,
             budget=(budget or 0.0) * THOUSANDS,
         ))
-
+    faults = []
     if unknown_channels:
         faults.append("canaux inconnus, non comptés : %s"
                       % ", ".join(sorted(unknown_channels)))
+    return lines, faults
+
+
+def _lines_from(rows: Sequence, brand: str, at: Dict[str, int], start: int,
+                keys: Dict[str, str]):
+    """Rows of the newer layouts, whose columns are known by name.
+
+    `keys` says which header carries what: brand, region, market, basis, channel, actual,
+    last_year, budget. Channel and basis arrive as labels and go through the two tables
+    above; a label neither knows is refused and named.
+    """
+    lines: List[Line] = []
+    unknown_channels = set()
+    unknown_bases = set()
+    width = max(at.values()) + 1
+    for row in rows[start:]:
+        if len(row) < width:
+            # A trailing empty cell is not written at all; the row is short, not absent.
+            row = list(row) + [None] * (width - len(row))
+        if str(row[at[keys["brand"]]] or "").strip() != brand:
+            continue
+        label = " ".join(str(row[at[keys["channel"]]] or "").split()).lower()
+        if not label:
+            continue
+        code = CHANNEL_LABELS.get(label)
+        channel = CHANNELS.get(code or "")
+        if channel is None:
+            unknown_channels.add(label)
+            continue
+        actual = _number(row[at[keys["actual"]]])
+        budget = _number(row[at[keys["budget"]]])
+        last_year = _number(row[at[keys["last_year"]]])
+        if actual is None and budget is None and last_year is None:
+            continue
+        basis_label = " ".join(str(row[at[keys["basis"]]] or "").split()).lower()
+        basis = BASIS_LABELS.get(basis_label)
+        if basis is None:
+            unknown_bases.add(basis_label or "(vide)")
+            basis = basis_label.upper()
+        lines.append(Line(
+            market=_market(row[at[keys["market"]]]),
+            region=str(row[at[keys["region"]]] or "").strip(),
+            channel=channel,
+            basis=basis,
+            actual=(actual or 0.0) * THOUSANDS,
+            last_year=(last_year or 0.0) * THOUSANDS,
+            budget=(budget or 0.0) * THOUSANDS,
+        ))
+    faults = []
+    if unknown_channels:
+        faults.append("canaux inconnus, non comptés : %s"
+                      % ", ".join(sorted(unknown_channels)))
+    if unknown_bases:
+        faults.append("bases inconnues, gardées telles quelles : %s"
+                      % ", ".join(sorted(unknown_bases)))
+    return lines, faults
+
+
+def _lines_named(rows: Sequence, brand: str):
+    """The closing file from August 2026 on: one header row, columns by name."""
+    index, at = _header_row(rows, "Brand", "Country", "Channel", "ACTUAL N", "BUDGET N")
+    if index is None:
+        return [], ["en-tête introuvable : Brand, Country, Channel, ACTUAL N, BUDGET N"]
+    keys = {"brand": "Brand", "region": "Region", "market": "Country",
+            "basis": "PCC - Parent", "channel": "Channel", "actual": "ACTUAL N",
+            "last_year": "ACTUAL N-1", "budget": "BUDGET N"}
+    missing = [name for name in keys.values() if name not in at]
+    if missing:
+        return [], ["colonnes manquantes : %s" % ", ".join(missing)]
+    return _lines_from(rows, brand, at, index + 1, keys)
+
+
+def _measures(rows: Sequence, index: int, at: Dict[str, int]):
+    """Which of the data set's `Sales` columns are the three the cockpit reads.
+
+    The extract lays its measures out under two header lines above the column names: the
+    rate (published or constant) and the scenario (`Actual 2027`, `Budget 2027`). The
+    actual and last year are taken **at constant rate** — the same choice the positional
+    layout makes, for the same reason: it is the basis every published percentage rests
+    on. The budget has one rate only.
+    """
+    if index < 2:
+        return {}, "les lignes de taux et de scénario manquent au-dessus de l'en-tête"
+    rates = list(rows[index - 2])
+    scenarios = rows[index - 1]
+    header = rows[index]
+    # The rate is written once over the columns it covers — a merged cell — so it is
+    # carried forward until the next one is written.
+    carried = ""
+    for position in range(len(header)):
+        if position < len(rates) and rates[position] not in (None, ""):
+            carried = " ".join(str(rates[position]).split()).lower()
+        rates[position:position + 1] = [carried] if position < len(rates) else []
+        if position >= len(rates):
+            rates.append(carried)
+    found: Dict[str, int] = {}
+    actual_years: Dict[int, int] = {}
+    for position, cell in enumerate(header):
+        if " ".join(str(cell or "").split()).lower() != "sales":
+            continue
+        rate = rates[position]
+        scenario = " ".join(str(scenarios[position] if position < len(scenarios) else "")
+                            .split()).lower()
+        if scenario.startswith("budget") and "budget" not in found:
+            found["budget"] = position
+        if scenario.startswith("actual") and rate == "constant rate":
+            try:
+                year = int(scenario.split()[-1])
+            except ValueError:
+                continue
+            actual_years[year] = position
+    if len(actual_years) < 2 or "budget" not in found:
+        return {}, ("colonnes de mesure introuvables : il faut Actual à taux constant sur "
+                    "deux exercices et un Budget")
+    years = sorted(actual_years)
+    found["actual"] = actual_years[years[-1]]
+    found["last_year"] = actual_years[years[-2]]
+    return found, ""
+
+
+def _lines_dataset(rows: Sequence, brand: str):
+    """The CFO's extract: the same rows, at two rates, columns by name."""
+    index, at = _header_row(rows, "Brand", "Entities", "PCC - Parent", "PCC - Lowest")
+    if index is None:
+        return [], ["en-tête introuvable : Brand, Entities, PCC - Parent, PCC - Lowest"]
+    measures, why = _measures(rows, index, at)
+    if why:
+        return [], [why]
+    keys = {"brand": "Brand", "region": "Management Unit - Parent",
+            "market": "Management Unit - Lowest", "basis": "PCC - Parent",
+            "channel": "PCC - Lowest", "actual": "actual", "last_year": "last_year",
+            "budget": "budget"}
+    missing = [name for name in ("Management Unit - Parent", "Management Unit - Lowest")
+               if name not in at]
+    if missing:
+        return [], ["colonnes manquantes : %s" % ", ".join(missing)]
+    at = dict(at)
+    at.update(measures)
+    return _lines_from(rows, brand, at, index + 1, keys)
+
+
+def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
+    """Read one sheet of the published file, in whichever layout the workbook uses.
+
+    `sheet` names the rows wanted — the month, or the year to date — in the original
+    layout's words; a workbook laid out differently is read from the sheet that carries
+    the same rows there. Rows of another Maison are skipped rather than summed, and a row
+    whose channel is not in the table is refused rather than dropped: a channel appearing
+    in the accounts and not here is a hole in the screen, and a hole that reports itself is
+    worth more than one that quietly narrows a total.
+    """
+    try:
+        with Workbook(path) as book:
+            names = book.sheet_names
+    except Exception as exc:  # noqa: BLE001 — the message matters more than the type
+        return Actuals([], ["%s" % exc], path, sheet)
+
+    month = sheet != YTD_SHEET
+    if sheet in names:
+        found, layout = sheet, LAYOUT_LEGACY
+    else:
+        found, layout = _sheet_for(names, month)
+    if not found:
+        return Actuals([], ["aucune feuille %s reconnue — feuilles : %s"
+                            % ("du mois" if month else "de l'exercice à date",
+                               ", ".join(names))], path, sheet)
+    try:
+        rows = read_sheet(path, found)
+    except Exception as exc:  # noqa: BLE001
+        return Actuals([], ["%s" % exc], path, found)
+
+    if layout == LAYOUT_LEGACY:
+        lines, faults = _lines_legacy(rows, brand)
+    elif layout == LAYOUT_NAMED:
+        lines, faults = _lines_named(rows, brand)
+    else:
+        lines, faults = _lines_dataset(rows, brand)
     if not lines:
-        faults.append("aucune ligne %s dans %r" % (brand, sheet))
-    return Actuals(lines, faults, path, sheet)
+        faults.append("aucune ligne %s dans %r" % (brand, found))
+    return Actuals(lines, faults, path, found)
 
 
 def by_scope(read: "Actuals") -> Dict[str, "Line"]:
@@ -330,10 +607,6 @@ import re
 #: Read rather than assumed, and the last match wins — a folder name or a version suffix
 #: can carry digits too, and a file filed under the wrong month is worse than one skipped.
 PERIOD_IN_NAME = re.compile(r"(20\d\d)[ _\-.]?(0[1-9]|1[0-2])(?!\d)")
-
-#: The fiscal year opens in April. Stated once, here, because every comparison below
-#: depends on knowing where the year-to-date resets.
-FISCAL_OPENS = 4
 
 
 class Period:
@@ -470,14 +743,24 @@ class Series:
         return seen
 
 
+#: The closing file writes its month in words and its year in two digits: `August 26`.
+MONTH_IN_NAME = re.compile(r"\b(%s)\b[ _\-.]*(20\d\d|\d\d)\b" % "|".join(MONTH_NAMES),
+                           re.IGNORECASE)
+
+
 def period_of(name: str) -> Optional["Period"]:
     """The month a file name speaks for, or nothing if it does not say."""
     stem = os.path.splitext(os.path.basename(name))[0]
     matches = PERIOD_IN_NAME.findall(stem)
-    if not matches:
-        return None
-    year, month = matches[-1]
-    return Period(int(year), int(month), name)
+    if matches:
+        year, month = matches[-1]
+        return Period(int(year), int(month), name)
+    worded = MONTH_IN_NAME.findall(stem)
+    if worded:
+        month_name, year = worded[-1]
+        year = int(year) if len(year) == 4 else 2000 + int(year)
+        return Period(year, MONTH_NAMES.index(month_name.upper()) + 1, name)
+    return None
 
 
 def series(folder: str, brand: str = BRAND) -> "Series":

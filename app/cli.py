@@ -2282,7 +2282,7 @@ def cmd_actuals(argv: List[str]) -> int:
             return 1
 
     print("Fichier            %s" % path)
-    print("Feuille            %s" % sheet)
+    print("Feuille            %s" % read.sheet)
     print("Maison             %s" % actuals_module.BRAND)
     print("Lignes             %d sur %d marchés" % (len(read.lines), len(read.markets())))
     print("")
@@ -3998,7 +3998,9 @@ def cmd_mix(argv: List[str]) -> int:
     from .perf.source import current_source
     from .routes.today import _mix_review
 
-    review = _mix_review(current_source().dataset())
+    # Ce qui a été préparé, comme l'écran : un cache expiré sert, avec son âge, plutôt
+    # que d'ouvrir une session vers l'entrepôt pendant que quelqu'un attend.
+    review = _mix_review(current_source().dataset(wait_for_warehouse=False))
     if not review.usable:
         for reason in review.absent:
             print(reason, file=sys.stderr)
