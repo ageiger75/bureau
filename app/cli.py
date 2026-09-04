@@ -3876,17 +3876,13 @@ def _phasing_against_calendar(argv: List[str], moving) -> int:
         if not known and calendar.of_country(curve.market):
             known = [curve.market]
         candidates = []
-        seen = set()
         for country in known:
             for series in calendar.in_month(country, curve.month):
                 # Un marché rattaché à deux pays voisins voit deux fois la même fête, aux
                 # mêmes dates. La lister deux fois donnerait à un candidat unique le poids
                 # apparent de deux.
-                signature = (series.name, tuple(sorted(
-                    (year, event.start) for year, event in series.dated.items())))
-                if signature in seen:
+                if any(events_module.same_event(held, series) for held in candidates):
                     continue
-                seen.add(signature)
                 candidates.append(series)
         # Les deux absences sont séparées parce qu'elles appellent deux gestes différents,
         # et surtout parce que la première ressemble à la seconde : un marché que le

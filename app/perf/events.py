@@ -492,6 +492,23 @@ def load(path: str) -> "Calendar":
     return Calendar(series, faults, path)
 
 
+def same_event(left: "Series", right: "Series") -> bool:
+    """Deux séries décrivent-elles le même événement ?
+
+    Par leurs dates, jamais par leur nom : « Black Friday », « Black Friday — jour
+    noyau » et « Singles Day 11.11 » contre « 11.11 / Singles' Day — ancre commerciale »
+    sont les mêmes jours sous des intitulés que deux auteurs ont choisis séparément. Deux
+    séries d'un même pays qui tombent aux mêmes dates sur au moins deux exercices communs
+    sont une seule série, et l'afficher deux fois donne à un candidat le poids de deux.
+    """
+    if not same_country(left.country, right.country):
+        return False
+    shared = set(left.dated) & set(right.dated)
+    if len(shared) < 2:
+        return False
+    return all(left.by_year[year].start == right.by_year[year].start for year in shared)
+
+
 def load_many(paths: Sequence[str]) -> "Calendar":
     """Plusieurs calendriers lus comme un seul.
 
@@ -514,8 +531,7 @@ def load_many(paths: Sequence[str]) -> "Calendar":
         for key, series in read.series.items():
             if key in merged:
                 continue
-            if any(same_country(held.country, series.country)
-                   and normal(held.name) == normal(series.name) for held in earlier):
+            if any(same_event(held, series) for held in earlier):
                 continue
             merged[key] = series
     return Calendar(merged, faults, ", ".join(os.path.basename(p) for p in paths))

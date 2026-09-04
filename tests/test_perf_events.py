@@ -327,12 +327,32 @@ def test_two_calendars_read_as_one_and_a_series_in_both_is_kept_once(tmp_path):
     l'un porte les soldes suédoises, l'autre les fêtes coréennes. Demander au lecteur
     lequel confronter, c'est lui demander de savoir ce que contient chacun."""
     first = _file(tmp_path, [_row("2024", "2024-02-14", country="Suède", name="Fête",
+                                  event_id="a"),
+                             _row("2025", "2025-02-14", country="Suède", name="Fête",
                                   event_id="a")], name="calendar_a.csv")
     second = _file(tmp_path, [
         _row("2024", "2024-02-14", country="Suede", name="Fete", event_id="b"),
+        _row("2025", "2025-02-14", country="Suede", name="Fete", event_id="b"),
         _row("2024", "2024-09-10", country="Corée du Sud", name="Autre", event_id="c")],
         name="calendar_b.csv")
 
     read = E.load_many([first, second])
 
     assert len(read) == 2 and "a" in read.series and "c" in read.series
+
+
+def test_the_same_dates_under_two_names_are_one_event(tmp_path):
+    """« Black Friday » et « Black Friday — jour noyau » sont les mêmes jours sous des
+    intitulés que deux auteurs ont choisis séparément. Affichés deux fois, un candidat
+    unique prend le poids de deux."""
+    first = _file(tmp_path, [_row("2024", "2024-11-29", country="Suède", name="Black Friday",
+                                  event_id="a"),
+                             _row("2025", "2025-11-28", country="Suède", name="Black Friday",
+                                  event_id="a")], name="calendar_a.csv")
+    second = _file(tmp_path, [
+        _row("2024", "2024-11-29", country="Suede", name="Black Friday — jour noyau",
+             event_id="b"),
+        _row("2025", "2025-11-28", country="Suede", name="Black Friday — jour noyau",
+             event_id="b")], name="calendar_b.csv")
+
+    assert len(E.load_many([first, second])) == 1
