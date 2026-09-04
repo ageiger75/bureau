@@ -361,7 +361,7 @@
     <p class="cockpit-caveat">{{ stores.join_label }} · bail connu sur {{ stores.coverage_label }} des ventes en boutique.</p>
     <table class="month-table mix-table">
       <thead>
-        <tr><th>Marché</th><th>Boutiques</th><th>Bail connu</th><th>Couverture</th><th>Part loyer variable</th><th>Zéro écrit</th><th>Non renseigné</th></tr>
+        <tr><th>Marché</th><th>Boutiques</th><th>Bail connu</th><th>Couverture</th><th>Part loyer variable</th><th>Loyer fixe</th><th>Tiers</th><th>Inconnu</th></tr>
       </thead>
       <tbody>
       {% for market in stores.shown %}
@@ -371,15 +371,16 @@
           <td class="num">{{ market.informed | length }}</td>
           <td class="num" title="Part des ventes du marché faite par des boutiques dont le bail est connu.">{{ market.coverage_label }}</td>
           <td class="num" title="Sur les boutiques au bail connu, pondéré par leurs ventes.">{{ market.rent_share_label }}</td>
-          <td class="num" title="Un zéro écrit au référentiel : pas de part variable sur ce bail.">{{ market.none_written | length }}</td>
-          <td class="num" title="Rien d'écrit. Ce n'est pas un zéro.">{{ market.count - (market.informed | length) }}</td>
+          <td class="num" title="Un zéro écrit à côté d'un loyer mensuel : pas de part variable sur ce bail, et le bail existe.">{{ market.fixed | length }}</td>
+          <td class="num" title="Travel retail opéré par un tiers, qui tient le bail : pas de loyer à notre nom. Une donnée sans objet, pas une donnée manquante.">{{ market.third_party | length }}</td>
+          <td class="num" title="Un bail à nous dont le référentiel ne dit rien, ou un zéro écrit sans loyer à côté. Ce n'est pas un zéro.{% if market.doubtful %} Dont {{ market.doubtful | length }} zéro(s) douteux.{% endif %}">{{ market.unknown | length }}</td>
         </tr>
       {% endfor %}
       {% if stores.rest %}
         <tr class="month-rest" title="{{ stores.rest | map(attribute='name') | join(', ') }}">
           <td>{{ stores.rest | length }} autres marchés</td>
           <td class="num">{{ stores.rest | sum(attribute='count') }}</td>
-          <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+          <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
         </tr>
       {% endif %}
       </tbody>

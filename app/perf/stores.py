@@ -11,8 +11,9 @@ Ce module joint deux fichiers par le code de boutique : les ventes par magasin t
 la consolidation les publie, avec leur budget, et le référentiel extrait de l'entrepôt.
 Il rend, par marché, ce que le loyer prend sur le prochain euro **des boutiques dont le
 bail est connu**, pondéré par leurs ventes, et dit à chaque ligne quelle part des ventes
-du marché ce bail connu couvre. Trois états, jamais confondus : une part variable écrite,
-un zéro écrit — pas de part variable —, et rien d'écrit. Le troisième n'est pas un zéro.
+du marché ce bail connu couvre. Des états jamais confondus : une part variable écrite, un
+loyer fixe confirmé — un zéro écrit à côté d'un loyer mensuel —, un zéro douteux, un bail
+qui n'est pas le nôtre, et rien d'écrit. Le dernier n'est pas un zéro.
 
 Ce que ce module refuse : étendre un taux à un pays, compléter une boutique par ses
 voisines, et présenter la part loyer comme le taux marginal entier. Personnel, logistique
@@ -34,10 +35,27 @@ REQUIRED = ("store_code", "market", "var_rent_percent")
 #: Ce que le tableau montre au plus, du plus gros marché au plus petit ; le reste replié.
 MOST = 12
 
-#: Les trois états d'un bail, nommés pour ne jamais se confondre.
+#: Les états d'un bail, nommés pour ne jamais se confondre. Le référentiel écrit deux
+#: choses : une part de loyer variable et un loyer mensuel. Lues ensemble, elles séparent
+#: le loyer fixe confirmé — un zéro écrit à côté d'un loyer mensuel — du zéro douteux, écrit
+#: sans loyer à côté, que rien ne distingue d'une case remplie par défaut. Le référentiel a
+#: cinq fixes confirmés pour un douteux : la plupart des zéros sont de l'information, et le
+#: cockpit ne compte que ceux-là.
 VARIABLE = "part variable écrite"
+FIXED = "loyer fixe confirmé"
+DOUBTFUL = "zéro douteux"
 NONE_WRITTEN = "zéro écrit"
 UNKNOWN = "non renseigné"
+#: Le travel retail opéré par un tiers : un emplacement dans le réseau d'un opérateur
+#: d'aéroport, qui tient le bail avec le concessionnaire. Nous y vendons la marque, notre
+#: rémunération est une marge de gros, et il n'y a pas de bail à notre nom — pas une
+#: donnée manquante, une donnée sans objet. Le référentiel le marque « Not Owned », et
+#: neuf de ces boutiques sur dix sont du travel retail.
+THIRD_PARTY = "sans bail à notre nom"
+
+#: Ce qu'une ligne du fichier de la CFO peut porter sans être une boutique : les ventes en
+#: vrac, logées sous un pseudo-magasin. Écartées et comptées, jamais jointes.
+BULK_MARK = "BUL"
 
 #: Ce que l'écran répète, une fois écrit ici.
 MARGINAL_NOTE = ("La part loyer n'est qu'une part du coût marginal. Personnel, logistique "
@@ -74,10 +92,11 @@ class Lease:
     """Une boutique du référentiel : son code, son bail, et ce que le bail dit."""
 
     __slots__ = ("store_code", "conso_code", "name", "market", "ownership",
-                 "var_rent", "monthly_rent", "status", "line")
+                 "var_rent", "monthly_rent", "category", "status", "line", "rent_known")
 
     def __init__(self, store_code, conso_code="", name="", market="", ownership="",
-                 var_rent=None, monthly_rent=None, status="", line=0) -> None:
+                 var_rent=None, monthly_rent=None, category="", status="", line=0,
+                 rent_known=False) -> None:
         self.store_code = store_code
         self.conso_code = conso_code
         self.name = name
@@ -85,22 +104,36 @@ class Lease:
         self.ownership = ownership
         self.var_rent = var_rent
         self.monthly_rent = monthly_rent
+        self.category = category
         self.status = status
         self.line = line
+        #: Si le fichier porte la colonne du loyer mensuel. Sans elle, un zéro écrit ne
+        #: peut être ni confirmé ni mis en doute, et se lit comme un zéro écrit.
+        self.rent_known = rent_known
 
     @property
     def codes(self) -> List[str]:
         return [code for code in (self.conso_code, self.store_code) if code]
 
     @property
+    def is_third_party(self) -> bool:
+        return " ".join(self.ownership.lower().split()) == "not owned"
+
+    @property
     def state(self) -> str:
         if self.var_rent is None:
-            return UNKNOWN
-        return VARIABLE if self.var_rent > 0 else NONE_WRITTEN
+            return THIRD_PARTY if self.is_third_party else UNKNOWN
+        if self.var_rent > 0:
+            return VARIABLE
+        if not self.rent_known:
+            return NONE_WRITTEN
+        return FIXED if self.monthly_rent else DOUBTFUL
 
     @property
     def informed(self) -> bool:
-        return self.var_rent is not None
+        """Si le bail dit ce qu'un euro de plus perd en loyer : une part écrite, ou un zéro
+        qu'un loyer mensuel confirme. Un zéro douteux ne compte pas."""
+        return self.state in (VARIABLE, FIXED, NONE_WRITTEN)
 
 
 class Register:
@@ -140,6 +173,7 @@ def load(path: str) -> Register:
         missing = [name for name in REQUIRED if name not in header]
         if missing:
             return Register([], ["colonnes manquantes : %s" % ", ".join(missing)], path)
+        rent_known = "monthly_rent" in header
         for number, record in enumerate(reader, start=2):
             code = _code(record.get("store_code"))
             if not code:
@@ -153,8 +187,10 @@ def load(path: str) -> Register:
                 ownership=(record.get("ownership") or "").strip(),
                 var_rent=_rate(record.get("var_rent_percent")),
                 monthly_rent=_number(record.get("monthly_rent")),
+                category=(record.get("store_category") or "").strip(),
                 status=(record.get("status") or "").strip(),
                 line=number,
+                rent_known=rent_known,
             ))
     return Register(leases, faults, path)
 
@@ -181,6 +217,11 @@ class StoreSales:
         self.actual = actual
         self.last_year = last_year
         self.budget = budget
+
+    @property
+    def is_bulk(self) -> bool:
+        """Une ligne de vrac logée sous un pseudo-magasin — pas une boutique."""
+        return BULK_MARK in self.code
 
 
 class Sales:
@@ -293,13 +334,36 @@ class Market:
     def informed(self) -> List[Joined]:
         return [store for store in self.stores if store.informed]
 
+    def in_state(self, *states: str) -> List[Joined]:
+        return [store for store in self.stores if store.state in states]
+
     @property
     def variable(self) -> List[Joined]:
-        return [store for store in self.stores if store.state == VARIABLE]
+        return self.in_state(VARIABLE)
+
+    @property
+    def fixed(self) -> List[Joined]:
+        """Loyer fixe confirmé, ou un zéro écrit quand le fichier ne sait pas confirmer."""
+        return self.in_state(FIXED, NONE_WRITTEN)
 
     @property
     def none_written(self) -> List[Joined]:
-        return [store for store in self.stores if store.state == NONE_WRITTEN]
+        return self.fixed
+
+    @property
+    def doubtful(self) -> List[Joined]:
+        return self.in_state(DOUBTFUL)
+
+    @property
+    def third_party(self) -> List[Joined]:
+        return self.in_state(THIRD_PARTY)
+
+    @property
+    def unknown(self) -> List[Joined]:
+        """Ni bail connu, ni tiers : un bail à nous dont le référentiel ne dit rien, ou un
+        zéro douteux. Les deux attendent l'immobilier."""
+        return [store for store in self.stores
+                if not store.informed and store.state != THIRD_PARTY]
 
     @property
     def sales(self) -> float:
@@ -388,9 +452,22 @@ class Review:
         return "%.0f %%" % (self.coverage * 100)
 
     @property
+    def third_party(self) -> int:
+        return sum(len(market.third_party) for market in self.markets)
+
+    @property
+    def doubtful(self) -> int:
+        return sum(len(market.doubtful) for market in self.markets)
+
+    @property
     def join_label(self) -> str:
-        return "%d boutiques au fichier de la CFO · %d jointes au référentiel · %d au bail connu" % (
-            self.stores, self.joined, self.informed)
+        label = ("%d boutiques au fichier de la CFO · %d jointes au référentiel · %d au "
+                 "bail connu" % (self.stores, self.joined, self.informed))
+        if self.third_party:
+            label += " · %d sans bail à notre nom" % self.third_party
+        if self.doubtful:
+            label += " · %d zéro%s douteux" % (self.doubtful, "s" if self.doubtful > 1 else "")
+        return label
 
     marginal = MARGINAL_NOTE
 
@@ -408,9 +485,17 @@ def build(sales: Optional[Sales], register: Optional[Register]) -> Review:
         absent.append("Aucun référentiel immobilier : var/stores.csv attend le code, le "
                       "bail et la part de loyer variable, boutique par boutique.")
     by_market: Dict[str, List[Joined]] = {}
+    bulk = 0
     for sale in sales.stores:
+        if sale.is_bulk:
+            bulk += 1
+            continue
         lease = register.of(sale.code) if register else None
         by_market.setdefault(sale.market, []).append(Joined(sale, lease))
+    if bulk:
+        absent.append("%d ligne%s de vrac écartée%s : un pseudo-magasin n'est pas une "
+                      "boutique, et n'a pas de bail." % (bulk, "s" if bulk > 1 else "",
+                                                          "s" if bulk > 1 else ""))
     markets = [Market(name, stores) for name, stores in by_market.items()]
     return Review(markets, absent, period="",
                   register_faults=register.faults if register else [])

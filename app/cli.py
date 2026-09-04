@@ -4065,16 +4065,20 @@ def cmd_stores(argv: List[str]) -> int:
     print("Bail connu sur %s des ventes en boutique · %s de ventes lues"
           % (review.coverage_label, format_eur(review.sales)))
     print("")
-    print("  %-24s %9s %9s %10s %12s %9s %9s" % (
-        "Marché", "boutiques", "bail connu", "couverture", "part loyer", "zéro", "inconnu"))
+    print("  %-24s %9s %10s %10s %11s %6s %6s %8s" % (
+        "Marché", "boutiques", "bail connu", "couverture", "part loyer", "fixe", "tiers",
+        "inconnu"))
     for market in review.markets:
-        print("  %-24s %9d %9d %10s %12s %9d %9d" % (
+        print("  %-24s %9d %10d %10s %11s %6d %6d %8d" % (
             market.name[:24], market.count, len(market.informed), market.coverage_label,
-            market.rent_share_label, len(market.none_written),
-            market.count - len(market.informed)))
+            market.rent_share_label, len(market.fixed), len(market.third_party),
+            len(market.unknown)))
     print("")
     print("Part loyer : sur les boutiques au bail connu, pondérée par leurs ventes. "
-          "Couverture : la part des ventes du marché que ces boutiques font.")
+          "Couverture : la part des ventes du marché que ces boutiques font. "
+          "Fixe : zéro écrit à côté d'un loyer mensuel. Tiers : travel retail opéré par "
+          "un tiers, sans bail à notre nom. Inconnu : un bail à nous dont le référentiel "
+          "ne dit rien, ou un zéro douteux.")
     print(review.marginal)
     if "--unmatched" in argv:
         print("")

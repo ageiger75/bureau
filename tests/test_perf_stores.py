@@ -58,8 +58,10 @@ def test_the_register_keeps_the_three_states_of_a_lease_apart(tmp_path):
     assert register.of("01OCST001").state == S.VARIABLE
     assert abs(register.of("01OCST001").var_rent - 0.085) < 1e-9
     assert register.of("01OCST002").state == S.NONE_WRITTEN
-    assert register.of("01OCST003").state == S.UNKNOWN
+    # « Not Owned » sans part écrite : pas une donnée manquante, une donnée sans objet.
+    assert register.of("01OCST003").state == S.THIRD_PARTY
     assert register.of("01OCST003").var_rent is None
+    assert not register.of("01OCST003").informed
     # Une part écrite en fraction se lit comme une part écrite en pour cent.
     assert abs(register.of("98TR0001").var_rent - 0.12) < 1e-9
 
@@ -175,3 +177,64 @@ def test_without_a_register_the_stores_are_read_and_the_file_is_named(tmp_path):
     assert review.usable
     assert review.joined == 0
     assert any("stores.csv" in reason for reason in review.absent)
+
+
+# ------------------------------------------------- le loyer mensuel confirme le zéro
+
+
+WITH_RENT = ("store_code,market,ownership,var_rent_percent,monthly_rent,store_category\n"
+             "01OCST001,NORTHLAND,Owned,0.00,4200,Store\n"
+             "01OCST002,NORTHLAND,Owned,0.00,,Store\n"
+             "01OCST003,NORTHLAND,Owned,,3100,Store\n"
+             "01OCST004,NORTHLAND,Owned,6,4200,Store\n"
+             "01OCST005,NORTHLAND,Not Owned,,,TR_Retail\n"
+             "01OCST006,NORTHLAND,Owned,,,Store\n")
+
+
+def test_a_written_zero_is_fixed_when_a_monthly_rent_stands_beside_it(tmp_path):
+    """Le référentiel écrit deux choses, une part variable et un loyer mensuel. Un zéro à
+    côté d'un loyer est un loyer fixe confirmé ; un zéro seul, que rien ne distingue d'une
+    case remplie par défaut, est douteux et ne compte pas comme un bail connu. Un loyer
+    sans part écrite ne dit pas que la part est nulle."""
+    register = _register(tmp_path, WITH_RENT)
+
+    assert register.of("01OCST001").state == S.FIXED
+    assert register.of("01OCST001").informed
+    assert register.of("01OCST002").state == S.DOUBTFUL
+    assert not register.of("01OCST002").informed
+    assert register.of("01OCST003").state == S.UNKNOWN
+    assert register.of("01OCST004").state == S.VARIABLE
+    assert register.of("01OCST005").state == S.THIRD_PARTY
+    assert register.of("01OCST005").category == "TR_Retail"
+    assert register.of("01OCST006").state == S.UNKNOWN
+
+
+def test_without_the_rent_column_a_written_zero_stays_a_written_zero(tmp_path):
+    register = _register(tmp_path, REGISTER)
+
+    assert register.of("01OCST002").state == S.NONE_WRITTEN
+    assert register.of("01OCST002").informed
+
+
+def test_the_market_counts_each_state_and_the_third_party_is_not_unknown(tmp_path):
+    path = _sales_book(tmp_path, [
+        _row("01OCST00%d" % index, "Store %d" % index, "Northland", 100.0)
+        for index in range(1, 7)
+    ] + [_row("RTBUL", "Bulk", "Northland", 900.0)])
+    review = S.build(S.load_sales(path), _register(tmp_path, WITH_RENT))
+    north = review.markets[0]
+
+    assert north.count == 6
+    assert len(north.informed) == 2
+    assert len(north.fixed) == 1
+    assert len(north.variable) == 1
+    assert len(north.doubtful) == 1
+    assert len(north.third_party) == 1
+    assert len(north.unknown) == 3
+    assert abs(north.rent_share - 0.03) < 1e-9
+    assert north.coverage_label == "33 %"
+    # Le vrac est écarté et compté, jamais joint ni pesé.
+    assert north.sales == 600_000.0
+    assert any("vrac" in reason for reason in review.absent)
+    assert "1 sans bail à notre nom" in review.join_label
+    assert "1 zéro douteux" in review.join_label

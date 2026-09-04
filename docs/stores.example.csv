@@ -1,5 +1,5 @@
-store_code,conso_code,store_name,market,channel_code,ownership,var_rent_percent,opened,closed,status
-01OCST001,01OCST001,Northland Main Street,NORTHLAND,RET,Owned,8.5,,,Open
-01OCST002,01OCST002,Northland Harbour Mall,NORTHLAND,RET,Owned,0.00,,,Open
-01OCST003,01OCST003,Northland Station,NORTHLAND,RET,Not Owned,,,,Open
-02OCST001,02OCST001,Southland Old Town,SOUTHLAND,RET,Owned,12,,,Open
+store_code,conso_code,store_name,market,channel_code,ownership,var_rent_percent,opened,closed,status,monthly_rent,monthly_charges,store_category
+01OCST001,01OCST001,Northland Main Street,NORTHLAND,RET,Owned,8.5,,,Open,4200,600,Store
+01OCST002,01OCST002,Northland Harbour Mall,NORTHLAND,RET,Owned,0.00,,,Open,3100,,Shop in shop
+01OCST003,01OCST003,Northland Airport T2,NORTHLAND,TRA,Not Owned,,,,Open,,,TR_Retail
+02OCST001,02OCST001,Southland Old Town,SOUTHLAND,RET,Owned,12,,,Open,2500,300,Store
