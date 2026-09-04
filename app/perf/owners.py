@@ -202,6 +202,20 @@ class Directory:
     def __len__(self) -> int:
         return len(self.entries)
 
+    def bus(self) -> List[str]:
+        """The perimeters the directory names, in the order it names them."""
+        seen: List[str] = []
+        for entry in self.entries:
+            if entry.bu and entry.bu not in seen:
+                seen.append(entry.bu)
+        return seen
+
+    def markets_of(self, bu: str) -> List[str]:
+        """Every market the directory places under this perimeter."""
+        wanted = _key(bu)
+        return sorted(market for market, entry in self._by_market.items()
+                      if _key(entry.bu) == wanted)
+
     def entry_for(self, market: str, region: str = "") -> Optional[Entry]:
         found = self._by_market.get((market or "").strip())
         if found is not None:

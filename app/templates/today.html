@@ -265,7 +265,7 @@
         <tbody>
         {% for scope in track.perimeters %}
           <tr>
-            <td>{{ scope.name }}{% if scope.lead %} <small>· {{ scope.lead }}</small>{% endif %}</td>
+            <td>{% if scope.name != 'Sans périmètre' %}<a href="/perimetre/{{ scope.name | slug }}">{{ scope.name }}</a>{% else %}{{ scope.name }}{% endif %}{% if scope.lead %} <small>· {{ scope.lead }}</small>{% endif %}</td>
             {% if scope.month.usable %}
               <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
               <td class="num" title="{{ scope.month.basis }} · {{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>

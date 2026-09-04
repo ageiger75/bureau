@@ -700,3 +700,12 @@ def test_the_screen_answers_whether_we_are_in_line_with_the_plan(client):
     assert "Sommes-nous en ligne avec le plan ?" in page
     assert "Mois en cours" in page or "à date, jour" in page
     assert "Exercice à date" in page
+
+
+def test_the_perimeter_pages_exist_and_an_unknown_one_is_refused(client):
+    """B1 : une page par périmètre, le même squelette pour tous, et un index qui les
+    liste avec leur MD. Un nom inconnu est refusé, jamais rendu vide."""
+    index = page_text(client.get("/perimetres"))
+    assert "Les périmètres" in index
+
+    assert client.get("/perimetre/nulle-part").status_code == 404

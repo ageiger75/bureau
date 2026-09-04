@@ -140,6 +140,84 @@ def _track(dataset, month):
                               org=org, directory=directory)
 
 
+def _perimeter_inputs(session):
+    """Ce que les pages par périmètre lisent : la même lecture que l'écran du jour."""
+    from ..config import settings
+    from ..perf import actuals as actuals_module
+    from ..perf import budget as budget_module
+    from ..perf import mix as mix_module
+    from ..perf import owners
+    from ..perf import page as page_module
+    from ..perf.source import current_source
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    month = _month_review(source)
+    track = _track(dataset, month)
+    week, _scan = week_of.read(session, dataset=dataset, placing=False)
+    fires = analytics.fires(dataset, limit=None)
+    contribution = mix_module.current() if settings.has_contribution_file else None
+    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    budget = None
+    if settings.has_budget_file:
+        try:
+            budget = budget_module.load(settings.budget_path)
+        except Exception:  # noqa: BLE001 — un classeur illisible ne fait pas tomber la page
+            budget = None
+    directory = owners.current() if settings.has_owners_file else None
+    known = page_module.perimeters(directory, month)
+    return {
+        "source": source, "dataset": dataset, "month": month, "track": track,
+        "week": week, "fires": fires, "contribution": contribution,
+        "published": published, "budget": budget, "known": known,
+    }
+
+
+@router.get("/perimetres")
+def perimeters(request: Request, session: Session = Depends(get_session)):
+    """Les sept périmètres, leur MD, leurs deux verdicts et l'atterrissage."""
+    from ..perf import page as page_module
+
+    inputs = _perimeter_inputs(session)
+    track = inputs["track"]
+    rows = []
+    for name, item in inputs["known"].items():
+        scope = next((s for s in track.perimeters if s.name == name), None)
+        land = page_module.landing(item["markets"], inputs["published"], inputs["budget"],
+                                   track.period or "", track.closed_through or "")
+        rows.append({"name": name, "slug": page_module.slug(name), "lead": item["lead"],
+                     "markets": item["markets"], "scope": scope, "landing": land})
+    rows.sort(key=lambda row: -(row["landing"].full_plan if row["landing"].usable else 0))
+    group_landing = page_module.landing(None, inputs["published"], inputs["budget"],
+                                        track.period or "", track.closed_through or "")
+    return render(request, "perimetres.html", {
+        "user": None, "source": inputs["source"], "rows": rows, "track": track,
+        "group_landing": group_landing,
+    })
+
+
+@router.get("/perimetre/{name}")
+def perimeter(name: str, request: Request, session: Session = Depends(get_session)):
+    """Une page par périmètre : trente secondes avant un appel avec son MD."""
+    from fastapi import HTTPException
+
+    from ..perf import page as page_module
+
+    inputs = _perimeter_inputs(session)
+    found = next(((label, item) for label, item in inputs["known"].items()
+                  if page_module.slug(label) == name), None)
+    if found is None:
+        raise HTTPException(status_code=404, detail="périmètre inconnu : %s" % name)
+    label, item = found
+    built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
+                              inputs["month"], inputs["track"], week=inputs["week"],
+                              fires=inputs["fires"], contribution=inputs["contribution"],
+                              published=inputs["published"], budget=inputs["budget"])
+    return render(request, "perimetre.html", {
+        "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
+    })
+
+
 @router.get("/freshness")
 def freshness():
     """When the figures in memory were read. Polled by the page, never by a person.

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Périmètres — CEO Performance{% endblock %}
+{% block content %}
+<section class="panel" id="perimetres">
+  <h2>Les périmètres</h2>
+  <p class="lede">Un MD par ligne : le mois, l'exercice, et où atterrit l'année à ce rythme. Chaque nom ouvre sa page.</p>
+  {% if group_landing.usable %}
+    <p class="cockpit-caveat">
+      Groupe, à ce rythme ({{ group_landing.pace_label }} sur les mois clos) :
+      <strong>{{ group_landing.at_pace | eur }}</strong> contre un plan de {{ group_landing.full_plan | eur }},
+      soit {{ group_landing.gap_at_pace | eur }}. Si le reste tient le plan : {{ group_landing.at_plan | eur }}.
+      {{ group_landing.months_left }} mois restent.
+    </p>
+  {% endif %}
+  <table class="month-table mix-table">
+    <thead>
+      <tr><th>Périmètre</th><th>MD</th><th>Mois à date</th><th>Exercice à date</th><th>Atterrissage à ce rythme</th><th>Marchés</th></tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><a href="/perimetre/{{ row.slug }}">{{ row.name }}</a></td>
+        <td>{{ row.lead or "—" }}</td>
+        <td class="num">{% if row.scope and row.scope.month.usable %}<span class="verdict-cell is-{{ row.scope.month.label | replace(' ', '-') }}">{{ row.scope.month.label }}</span> {{ row.scope.month.gap_label }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.scope and row.scope.year.usable %}<span class="verdict-cell is-{{ row.scope.year.label | replace(' ', '-') }}">{{ row.scope.year.label }}</span> {{ row.scope.year.gap_label }}{% else %}—{% endif %}</td>
+        <td class="num">{% if row.landing.usable %}{{ row.landing.at_pace | eur }} <small>({{ row.landing.gap_at_pace | eur }} vs plan)</small>{% else %}—{% endif %}</td>
+        <td class="num">{{ row.markets | length }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if not rows %}<p class="empty">Aucun périmètre : l'annuaire des MD n'est pas lu.</p>{% endif %}
+</section>
+{% endblock %}

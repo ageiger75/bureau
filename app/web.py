@@ -86,6 +86,8 @@ templates.env.filters["bullets"] = bullets
 # Cockpit number formatting. Templates must never re-implement it: two screens rounding
 # the same euro differently is exactly how a CEO stops trusting both.
 templates.env.filters["eur"] = perf_format.format_eur
+from .perf.page import slug as _slug  # noqa: E402
+templates.env.filters["slug"] = _slug
 templates.env.filters["pct"] = perf_format.format_pct
 templates.env.filters["share"] = perf_format.format_share
 templates.env.filters["num"] = perf_format.format_num

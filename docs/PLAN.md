@@ -353,6 +353,17 @@ apparaissent en détail, jamais comme destinataires.
 *Recette* : trente secondes avant un appel suffisent ; deux périmètres se comparent sans
 que le format ait bougé.
 
+**Première pièce livrée, le 4 septembre 2026.** `/perimetres` liste les périmètres avec
+leur MD, les deux verdicts et l'atterrissage à ce rythme ; `/perimetre/<nom>` rend, sur
+les marchés que l'annuaire place sous ce MD : les verdicts du mois et de l'exercice,
+l'atterrissage — « si le reste tient le plan » et « à ce rythme », deux hypothèses et
+aucune prévision —, les sujets du registre qui le concernent, les feux, le mois marché
+par marché, le mix. La question du jour est le sujet porté cette semaine, sinon le plus
+gros feu, sinon ce que le verdict du mois dit. Reste : la semaine écoulée (ce qui a bougé
+depuis lundi, marché par marché), qui demande une lecture au jour que l'entrepôt ne fournit
+pas encore au cockpit, et les white spaces, dont la donnée externe (Beauté Research pour
+l'Asie) reste à voir.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

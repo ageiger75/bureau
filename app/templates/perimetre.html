@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ page.name }} — CEO Performance{% endblock %}
+{% block content %}
+<section class="panel" id="perimetre">
+  <p class="cockpit-eyebrow"><a href="/perimetres">Périmètres</a> · {{ page.markets | length }} marché{{ '' if page.markets | length == 1 else 's' }}</p>
+  <h2>{{ page.name }}{% if page.lead %} · {{ page.lead }}{% endif %}</h2>
+  {% if page.question %}
+    <p class="lede"><strong>La question du jour :</strong> {{ page.question }}</p>
+  {% endif %}
+
+  <div class="verdicts">
+    <div class="verdict">
+      <p class="verdict-title">{{ track.month_title }}</p>
+      {% if page.scope and page.scope.month.usable %}
+        <p class="verdict-word is-{{ page.scope.month.label | replace(' ', '-') }}">{{ page.scope.month.label }}</p>
+        <p class="verdict-figures">{{ page.scope.month.actual | eur }} vendus · attendu {% if page.scope.month.narrow %}{{ page.scope.month.middle | eur }}{% else %}{{ page.scope.month.low | eur }} à {{ page.scope.month.high | eur }}{% endif %} · <strong>{{ page.scope.month.gap_label }}</strong></p>
+        <p class="verdict-basis">{{ page.scope.month.coverage_label }} du plan sell-out du mois</p>
+      {% else %}
+        <p class="verdict-word is-absent">—</p>
+        <p class="verdict-basis">{{ page.scope.month.absent if page.scope else "mois non lu" }}</p>
+      {% endif %}
+    </div>
+    <div class="verdict">
+      <p class="verdict-title">{{ track.year_title }}</p>
+      {% if page.scope and page.scope.year.usable %}
+        <p class="verdict-word is-{{ page.scope.year.label | replace(' ', '-') }}">{{ page.scope.year.label }}</p>
+        <p class="verdict-figures">{{ page.scope.year.actual | eur }} vendus · attendu {% if page.scope.year.narrow %}{{ page.scope.year.middle | eur }}{% else %}{{ page.scope.year.low | eur }} à {{ page.scope.year.high | eur }}{% endif %} · <strong>{{ page.scope.year.gap_label }}</strong></p>
+      {% else %}
+        <p class="verdict-word is-absent">—</p>
+        <p class="verdict-basis">{{ page.scope.year.absent if page.scope else "exercice non lu" }}</p>
+      {% endif %}
+    </div>
+    <div class="verdict">
+      <p class="verdict-title">Atterrissage de l'exercice</p>
+      {% if page.landing.usable %}
+        <p class="verdict-word">{{ page.landing.at_pace | eur }}</p>
+        <p class="verdict-figures">à ce rythme ({{ page.landing.pace_label }} sur les mois clos) · <strong>{{ page.landing.gap_at_pace | eur }}</strong> contre un plan de {{ page.landing.full_plan | eur }}</p>
+        <p class="verdict-basis">si le reste tient le plan : {{ page.landing.at_plan | eur }}, soit {{ page.landing.gap_at_plan | eur }} · {{ page.landing.months_left }} mois restent</p>
+      {% else %}
+        <p class="verdict-word is-absent">—</p>
+        <p class="verdict-basis">{{ page.landing.absent }}</p>
+      {% endif %}
+    </div>
+  </div>
+  {% for reason in page.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+</section>
+
+{% if page.subjects or page.watched %}
+<section class="panel">
+  <h2>Les sujets</h2>
+  {% for label, rows in [('À porter cette semaine', page.subjects), ('Sous surveillance', page.watched)] %}
+    {% if rows %}
+      <h3 class="subject-heading">{{ label }}</h3>
+      <ol class="subject-list">
+        {% for row in rows %}
+          <li class="subject">
+            <p class="subject-title"><span class="badge">{{ row.role }}</span> <span class="subject-ref">{{ row.issue.issue_id }}</span> {{ row.issue.title }}</p>
+            <p class="subject-why">Pourquoi : {{ row.why }}</p>
+            {% if row.issue.readings %}<p class="subject-reading">Dernière lecture : {{ row.issue.readings[-1].conclusion }}</p>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if page.fires %}
+<section class="panel">
+  <h2>Où pousser</h2>
+  {% for fire in page.fires %}
+    <div class="verdict">
+      <p class="verdict-title">{{ fire.unit.market }} · {{ fire.unit.channel_label }}</p>
+      <p class="verdict-word {{ 'is-en-retard' if fire.gap < 0 else 'is-en-avance' }}">{{ fire.gap | eur }}</p>
+      <p class="verdict-basis">vs plan{% if fire.question %} · {{ fire.question }}{% endif %}</p>
+    </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if page.month_group %}
+<section class="panel">
+  <h2>Où en est le mois</h2>
+  <table class="month-table">
+    <thead><tr><th>Marché</th><th>Attendu à date</th><th>Réalisé</th><th>Écart</th></tr></thead>
+    <tbody>
+    {% for line in page.month_group.lines %}
+      <tr>
+        <td>{{ line.market }}</td>
+        {% if line.readable %}
+          <td class="num">{{ line.expected }}</td>
+          <td class="num">{{ line.done }}{% if line.lumpy %} <small class="absent">{{ line.first_day_note }}</small>{% endif %}</td>
+          <td class="num">{{ line.gap }}</td>
+        {% else %}
+          <td class="num">{{ line.expected or "—" }}</td>
+          <td class="num">{{ line.done or "—" }}</td>
+          <td class="absent">{{ line.absent }}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if page.mix and page.mix.usable %}
+<section class="panel">
+  <h2>Le mix</h2>
+  <table class="month-table mix-table">
+    <thead><tr><th>Canal</th><th>Part au plan</th><th>Réalisée</th><th>Mix</th><th>Écart de ventes</th></tr></thead>
+    <tbody>
+    {% for piece in page.mix.slices %}
+      <tr>
+        <td>{{ piece.label }}</td>
+        <td class="num">{{ piece.plan_share_label }}</td>
+        <td class="num">{{ piece.actual_share_label }}</td>
+        <td class="num">{{ piece.mix_gap_label }}</td>
+        <td class="num">{{ piece.sales_gap | eur }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}
