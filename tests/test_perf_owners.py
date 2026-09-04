@@ -333,3 +333,38 @@ def test_the_czech_republic_is_named_as_the_rest_of_the_cockpit_names_it(tmp_pat
     )
 
     assert owners.load(book).owner_for("Czech Republic", "GE COUNTRIES").name == "Luc MARTIN"
+
+
+def test_a_directory_edited_while_the_server_runs_is_seen_at_the_next_reading(
+        tmp_path, monkeypatch):
+    """Le lecteur corrige le fichier, recharge l'écran, et voit l'ancien responsable :
+    l'annuaire était lu une fois pour la vie du processus. Un fichier tenu à la main se
+    relit quand il a bougé, et seulement alors."""
+    import os
+    import time
+
+    from app.config import settings
+
+    first = directory_file(
+        tmp_path,
+        rows=[LEADERS_HEADER,
+              ["APAC", "MD", "Une", "DIRIGEANTE", "Managing Director APAC", "Nordland", ""]],
+        lookup=[LOOKUP_HEADER, ["Nordland", "APAC", "Une DIRIGEANTE", "", "", ""]],
+        name="owners.xlsx",
+    )
+    monkeypatch.setattr(type(settings), "owners_path", property(lambda self: first))
+    owners.reset()
+    assert owners.current().owner_for("Nordland").name == "Une DIRIGEANTE"
+
+    second = directory_file(
+        tmp_path,
+        rows=[LEADERS_HEADER,
+              ["Greater Nord", "MD", "Un", "DIRIGEANT", "Managing Director", "Nordland", ""]],
+        lookup=[LOOKUP_HEADER, ["Nordland", "Greater Nord", "Un DIRIGEANT", "", "", ""]],
+        name="owners.xlsx",
+    )
+    later = time.time() + 5
+    os.utime(second, (later, later))
+
+    assert owners.current().owner_for("Nordland").name == "Un DIRIGEANT"
+    owners.reset()

@@ -486,26 +486,41 @@ def load(path) -> Directory:
     return _from_leaders(book)
 
 
-def current() -> Directory:
-    """The active directory, loaded from the configured file on first use."""
-    global _loaded
-    if _loaded is None:
-        from ..config import settings
+#: The file the loaded directory came from, and its modification time. Loaded once and
+#: never again was the first rule, and it held until the file was edited while the server
+#: ran: the screen kept naming the old owner for as long as the process lived, and the
+#: reader who had just corrected the file saw nothing change. A directory is edited by
+#: hand and rarely; rereading it costs a few milliseconds when it moved, nothing when it
+#: did not.
+_loaded_from = None
 
-        path = settings.owners_path
+
+def current() -> Directory:
+    """The active directory, reread whenever the file behind it has changed."""
+    global _loaded, _loaded_from
+    from ..config import settings
+
+    path = settings.owners_path
+    try:
+        stamp = (str(path), path.stat().st_mtime) if path.exists() else (str(path), None)
+    except OSError:
+        stamp = (str(path), None)
+    if _loaded is None or stamp != _loaded_from:
         try:
-            _loaded = load(path) if path.exists() else EMPTY
+            _loaded = load(path) if stamp[1] is not None else EMPTY
         except Exception:  # noqa: BLE001
             # A malformed directory must not take the cockpit down. Every market simply
             # goes unnamed, which the screen already knows how to say.
             _loaded = EMPTY
+        _loaded_from = stamp
     return _loaded
 
 
 def reset() -> None:
     """Forget the loaded directory. For tests, and for a file edited while running."""
-    global _loaded
+    global _loaded, _loaded_from
     _loaded = None
+    _loaded_from = None
 
 
 def owner_for(market: str, region: str = "") -> Owner:
