@@ -249,7 +249,7 @@
           <tr>
             <td>{{ line.market }}</td>
             {% if line.readable %}
-              <td class="num">{{ line.expected }}{% if line.thin %} <small>2 ex.</small>{% endif %}</td>
+              <td class="num">{{ line.expected }}{% if line.thin %} <small title="La forme de ce mois ne repose que sur deux exercices dans le fichier de phasage : un intervalle entre deux points, pas une dispersion.">sur 2 exercices</small>{% endif %}</td>
               <td class="num">{{ line.done }}</td>
               <td class="num">{{ line.gap }}</td>
             {% else %}
@@ -280,8 +280,9 @@
     {% endif %}
     <p class="cockpit-caveat">
       Attendu : la part du plan du mois que ce marché fait d'ordinaire à cette date, selon
-      ses trois derniers exercices — une fourchette quand ils ne s'accordent pas, « 2 ex. »
-      quand il n'y en a que deux. Écart positif : en avance.
+      ses trois derniers exercices — une fourchette quand ils ne s'accordent pas, et
+      « sur 2 exercices » quand l'entrepôt n'en porte que deux pour ce marché. Écart
+      positif : en avance.
     </p>
     <p class="cockpit-caveat">{{ month.sell_in }}</p>
     {% for reason in month.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
