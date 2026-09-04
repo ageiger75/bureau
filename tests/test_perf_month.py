@@ -34,11 +34,13 @@ def test_the_two_rates_are_read_side_by_side_and_never_alone(tmp_path):
     review = M.build(_rows(), {"Japan": 4_000_000.0}, _phasing(tmp_path))
 
     japan = next(line for line in review.lines if line.market == "Japan")
-    assert review.week == 3 and review.month == "2026-09"
+    assert review.week == 3 and review.day == 17 and review.month == "2026-09"
     assert japan.readable
-    assert japan.month_done == "70 %"       # 0.20+0.25+0.25 = 0.70 · 0.22+0.23+0.25 = 0.70
+    # Deux semaines pleines et trois jours sur sept de la troisième :
+    # 0.45 + 0.25 × 3/7 = 0.557, pour les deux exercices.
+    assert japan.month_done == "56 %"
     assert japan.target_done == "50 %"
-    assert japan.behind == "+20 pts"
+    assert japan.behind == "+6 pts"
 
 
 def test_a_market_without_a_month_shape_says_so_instead_of_using_the_days_elapsed(tmp_path):
@@ -115,8 +117,10 @@ def test_the_shape_uncertainty_is_kept_as_a_range_on_the_screen(tmp_path):
                      pace.load(str(path)))
 
     japan = next(line for line in review.lines if line.market == "Japan")
-    assert japan.month_done == "40–75 %"
-    assert japan.behind == "-10 à +25 pts"
+    # Le 10 est au troisième jour de la deuxième semaine : 0.20 + 0.20 × 3/7 = 0.286 et
+    # 0.20 + 0.55 × 3/7 = 0.436. La fourchette reste, elle ne fait que rétrécir.
+    assert japan.month_done == "29–44 %"
+    assert japan.behind == "-21 à -6 pts"
 
 
 def test_targets_come_from_sell_out_lines_of_the_month_only():
@@ -138,3 +142,23 @@ def test_the_sell_in_is_declared_without_a_rate_rather_than_interpolated(tmp_pat
     review = M.build(_rows(), {"Japan": 4_000_000.0}, _phasing(tmp_path))
 
     assert "n'avance pas en jours" in review.sell_in
+
+
+def test_the_third_day_of_the_month_does_not_credit_the_whole_first_week(tmp_path):
+    """Le défaut vu sur données réelles : le 3 du mois, tous les marchés paraissaient en
+    avance de dix à vingt points, parce que la première semaine était comptée entière.
+    Un facteur qui se déclenche partout n'ordonne rien — et celui-là était faux."""
+    review = M.build(_rows(through="2026-09-03"), {"Japan": 4_000_000.0},
+                     _phasing(tmp_path))
+
+    japan = next(line for line in review.lines if line.market == "Japan")
+    assert review.day == 3 and review.week == 1
+    assert japan.month_done == "9 %"        # 0.20 × 3/7 = 0.086, pas 20 %
+
+
+def test_the_last_block_of_the_month_is_measured_on_its_own_length():
+    import datetime
+
+    assert abs(M.within_week(datetime.date(2026, 9, 29)) - 0.5) < 1e-9   # 29-30 : 2 jours
+    assert abs(M.within_week(datetime.date(2026, 10, 31)) - 1.0) < 1e-9  # 29-31 : 3 jours
+    assert abs(M.within_week(datetime.date(2026, 9, 7)) - 1.0) < 1e-9

@@ -37,6 +37,21 @@ def week_of(day: int) -> int:
     return (int(day) + 6) // 7
 
 
+def within_week(day: datetime.date) -> float:
+    """La fraction du bloc en cours déjà écoulée, ce jour compris.
+
+    Le troisième jour du mois est au tiers de la première semaine, pas au bout. Le dernier
+    bloc est plus court — les jours 29 à 31 — et sa longueur est celle du mois, pas sept.
+    """
+    import calendar
+
+    week = week_of(day.day)
+    first = 7 * (week - 1) + 1
+    last = min(7 * week, calendar.monthrange(day.year, day.month)[1])
+    length = max(last - first + 1, 1)
+    return (day.day - first + 1) / float(length)
+
+
 def _day(value) -> Optional[datetime.date]:
     if isinstance(value, datetime.datetime):
         return value.date()
@@ -118,14 +133,16 @@ class Group:
 class Review:
     """La lecture entière du mois, prête à rendre."""
 
-    __slots__ = ("month", "week", "through", "groups", "unplaced", "absent", "sell_in")
+    __slots__ = ("month", "week", "day", "through", "groups", "unplaced", "absent",
+                 "sell_in")
 
     def __init__(self, month: str, week: int, through: str,
                  groups: Sequence["Group"], unplaced: Sequence["Line"],
-                 absent: Sequence[str]) -> None:
-        #: Le mois lu, « 2026-09 », et la semaine du mois où la lecture s'arrête.
+                 absent: Sequence[str], day: int = 0) -> None:
+        #: Le mois lu, « 2026-09 », le jour et la semaine du mois où la lecture s'arrête.
         self.month = month
         self.week = week
+        self.day = day
         #: Le dernier jour lu, en ISO. C'est la date qui borne tout ce qui suit.
         self.through = through
         self.groups = list(groups)
@@ -182,6 +199,7 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
     through = max(days)
     month = "%04d-%02d" % (through.year, through.month)
     week = week_of(through.day)
+    within = within_week(through)
 
     if phasing is None or not phasing.usable:
         absent.append("forme des mois non déposée : aucun taux d'avancement du mois")
@@ -196,7 +214,8 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
         market = normalise_market(raw)
         actual = _number(row.get("sales_to_date")) or 0.0
         target = targets.get(market)
-        progress = pace_module.progress(raw, month, week, actual, target, phasing)
+        progress = pace_module.progress(raw, month, week, actual, target, phasing,
+                                        within=within)
         lines.append(Line(market, progress))
 
     placed: Dict[str, str] = {}
@@ -227,4 +246,5 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
               for name, items in by_perimeter.items()]
     groups.sort(key=lambda group: -sum(line.progress.target or 0.0
                                        for line in group.lines))
-    return Review(month, week, through.isoformat(), groups, order(unplaced), absent)
+    return Review(month, week, through.isoformat(), groups, order(unplaced), absent,
+                  day=through.day)

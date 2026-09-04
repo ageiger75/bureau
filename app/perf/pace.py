@@ -140,8 +140,14 @@ class Curve:
     def usable(self) -> bool:
         return bool(self.by_year)
 
-    def elapsed(self, week: int) -> Optional["Band"]:
-        """Quelle part du mois est derrière nous à la fin de la semaine, selon les années.
+    def elapsed(self, week: int, within: float = 1.0) -> Optional["Band"]:
+        """Quelle part du mois est derrière nous, selon les années.
+
+        `within` est la fraction de la semaine en cours déjà écoulée. Sans elle, le
+        troisième jour du mois créditait la première semaine entière — et tous les marchés
+        paraissaient en avance de dix points le même matin, ce qui n'ordonne rien. À
+        l'intérieur d'une semaine la part est prise à plat : c'est une hypothèse, elle est
+        déclarée ici, et elle vaut pour sept jours là où l'autre valait pour un mois.
 
         `None` quand aucune année ne décrit cette semaine. Une semaine au-delà de la courbe
         d'une année ne vaut pas cent pour cent pour cette année-là : un mois de cinq
@@ -150,8 +156,9 @@ class Curve:
         """
         if week < 1:
             return None
-        seen = [sum(shares[:week]) for shares in self.by_year.values()
-                if week <= len(shares)]
+        within = min(max(float(within), 0.0), 1.0)
+        seen = [sum(shares[:week - 1]) + shares[week - 1] * within
+                for shares in self.by_year.values() if week <= len(shares)]
         if not seen:
             return None
         return Band(min(seen), max(seen), len(seen))
@@ -473,7 +480,8 @@ def current(path: Optional[str] = None) -> "Phasing":
 
 
 def progress(market: str, month: str, week: int, actual: Optional[float],
-             target: Optional[float], phasing: Optional["Phasing"]) -> "Progress":
+             target: Optional[float], phasing: Optional["Phasing"],
+             within: float = 1.0) -> "Progress":
     """Les deux taux pour un marché, ou ce qui manque pour les donner.
 
     L'ordre des refus compte : sans courbe on ne remplace pas par les jours écoulés, et
@@ -482,7 +490,7 @@ def progress(market: str, month: str, week: int, actual: Optional[float],
     ligne au plan.
     """
     curve = phasing.of(market, month) if phasing is not None else None
-    through_month = curve.elapsed(week) if curve is not None else None
+    through_month = curve.elapsed(week, within) if curve is not None else None
 
     through_target = None
     if target:

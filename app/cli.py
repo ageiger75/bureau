@@ -3947,8 +3947,8 @@ def cmd_month(argv: List[str]) -> int:
         for reason in review.absent:
             print(reason, file=sys.stderr)
         return 2
-    print("Mois %s · semaine %d · lu jusqu'au %s" % (review.month, review.week,
-                                                     review.through))
+    print("Mois %s · jour %d, semaine %d · lu jusqu'au %s"
+          % (review.month, review.day, review.week, review.through))
     print("%d marchés lus · %d lisibles sur les deux taux"
           % (len(review.lines), review.readable))
     for group in review.groups + ([_Unplaced(review.unplaced)] if review.unplaced else []):
