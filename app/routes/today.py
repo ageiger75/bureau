@@ -110,6 +110,20 @@ def _mix_review(dataset):
     return mix_module.build(dataset, contribution)
 
 
+def _stores_review():
+    """La part loyer du prochain euro, boutique par boutique, ou ce qui manque pour la lire.
+
+    Deux fichiers locaux, facultatifs : les ventes par magasin de la CFO et le référentiel
+    immobilier extrait de l'entrepôt. Aucun des deux n'est deviné.
+    """
+    from ..config import settings
+    from ..perf import stores as stores_module
+
+    sales = stores_module.current_sales() if settings.has_store_sales_file else None
+    register = stores_module.current() if settings.has_stores_file else None
+    return stores_module.build(sales, register)
+
+
 @router.get("/freshness")
 def freshness():
     """When the figures in memory were read. Polled by the page, never by a person.
@@ -174,6 +188,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     bulk_findings = getattr(source, "bulk_findings", list)()
     month = _month_review(source)
     mix = _mix_review(dataset)
+    stores = _stores_review()
 
     fires = analytics.fires(dataset)
     # The subjects, which is what the reader ends up with: a market losing ground in two
@@ -267,6 +282,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "week": week,
             "month": month,
             "mix": mix,
+            "stores": stores,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
             # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the

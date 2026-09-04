@@ -52,6 +52,8 @@
                                      retail par défaut · --outlets · --all-channels
     python -m app.cli mix            le mix du mois contre le plan, repondéré aux taux
                                      moyens de var/contribution.csv — un calcul, pas un résultat
+    python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
+                                     --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
@@ -4043,6 +4045,50 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_stores(argv: List[str]) -> int:
+    """La part loyer du prochain euro, boutique par boutique, telle que l'écran la rendra.
+
+    Joint les ventes par magasin de la CFO (`var/stores-sales.xlsx`) au référentiel
+    immobilier de l'entrepôt (`var/stores.csv`) par le code de boutique, et rend par marché
+    le taux de jointure, la couverture du bail connu, et ce que le loyer prend sur un euro
+    de plus. `--unmatched` liste les codes que le référentiel ne connaît pas.
+    """
+    from .perf.analytics import format_eur
+    from .routes.today import _stores_review
+
+    review = _stores_review()
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print(review.join_label)
+    print("Bail connu sur %s des ventes en boutique · %s de ventes lues"
+          % (review.coverage_label, format_eur(review.sales)))
+    print("")
+    print("  %-24s %9s %9s %10s %12s %9s %9s" % (
+        "Marché", "boutiques", "bail connu", "couverture", "part loyer", "zéro", "inconnu"))
+    for market in review.markets:
+        print("  %-24s %9d %9d %10s %12s %9d %9d" % (
+            market.name[:24], market.count, len(market.informed), market.coverage_label,
+            market.rent_share_label, len(market.none_written),
+            market.count - len(market.informed)))
+    print("")
+    print("Part loyer : sur les boutiques au bail connu, pondérée par leurs ventes. "
+          "Couverture : la part des ventes du marché que ces boutiques font.")
+    print(review.marginal)
+    if "--unmatched" in argv:
+        print("")
+        print("Codes du fichier de la CFO absents du référentiel :")
+        for market in review.markets:
+            for code in market.unmatched:
+                print("  %-24s %s" % (market.name[:24], code))
+    for reason in review.absent:
+        print(reason)
+    for fault in review.register_faults[:10]:
+        print("référentiel : %s" % fault)
+    return 0
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -4100,6 +4146,8 @@ def main(argv: List[str]) -> int:
         return cmd_month(argv[1:])
     if command == "mix":
         return cmd_mix(argv[1:])
+    if command == "stores":
+        return cmd_stores(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

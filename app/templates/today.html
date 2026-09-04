@@ -350,6 +350,50 @@
   {% endif %}
 </section>
 
+<section class="panel" id="loyers">
+  <h2>La part loyer du prochain euro</h2>
+  {% if stores and stores.usable %}
+    <p class="lede">
+      Par marché, ce que le loyer prend sur un euro de plus vendu en boutique — lu bail par
+      bail dans le référentiel immobilier, pondéré par les ventes des boutiques dont le bail
+      est connu. La couverture dit de quelles boutiques le taux parle.
+    </p>
+    <p class="cockpit-caveat">{{ stores.join_label }} · bail connu sur {{ stores.coverage_label }} des ventes en boutique.</p>
+    <table class="month-table mix-table">
+      <thead>
+        <tr><th>Marché</th><th>Boutiques</th><th>Bail connu</th><th>Couverture</th><th>Part loyer variable</th><th>Zéro écrit</th><th>Non renseigné</th></tr>
+      </thead>
+      <tbody>
+      {% for market in stores.shown %}
+        <tr>
+          <td>{{ market.name }}</td>
+          <td class="num">{{ market.count }}</td>
+          <td class="num">{{ market.informed | length }}</td>
+          <td class="num" title="Part des ventes du marché faite par des boutiques dont le bail est connu.">{{ market.coverage_label }}</td>
+          <td class="num" title="Sur les boutiques au bail connu, pondéré par leurs ventes.">{{ market.rent_share_label }}</td>
+          <td class="num" title="Un zéro écrit au référentiel : pas de part variable sur ce bail.">{{ market.none_written | length }}</td>
+          <td class="num" title="Rien d'écrit. Ce n'est pas un zéro.">{{ market.count - (market.informed | length) }}</td>
+        </tr>
+      {% endfor %}
+      {% if stores.rest %}
+        <tr class="month-rest" title="{{ stores.rest | map(attribute='name') | join(', ') }}">
+          <td>{{ stores.rest | length }} autres marchés</td>
+          <td class="num">{{ stores.rest | sum(attribute='count') }}</td>
+          <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+        </tr>
+      {% endif %}
+      </tbody>
+    </table>
+    <p class="cockpit-caveat">{{ stores.marginal }} Un marché n'est jamais comparé à un autre sur un taux qui ne couvre pas la même part de ses ventes.</p>
+    {% for reason in stores.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+    {% for fault in stores.register_faults[:5] %}<p class="cockpit-caveat">référentiel : {{ fault }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">
+      {% for reason in stores.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+  {% endif %}
+</section>
+
 <section class="panel">
   <h2>Les sujets</h2>
   <p class="lede">

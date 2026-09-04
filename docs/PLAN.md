@@ -306,6 +306,20 @@ tomber, et l'an dernier de mai manquait d'un demi-million contre le flash. L'ext
 la CFO porte aussi une feuille **par boutique**, avec son budget : c'est la maille de la
 pièce suivante de cette phase, le régime de loyer lu bail par bail.
 
+**Deuxième pièce livrée — la part loyer, boutique par boutique.** `var/stores.csv` (le
+référentiel immobilier extrait de l'entrepôt : code, bail, part de loyer variable telle
+qu'elle est écrite) se joint par le code à la feuille par magasin de l'extraction de la CFO
+(`var/stores-sales.xlsx`). Par marché : boutiques, baux connus, couverture en ventes, part
+loyer pondérée sur les seules boutiques au bail connu ; trois états jamais confondus —
+part écrite, zéro écrit, rien d'écrit. Ce que le référentiel a appris en le lisant : le
+code de consolidation est dans `STORE_CODE` pour la moitié des boutiques (le travel retail
+suit une autre nomenclature) ; `VAR_RENT_PERCENT` vaut souvent un zéro écrit, qu'il faut
+distinguer de l'absence ; `OWNERSHIP_DESC` oppose détenu et non détenu et ne dit rien du
+régime de loyer ; le loyer fixe a sa colonne, `MONTHLY_RENT` ; les dates d'ouverture ne sont
+renseignées nulle part. Les bornes du plan étaient fausses : la part variable positive va
+de moins de deux pour cent à un peu moins de la moitié des boutiques selon les pays, et
+trois pays sur quatre n'en ont aucune.
+
 ### Phase 4 — B1, une page par périmètre
 
 Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,

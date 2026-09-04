@@ -681,3 +681,12 @@ def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
     assert "Taux marginal : absent" in page
     assert "Aucun canal n'est classé sur son taux moyen" in page
     assert "EBITDA" not in page
+
+
+def test_the_rent_share_panel_is_on_the_screen_or_says_what_it_waits_for(client):
+    """B5, deuxième pièce : la part loyer se lit boutique par boutique, et sans fichier le
+    panneau nomme ce qu'il attend au lieu de rendre un zéro."""
+    page = page_text(client.get("/"))
+
+    assert "La part loyer du prochain euro" in page
+    assert "stores-sales.xlsx" in page

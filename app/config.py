@@ -117,6 +117,15 @@ DEFAULT_MARKETS_FILE = "var/markets.csv"
 #: Un canal vendu qu'il ne nomme pas est absent, jamais pris à zéro ni à la moyenne.
 DEFAULT_CONTRIBUTION_FILE = "var/contribution.csv"
 
+#: Le référentiel immobilier, extrait de l'entrepôt boutique par boutique : le code, le
+#: bail, la part de loyer variable telle qu'elle est écrite. C'est la seule source lue ici
+#: qui dise ce qu'un euro de plus perd en loyer, et elle le dit par bail, jamais par pays.
+DEFAULT_STORES_FILE = "var/stores.csv"
+
+#: Les ventes par boutique telles que la consolidation les publie, avec leur budget — la
+#: feuille par magasin de l'extraction de la CFO. Jointe au référentiel par le code.
+DEFAULT_STORE_SALES_FILE = "var/stores-sales.xlsx"
+
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -148,6 +157,8 @@ class Settings:
     calendar_file: str = DEFAULT_CALENDAR_FILE
     markets_file: str = DEFAULT_MARKETS_FILE
     contribution_file: str = DEFAULT_CONTRIBUTION_FILE
+    stores_file: str = DEFAULT_STORES_FILE
+    store_sales_file: str = DEFAULT_STORE_SALES_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -272,6 +283,24 @@ class Settings:
     @property
     def has_contribution_file(self) -> bool:
         return self.contribution_path.exists()
+
+    @property
+    def stores_path(self) -> Path:
+        path = Path(self.stores_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_stores_file(self) -> bool:
+        return self.stores_path.exists()
+
+    @property
+    def store_sales_path(self) -> Path:
+        path = Path(self.store_sales_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_store_sales_file(self) -> bool:
+        return self.store_sales_path.exists()
 
     @property
     def actuals_folder(self) -> Path:
