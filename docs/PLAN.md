@@ -320,6 +320,21 @@ renseignées nulle part. Les bornes du plan étaient fausses : la part variable 
 de moins de deux pour cent à un peu moins de la moitié des boutiques selon les pays, et
 trois pays sur quatre n'en ont aucune.
 
+**Phase 3 close, le 4 septembre 2026 — recette.** Un mois à l'équilibre en ventes et
+hors plan en mix se voit : l'août clos est à soixante mille euros du plan et cède quatre
+points aux e-retailers. Aucun EBITDA n'est produit ni suggéré, et un test le garde. La
+base de chaque chiffre est affichée : coefficients du mix, couverture des taux, couverture
+des baux. Le taux marginal est nommé absent, deux fois, et la part loyer n'est jamais
+présentée comme lui. Deux régimes ne sont jamais comparés sur le même taux sans que la
+couverture le dise. Le référentiel immobilier a mesuré ce que le plan supposait : l'Asie
+rend entre dix-sept et vingt-neuf pour cent de l'euro suivant au bailleur, la France et
+l'Allemagne moins de cinq. Ce qui reste, et qui n'est pas du code : un type de contrat par
+boutique — concession, franchise, distributeur, opérateur de travel retail —, que le
+référentiel ne porte pas et que Cortex ne peut lire qu'en croisant des libellés ; un tiers
+des boutiques chinoises et toutes celles du Vietnam et de Nouvelle-Zélande sans bail
+renseigné ; et les 327 boutiques « Not Owned » hors travel retail, qui attendent une
+réponse de l'immobilier. Demandé à l'équipe data dans le document qui lui est destiné.
+
 ### Phase 4 — B1, une page par périmètre
 
 Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,
