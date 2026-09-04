@@ -269,7 +269,7 @@ def test_a_month_paid_in_lumps_on_the_first_is_said_and_never_corrected(tmp_path
     review = M.build(rows, {"Japan": 4_000_000.0}, _phasing(tmp_path))
 
     japan = review.lines[0]
-    assert japan.lumpy and japan.first_day_note == "35 % du plan du mois versés le 1er"
+    assert japan.lumpy and japan.first_day_note == "35 % du plan du mois encaissés le 1er"
     assert japan.done == "40 %"            # le réalisé n'est pas retouché
 
 

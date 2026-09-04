@@ -38,12 +38,13 @@ NARROW = 0.03
 COVERAGE = 0.80
 MOST = 5
 
-#: Au-delà de cette part du plan du mois versée le 1er, l'écran le dit. Un mois plat
-#: fait trois pour cent par jour ; une campagne d'ouverture peut en faire dix. Quatre
-#: dixièmes du mois en un jour n'est pas une vente, c'est un versement — le sell-out de
-#: certains marchés arrive par paquets datés du 1er. La part est rendue telle quelle,
-#: jamais retirée du réalisé : corriger en silence ferait disparaître le défaut au lieu
-#: de le faire réparer. Le seuil est un choix, écrit ici pour être discuté.
+#: Au-delà de cette part du plan du mois encaissée le 1er, l'écran le dit. Ce sont des
+#: ventes — plus de tickets, plus petits, le même jour, dans des centaines de magasins :
+#: l'encaissement d'une campagne de plateforme, le 11.11 pré-vendu depuis octobre et payé
+#: le 1er novembre, le 618 de même début juin. Le 1er n'est donc pas un défaut, mais sa
+#: date bouge d'un exercice à l'autre, et un avancement lu le 3 sur un tel mois compare
+#: un jour d'encaissement à des années où il n'y en avait pas. La part est rendue telle
+#: quelle et le mois est sorti du verdict tant qu'elle domine. Le seuil est un choix.
 FIRST_DAY_NOTE = 0.10
 
 
@@ -125,7 +126,7 @@ class Line:
         share = self.first_day_share
         if share is None:
             return ""
-        return "%.0f %% du plan du mois versés le 1er" % (share * 100)
+        return "%.0f %% du plan du mois encaissés le 1er" % (share * 100)
 
     @property
     def expected(self) -> str:

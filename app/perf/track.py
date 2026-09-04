@@ -188,7 +188,11 @@ def month_verdict(lines: Sequence["month_module.Line"]) -> Verdict:
     Un marché sans plan ou sans forme de mois n'entre ni au réalisé ni à l'attendu — les
     deux termes portent sur les mêmes marchés — et la couverture dit ce qu'ils pèsent.
     """
-    readable = [line for line in lines if line.readable and line.target > 0]
+    # Un marché dont le 1er encaisse une campagne de plateforme sort du verdict : son
+    # avancement au 3 compare un jour d'encaissement à des exercices sans. Il reste à
+    # l'écran, avec sa part du 1er, et la couverture dit ce qu'il pèse.
+    readable = [line for line in lines
+                if line.readable and line.target > 0 and not line.lumpy]
     plan = sum(line.target for line in lines if line.target > 0)
     if not readable:
         return Verdict(absent="aucun marché lisible sur les deux taux", coverage=0.0)
@@ -251,10 +255,13 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
     group_month = month_verdict(every_line)
     if not group_month.usable:
         absent.append("Mois en cours : %s." % group_month.absent)
+    campaign = [line.market for line in every_line if line.lumpy and line.target > 0]
     if group_month.usable and group_month.coverage < 1.0:
         caveats.append("Le mois se lit sur %s du plan sell-out du mois ; le reste est sans "
-                       "forme de mois ou sans plan, et nommé plus bas."
-                       % group_month.coverage_label)
+                       "forme de mois, sans plan%s, et nommé plus bas."
+                       % (group_month.coverage_label,
+                          (", ou encaisse une campagne de plateforme le 1er (%s)"
+                           % ", ".join(campaign)) if campaign else ""))
     caveats.append("Le sell-in n'entre pas dans le mois en cours : une facture tombe quand "
                    "elle tombe, et aucun calendrier d'expédition n'est connecté.")
 
