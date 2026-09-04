@@ -335,6 +335,14 @@ des boutiques chinoises et toutes celles du Vietnam et de Nouvelle-Zélande sans
 renseigné ; et les 327 boutiques « Not Owned » hors travel retail, qui attendent une
 réponse de l'immobilier. Demandé à l'équipe data dans le document qui lui est destiné.
 
+**Les taux, réglés le 4 septembre 2026.** L'entrepôt convertit chaque devise à un taux
+fixe, invariant sur huit exercices, et ce taux est exactement le taux budget FY27 du
+classeur de plan, devise par devise. Le sell-in de l'entrepôt, le sell-out de l'entrepôt,
+le plan et la consolidation « at budget rates » sont donc au même barème : le verdict de
+l'exercice additionne du comparable, et la croissance en euros est la croissance en
+devise locale. Une seule règle à garder : un taux se dérive d'une somme, jamais d'une
+ligne, l'arrondi au centime sur de petits montants faussant le rapport ligne à ligne.
+
 ### Phase 4 — B1, une page par périmètre
 
 Le même squelette pour les sept : où en est l'année, ce que le périmètre porte du plan,

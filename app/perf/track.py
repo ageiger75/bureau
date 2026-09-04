@@ -306,10 +306,9 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
         absent.append("Exercice à date : %s." % year_absent)
     group_year = (year_verdict(group_month, closed_actual, closed_budget, closed_basis)
                   if not year_absent else Verdict(absent=year_absent))
-    if closed_through and published is not None:
-        caveats.append("La consolidation est à taux budget, l'entrepôt en euros de "
-                       "l'entrepôt : les deux ne sont pas au même taux, et l'écart de "
-                       "l'exercice porte cette différence.")
+    # Les deux morceaux de l'exercice sont au même taux : l'entrepôt convertit chaque
+    # devise au taux budget FY27, figé, celui du classeur de plan et de la consolidation
+    # « at budget rates ». Vérifié devise par devise, aucune réserve à porter.
 
     # Par périmètre : le mois sur les lignes du groupe, l'année sur les marchés publiés
     # que l'annuaire place dans ce périmètre — y compris ceux que le mois ne lit pas.
