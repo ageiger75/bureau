@@ -155,7 +155,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
-          budget=None, ebitda=None) -> Page:
+          budget=None, ebitda=None, incremental=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -174,7 +174,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     if units:
         subset = Dataset(getattr(dataset, "period_label", ""), getattr(dataset, "as_of", ""),
                          units, period=getattr(dataset, "period", ""))
-        mix = mix_module.build(subset, contribution)
+        mix = mix_module.build(subset, contribution, incremental)
     else:
         absent.append("aucune unité de l'écran sur ces marchés : pas de mix")
     land = landing(list(markets), published, budget, getattr(track, "period", "") or "",

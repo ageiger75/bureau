@@ -109,6 +109,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("stores_path", "stores.csv"),
         ("store_sales_path", "stores-sales.xlsx"),
         ("ebitda_path", "ebitda-budget.xlsx"),
+        ("incremental_path", "incremental_margin_channels.csv"),
     ):
         monkeypatch.setattr(
             type(settings), name,

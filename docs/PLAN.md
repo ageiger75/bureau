@@ -270,10 +270,14 @@ Ce que la phase construit :
   chaque agrégat par marché porte son taux de renseignement — qui va de moins de quatre
   pour cent à cinquante pour cent selon les pays, et vaut zéro dans plus de la moitié
   d'entre eux.
-- **Le reste du taux marginal n'est pas connu** et n'est pas inventé : personnel, logistique
-  et marketing demandent une part fixe et une part variable qu'aucune source lue ici ne
-  porte. L'écran le déclare absent, nommément, et ne présente jamais la seule part loyer
-  comme un taux marginal complet.
+- **Le taux marginal est mesuré au compte de gestion, canal par canal, là où la série est
+  stable** — Δcontribution ÷ Δventes, cellule pays × canal, agrégé sur les cellules dont la
+  série ne change pas de nomenclature, et tenu seulement quand le signe se reproduit d'une
+  paire d'exercices à l'autre (`var/incremental_margin_channels.csv`, `app/perf/incremental.py`,
+  5 septembre 2026). Six canaux le portent ; le retail, le travel retail, le e-commerce ont
+  une mesure qui change de signe quand on décale la paire et restent absents, avec leur
+  statut. L'écran ne remplace jamais un taux marginal absent par le taux moyen, et ne
+  présente jamais la seule part loyer comme un taux marginal complet.
 - L'écran affiche l'écart de mix contre le mix planifié et l'écart de ventes repondéré aux
   taux moyens — présenté comme un calcul, coefficients affichés, **jamais** comme un
   résultat, et jamais comme un EBITDA.
@@ -402,9 +406,19 @@ budget » dans la table des périmètres, une ligne sous le verdict, une carte s
 de périmètre. Ce que le module refuse : convertir un écart de ventes en EBITDA par un taux
 moyen — le compte de gestion a mesuré qu'un réseau de boutiques perd plus d'un euro de
 contribution par euro de vente perdu quand un partenaire en rapporte trente centimes, et la
-marge marginale par canal et pays existe désormais dans `var/incremental_margin.csv`, à lire
-comme prochaine pièce de B5 à la place du taux moyen. Demandé à la Finance : un EBITDA réel
-mensuel par BU, et le contenu des honoraires imputés au canal distributeurs France.
+marge marginale par canal et pays existe désormais dans `var/incremental_margin.csv`.
+
+**Le taux marginal mesuré entre dans le mix, le 5 septembre 2026.** Le panneau du mix pose,
+à côté du taux moyen, le taux marginal des canaux que le compte de gestion mesure de façon
+reproductible, avec le levier (marginal moins moyen, même base) et Σ taux marginal × écart sur
+les canaux mesurés seulement ; les autres canaux sont nommés avec leur statut. La date de
+l'instantané est rendue. Le compte de gestion porte aussi un instantané mensuel du réalisé
+cumulé par région, canal et compte, budget phasé à date : c'est l'EBITDA réel par BU que la
+Finance ne produit pas, jusqu'à la contribution avant coûts internationaux, avec un mois de
+retard (juillet manque dans la table). L'agent entrepôt l'écrit dans `var/pnl_bu.csv` ; sa
+lecture est la prochaine pièce. Les honoraires imputés au canal distributeurs France en FY26
+ne sont pas la fermeture du 86 Champs, qui se lit ailleurs : une charge récurrente à
+expliquer par le contrôle de gestion, exclue nommément du fichier.
 
 ### Phase 5 — B6, les moteurs du plan
 

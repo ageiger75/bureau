@@ -4017,6 +4017,8 @@ def cmd_mix(argv: List[str]) -> int:
     head = "  %-24s %8s %8s %6s" % ("Canal", "plan", "réalisé", "mix")
     if review.weighs:
         head += " %8s %12s %12s" % ("taux", "écart", "× taux")
+    if review.measures:
+        head += " %9s %8s %12s" % ("marginal", "levier", "× marginal")
     print(head)
     for piece in review.slices:
         row = "  %-24s %8s %8s %6s" % (piece.label[:24], piece.plan_share_label,
@@ -4025,6 +4027,10 @@ def cmd_mix(argv: List[str]) -> int:
             row += " %8s %12s %12s" % (
                 piece.rate_label, format_eur(piece.sales_gap),
                 format_eur(piece.weighted) if piece.covered else "—")
+        if review.measures:
+            row += " %9s %8s %12s" % (
+                piece.marginal_label, piece.lever_label,
+                format_eur(piece.weighted_marginal) if piece.measured else "—")
         print(row)
     print("")
     if review.weighs:
@@ -4036,6 +4042,9 @@ def cmd_mix(argv: List[str]) -> int:
                  review.plan_rate_label))
         print("  dont mix    : %s = ventes × Σ taux × points de mix"
               % format_eur(review.mix_effect))
+    if review.measures:
+        print("Σ taux marginal × écart : %s, sur %s des ventes du mois"
+              % (format_eur(review.weighted_marginal), review.marginal_coverage_label))
         print("")
     if review.uncovered_note:
         print(review.uncovered_note)

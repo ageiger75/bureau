@@ -131,6 +131,10 @@ DEFAULT_STORE_SALES_FILE = "var/stores-sales.xlsx"
 #: mois, et le cockpit le dit plutôt que de le déduire d'un taux moyen.
 DEFAULT_EBITDA_FILE = "var/ebitda-budget.xlsx"
 
+#: La marge incrémentale par canal, mesurée au compte de gestion par l'agent entrepôt : le
+#: taux du prochain euro, là où la série est stable, et un statut nommé partout ailleurs.
+DEFAULT_INCREMENTAL_FILE = "var/incremental_margin_channels.csv"
+
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -165,6 +169,7 @@ class Settings:
     stores_file: str = DEFAULT_STORES_FILE
     store_sales_file: str = DEFAULT_STORE_SALES_FILE
     ebitda_file: str = DEFAULT_EBITDA_FILE
+    incremental_file: str = DEFAULT_INCREMENTAL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -316,6 +321,15 @@ class Settings:
     @property
     def has_ebitda_file(self) -> bool:
         return self.ebitda_path.exists()
+
+    @property
+    def incremental_path(self) -> Path:
+        path = Path(self.incremental_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_incremental_file(self) -> bool:
+        return self.incremental_path.exists()
 
     @property
     def actuals_folder(self) -> Path:

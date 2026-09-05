@@ -18,8 +18,10 @@ le vaut pas — c'est justement la seconde chose que ce module refuse de faire.
 plan, jamais par taux. Le taux moyen classe le wholesale devant le retail parce que la
 remise consentie est un coût qui suit chaque euro, quand une boutique ouverte ne coûte
 guère que le produit sur l'euro suivant. Le taux **marginal** — celui du prochain euro —
-peut inverser l'ordre, et aucune source lue ici ne le porte. Il est déclaré absent, par son
-nom, au lieu d'être remplacé par le taux moyen.
+peut inverser l'ordre. Le compte de gestion le mesure désormais pour les canaux dont la
+série est stable (`incremental.py`) ; ce module le pose à côté du taux moyen, canal par
+canal, et déclare les autres absents par leur statut, au lieu de les remplacer par le taux
+moyen.
 
 Le fichier est celui de la maison, dans `var/`, jamais versionné : un nom, un genre, un
 taux, une date, une source. Un canal vendu que le fichier ne nomme pas est ABSENT — nommé
@@ -47,7 +49,7 @@ REQUIRED = ("name", "kind")
 #: Les noms sous lesquels un taux peut être écrit ; le premier trouvé est lu.
 RATE_COLUMNS = ("average_rate", "contribution_rate", "rate")
 
-#: Ce que l'écran dit du taux marginal à la place d'un chiffre. Écrit une fois, ici.
+#: Ce que l'écran dit du taux marginal quand aucun canal n'en porte. Écrit une fois, ici.
 MARGINAL_ABSENT = (
     "Taux marginal : absent. Personnel, logistique et marketing demandent une part fixe et "
     "une part variable qu'aucune source lue ici ne porte. Le taux moyen ne le remplace pas."
@@ -279,16 +281,19 @@ def current(path: Optional[str] = None) -> Contribution:
 class Slice:
     """Un canal du mois : sa part au plan, sa part réalisée, et le coefficient qui le pèse."""
 
-    __slots__ = ("channel", "actual", "budget", "rate", "total_actual", "total_budget")
+    __slots__ = ("channel", "actual", "budget", "rate", "total_actual", "total_budget",
+                 "marginal")
 
     def __init__(self, channel: str, actual: float, budget: float, rate: Optional[Rate],
-                 total_actual: float, total_budget: float) -> None:
+                 total_actual: float, total_budget: float, marginal=None) -> None:
         self.channel = channel
         self.actual = actual
         self.budget = budget
         self.rate = rate
         self.total_actual = total_actual
         self.total_budget = total_budget
+        #: Le taux du prochain euro, mesuré au compte de gestion — ou None.
+        self.marginal = marginal
 
     @property
     def label(self) -> str:
@@ -339,16 +344,37 @@ class Slice:
     def rate_label(self) -> str:
         return self.rate.label if self.rate else "absent"
 
+    @property
+    def measured(self) -> bool:
+        return self.marginal is not None
+
+    @property
+    def weighted_marginal(self) -> Optional[float]:
+        """L'écart de ventes au taux marginal du canal — le terme qui dit ce que l'euro
+        manquant a coûté, là où il est mesuré."""
+        if self.marginal is None:
+            return None
+        return self.marginal.marginal * self.sales_gap
+
+    @property
+    def marginal_label(self) -> str:
+        return self.marginal.label if self.marginal else "absent"
+
+    @property
+    def lever_label(self) -> str:
+        return self.marginal.lever_label if self.marginal else "—"
+
 
 class Review:
     """Le mois vu par son mix : les canaux, les deux effets, et ce qui manque."""
 
     def __init__(self, period: str, slices: Sequence[Slice], absent: Sequence[str],
-                 contribution: Optional[Contribution] = None) -> None:
+                 contribution: Optional[Contribution] = None, incremental=None) -> None:
         self.period = period
         self.slices = list(slices)
         self.absent = list(absent)
         self.contribution = contribution
+        self.incremental = incremental
 
     @property
     def usable(self) -> bool:
@@ -428,10 +454,58 @@ class Review:
     def plan_rate_label(self) -> str:
         return _share(self.plan_rate)
 
-    #: Les deux phrases que l'écran répète à chaque rendu, tenues ici pour n'exister
-    #: qu'une fois.
-    marginal = MARGINAL_ABSENT
+    #: La phrase que l'écran répète à chaque rendu, tenue ici pour n'exister qu'une fois.
     no_ranking = NO_RANKING
+
+    # ---------------------------------------------------------------- le taux marginal
+
+    @property
+    def measured(self) -> List[Slice]:
+        return [piece for piece in self.slices if piece.measured]
+
+    @property
+    def measures(self) -> bool:
+        """Si au moins un canal porte un taux marginal mesuré, la colonne se rend."""
+        return bool(self.measured)
+
+    @property
+    def marginal_coverage(self) -> float:
+        if not self.total_actual:
+            return 0.0
+        return sum(piece.actual for piece in self.measured) / self.total_actual
+
+    @property
+    def marginal_coverage_label(self) -> str:
+        return _share(self.marginal_coverage)
+
+    @property
+    def weighted_marginal(self) -> float:
+        """Σ taux marginal × écart de ventes, sur les canaux mesurés seulement."""
+        return sum(piece.weighted_marginal for piece in self.measured)
+
+    @property
+    def marginal(self) -> str:
+        """Ce que l'écran dit du taux marginal : mesuré sur tels canaux, absent pour tels
+        autres avec leur statut — ou absent tout court quand rien ne le porte."""
+        if not self.measures:
+            return MARGINAL_ABSENT
+        names = ", ".join("%s %s" % (piece.label, piece.marginal_label) for piece in self.measured)
+        when = self.incremental.snapshot if self.incremental is not None else ""
+        text = ("Taux marginal mesuré au compte de gestion%s sur %s des ventes du mois : %s."
+                % (" (instantané du %s)" % when if when else "", self.marginal_coverage_label,
+                   names))
+        others = [piece for piece in self.slices if not piece.measured]
+        if others:
+            reasons = []
+            for piece in others:
+                status = ""
+                if self.incremental is not None:
+                    found = next((rate for rate in self.incremental.unmeasured
+                                  if piece.channel in rate.channels), None)
+                    status = found.status if found is not None else "absent du fichier"
+                reasons.append("%s (%s)" % (piece.label, status or "absent du fichier"))
+            text += " Absent pour : %s." % ", ".join(reasons)
+        return text
 
     @property
     def uncovered_note(self) -> str:
@@ -451,7 +525,7 @@ class Review:
                 "entier, et le cockpit ne connaît les ventes que par canal." % names)
 
 
-def build(dataset, contribution: Optional[Contribution]) -> Review:
+def build(dataset, contribution: Optional[Contribution], incremental=None) -> Review:
     """Le mois par canal, contre son plan, aux taux moyens quand il y en a.
 
     Sur les unités comparables — celles où les deux termes existent — et jamais sur les
@@ -476,9 +550,13 @@ def build(dataset, contribution: Optional[Contribution]) -> Review:
     if contribution is not None:
         for fault in contribution.faults:
             absent.append("fichier de contribution, %s" % fault)
+    if incremental is not None:
+        for fault in incremental.faults:
+            absent.append("marge incrémentale, %s" % fault)
     slices = [Slice(channel, actual[channel], budget[channel],
                     contribution.of(channel) if contribution else None,
-                    total_actual, total_budget)
+                    total_actual, total_budget,
+                    incremental.of(channel) if incremental is not None else None)
               for channel in actual]
     # Par poids au plan, jamais par taux : l'ordre est déjà une opinion, et celle-là
     # dirait où pousser.
@@ -486,4 +564,5 @@ def build(dataset, contribution: Optional[Contribution]) -> Review:
     if not slices:
         absent.append("Aucune unité comparable : le mix demande un réalisé et un plan sur "
                       "les mêmes canaux.")
-    return Review(getattr(dataset, "period_label", ""), slices, absent, contribution)
+    return Review(getattr(dataset, "period_label", ""), slices, absent, contribution,
+                  incremental)

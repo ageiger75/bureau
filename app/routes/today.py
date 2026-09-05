@@ -106,8 +106,11 @@ def _mix_review(dataset):
     from ..config import settings
     from ..perf import mix as mix_module
 
+    from ..perf import incremental as incremental_module
+
     contribution = mix_module.current() if settings.has_contribution_file else None
-    return mix_module.build(dataset, contribution)
+    incremental = (incremental_module.current() if settings.has_incremental_file else None)
+    return mix_module.build(dataset, contribution, incremental)
 
 
 def _stores_review():
@@ -190,7 +193,10 @@ def _perimeter_inputs(session):
     track = _track(dataset, month)
     week, _scan = week_of.read(session, dataset=dataset, placing=False)
     fires = analytics.fires(dataset, limit=None)
+    from ..perf import incremental as incremental_module
+
     contribution = mix_module.current() if settings.has_contribution_file else None
+    incremental = (incremental_module.current() if settings.has_incremental_file else None)
     published = actuals_module.current(month=False) if settings.has_actuals_file else None
     budget = None
     if settings.has_budget_file:
@@ -203,6 +209,7 @@ def _perimeter_inputs(session):
     return {
         "source": source, "dataset": dataset, "month": month, "track": track,
         "week": week, "fires": fires, "contribution": contribution,
+        "incremental": incremental,
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
     }
@@ -248,7 +255,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
                               published=inputs["published"], budget=inputs["budget"],
-                              ebitda=inputs["ebitda"])
+                              ebitda=inputs["ebitda"], incremental=inputs["incremental"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })

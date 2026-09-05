@@ -162,7 +162,7 @@
     <p class="lede">{{ mix.period }} · le mix par canal contre le plan{% if mix.weighs %}, et l'écart de ventes pesé au taux moyen de chaque canal{% endif %}.</p>
 <table class="month-table mix-table">
       <thead>
-        <tr><th>Canal</th><th>Part au plan</th><th>Réalisée</th><th>Mix</th>{% if mix.weighs %}<th>Taux moyen</th><th>Écart de ventes</th><th>× taux</th>{% endif %}</tr>
+        <tr><th>Canal</th><th>Part au plan</th><th>Réalisée</th><th>Mix</th>{% if mix.weighs %}<th>Taux moyen</th><th>Écart de ventes</th><th>× taux</th>{% endif %}{% if mix.measures %}<th>Taux marginal</th><th>Levier</th><th>× marginal</th>{% endif %}</tr>
       </thead>
       <tbody>
       {% for piece in mix.slices %}
@@ -182,6 +182,17 @@
               <td class="absent">—</td>
             {% endif %}
           {% endif %}
+          {% if mix.measures %}
+            {% if piece.measured %}
+              <td class="num" title="Δcontribution ÷ Δventes au compte de gestion, sur les cellules pays × canal à série stable.">{{ piece.marginal_label }}</td>
+              <td class="num" title="Taux marginal moins taux moyen, sur la même base : le compte de gestion.">{{ piece.lever_label }}</td>
+              <td class="num">{{ piece.weighted_marginal | eur }}</td>
+            {% else %}
+              <td class="absent">absent</td>
+              <td class="absent">—</td>
+              <td class="absent">—</td>
+            {% endif %}
+          {% endif %}
         </tr>
       {% endfor %}
       </tbody>
@@ -196,6 +207,13 @@
         <dd>{{ mix.mix_effect | eur }} <small>= ventes × Σ taux × points de mix</small></dd>
       </dl>
     {% endif %}
+    {% if mix.measures %}
+      <dl class="mix-calc">
+        <dt>Σ taux marginal × écart</dt>
+        <dd>{{ mix.weighted_marginal | eur }} <small>sur {{ mix.marginal_coverage_label }} des ventes du mois, les canaux mesurés seulement</small></dd>
+      </dl>
+    {% endif %}
+    <p class="cockpit-caveat">{{ mix.marginal }}</p>
     {% if mix.uncovered_note %}<p class="cockpit-caveat">{{ mix.uncovered_note }}</p>{% endif %}
     {% for reason in mix.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% else %}
@@ -967,7 +985,7 @@
       <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'EBITDA au budget.</strong> La feuille de synthèse du budget EBITDA par BU de la Finance, en millions d'euros : la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à nettoyer, le pont vers l'EBITDA consolidé ajusté. L'infobulle donne le pas de marge opérationnelle que le plan demande, de la dernière prévision de l'exercice précédent au budget. Aucun réel : la Finance ne produit pas d'EBITDA par BU au mois, et un taux moyen ne convertit pas un écart de ventes en résultat — un réseau de boutiques perd plus d'un euro de contribution par euro de vente perdu, un partenaire en rapporte trente centimes.</p></li>
-      <li class="provenance"><p class="provenance-note"><strong>Le mix.</strong> L'écart de ventes de chaque canal multiplié par son taux moyen de contribution, sommé, puis séparé en effet volume et effet mix. Un calcul avec ses coefficients, jamais un résultat. Taux marginal : absent : personnel, logistique et marketing ne sont dans aucune source lue ici. Aucun canal n'est classé sur son taux moyen, parce que ce taux dit ce qu'un canal a rapporté, pas ce que son prochain euro rapporterait. Une ligne de partenaire est lue et jamais posée sur un canal entier.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>Le mix.</strong> L'écart de ventes de chaque canal multiplié par son taux moyen de contribution, sommé, puis séparé en effet volume et effet mix. Un calcul avec ses coefficients, jamais un résultat. Le taux marginal — Δcontribution ÷ Δventes au compte de gestion, cellule pays × canal, agrégé sur les cellules à série stable — se pose à côté quand l'agent entrepôt l'a mesuré ; un canal dont la mesure change de signe d'une paire d'exercices à l'autre, ou dont la couverture est partielle, reste absent avec son statut. Aucun canal n'est classé sur son taux moyen, parce que ce taux dit ce qu'un canal a rapporté, pas ce que son prochain euro rapporterait. Une ligne de partenaire est lue et jamais posée sur un canal entier.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La part loyer.</strong> Lue bail par bail dans le référentiel immobilier, pondérée par les ventes des boutiques dont le bail est connu ; la couverture dit de quelles boutiques le taux parle. Un zéro à côté d'un loyer mensuel est un loyer fixe ; un zéro seul est douteux et ne compte pas ; « sans bail à notre nom » est du travel retail tenu par l'opérateur. Ce n'est qu'une part du coût marginal, et deux marchés ne se comparent jamais sur un taux qui ne couvre pas la même part de leurs ventes.</p></li>
       {% if track %}{% for caveat in track.caveats %}<li class="provenance"><p class="provenance-note">{{ caveat }}</p></li>{% endfor %}{% endif %}
       {% if mix and mix.usable %}{% if mix.partners_note %}<li class="provenance"><p class="provenance-note">{{ mix.partners_note }}</p></li>{% endif %}{% endif %}
