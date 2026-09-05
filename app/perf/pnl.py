@@ -321,7 +321,8 @@ class Review:
 
     @property
     def usable(self) -> bool:
-        return self.statement is not None and self.statement.usable and bool(self.perimeters)
+        return (self.statement is not None and self.statement.usable
+                and bool(self.perimeters or self.others))
 
     def for_name(self, name: str) -> Optional[Line]:
         return next((line for line in self.perimeters + self.others if line.region == name), None)

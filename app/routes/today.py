@@ -350,8 +350,9 @@ def today(request: Request, session: Session = Depends(get_session)):
     track = _track(dataset, month)
     stores = _stores_review()
     landing, landings = _landings(track, month)
-    ebitda = _ebitda_review([scope.name for scope in getattr(track, "perimeters", [])])
-    pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
+    # Sur les périmètres que l'annuaire et le mois connaissent — les mêmes que l'atterrissage.
+    ebitda = _ebitda_review(list(landings))
+    pnl = _pnl_review(list(landings))
     pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
     month_groups = {group.name: group for group in month.groups}
     if month.loose:

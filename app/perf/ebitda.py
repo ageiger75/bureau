@@ -383,7 +383,8 @@ class Review:
 
     @property
     def usable(self) -> bool:
-        return self.plan is not None and self.plan.usable and bool(self.perimeters)
+        return (self.plan is not None and self.plan.usable
+                and bool(self.perimeters or self.others))
 
     def for_name(self, name: str) -> Optional[Perimeter]:
         return next((item for item in self.perimeters + self.others if item.name == name), None)
