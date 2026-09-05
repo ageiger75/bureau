@@ -136,6 +136,26 @@ def _ebitda_review(names):
     return ebitda_module.build(plan, [name for name in names if name != "Sans périmètre"])
 
 
+def _pnl_review(names):
+    """La contribution réalisée à date par périmètre, au compte de gestion, ou pourquoi elle
+    manque."""
+    from ..config import settings
+    from ..perf import pnl as pnl_module
+
+    statement = pnl_module.current() if settings.has_pnl_file else None
+    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"])
+
+
+def _pnl_review(names):
+    """La contribution réalisée à date par périmètre, au compte de gestion, ou pourquoi elle
+    manque."""
+    from ..config import settings
+    from ..perf import pnl as pnl_module
+
+    statement = pnl_module.current() if settings.has_pnl_file else None
+    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"])
+
+
 def _track(dataset, month):
     """Sommes-nous en ligne avec le plan — le mois en cours et l'exercice à date."""
     from ..config import settings
@@ -212,6 +232,7 @@ def _perimeter_inputs(session):
         "incremental": incremental,
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
+        "pnl": _pnl_review(list(known)),
     }
 
 
@@ -255,7 +276,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
                               published=inputs["published"], budget=inputs["budget"],
-                              ebitda=inputs["ebitda"], incremental=inputs["incremental"])
+                              ebitda=inputs["ebitda"], incremental=inputs["incremental"],
+                              pnl=inputs["pnl"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -329,6 +351,8 @@ def today(request: Request, session: Session = Depends(get_session)):
     stores = _stores_review()
     landing, landings = _landings(track, month)
     ebitda = _ebitda_review([scope.name for scope in getattr(track, "perimeters", [])])
+    pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
+    pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
     month_groups = {group.name: group for group in month.groups}
     if month.loose:
         month_groups[month.loose.name] = month.loose
@@ -429,6 +453,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "landing": landing,
             "landings": landings,
             "ebitda": ebitda,
+            "pnl": pnl,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

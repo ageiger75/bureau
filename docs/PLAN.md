@@ -415,8 +415,13 @@ les canaux mesurés seulement ; les autres canaux sont nommés avec leur statut.
 l'instantané est rendue. Le compte de gestion porte aussi un instantané mensuel du réalisé
 cumulé par région, canal et compte, budget phasé à date : c'est l'EBITDA réel par BU que la
 Finance ne produit pas, jusqu'à la contribution avant coûts internationaux, avec un mois de
-retard (juillet manque dans la table). L'agent entrepôt l'écrit dans `var/pnl_bu.csv` ; sa
-lecture est la prochaine pièce. Les honoraires imputés au canal distributeurs France en FY26
+retard (juillet manque dans la table). L'agent entrepôt l'écrit dans `var/pnl_bu.csv` et le
+cockpit le lit (`app/perf/pnl.py`, 5 septembre 2026) : une colonne « Contribution à fin
+<mois> » dans la table des périmètres, une ligne sous le verdict, une carte par périmètre.
+Trois règles tenues : un seul exercice de change est lu, jamais deux ; l'écriture centrale
+`INT COST` — une écriture unique et un produit financier non récurrent — est nommée à part et
+hors de tout total ; ce qui a été écarté du compte de gestion est dit avec son montant, jamais
+soustrait deux fois. Les honoraires imputés au canal distributeurs France en FY26
 ne sont pas la fermeture du 86 Champs, qui se lit ailleurs : une charge récurrente à
 expliquer par le contrôle de gestion, exclue nommément du fichier.
 

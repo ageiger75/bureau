@@ -135,6 +135,16 @@ DEFAULT_EBITDA_FILE = "var/ebitda-budget.xlsx"
 #: taux du prochain euro, là où la série est stable, et un statut nommé partout ailleurs.
 DEFAULT_INCREMENTAL_FILE = "var/incremental_margin_channels.csv"
 
+#: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
+#: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
+#: internationaux, avec un mois de retard.
+DEFAULT_PNL_FILE = "var/pnl_bu.csv"
+
+#: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
+#: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
+#: internationaux, avec un mois de retard.
+DEFAULT_PNL_FILE = "var/pnl_bu.csv"
+
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -170,6 +180,8 @@ class Settings:
     store_sales_file: str = DEFAULT_STORE_SALES_FILE
     ebitda_file: str = DEFAULT_EBITDA_FILE
     incremental_file: str = DEFAULT_INCREMENTAL_FILE
+    pnl_file: str = DEFAULT_PNL_FILE
+    pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -330,6 +342,24 @@ class Settings:
     @property
     def has_incremental_file(self) -> bool:
         return self.incremental_path.exists()
+
+    @property
+    def pnl_path(self) -> Path:
+        path = Path(self.pnl_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_pnl_file(self) -> bool:
+        return self.pnl_path.exists()
+
+    @property
+    def pnl_path(self) -> Path:
+        path = Path(self.pnl_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_pnl_file(self) -> bool:
+        return self.pnl_path.exists()
 
     @property
     def actuals_folder(self) -> Path:

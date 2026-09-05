@@ -724,3 +724,31 @@ def test_the_ebitda_plan_is_named_when_absent_and_never_read_as_an_actual(client
     # Pas de colonne sans fichier, et la note de lecture dit qu'aucun réel n'est lu.
     assert "<th>EBITDA au budget</th>" not in client.get("/").text
     assert "la Finance ne produit pas d'EBITDA par BU au mois" in page
+
+
+def test_the_contribution_to_date_is_named_when_absent(client):
+    """Le résultat suit-il les ventes : sans le fichier du compte de gestion, l'écran nomme ce
+    qu'il attend, et n'invente aucune contribution."""
+    page = page_text(client.get("/"))
+
+    assert "var/pnl_bu.csv absent" in page
+    assert "Contribution à fin" not in page
+
+
+def test_the_contribution_to_date_reaches_the_perimeter_table_and_keeps_the_central_entry_apart(client):
+    """Avec le fichier du compte de gestion, la table des périmètres porte la contribution à
+    date et la ligne sous le verdict la somme sans l'écriture centrale."""
+    from tests.conftest import TEST_DIR
+    from tests.test_perf_pnl import FILE
+
+    (TEST_DIR / "pnl_bu.csv").write_text(FILE, encoding="utf-8")
+    try:
+        page = page_text(client.get("/"))
+    finally:
+        (TEST_DIR / "pnl_bu.csv").unlink()
+
+    assert "Contribution à fin juin 2026" in page
+    assert "avril à juin 2026, 3 mois" in page
+    assert "INT COST" in page and "tenue à part" in page
+    assert "écartés du compte de gestion" in page
+    assert "var/pnl_bu.csv absent" not in page

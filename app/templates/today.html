@@ -58,7 +58,7 @@
     {% if track.perimeters %}
       <table class="month-table mix-table">
         <thead>
-          <tr><th>Périmètre</th><th>Exercice à date</th><th>Écart</th><th>Atterrissage à ce rythme</th>{% if ebitda and ebitda.usable %}<th>EBITDA au budget</th>{% endif %}<th>Mois à date</th><th>Écart</th></tr>
+          <tr><th>Périmètre</th><th>Exercice à date</th><th>Écart</th><th>Atterrissage à ce rythme</th>{% if ebitda and ebitda.usable %}<th>EBITDA au budget</th>{% endif %}{% if pnl and pnl.usable %}<th>{{ pnl.title }}</th>{% endif %}<th>Mois à date</th><th>Écart</th></tr>
         </thead>
         <tbody>
         {% for scope in track.perimeters %}
@@ -76,6 +76,10 @@
               {% set plan = ebitda.for_name(scope.name) %}
               <td class="num"{% if plan and plan.step_sentence %} title="{{ plan.step_sentence }}"{% endif %}>{% if plan %}{{ plan.ebitda | eur }} <small>{{ plan.rate_label }}</small>{% else %}—{% endif %}</td>
             {% endif %}
+            {% if pnl and pnl.usable %}
+              {% set done = pnl.for_name(scope.name) %}
+              <td class="num{% if done and done.gap < 0 %} is-en-retard{% endif %}"{% if done %} title="Ventes {{ done.sales | eur }}, {{ done.sales_index_label }} du budget phasé · contribution au budget {{ done.budget_contribution | eur }} ({{ done.budget_rate_label }})"{% endif %}>{% if done %}{{ done.contribution | eur }} <small>{{ done.rate_label }} · {{ done.gap | eur }} vs budget</small>{% else %}—{% endif %}</td>
+            {% endif %}
             {% if scope.month.usable %}
               <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
               <td class="num" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
@@ -86,7 +90,7 @@
           {% set group = month_groups.get(scope.name) %}
           {% if group and group.lines %}
           <tr class="month-detail">
-            <td colspan="{{ 7 if ebitda and ebitda.usable else 6 }}">
+            <td colspan="{{ 6 + (1 if ebitda and ebitda.usable else 0) + (1 if pnl and pnl.usable else 0) }}">
               <details>
                 <summary>Où en est le mois, marché par marché</summary>
                 <table class="month-table">
@@ -141,6 +145,17 @@
     </p>
   {% endif %}
   {% if ebitda %}{% for reason in ebitda.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
+  {% if pnl and pnl.usable %}
+    {# Le résultat suit-il les ventes : la contribution réalisée cumulée, contre le budget
+       phasé, un mois derrière les ventes. L'écriture centrale est nommée et tenue à part. #}
+    <p class="cockpit-caveat">
+      {{ pnl.title }} ({{ pnl.snapshot.period_label }}, {{ pnl.snapshot.months }} mois) : {{ pnl.total.contribution | eur }} de contribution
+      sur {{ pnl.total.sales | eur }} de ventes ({{ pnl.total.rate_label }}), contre {{ pnl.total.budget_contribution | eur }} au budget phasé,
+      soit <strong>{{ pnl.total.gap | eur }}</strong>{% if pnl.central_note %} · {{ pnl.central_note }}{% endif %}{% if pnl.excluded_note %} · {{ pnl.excluded_note }}{% endif %}.
+      {{ pnl.note }}
+    </p>
+  {% endif %}
+  {% if pnl %}{% for reason in pnl.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
 
   <p class="cockpit-caveat">
     Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :
@@ -984,6 +999,7 @@
       <li class="provenance"><p class="provenance-note"><strong>Vendu et expédié ensemble</strong>, comme les comptes les reconnaissent : boutiques et sites au moment de la vente, partenaires à la facture. Hospitality et cadeaux d'entreprise inclus.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>La contribution à date.</strong> Le compte de gestion de l'entrepôt, un instantané par mois du réalisé cumulé depuis avril par région et par nature de coût, contre le budget phasé à date, jusqu'à la contribution avant coûts internationaux. Un seul exercice de change est lu, jamais deux. L'écriture centrale et le produit financier non récurrent sont nommés à part et hors de tout total. Ce qui a été écarté du compte de gestion est dit avec son montant. Un mois de retard sur les ventes.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'EBITDA au budget.</strong> La feuille de synthèse du budget EBITDA par BU de la Finance, en millions d'euros : la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à nettoyer, le pont vers l'EBITDA consolidé ajusté. L'infobulle donne le pas de marge opérationnelle que le plan demande, de la dernière prévision de l'exercice précédent au budget. Aucun réel : la Finance ne produit pas d'EBITDA par BU au mois, et un taux moyen ne convertit pas un écart de ventes en résultat — un réseau de boutiques perd plus d'un euro de contribution par euro de vente perdu, un partenaire en rapporte trente centimes.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>Le mix.</strong> L'écart de ventes de chaque canal multiplié par son taux moyen de contribution, sommé, puis séparé en effet volume et effet mix. Un calcul avec ses coefficients, jamais un résultat. Le taux marginal — Δcontribution ÷ Δventes au compte de gestion, cellule pays × canal, agrégé sur les cellules à série stable — se pose à côté quand l'agent entrepôt l'a mesuré ; un canal dont la mesure change de signe d'une paire d'exercices à l'autre, ou dont la couverture est partielle, reste absent avec son statut. Aucun canal n'est classé sur son taux moyen, parce que ce taux dit ce qu'un canal a rapporté, pas ce que son prochain euro rapporterait. Une ligne de partenaire est lue et jamais posée sur un canal entier.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La part loyer.</strong> Lue bail par bail dans le référentiel immobilier, pondérée par les ventes des boutiques dont le bail est connu ; la couverture dit de quelles boutiques le taux parle. Un zéro à côté d'un loyer mensuel est un loyer fixe ; un zéro seul est douteux et ne compte pas ; « sans bail à notre nom » est du travel retail tenu par l'opérateur. Ce n'est qu'une part du coût marginal, et deux marchés ne se comparent jamais sur un taux qui ne couvre pas la même part de leurs ventes.</p></li>

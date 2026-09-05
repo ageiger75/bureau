@@ -56,6 +56,7 @@
                                      moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
+    python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
@@ -4057,6 +4058,47 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_pnl(argv: List[str]) -> int:
+    """La contribution réalisée à date par périmètre, au compte de gestion, telle que
+    l'écran la rendra."""
+    from .perf.analytics import format_eur
+    from .perf import pnl as pnl_module
+    from .config import settings
+
+    statement = pnl_module.current() if settings.has_pnl_file else None
+    names = ["Greater China", "North America", "APAC", "EMEA", "Japan", "Brazil"]
+    review = pnl_module.build(statement, names)
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    snap = review.snapshot
+    print("%s · %s, %d mois · exercice de change %s" % (review.title, snap.period_label,
+                                                      snap.months, snap.exchange_year))
+    print("")
+    print("  %-16s %10s %8s %10s %8s %10s %9s" % (
+        "Périmètre", "ventes", "% bud", "contrib.", "taux", "budget", "écart"))
+    for line in review.perimeters + review.others:
+        print("  %-16s %10s %8s %10s %8s %10s %9s" % (
+            line.region[:16], format_eur(line.sales), line.sales_index_label,
+            format_eur(line.contribution), line.rate_label,
+            format_eur(line.budget_contribution), format_eur(line.gap)))
+    total = review.total
+    print("  %-16s %10s %8s %10s %8s %10s %9s" % (
+        "Régions", format_eur(total.sales), total.sales_index_label,
+        format_eur(total.contribution), total.rate_label,
+        format_eur(total.budget_contribution), format_eur(total.gap)))
+    print("")
+    if review.central_note:
+        print(review.central_note[0].upper() + review.central_note[1:])
+    if review.excluded_note:
+        print(review.excluded_note)
+    for reason in review.absent:
+        print(reason)
+    print(review.note)
+    return 0
+
+
 def cmd_ebitda(argv: List[str]) -> int:
     """Le plan EBITDA par périmètre, tel que l'écran le rendra. Un plan, jamais un réel."""
     from .perf.analytics import format_eur
@@ -4253,6 +4295,8 @@ def main(argv: List[str]) -> int:
         return cmd_stores(argv[1:])
     if command == "ebitda":
         return cmd_ebitda(argv[1:])
+    if command == "pnl":
+        return cmd_pnl(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":
