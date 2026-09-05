@@ -32,6 +32,11 @@ MEASURED = "mesure"
 
 REQUIRED = ("channel", "status", "incremental_margin_pct")
 
+#: Des lignes du compte de gestion qui ne sont pas des canaux du cockpit mais des clients
+#: suivis à part. Lues, gardées, jamais posées sur un canal — et sans défaut à l'écran,
+#: parce que ce n'est pas une faute du fichier.
+NOT_CHANNELS = frozenset({"one spa world"})
+
 #: Les libellés du compte de gestion, en codes de canal du cockpit. Ceux que `mix.ALIASES`
 #: connaît déjà ne sont pas répétés ; ceux-ci sont propres à cette source.
 ALIASES: Dict[str, Tuple[str, ...]] = {
@@ -194,7 +199,7 @@ def load(path: str) -> Incremental:
                 faults.append("ligne %d : « %s » est mesuré sans taux lisible" % (number, name))
                 status = "mesure sans taux lisible"
             channels = channels_of(name)
-            if not channels:
+            if not channels and name.strip().lower() not in NOT_CHANNELS:
                 faults.append("ligne %d : « %s » ne désigne aucun canal du cockpit" % (number, name))
             rates.append(Marginal(
                 name, (record.get("channel_group") or "").strip(), channels, marginal,

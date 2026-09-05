@@ -4048,7 +4048,7 @@ def cmd_mix(argv: List[str]) -> int:
         print("")
     if review.uncovered_note:
         print(review.uncovered_note)
-    print(mix_module.MARGINAL_ABSENT)
+    print(review.marginal)
     print(mix_module.NO_RANKING)
     if review.partners_note:
         print(review.partners_note)

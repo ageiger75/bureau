@@ -76,9 +76,11 @@ def test_the_management_account_labels_join_the_cockpit_channels(tmp_path):
     assert I.channels_of("CHAINS WHOLESALE") == ("whoch",)
     assert I.channels_of("WHOLESALE INDEP") == ("whoin",)
     assert I.channels_of("DIGITAL DIRECT SELLING") == ("direct selling",)
-    # Un client, pas un canal : la ligne est gardée, ne couvre rien, et le défaut le dit.
+    # Un client, pas un canal : la ligne est gardée, ne couvre rien, et ce n'est pas un défaut.
     assert [rate.name for rate in read.unmapped] == ["ONE SPA WORLD"]
-    assert any("ONE SPA WORLD" in fault for fault in read.faults)
+    assert not any("ONE SPA WORLD" in fault for fault in read.faults)
+    unknown = _read(tmp_path, HEADER + "2026-03-01,2025-03-01,SELL IN,BAZAR,1,1,100,1,1,1,1,1,,mesure\n")
+    assert any("BAZAR" in fault for fault in unknown.faults)
 
 
 def test_null_is_an_absence_not_a_zero(tmp_path):
@@ -135,6 +137,7 @@ def test_the_mix_carries_the_marginal_rate_beside_the_average_never_instead(tmp_
 
 
 def test_the_file_faults_reach_the_review_by_name(tmp_path):
-    review = M.build(_month(), None, _read(tmp_path))
+    read = _read(tmp_path, HEADER + "2026-03-01,2025-03-01,SELL IN,BAZAR,1,1,100,1,1,1,1,1,,mesure\n")
+    review = M.build(_month(), None, read)
 
-    assert any(reason.startswith("marge incrémentale, ligne 7") for reason in review.absent)
+    assert any(reason.startswith("marge incrémentale, ligne 2") for reason in review.absent)
