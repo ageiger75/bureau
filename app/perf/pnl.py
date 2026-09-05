@@ -289,8 +289,11 @@ def current(path: Optional[str] = None) -> Statement:
 class Review:
     """La contribution à date, découpée sur les périmètres que l'écran connaît."""
 
-    def __init__(self, statement: Optional[Statement], known: Sequence[str]) -> None:
+    def __init__(self, statement: Optional[Statement], known: Sequence[str],
+                 period: str = "") -> None:
         self.statement = statement
+        #: Le mois que l'écran lit pour les ventes, « 2026-09 », pour dire l'âge du cumul.
+        self.period = period
         self.absent: List[str] = []
         self.perimeters: List[Line] = []
         self.others: List[Line] = []
@@ -365,10 +368,40 @@ class Review:
         return "%s écartés du compte de gestion : %s" % (format_eur(excluded), " · ".join(sorted(labels)))
 
     @property
+    def lag_months(self) -> Optional[int]:
+        """Combien de mois séparent le dernier mois du cumul du mois que l'écran lit."""
+        if self.snapshot is None or len(self.period) < 7:
+            return None
+        try:
+            year, month = int(self.snapshot.date[:4]), int(self.snapshot.date[5:7])
+            now_year, now_month = int(self.period[:4]), int(self.period[5:7])
+        except ValueError:
+            return None
+        return (now_year - year) * 12 + (now_month - month)
+
+    @property
     def note(self) -> str:
-        return ("Contribution avant coûts internationaux, au compte de gestion : le réalisé "
-                "cumulé contre le budget phasé à date. Un mois de retard sur les ventes.")
+        """Ce que le chiffre est, et son âge — calculé, jamais affirmé : le compte de gestion
+        ne publie ni avril ni juillet seuls, donc l'écart avec les ventes varie."""
+        text = ("Contribution avant coûts internationaux, au compte de gestion : le réalisé "
+                "cumulé contre le budget phasé à date.")
+        lag = self.lag_months
+        if lag is None or self.snapshot is None:
+            return text
+        if lag <= 0:
+            return text + " Le cumul est au mois que l'écran lit."
+        return text + (" Le cumul s'arrête à fin %s quand les ventes sont lues à %s : %d mois "
+                       "d'écart. Avril et juillet ne sont jamais publiés seuls, ils arrivent "
+                       "dans le cumul suivant."
+                       % (self.snapshot.through, _month_label(self.period), lag))
 
 
-def build(statement: Optional[Statement], known: Sequence[str]) -> Review:
-    return Review(statement, list(known))
+def _month_label(period: str) -> str:
+    try:
+        return "%s %s" % (MONTHS_FR[int(period[5:7]) - 1], period[:4])
+    except (ValueError, IndexError):
+        return period
+
+
+def build(statement: Optional[Statement], known: Sequence[str], period: str = "") -> Review:
+    return Review(statement, list(known), period)

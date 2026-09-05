@@ -123,3 +123,18 @@ def test_a_missing_column_is_a_fault_not_a_crash(tmp_path):
 
     assert not statement.usable and "colonnes manquantes" in statement.faults[0]
     assert not P.load(str(tmp_path / "nulle-part.csv")).usable
+
+
+def test_the_age_of_the_cumul_is_computed_never_asserted(tmp_path):
+    """Le compte de gestion ne publie ni avril ni juillet seuls : en septembre, le cumul à fin
+    juin a trois mois d'écart avec les ventes, et l'écran le dit tel quel."""
+    statement = _statement(tmp_path)
+
+    september = P.build(statement, NAMES, period="2026-09")
+    assert september.lag_months == 3
+    assert "s'arrête à fin juin 2026 quand les ventes sont lues à septembre 2026 : 3 mois" in september.note
+    assert "Avril et juillet" in september.note
+    june = P.build(statement, NAMES, period="2026-06")
+    assert june.lag_months == 0 and "au mois que l'écran lit" in june.note
+    assert P.build(statement, NAMES).lag_months is None
+    assert "mois d'écart" not in P.build(statement, NAMES).note

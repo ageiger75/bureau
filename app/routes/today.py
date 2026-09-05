@@ -136,24 +136,26 @@ def _ebitda_review(names):
     return ebitda_module.build(plan, [name for name in names if name != "Sans périmètre"])
 
 
-def _pnl_review(names):
+def _pnl_review(names, period: str = ""):
     """La contribution réalisée à date par périmètre, au compte de gestion, ou pourquoi elle
-    manque."""
+    manque. `period` est le mois que l'écran lit pour les ventes : l'âge du cumul en dépend."""
     from ..config import settings
     from ..perf import pnl as pnl_module
 
     statement = pnl_module.current() if settings.has_pnl_file else None
-    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"])
+    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"],
+                            period)
 
 
-def _pnl_review(names):
+def _pnl_review(names, period: str = ""):
     """La contribution réalisée à date par périmètre, au compte de gestion, ou pourquoi elle
-    manque."""
+    manque. `period` est le mois que l'écran lit pour les ventes : l'âge du cumul en dépend."""
     from ..config import settings
     from ..perf import pnl as pnl_module
 
     statement = pnl_module.current() if settings.has_pnl_file else None
-    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"])
+    return pnl_module.build(statement, [name for name in names if name != "Sans périmètre"],
+                            period)
 
 
 def _track(dataset, month):
@@ -232,7 +234,7 @@ def _perimeter_inputs(session):
         "incremental": incremental,
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
-        "pnl": _pnl_review(list(known)),
+        "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
     }
 
 
@@ -352,7 +354,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     landing, landings = _landings(track, month)
     # Sur les périmètres que l'annuaire et le mois connaissent — les mêmes que l'atterrissage.
     ebitda = _ebitda_review(list(landings))
-    pnl = _pnl_review(list(landings))
+    pnl = _pnl_review(list(landings), getattr(track, "period", "") or "")
     pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
     month_groups = {group.name: group for group in month.groups}
     if month.loose:
