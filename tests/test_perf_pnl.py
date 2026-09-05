@@ -18,10 +18,13 @@ HEADER = ("exchange_year,snapshot_date,mois_cumules,region,ventes_keur,produits_
 
 
 def _row(year, date, months, region, sales, costs, contribution, bsales, bcontribution,
-         excluded=0.0, exclusion=""):
-    return '%s,%s,%d,%s,%s,%s,0,%s,0,0,0,%s,%s,0,0,0,0,0,0,%s,%s,"%s"\n' % (
+         excluded=0.0, exclusion="", bcosts=None):
+    """Une ligne du fichier : produits et distribution réalisés, et au budget quand ils sont
+    donnés — sinon les mêmes montants, pour que l'écart soit nul poste par poste."""
+    bcosts = bcosts or costs
+    return '%s,%s,%d,%s,%s,%s,0,%s,0,0,0,%s,%s,%s,0,%s,0,0,0,%s,%s,"%s"\n' % (
         year, date, months, region, sales, costs[0], costs[1], contribution, bsales,
-        bcontribution, excluded, exclusion)
+        bcosts[0], bcosts[1], bcontribution, excluded, exclusion)
 
 
 NOTE = "DPL308 sur FRANCE x DISTRIBUTORS, hors budget et récurrent chaque mois"
@@ -29,9 +32,13 @@ NOTE = "DPL308 sur FRANCE x DISTRIBUTORS, hors budget et récurrent chaque mois"
 FILE = HEADER + "".join([
     # L'exercice précédent, entier : jamais lu en niveau avec le suivant.
     _row("FY2026", "2026-03-01", 12, "JAPAN", 100000, (-14000, -60000), 26000, 98000, 25000),
+    # Le même stade de l'exercice précédent : la part des ventes s'y compare, le niveau non.
+    _row("FY2026", "2025-06-01", 3, "JAPAN", 22000, (-4400, -13200), 4400, 22000, 4400),
+    _row("FY2026", "2025-06-01", 3, "BRAZIL", 19000, (-3000, -17000), -1000, 19000, -1000),
     # Deux instantanés de l'exercice en cours : le dernier est lu, l'autre est connu.
     _row("FY2027", "2026-05-01", 2, "JAPAN", 15000, (-3000, -10000), 2000, 16000, 2500),
-    _row("FY2027", "2026-06-01", 3, "JAPAN", 23548.87, (-4683.18, -15017.96), 3847.73, 24826.95, 4000),
+    _row("FY2027", "2026-06-01", 3, "JAPAN", 23548.87, (-4683.18, -15017.96), 3847.73, 24826.95, 4000,
+         bcosts=(-5000, -16000)),
     _row("FY2027", "2026-06-01", 3, "BRAZIL", 20000, (-3000, -19000), -2000, 20100, -500),
     _row("FY2027", "2026-06-01", 3, "GREAT.EU. EXCL SPACE", 100000, (-20000, -70000), 10000, 104000, 12000),
     _row("FY2027", "2026-06-01", 3, "SPACE", 25000, (-5000, -23000), -3000, 24000, 1000),
@@ -138,3 +145,40 @@ def test_the_age_of_the_cumul_is_computed_never_asserted(tmp_path):
     assert june.lag_months == 0 and "au mois que l'écran lit" in june.note
     assert P.build(statement, NAMES).lag_months is None
     assert "mois d'écart" not in P.build(statement, NAMES).note
+
+
+def test_each_cost_nature_is_read_against_the_budget_and_the_same_stage_last_year(tmp_path):
+    """Un poste sous le budget n'est pas forcément un coût plus bas : la part des ventes au même
+    stade de l'exercice précédent tranche. Les produits du Japon sont plus bas sur les deux
+    références ; sa distribution est sous le budget mais plus lourde que l'an dernier."""
+    statement = _statement(tmp_path)
+
+    assert statement.last_year_date == "2025-06-01"
+    assert sorted(statement.last_year) == ["BRAZIL", "JAPAN"]
+    japan = statement.perimeter("Japan")
+    items = {item.name: item for item in P.natures(japan, statement.perimeter_last_year("Japan"))}
+    produits, distribution = items["produits"], items["distribution"]
+    assert abs(produits.gap - 316_820.0) < 1e-6
+    assert produits.verdict == P.REALLY_LOWER
+    assert abs(distribution.gap - 982_040.0) < 1e-6
+    assert distribution.verdict == P.PHASING
+    sentence = P.breakdown_sentence(japan, statement.perimeter_last_year("Japan"))
+    assert sentence.startswith("Écart de contribution %s au budget phasé, dont ventes %s : "
+                               % (format_eur(japan.gap), format_eur(japan.sales_gap)))
+    assert "produits +%s (coût réellement plus bas : 19.9 %% des ventes contre 20.1 %% au budget et 20.0 %% au même stade l'an dernier)" % format_eur(316_820.0) in sentence
+    assert "distribution +%s (sous le budget mais plus lourd" % format_eur(982_040.0) in sentence
+    # Sans an dernier comparable, le verdict le dit au lieu de trancher ; et les mêmes coûts
+    # sur des ventes sous le budget sont une part plus lourde, pas un poste au budget.
+    emea = statement.perimeter("EMEA")
+    verdicts = {item.name: item.verdict for item in P.natures(emea, statement.perimeter_last_year("EMEA"))}
+    assert verdicts == {"produits": P.HEAVIER_THAN_BUDGET_ONLY,
+                        "distribution": P.HEAVIER_THAN_BUDGET_ONLY}
+
+
+def test_the_review_carries_the_breakdown_for_the_screen(tmp_path):
+    review = P.build(_statement(tmp_path), NAMES, period="2026-09")
+
+    assert review.breakdown("Japan").startswith("Écart de contribution")
+    assert review.breakdown("Greater China") == ""
+    assert review.total_breakdown.startswith("Écart de contribution")
+    assert review.caveat.startswith("3 mois de cumul")

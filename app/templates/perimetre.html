@@ -58,6 +58,7 @@
         <p class="verdict-word {{ 'is-en-retard' if page.pnl.gap < 0 else 'is-en-avance' }}">{{ page.pnl.contribution | eur }}</p>
         <p class="verdict-figures">{{ page.pnl.rate_label }} de {{ page.pnl.sales | eur }} de ventes · <strong>{{ page.pnl.gap | eur }}</strong> contre {{ page.pnl.budget_contribution | eur }} au budget phasé ({{ page.pnl.budget_rate_label }})</p>
         <p class="verdict-basis">compte de gestion, avant coûts internationaux · ventes à {{ page.pnl.sales_index_label }} du budget{% if page.pnl.exclusion %} · écarté : {{ page.pnl.excluded | eur }}{% endif %}</p>
+        {% if page.pnl_breakdown %}<p class="verdict-basis">{{ page.pnl_breakdown }}</p>{% endif %}
       {% else %}
         <p class="verdict-word is-absent">—</p>
         <p class="verdict-basis">contribution par BU non lue</p>

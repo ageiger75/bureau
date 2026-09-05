@@ -154,6 +154,11 @@
       soit <strong>{{ pnl.total.gap | eur }}</strong>{% if pnl.central_note %} · {{ pnl.central_note }}{% endif %}{% if pnl.excluded_note %} · {{ pnl.excluded_note }}{% endif %}.
       {{ pnl.note }}
     </p>
+    {% if pnl.total_breakdown %}
+      {# Ce que porte l'écart, poste par poste, avec le test qui sépare un coût plus bas d'un
+         budget phasé autrement : la part des ventes au même stade de l'exercice précédent. #}
+      <p class="cockpit-caveat">{{ pnl.total_breakdown }} {{ pnl.caveat }}</p>
+    {% endif %}
   {% endif %}
   {% if pnl %}{% for reason in pnl.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
 

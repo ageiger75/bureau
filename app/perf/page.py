@@ -130,8 +130,12 @@ class Page:
         self.ebitda = ebitda
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
+        #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
+        self.pnl_breakdown = ""
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
+        #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
+        self.pnl_breakdown = ""
 
     @property
     def slug(self) -> str:
@@ -192,9 +196,12 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     if ebitda is not None and plan is None:
         absent.append("aucune ligne EBITDA au budget pour ce périmètre")
     done = pnl.for_name(name) if pnl is not None else None
-    return Page(name, lead, sorted(markets), scope, land, group, mix,
-                subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
-                absent, ebitda=plan, pnl=done)
+    built = Page(name, lead, sorted(markets), scope, land, group, mix,
+                 subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
+                 absent, ebitda=plan, pnl=done)
+    if pnl is not None and done is not None:
+        built.pnl_breakdown = pnl.breakdown(name)
+    return built
 
 
 def perimeters(directory, month_review) -> Dict[str, Dict[str, object]]:

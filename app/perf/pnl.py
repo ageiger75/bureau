@@ -80,18 +80,19 @@ class Line:
     """Une région à un instantané : ventes et contribution réalisées, et au budget phasé."""
 
     __slots__ = ("region", "sales", "contribution", "costs", "budget_sales",
-                 "budget_contribution", "excluded", "exclusion")
+                 "budget_contribution", "budget_costs", "excluded", "exclusion")
 
     def __init__(self, region: str, sales: float = 0.0, contribution: float = 0.0,
                  costs: Optional[Dict[str, float]] = None, budget_sales: float = 0.0,
                  budget_contribution: float = 0.0, excluded: float = 0.0,
-                 exclusion: str = "") -> None:
+                 exclusion: str = "", budget_costs: Optional[Dict[str, float]] = None) -> None:
         self.region = region
         self.sales = sales
         self.contribution = contribution
         self.costs = dict(costs or {})
         self.budget_sales = budget_sales
         self.budget_contribution = budget_contribution
+        self.budget_costs = dict(budget_costs or {})
         self.excluded = excluded
         self.exclusion = exclusion
 
@@ -100,6 +101,8 @@ class Line:
         self.contribution += other.contribution
         for name, value in other.costs.items():
             self.costs[name] = self.costs.get(name, 0.0) + value
+        for name, value in other.budget_costs.items():
+            self.budget_costs[name] = self.budget_costs.get(name, 0.0) + value
         self.budget_sales += other.budget_sales
         self.budget_contribution += other.budget_contribution
         self.excluded += other.excluded
@@ -178,6 +181,10 @@ class Statement:
         self.central: List[Line] = []
         self.faults: List[str] = []
         self.snapshots: List[Snapshot] = []
+        #: Le même stade de l'exercice de change précédent — même mois, un an plus tôt —
+        #: par région. Les niveaux ne s'y comparent pas ; les parts des ventes, oui.
+        self.last_year: Dict[str, Line] = {}
+        self.last_year_date: str = ""
 
     @property
     def usable(self) -> bool:
@@ -190,6 +197,23 @@ class Statement:
                 found = found or Line(name)
                 found.add(line)
         return found
+
+    def perimeter_last_year(self, name: str) -> Optional[Line]:
+        found = None
+        for region, line in self.last_year.items():
+            if REGION_PERIMETERS.get(_key(region)) == name:
+                found = found or Line(name)
+                found.add(line)
+        return found
+
+    @property
+    def total_last_year(self) -> Optional[Line]:
+        if not self.last_year:
+            return None
+        whole = Line("Régions")
+        for line in self.last_year.values():
+            whole.add(line)
+        return whole
 
     @property
     def names(self) -> List[str]:
@@ -211,10 +235,14 @@ class Statement:
 
 def _read_line(record: Dict[str, str]) -> Line:
     costs = {}
+    budget_costs = {}
     for column, label in NATURES:
         value = _number(record.get(column))
         if value is not None:
             costs[label] = value * THOUSANDS
+        planned = _number(record.get("budget_" + column))
+        if planned is not None:
+            budget_costs[label] = planned * THOUSANDS
     return Line(
         (record.get("region") or "").strip(),
         (_number(record.get("ventes_keur")) or 0.0) * THOUSANDS,
@@ -224,6 +252,7 @@ def _read_line(record: Dict[str, str]) -> Line:
         (_number(record.get("budget_contribution_keur")) or 0.0) * THOUSANDS,
         (_number(record.get("dpl308_exclu_keur")) or 0.0) * THOUSANDS,
         (record.get("exclusion") or "").strip(),
+        budget_costs,
     )
 
 
@@ -271,9 +300,19 @@ def load(path: str) -> Statement:
         else:
             statement.lines.append(line)
     if len(years) > 1:
-        statement.faults.append("%d exercices de change dans le fichier ; seul %s est lu, "
-                                "les niveaux ne se comparent pas entre exercices"
-                                % (len(years), year))
+        # Même mois, un an plus tôt, dans l'exercice de change précédent : le seul point de
+        # l'an dernier qui se compare — en parts des ventes, jamais en niveau.
+        wanted = "%04d%s" % (int(statement.snapshot.date[:4]) - 1, statement.snapshot.date[4:])
+        for record in records:
+            if ((record.get("exchange_year") or "").strip() == years[-2]
+                    and (record.get("snapshot_date") or "").strip() == wanted):
+                line = _read_line(record)
+                if line.region and _key(line.region) not in NON_OPERATIONAL:
+                    statement.last_year[line.region] = line
+                    statement.last_year_date = wanted
+        statement.faults.append("%d exercices de change dans le fichier ; seul %s est lu en "
+                                "niveau, %s sert de comparaison en parts des ventes au même stade"
+                                % (len(years), year, years[-2]))
     return statement
 
 
@@ -281,6 +320,120 @@ def current(path: Optional[str] = None) -> Statement:
     from ..config import settings
 
     return load(path or str(settings.pnl_path))
+
+
+# ------------------------------------------------------------- par nature de coût
+
+#: Sous cet écart de part, deux références sont dites égales.
+SHARE_TOLERANCE = 0.001
+
+REALLY_LOWER = "coût réellement plus bas"
+PHASING = "sous le budget mais plus lourd qu'au même stade l'an dernier : un phasage possible"
+HEAVIER = "plus lourd que le budget et que l'an dernier"
+LIGHTER_THAN_BUDGET_ONLY = "sous le budget ; pas d'an dernier comparable"
+HEAVIER_THAN_BUDGET_ONLY = "plus lourd que le budget ; pas d'an dernier comparable"
+AT_BUDGET = "au budget"
+
+
+class Nature:
+    """Une nature de coût d'un périmètre : son écart au budget phasé, et ce qu'il vaut une
+    fois la part des ventes comparée au budget et au même stade de l'exercice précédent."""
+
+    __slots__ = ("name", "actual", "budget", "sales", "budget_sales", "last_year",
+                 "last_year_sales")
+
+    def __init__(self, name: str, actual: float, budget: float, sales: float,
+                 budget_sales: float, last_year: Optional[float],
+                 last_year_sales: float) -> None:
+        self.name = name
+        self.actual = actual
+        self.budget = budget
+        self.sales = sales
+        self.budget_sales = budget_sales
+        self.last_year = last_year
+        self.last_year_sales = last_year_sales
+
+    @property
+    def gap(self) -> float:
+        """Réalisé moins budget : les charges sont négatives, un écart positif est favorable."""
+        return self.actual - self.budget
+
+    @property
+    def share(self) -> Optional[float]:
+        return -self.actual / self.sales if self.sales else None
+
+    @property
+    def budget_share(self) -> Optional[float]:
+        return -self.budget / self.budget_sales if self.budget_sales else None
+
+    @property
+    def last_year_share(self) -> Optional[float]:
+        if self.last_year is None or not self.last_year_sales:
+            return None
+        return -self.last_year / self.last_year_sales
+
+    @property
+    def verdict(self) -> str:
+        share, budget, before = self.share, self.budget_share, self.last_year_share
+        if share is None or budget is None:
+            return ""
+        below_budget = share < budget - SHARE_TOLERANCE
+        above_budget = share > budget + SHARE_TOLERANCE
+        if before is None:
+            if below_budget:
+                return LIGHTER_THAN_BUDGET_ONLY
+            return HEAVIER_THAN_BUDGET_ONLY if above_budget else AT_BUDGET
+        below_before = share < before - SHARE_TOLERANCE
+        if below_budget and below_before:
+            return REALLY_LOWER
+        if below_budget:
+            return PHASING
+        if above_budget and not below_before:
+            return HEAVIER
+        return AT_BUDGET
+
+    @property
+    def sentence(self) -> str:
+        from .analytics import format_eur
+
+        if self.share is None or self.budget_share is None:
+            return ""
+        text = "%s %s%s (%s : %.1f %% des ventes contre %.1f %% au budget" % (
+            self.name, "+" if self.gap > 0 else "", format_eur(self.gap), self.verdict,
+            self.share * 100, self.budget_share * 100)
+        if self.last_year_share is not None:
+            text += " et %.1f %% au même stade l'an dernier" % (self.last_year_share * 100)
+        return text + ")"
+
+
+def natures(line: Line, before: Optional[Line]) -> List[Nature]:
+    """Chaque nature de coût du périmètre, la plus favorable d'abord."""
+    found = []
+    for _column, label in NATURES:
+        if not line.costs.get(label) and not line.budget_costs.get(label):
+            # Rien de réalisé ni de budgété : pas une nature de ce périmètre.
+            continue
+        found.append(Nature(
+            label, line.costs.get(label, 0.0), line.budget_costs.get(label, 0.0),
+            line.sales, line.budget_sales,
+            before.costs.get(label) if before is not None else None,
+            before.sales if before is not None else 0.0))
+    found.sort(key=lambda item: -item.gap)
+    return found
+
+
+def breakdown_sentence(line: Line, before: Optional[Line]) -> str:
+    """L'écart de contribution, poste par poste, avec le verdict de chaque poste."""
+    from .analytics import format_eur
+
+    items = [item for item in natures(line, before) if item.sentence]
+    if not items:
+        return ""
+    head = "Écart de contribution %s%s au budget phasé" % (
+        "+" if line.gap > 0 else "", format_eur(line.gap))
+    if line.sales_gap:
+        head += ", dont ventes %s%s" % ("+" if line.sales_gap > 0 else "", format_eur(line.sales_gap))
+    return head + " : " + " ; ".join(item.sentence for item in items) + "."
 
 
 # ------------------------------------------------------------------------- la revue
@@ -329,6 +482,28 @@ class Review:
 
     def for_name(self, name: str) -> Optional[Line]:
         return next((line for line in self.perimeters + self.others if line.region == name), None)
+
+    def breakdown(self, name: str) -> str:
+        """L'écart d'un périmètre, poste par poste — vide sans fichier ou sans ligne."""
+        if not self.statement or not self.statement.usable:
+            return ""
+        line = self.for_name(name)
+        if line is None:
+            return ""
+        return breakdown_sentence(line, self.statement.perimeter_last_year(name))
+
+    @property
+    def total_breakdown(self) -> str:
+        if not self.statement or not self.statement.usable:
+            return ""
+        return breakdown_sentence(self.statement.total, self.statement.total_last_year)
+
+    @property
+    def caveat(self) -> str:
+        months = self.snapshot.months if self.snapshot is not None else 0
+        return ("%s de cumul ne séparent pas une économie d'une dépense décalée : un poste sous "
+                "le budget mais plus lourd qu'au même stade l'an dernier se relit à "
+                "l'instantané suivant." % ("%d mois" % months if months else "Quelques mois"))
 
     @property
     def snapshot(self) -> Optional[Snapshot]:

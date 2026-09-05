@@ -421,7 +421,11 @@ cockpit le lit (`app/perf/pnl.py`, 5 septembre 2026) : une colonne « Contributi
 Trois règles tenues : un seul exercice de change est lu, jamais deux ; l'écriture centrale
 `INT COST` — une écriture unique et un produit financier non récurrent — est nommée à part et
 hors de tout total ; ce qui a été écarté du compte de gestion est dit avec son montant, jamais
-soustrait deux fois. Les honoraires imputés au canal distributeurs France en FY26
+soustrait deux fois. L'écart de contribution se décompose par nature de coût, et chaque
+poste porte le test qui sépare un coût plus bas d'un budget phasé autrement : la part des
+ventes au même stade de l'exercice de change précédent, comparée en ratio et jamais en
+niveau. L'âge du cumul est calculé contre le mois des ventes ; avril et juillet ne sont
+jamais publiés seuls par la source. Les honoraires imputés au canal distributeurs France en FY26
 ne sont pas la fermeture du 86 Champs, qui se lit ailleurs : une charge récurrente à
 expliquer par le contrôle de gestion, exclue nommément du fichier.
 

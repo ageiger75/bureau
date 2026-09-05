@@ -4093,6 +4093,14 @@ def cmd_pnl(argv: List[str]) -> int:
         print(review.central_note[0].upper() + review.central_note[1:])
     if review.excluded_note:
         print(review.excluded_note)
+    print("")
+    if review.total_breakdown:
+        print(review.total_breakdown)
+        for line in review.perimeters + review.others:
+            said = review.breakdown(line.region)
+            if said:
+                print("  %s : %s" % (line.region, said))
+        print(review.caveat)
     for reason in review.absent:
         print(reason)
     print(review.note)
