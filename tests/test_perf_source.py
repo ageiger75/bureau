@@ -53,7 +53,7 @@ def test_the_units_are_rebuilt_when_the_published_file_changes(monkeypatch):
         ])})
         wrong_month = SnowflakeSource().dataset()
         assert not wrong_month.headline_is_published
-        assert "August" in wrong_month.published_note and "July" in wrong_month.published_note
+        assert "août" in wrong_month.published_note and "juillet" in wrong_month.published_note
 
         _workbook(path, {"DATA JULY": _named([
             [MAISON, "E001", "GE COUNTRIES", "Northland", "Sell out", "Retail",

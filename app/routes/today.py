@@ -461,6 +461,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             # accounts of one fact, and the second undoes the first.
             "incidents": analytics.incidents(suspects),
             "kpi_rules": kpi_rules,
+            "analytics": analytics,
             "unavailable": unavailable,
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),

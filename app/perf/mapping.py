@@ -57,20 +57,20 @@ STATUS_PRECEDENCE = (
 #: Why a funnel cannot be read, in the words the reader needs. Each says who to ask.
 FUNNEL_REASONS = {
     ORDERS_NOT_TRACKED: (
-        "Web analytics records the visits here but never the orders — the transaction "
-        "identifier is empty on every row. Sales are real; the funnel behind them is not "
-        "measured. This is a tag to install, not a market to question."
+        "L'analytique web enregistre les visites ici, jamais les commandes — l'identifiant "
+        "de transaction est vide sur chaque ligne. Les ventes sont réelles ; l'entonnoir "
+        "derrière n'est pas mesuré. Un tag à poser, pas un marché à questionner."
     ),
     ORDER_TRACKING_LOST: (
-        "Order tracking stopped on this site partway through the period, and has not "
-        "resumed. The visits still arrive. This one broke recently, which means it can be "
-        "found — and until it is, no driver here can be read."
+        "Le suivi des commandes s'est arrêté sur ce site en cours de période et n'a pas "
+        "repris. Les visites arrivent toujours. Cassé récemment, donc trouvable — et tant "
+        "que ce n'est pas fait, aucun levier ne se lit ici."
     ),
     NO_ANALYTICS_SITE: (
-        "The Maison has no own site measured in this market: online here happens on "
-        "platforms it does not run. The revenue is counted — a shopper buying on a "
-        "marketplace store is still a sale to the end customer — but the platform owns "
-        "the traffic, so there is no funnel behind the number and none to repair."
+        "La Maison n'a pas de site propre mesuré sur ce marché : le digital s'y fait sur des "
+        "plateformes qu'elle n'opère pas. Le chiffre est compté — un achat sur une boutique de "
+        "marketplace reste une vente au client final — mais la plateforme tient le trafic : "
+        "pas d'entonnoir derrière le chiffre, et rien à réparer."
     ),
 }
 
@@ -197,8 +197,8 @@ class Mapped:
 #:
 #: Keys are `market` or `market/channel`. A market-level entry covers all its channels.
 NOT_READ = {
-    "Austria/retail": "no shop in the sell-out referential, under any label or country "
-                      "code; only what Austria invoices to third parties is read",
+    "Austria/retail": "aucune boutique au référentiel sell-out, sous aucun libellé ni code "
+                      "pays ; seul ce que l'Autriche facture à des tiers est lu",
 }
 
 
@@ -212,29 +212,30 @@ def not_read_reason(market: str, channel: str) -> str:
 
 
 CHANNEL_MEANING = {
-    "ecommerce": "Our own site — brand.com. The one channel where the whole funnel is "
-                 "ours to read: visits, conversion, basket.",
-    "retail": "Our own stores. Sold when the shopper pays.",
-    "marketplace": "Our own store, on someone else's platform — the Tmall flagship the "
-                   "Maison operates. Still sold to the shopper, but the platform owns the "
-                   "traffic, so there is no funnel of ours behind the number. In China "
-                   "Tmall is the only platform on this side of the invoice.",
-    "webp": "Partners who buy our stock and resell it online — Amazon in the West, and in "
-            "China JD, Douyin or VIP. Invoiced when we ship, so what reaches a shopper "
-            "afterwards is not in it. Not Tmall, which we operate ourselves.",
-    "tra": "Travel retail operators who buy to resell: airports, ferries, border shops.",
-    "dis": "Distributors who buy the range for a territory and resell it on.",
-    "dpt": "Department stores buying stock for their own floors.",
-    "whoch": "Chains buying stock for their own shelves.",
-    "whoin": "Independent shops and pharmacies buying stock.",
-    "whosp": "Spas and hotels buying product to sell on to their guests.",
-    "tvc": "Television shopping channels buying stock to sell on air.",
-    "b2b": "Hotels and businesses buying product they do not resell — put in a room, "
-           "given away. No partner takes a margin on it.",
-    "copg": "Companies buying product as gifts. Not resold.",
-    "dds": "Sold person to person, outside a shop.",
-    "spa": "Our own spas. Sold when the guest pays, treatments and product together.",
-    "cafe": "Our own cafés. Sold when the customer pays, at the counter.",
+    "ecommerce": "Notre propre site — brand.com. Le seul canal dont tout l'entonnoir est à "
+                 "nous : visites, conversion, panier.",
+    "retail": "Nos propres boutiques. Vendu quand le client paie.",
+    "marketplace": "Notre propre boutique, sur la plateforme d'un autre — le flagship Tmall "
+                   "que la Maison opère. Vendu au client, mais la plateforme tient le trafic : "
+                   "pas d'entonnoir à nous derrière le chiffre. En Chine, Tmall est la seule "
+                   "plateforme de ce côté de la facture.",
+    "webp": "Des partenaires qui achètent notre stock et le revendent en ligne — Amazon à "
+            "l'Ouest, JD, Douyin ou VIP en Chine. Facturé à l'expédition : ce qui atteint "
+            "ensuite un client n'y est pas. Pas Tmall, que nous opérons nous-mêmes.",
+    "tra": "Des opérateurs de travel retail qui achètent pour revendre : aéroports, ferries, "
+           "boutiques frontalières.",
+    "dis": "Des distributeurs qui achètent la gamme pour un territoire et la revendent.",
+    "dpt": "Des grands magasins qui achètent du stock pour leurs propres rayons.",
+    "whoch": "Des chaînes qui achètent du stock pour leurs propres linéaires.",
+    "whoin": "Des indépendants et des pharmacies qui achètent du stock.",
+    "whosp": "Des spas et des hôtels qui achètent du produit pour le revendre à leurs hôtes.",
+    "tvc": "Des chaînes de téléachat qui achètent du stock pour le vendre à l'antenne.",
+    "b2b": "Des hôtels et des entreprises qui achètent du produit sans le revendre — posé "
+           "dans une chambre, offert. Aucun partenaire ne prend de marge dessus.",
+    "copg": "Des entreprises qui achètent du produit en cadeau. Non revendu.",
+    "dds": "Vendu de personne à personne, hors boutique.",
+    "spa": "Nos propres spas. Vendu quand l'hôte paie, soins et produit ensemble.",
+    "cafe": "Nos propres cafés. Vendu quand le client paie, au comptoir.",
 }
 
 
@@ -535,17 +536,17 @@ def units_from_rows(
             # this line adds is why there is no driver table, so that is all it says now:
             # two sentences opening on the same clause read as padding, and padding on a
             # card is what teaches a reader to skim the next one.
-            reason = "No funnel behind this figure, and none missing."
+            reason = "Pas d'entonnoir derrière ce chiffre, et aucun ne manque."
         elif channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON
         elif funnel_status in FUNNEL_REASONS:
             reason = FUNNEL_REASONS[funnel_status]
         elif channel == ECOMMERCE and not (sessions and orders):
-            reason = "Sessions or orders are not reported for this site."
+            reason = "Sessions ou commandes ne sont pas remontées pour ce site."
         elif channel == ECOMMERCE and not (sessions_ly and orders_ly):
             reason = (
-                "Last year's sessions and orders are not available, so the movement "
-                "cannot be attributed to a driver."
+                "Les sessions et commandes de l'an dernier ne sont pas disponibles : "
+                "l'évolution ne s'attribue à aucun levier."
             )
 
         months_below, gap_history, chronic, vs_record = _history_for(

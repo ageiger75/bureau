@@ -106,7 +106,7 @@ def test_priority_exposes_every_factor():
     priority = analytics.priority_of(unit(months_below_budget=3, gap_history=(-50_000, -100_000)))
 
     labels = [label for label, _ in priority.factors]
-    assert labels == ["€ gap", "persistence", "acceleration", "strategic weight"]
+    assert labels == ["écart €", "persistance", "accélération", "poids stratégique"]
     assert priority.reasons
     assert all(reason.strip() for reason in priority.reasons)
 
@@ -195,7 +195,7 @@ def test_a_driver_that_overshoots_the_gap_is_phrased_in_euros_not_percent():
     diagnosis = analytics.fires(dataset_of(offset))[0].diagnosis
 
     assert "%" not in diagnosis
-    assert "offset" in diagnosis
+    assert "compensé" in diagnosis
 
 
 # --------------------------------------------------------- explanation challenge
@@ -214,7 +214,7 @@ def test_a_difficult_market_explanation_is_tested_not_repeated():
     check = analytics.check_explanation(item)
 
     assert check.verdict == analytics.ExplanationCheck.UNSUPPORTED
-    assert "unexplained" in check.evidence
+    assert "inexpliqués" in check.evidence
 
 
 def test_without_a_benchmark_the_verdict_is_insufficient_evidence_not_a_guess():
@@ -347,14 +347,14 @@ def test_a_channel_without_drivers_says_so_instead_of_inventing_a_cause():
 
     assert not fire.has_breakdown
     assert fire.contributions == []
-    assert "cannot be attributed" in fire.diagnosis
+    assert "ne s'attribue pas" in fire.diagnosis
 
 
 def test_the_question_for_an_unmeasured_channel_asks_for_the_measurement():
     """Asking what will move a driver nobody measures would be asking for a guess."""
     fire = analytics.fires(dataset_of(sales_only_unit("brandcom", 8_600_000, 9_400_000)))[0]
 
-    assert "cannot see why" in fire.question
+    assert "sans qu'on voie pourquoi" in fire.question
 
 
 def test_sales_only_drivers_still_total_correctly():
@@ -420,8 +420,8 @@ def test_the_screen_says_which_kind_of_blindness_it_is():
 
     fire = analytics.fires(dataset_of(unmeasured))[0]
 
-    assert "footfall is not counted" in fire.diagnosis
-    assert "cannot see why" in fire.question
+    assert "n'est pas compté" in fire.diagnosis
+    assert "sans qu'on voie pourquoi" in fire.question
 
 
 # --------------------------------------------------------- broken feeds vs real gaps
@@ -601,7 +601,7 @@ def test_a_plan_without_drivers_falls_back_to_last_year():
 
     baseline, label = plain_budget.decomposition_baseline()
 
-    assert label == "last year"
+    assert label == "l'an dernier"
     assert baseline.labels == ("Sessions", "Conversion", "AOV")
 
 
@@ -654,8 +654,8 @@ def test_the_diagnosis_names_the_baseline_it_used():
 
     fire = analytics.fires(dataset_of(plain_budget))[0]
 
-    assert fire.baseline_label == "last year"
-    assert "versus last year" in fire.diagnosis
+    assert fire.baseline_label == "l'an dernier"
+    assert "par rapport à l'an dernier" in fire.diagnosis
 
 
 def test_a_plan_baseline_still_speaks_of_a_gap():
@@ -669,8 +669,8 @@ def test_a_plan_baseline_still_speaks_of_a_gap():
     fire = analytics.fires(dataset_of(planned))[0]
 
     assert fire.baseline_label == "plan"
-    assert "of the gap comes from" in fire.diagnosis
-    assert "versus last year" not in fire.diagnosis
+    assert "de l'écart vient" in fire.diagnosis
+    assert "par rapport à l'an dernier" not in fire.diagnosis
 
 
 def test_the_contributions_still_add_up_to_the_measured_movement():
@@ -813,7 +813,7 @@ def test_the_drivers_sum_to_the_movement_they_decompose_not_the_plan_gap():
 
     fire = analytics.Fire(japan)
 
-    assert fire.baseline_label == "last year"
+    assert fire.baseline_label == "l'an dernier"
     assert fire.gap == -300_000.0
     assert fire.movement == -200_000.0
     assert round(sum(c.impact for c in fire.contributions), 2) == fire.movement
@@ -837,7 +837,7 @@ def test_a_rate_is_never_printed_with_the_sign_of_a_movement():
     assert "+" not in found.assumption
     assert "+" not in found.calculation
     # And a movement keeps its sign, which is the distinction being drawn.
-    assert analytics.format_pct(0.043) == "+4.3%"
+    assert analytics.format_pct(0.043) == "+4.3 %"
 
 
 def test_the_flag_says_who_to_ask():
@@ -851,7 +851,7 @@ def test_the_flag_says_who_to_ask():
 
     flag = analytics.suspect_of(broken)
 
-    assert "tracking" in flag.fix
+    assert "suivi" in flag.fix
     assert "audience" in flag.fix
 
 
@@ -883,7 +883,7 @@ def test_an_ordinary_driver_is_still_lower_cased():
 
     fire = analytics.fires(dataset_of(session_led))[0]
 
-    assert "comes from sessions" in fire.diagnosis
+    assert "vient des sessions" in fire.diagnosis
 
 
 # ------------------------------------------------------ one fault, or many incidents
@@ -910,15 +910,15 @@ def test_several_markets_failing_the_same_way_are_named_as_one_fault():
     said = analytics.patterns(analytics.suspects(dataset))
 
     assert len(said) == 1
-    assert "5 markets" in said[0]
-    assert "not 5 separate incidents" in said[0]
+    assert "5 marchés" in said[0]
+    assert "pas 5 incidents séparés" in said[0]
 
 
 def test_the_pattern_carries_the_money_behind_it():
     """Twelve small markets and twelve large ones are not the same problem."""
     dataset = dataset_of(*[_no_orders("m%d" % i, 200_000) for i in range(4)])
 
-    assert "€800k" in analytics.patterns(analytics.suspects(dataset))[0]
+    assert "800 k€" in analytics.patterns(analytics.suspects(dataset))[0]
 
 
 def test_two_markets_are_not_yet_a_pattern():
@@ -949,7 +949,7 @@ def test_different_faults_are_never_merged_into_one_pattern():
     said = analytics.patterns(analytics.suspects(dataset))
 
     assert len(said) == 1
-    assert "no orders at all" in said[0]
+    assert "sans aucune commande" in said[0]
 
 
 # ------------------------------------------- absent orders, now absent rather than zero
@@ -988,7 +988,7 @@ def test_tracking_lost_carries_its_own_code():
     flag = analytics.suspect_of(_with_status("order_tracking_lost"))
 
     assert flag.code == "order_tracking_lost"
-    assert "recently" in flag.fix
+    assert "récemment" in flag.fix
 
 
 def test_a_market_selling_on_platforms_is_never_flagged_as_broken():
@@ -1122,7 +1122,7 @@ def test_evidence_never_moves_a_problem_down_the_list():
     assert analytics.priority_of(spread).score == pytest.approx(
         analytics.priority_of(blind).score)
     # And the confidence is still stated, because it explains the move on the card.
-    assert "confidence" in " ".join(analytics.priority_of(spread).reasons)
+    assert "confiance" in " ".join(analytics.priority_of(spread).reasons)
 
 
 def test_the_reason_says_there_was_nothing_to_discount():
@@ -1137,8 +1137,8 @@ def test_the_reason_says_there_was_nothing_to_discount():
 
     reasons = " ".join(analytics.priority_of(blind).reasons)
 
-    assert "no cause measured here" in reasons
-    assert "changes the move and not the rank" in reasons
+    assert "aucune cause mesurée ici" in reasons
+    assert "change le geste et pas le rang" in reasons
     assert "confidence LOW" not in reasons
 
 
@@ -1164,8 +1164,8 @@ def _sell_in_unit(key="china-webp", actual=1_000_000.0, budget=3_300_000.0):
 def test_a_sell_in_gap_asks_about_shipments_not_measurement():
     fire = analytics.fires(dataset_of(_sell_in_unit()))[0]
 
-    assert "shipment landing in another month" in fire.question
-    assert "measure this properly" not in fire.question
+    assert "expédition qui tombe sur un autre mois" in fire.question
+    assert "mesurer cela" not in fire.question
 
 
 def test_a_month_of_sell_in_is_never_called_a_win():
@@ -1225,7 +1225,7 @@ def test_a_tiny_break_still_counts_in_the_shape():
     found = analytics.suspects(dataset_of(*units))
 
     assert analytics.worth_listing(found) == []
-    assert "5 markets" in analytics.patterns(found)[0]
+    assert "5 marchés" in analytics.patterns(found)[0]
 
 
 def test_the_listed_breaks_come_largest_first():
@@ -1351,7 +1351,7 @@ def test_the_question_asks_whether_it_was_deliberate():
     """The only thing worth asking. If it was, the plan is what needs updating."""
     found = analytics.reallocations(_traded())[0]
 
-    assert "deliberate" in found.question
+    assert "voulu" in found.question
     assert "China" in found.question
 
 
@@ -1381,7 +1381,7 @@ def test_the_upside_formula_names_every_factor_it_multiplies():
 
     assert found is not None
     assert found.calculation == (
-        "Traffic 1.0m × (12.00% − 10.00%) × UPT 2.00 × ASP €50 = €2.0m")
+        "Traffic 1.0 M × (12.00 % − 10.00 %) × UPT 2.00 × ASP 50 € = 2.0 M€")
     # And the sentence reconciles: 1m × 2 points × 2 × €50 = €2m exactly.
     assert found.amount == pytest.approx(2_000_000.0)
 
@@ -1404,7 +1404,7 @@ def test_the_two_bridges_are_named_and_reconciled():
     assert fire.gap == -300_000.0
     assert fire.movement == -200_000.0
     assert fire.unattributed == -100_000.0
-    assert "planned growth that did not happen" in fire.bridge
+    assert "croissance planifiée qui n'a pas eu lieu" in fire.bridge
     # The two halves add up to the headline, which is the only thing that makes it a bridge.
     assert fire.movement + fire.unattributed == pytest.approx(fire.gap)
 
@@ -1455,8 +1455,8 @@ def test_markets_failing_the_same_way_are_one_incident():
     assert one.is_pattern
     assert one.markets == 9
     # The shape, said once and naming its size: nine symptoms of one fault.
-    assert "9 markets" in one.diagnosis
-    assert "at once" in one.diagnosis
+    assert "9 marchés" in one.diagnosis
+    assert "à la fois" in one.diagnosis
     # The markets are the detail of the fault, and every one of them is kept.
     assert len(one.members) == 9
     assert one.money == pytest.approx(sum(item.money for item in found))
@@ -1503,4 +1503,4 @@ def test_no_explanation_is_tested_against_a_growth_that_does_not_exist():
     assert check is not None
     assert check.verdict == analytics.ExplanationCheck.INSUFFICIENT
     assert check.residual_pct is None
-    assert "distributor" in check.evidence
+    assert "distributeur" in check.evidence

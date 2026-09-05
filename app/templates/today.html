@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Today — CEO Performance{% endblock %}
+{% block title %}Aujourd'hui — CEO Performance{% endblock %}
 
 {% block content %}
 
@@ -351,7 +351,7 @@
   <p class="lede">Les cinq sujets qui pèsent le plus aujourd'hui, classés en euros puis par durée de l'écart. Chacun montre son calcul.</p>
 
   {% if not issues %}
-    <p class="empty">No market is materially below plan. Nothing here needs you today.</p>
+    <p class="empty">Aucun marché n'est significativement sous le plan. Rien ici n'a besoin de vous aujourd'hui.</p>
   {% else %}
   <ol class="fire-list">
     {% for issue, members in issues %}
@@ -369,7 +369,7 @@
             {% if not issue.has_commitment %}
               {# Once for the subject, not once per channel. Repeated on each line it
                  stopped being read, which is the opposite of what an absence is for. #}
-              <span class="badge badge-fact">NO COMMITMENT</span>
+              <span class="badge badge-fact">SANS ENGAGEMENT</span>
             {% endif %}
           </p>
         {% endif %}
@@ -448,9 +448,9 @@
            would find does not hold — and a table that fails its own arithmetic in
            public costs more than it explains. #}
         <p class="estimate-note">
-          Driver impacts are estimates from a chained decomposition, not measured causes.
-          They sum to {{ fire.movement | eur }} exactly — the movement versus
-          {{ fire.baseline_label }}.
+          Les impacts par levier sont des estimations issues d'une décomposition en chaîne,
+          pas des causes mesurées. Ils somment exactement à {{ fire.movement | eur }} — l'évolution par rapport
+          {{ "au" if fire.baseline_label == "plan" else "à" }} {{ fire.baseline_label }}.
         </p>
         {% if fire.bridge %}
           {# The two bridges named and reconciled. Saying only "they sum to the movement
@@ -479,7 +479,7 @@
         {% endif %}
 
         <p class="fire-meta">
-          <span class="confidence confidence-{{ fire.confidence }}">Confidence {{ fire.confidence | upper }}</span>
+          <span class="confidence confidence-{{ fire.confidence }}">Confiance {{ analytics.CONFIDENCE_LABELS[fire.confidence] }}</span>
           <span class="owner">· {{ fire.unit.owner.name }} · {{ fire.unit.owner.role }}</span>
         </p>
 
@@ -499,7 +499,7 @@
              thing that stays true — it is still their market. So the name stands, and
              this sentence takes the question away from it before the question is asked. #}
           <p class="estimate-note is-warning">
-            Not {{ fire.unit.owner.name }}'s to answer. The action sits with
+            Pas à {{ fire.unit.owner.name }} d'y répondre. L'action est chez
             {{ fire.action_owner }}.
           </p>
         {% endif %}
@@ -508,34 +508,34 @@
 
         {% if signals %}
           <p class="customer-signal">
-            Customer signals —
+            Signaux clients —
             {% for signal in signals %}
               {{ signal.label }} {{ kpi_rules.format_value(signal, signal.latest.value) }}
-              (target {{ kpi_rules.format_value(signal, signal.target) }}){% if not loop.last %} · {% endif %}
+              (cible {{ kpi_rules.format_value(signal, signal.target) }}){% if not loop.last %} · {% endif %}
             {% endfor %}
           </p>
         {% endif %}
 
         {% if commitment %}
           <p class="linked-commitment">
-            Open commitment — {{ commitment.action }}
+            Engagement ouvert — {{ commitment.action }}
             {% if commitment.expected_impact %}({{ commitment.expected_impact }}){% endif %}
-            {% if commitment.due_date %}· due {{ commitment.due_date }}{% endif %}
+            {% if commitment.due_date %}· échéance {{ commitment.due_date }}{% endif %}
           </p>
         {% endif %}
 
         {# Brief §31: the ranking must be inspectable, or it will not be trusted. #}
         <details class="why">
-          <summary>Why am I seeing this?</summary>
+          <summary>Pourquoi je vois ça ?</summary>
           <ul class="why-list">
             {% for reason in fire.priority.reasons %}<li>{{ reason }}</li>{% endfor %}
           </ul>
           <p class="why-formula">
-            priority = € gap × persistence × acceleration × strategic weight
+            priorité = écart € × persistance × accélération × poids stratégique
           </p>
           <ul class="why-factors">
             {% for label, value in fire.priority.factors %}
-              <li>{{ label }}: {{ '%.2f' % value if label != '€ gap' else value | eur }}</li>
+              <li>{{ label }} : {{ '%.2f' % value if label != 'écart €' else value | eur }}</li>
             {% endfor %}
           </ul>
         </details>
@@ -575,20 +575,29 @@
 
 {# ------------------------------------------------- routed off the CEO surface #}
 
+{# Les effets de base ne sont pas des lignes : une comparaison assise sur presque rien ne dit
+   rien du plan. Ils sont comptés en une ligne, avec les marchés dans l'infobulle, et la liste ne
+   porte que ce qui se lit. #}
 {% macro plan_list(items) %}
+  {% set shown = items | rejectattr('base_effect') | list %}
+  {% set base = items | selectattr('base_effect') | list %}
   <ul class="routed-list">
-    {% for item in items %}
-      <li class="routed{{ ' is-base-effect' if item.base_effect }}">
+    {% for item in shown %}
+      <li class="routed">
         <p class="routed-head">
           <span class="routed-name">{{ item.unit.label }}</span>
-          {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} across the year</span>{% endif %}
+          {% if item.amount %}<span class="routed-amount">{{ item.amount | eur }} sur l'année</span>{% endif %}
           {% if item.unit.basis == "shipped" %}<span class="badge badge-fact">SELL-IN</span>{% endif %}
-          {% if item.base_effect %}<span class="badge badge-class">Base effect</span>{% endif %}
         </p>
         <p class="routed-why">{{ item.sentence }}</p>
       </li>
     {% endfor %}
   </ul>
+  {% if base %}
+    <p class="cockpit-caveat" title="{{ base | map(attribute='unit.label') | join(', ') }}">
+      {{ base | length }} plan{{ '' if base | length == 1 else 's' }} sur effet de base, non listé{{ '' if base | length == 1 else 's' }} : la comparaison est assise sur presque rien.
+    </p>
+  {% endif %}
 {% endmacro %}
 
 {% if plans_above %}
@@ -602,7 +611,7 @@
 {% if plans_below %}
 <section class="panel">
   <h2>Plans à reprévoir</h2>
-  <p class="lede">Des plans sous ce que le business fait déjà. <em>Effet de base</em> signale une comparaison assise sur presque rien.</p>
+  <p class="lede">Des plans sous ce que le business fait déjà. Une question pour la Finance : prudence, ou prévision à refaire.</p>
   {{ plan_list(plans_below) }}
 </section>
 {% endif %}
@@ -616,7 +625,7 @@
       <li class="routed">
         <p class="routed-head">
           <span class="routed-name">{{ fire.unit.label }}</span>
-          <span class="routed-amount">{{ fire.gap | eur }} vs plan</span>
+          <span class="routed-amount">{{ fire.gap | eur }} contre le plan</span>
           <span class="badge badge-class">{{ fire.routed.class_label }}</span>
         </p>
         <p class="routed-why">{{ fire.routed.reason }}.</p>
@@ -639,7 +648,7 @@
   <h2>Opportunités</h2>
   <p class="lede">Ramener un levier au niveau qu'il tenait l'an dernier. Chaque chiffre est une estimation et montre son hypothèse.</p>
   {% if not opportunities %}
-    <p class="empty">No recoverable gap of material size right now.</p>
+    <p class="empty">Aucun écart récupérable de taille significative pour l'instant.</p>
   {% else %}
   <ul class="opportunity-list">
     {% for item in opportunities %}
@@ -651,7 +660,7 @@
         <p class="assumption">{{ item.assumption }}</p>
         <p class="calculation">{{ item.calculation }}</p>
         <p class="fire-meta">
-          <span class="confidence confidence-{{ item.confidence }}">Confidence {{ item.confidence | upper }}</span>
+          <span class="confidence confidence-{{ item.confidence }}">Confiance {{ analytics.CONFIDENCE_LABELS[item.confidence] }}</span>
           <span class="owner">· {{ item.unit.owner.name }} · {{ item.unit.owner.role }}</span>
         </p>
         <p class="ask">{{ item.question }}</p>
@@ -676,7 +685,7 @@
         <p class="person-name"><span>{{ push.owner.name }}</span>
           <span class="person-role">· {{ push.owner.role }} · {{ push.owner.market }}</span></p>
         {% if push.owner.local_lead %}
-          <p class="person-local">Runs it day to day: {{ push.owner.local_lead }}</p>
+          <p class="person-local">Au quotidien : {{ push.owner.local_lead }}</p>
         {% endif %}
         <p class="person-why">{{ push.reason }}</p>
         <p class="ask">{{ push.question }}</p>
@@ -703,9 +712,9 @@
           <span class="opportunity-amount">+{{ win.gap | eur }}</span>
         </div>
         <p class="win-numbers">
-          {{ win.gap_pct | pct }} vs budget · {{ win.vs_last_year_pct | pct }} vs last year
+          {{ win.gap_pct | pct }} contre le plan · {{ win.vs_last_year_pct | pct }} contre l'an dernier
         </p>
-        {% if win.driver %}<p class="win-driver">Possible driver — {{ win.driver }}</p>{% endif %}
+        {% if win.driver %}<p class="win-driver">Levier possible — {{ win.driver }}</p>{% endif %}
         <p class="ask">{{ win.question }}</p>
       </li>
     {% endfor %}
@@ -723,13 +732,13 @@
     {% for item in bulk_findings %}
       <li class="suspect">
         <p class="suspect-message">
-          <strong>{{ item.scope }}</strong> — excluding bulk
-          {{ item.growth_ex_bulk | pct }}, all in {{ item.growth | pct }}
+          <strong>{{ item.scope }}</strong> — hors vrac
+          {{ item.growth_ex_bulk | pct }}, vrac compris {{ item.growth | pct }}
         </p>
         <p class="suspect-fix">
-          bulk {{ item.bulk | eur }}, {{ item.share | share }} of the market
-          {%- if item.bulk_movement is not none %} · {{ item.bulk_movement | eur }} against
-          the same {{ item.periods | length }} months last year{% endif %}
+          vrac {{ item.bulk | eur }}, {{ item.share | share }} du marché
+          {%- if item.bulk_movement is not none %} · {{ item.bulk_movement | eur }} contre
+          les mêmes {{ item.periods | length }} mois l'an dernier{% endif %}
         </p>
       </li>
     {% endfor %}
@@ -778,7 +787,7 @@
           <p class="incident-head">{{ incident.diagnosis }}</p>
           <p class="incident-fix">{{ incident.fix }}</p>
           <details class="incident-detail">
-            <summary>{{ incident.markets }} markets, {{ incident.money | eur }} obscured</summary>
+            <summary>{{ incident.markets }} marchés, {{ incident.money | eur }} masqués</summary>
             <ul class="suspect-list">
               {% for item in incident.members %}
                 <li class="suspect">
@@ -808,22 +817,21 @@
 
   {% if "kpis" in unavailable %}
     <p class="empty">
-      Not connected to this source yet. The readings come from the warehouse; the
-      definitions, targets and cadence come from the KPI tracker. Until both are wired,
-      this panel says nothing rather than saying everything is fine.
+      Source pas encore connectée. Les lectures viennent de l'entrepôt ; les définitions, cibles
+      et cadences du tableau KPI. Tant que les deux ne sont pas branchés, ce panneau ne dit rien
+      plutôt que de dire que tout va bien.
     </p>
   {% elif not kpis %}
     <p class="empty">
-      All {{ kpis_total }} managed KPIs are at or above target, current, and settled.
-      Nothing here needs you.
+      Les {{ kpis_total }} KPI suivis sont dans la cible, à jour et arrêtés. Rien ici n'a besoin
+      de vous.
     </p>
   {% else %}
     {# The denominator, before the list. The panel shows only what is off — which is the
        point — but three off out of seventeen and three out of four are different
        businesses, and the list alone reads the same either way. #}
     <p class="lede">
-      {{ kpis_holding }} of {{ kpis_total }} need nothing from you.
-      {{ kpis | length }} {{ 'does' if kpis | length == 1 else 'do' }}:
+      {{ kpis_holding }} sur {{ kpis_total }} n'ont besoin de rien. {{ kpis | length }} si :
     </p>
   {% for pillar, group in kpis_by_pillar %}
     <h3 class="kpi-pillar">{{ pillar }}</h3>
@@ -841,15 +849,15 @@
           {# Two states, side by side and never merged. A KPI can sit exactly on target
              and be two months stale; a screen that folds them into one verdict has to
              lie about one of the two, and it is always the performance that gets lost. #}
-          Target {{ kpi_rules.format_value(item, item.target) }}
+          Cible {{ kpi_rules.format_value(item, item.target) }}
           · {{ kpi_rules.STATUS_LABELS[item.status] }}
           · {{ item.freshness_label() }}{% if item.latest %} ({{ item.latest.period }}){% endif %}
-          {% if item.direction == 'down' %}· lower is better{% endif %}
+          {% if item.direction == 'down' %}· plus bas est mieux{% endif %}
           {% if item.is_improving is not none and item.trend_is_current() %}
             {# Not on a stale reading: the movement between two old figures says what
                happened then, and "still deteriorating" printed beside today's date reads
                as a live trajectory. Either it carries its date or it is not shown. #}
-            · {{ 'improving' if item.is_improving else 'still deteriorating' }}
+            · {{ 'en progrès' if item.is_improving else 'se dégrade encore' }}
           {% endif %}
           · {{ kpi_rules.FREQUENCY_LABELS[item.frequency] }}
           · {{ item.owner }} · {{ item.source }}
@@ -860,12 +868,12 @@
              while half the markets sit under it. Naming the worst five is the difference
              between a number and a conversation. #}
           <p class="kpi-behind">
-            {{ item.behind | length }} of {{ item.markets_read }} markets are below this
-            target while the group clears it:
+            {{ item.behind | length }} marchés sur {{ item.markets_read }} sont sous cette cible
+            quand le groupe la tient :
             {% for market, value in item.behind[:5] %}
               {{ market }} {{ kpi_rules.format_value(item, value) }}{% if not loop.last %} · {% endif %}
             {% endfor %}
-            {%- if item.behind | length > 5 %} · and {{ item.behind | length - 5 }} more{% endif %}
+            {%- if item.behind | length > 5 %} · et {{ item.behind | length - 5 }} de plus{% endif %}
           </p>
         {% endif %}
         {% set question = item.question() %}
@@ -873,7 +881,7 @@
           <p class="ask">{{ question }}</p>
         {% elif not item.can_be_challenged %}
           {# A number nobody has agreed yet is not something to send a CEO to argue about. #}
-          <p class="withheld">No challenge raised — {{ item.withheld_reason }}</p>
+          <p class="withheld">Pas de question posée — {{ item.withheld_reason }}</p>
         {% endif %}
       </li>
     {% endfor %}
@@ -883,8 +891,8 @@
 
 
   <p class="kpi-note kpi-note-quiet">
-    KPIs reported quarterly or less often are not listed as missing between readings: the
-    figure does not exist yet, and flagging it every month would teach you to ignore the flag.
+    Les KPI trimestriels ou moins fréquents ne sont pas dits manquants entre deux lectures : le
+    chiffre n'existe pas encore, et le signaler chaque mois apprendrait à ignorer le signal.
   </p>
 </section>
 
@@ -894,14 +902,14 @@
   <h2>Engagements</h2>
   {% if "commitments" in unavailable %}
   <p class="empty">
-    Not connected to this source yet. An empty board would read as "nothing outstanding",
-    which is the opposite of what it would mean.
+    Source pas encore connectée. Un tableau vide se lirait « rien en cours », soit l'inverse de
+    ce qu'il voudrait dire.
   </p>
   {% else %}
   <p class="commitment-counts">
-    <span class="count"><strong>{{ commitments.open_count }}</strong> open</span>
-    <span class="count count-alert"><strong>{{ commitments.overdue | length }}</strong> overdue</span>
-    <span class="count count-warn"><strong>{{ commitments.at_risk | length }}</strong> at risk</span>
+    <span class="count"><strong>{{ commitments.open_count }}</strong> ouverts</span>
+    <span class="count count-alert"><strong>{{ commitments.overdue | length }}</strong> en retard</span>
+    <span class="count count-warn"><strong>{{ commitments.at_risk | length }}</strong> à risque</span>
   </p>
 
   {% set delivered_nothing = commitments.done_without_result %}
@@ -910,19 +918,19 @@
 
   <ul class="commitment-signals">
     {% for item in commitments.overdue %}
-      <li><span class="tag tag-alert">Overdue</span> {{ item.action }} — {{ item.owner_name }}, {{ item.market }}</li>
+      <li><span class="tag tag-alert">En retard</span> {{ item.action }} — {{ item.owner_name }}, {{ item.market }}</li>
     {% endfor %}
     {% for item in delayed %}
-      <li><span class="tag tag-warn">Postponed {{ item.postponements }}×</span> {{ item.action }} — {{ item.owner_name }}</li>
+      <li><span class="tag tag-warn">Reporté {{ item.postponements }}×</span> {{ item.action }} — {{ item.owner_name }}</li>
     {% endfor %}
     {% for item in delivered_nothing %}
-      <li><span class="tag tag-warn">Done, no result</span> {{ item.action }} — expected {{ item.expected_impact }}, observed {{ item.actual_impact | lower }}</li>
+      <li><span class="tag tag-warn">Fait, sans résultat</span> {{ item.action }} — attendu {{ item.expected_impact }}, observé {{ item.actual_impact | lower }}</li>
     {% endfor %}
     {% for item in no_impact %}
-      <li><span class="tag">No quantified impact</span> {{ item.action }} — {{ item.owner_name }}</li>
+      <li><span class="tag">Impact non chiffré</span> {{ item.action }} — {{ item.owner_name }}</li>
     {% endfor %}
     {% for item in commitments.delivered_results %}
-      <li><span class="tag tag-good">Worked</span> {{ item.action }} — expected {{ item.expected_impact }}, observed {{ item.actual_impact }}</li>
+      <li><span class="tag tag-good">A marché</span> {{ item.action }} — attendu {{ item.expected_impact }}, observé {{ item.actual_impact }}</li>
     {% endfor %}
   </ul>
   {% endif %}
@@ -955,34 +963,33 @@
       <li class="provenance">
         <div class="provenance-head"><span class="badge badge-fact">SELL-IN</span></div>
         <p class="provenance-note">
-          Invoiced to a partner, which is when the accounts recognise it — not when a
-          shopper buys. How much of it reached a shopper, and when, is not measured by any
-          source connected here. One month of it is as much a statement about a partner's
-          ordering rhythm as about demand, which is why a shipment month is never a
-          conversation with a market's lead.
+          Facturé à un partenaire, moment où les comptes le reconnaissent — pas quand un client
+          achète. Ce qui en a atteint un client, et quand, n'est mesuré par aucune source
+          connectée ici. Un mois d'expéditions dit le rythme de commande d'un partenaire autant
+          que la demande : un mois de sell-in n'est jamais une conversation avec le responsable
+          d'un marché.
         </p>
       </li>
       <li class="provenance">
-        <div class="provenance-head"><span class="badge badge-fact">CAUSE NOT MEASURED</span></div>
+        <div class="provenance-head"><span class="badge badge-fact">CAUSE NON MESURÉE</span></div>
         <p class="provenance-note">
-          The gap is real and nothing connected here can say why. Either there is no funnel
-          behind the figure — a partner's invoice has none — or the funnel exists and is
-          not counted, as in stores without footfall counters. Not a fault to repair on the
-          market's side, and not a reason to move the figure down the list.
+          L'écart est réel et rien de connecté ici ne peut dire pourquoi. Soit il n'y a pas
+          d'entonnoir derrière le chiffre — une facture de partenaire n'en a pas — soit il existe
+          et n'est pas compté, comme en boutique sans compteur de trafic. Pas un défaut à réparer
+          côté marché, et pas une raison de descendre le chiffre dans la liste.
         </p>
       </li>
       <li class="provenance">
-        <div class="provenance-head"><span class="badge badge-fact">NO COMMITMENT</span></div>
+        <div class="provenance-head"><span class="badge badge-fact">SANS ENGAGEMENT</span></div>
         <p class="provenance-note">
-          Nothing has been promised against this gap. Said once for the subject: printed on
-          every channel it stopped being read, which is the opposite of what an absence is
-          for.
+          Rien n'a été promis contre cet écart. Dit une fois pour le sujet : imprimé sur chaque
+          canal, il n'était plus lu, soit l'inverse de ce à quoi sert une absence.
         </p>
       </li>
     </ul>
 
     {% if channels_shown %}
-      <h3 class="kpi-pillar">The channels on this screen</h3>
+      <h3 class="kpi-pillar">Les canaux de cet écran</h3>
       <ul class="provenance-list">
         {% for name, meaning in channels_shown %}
           <li class="provenance">
@@ -993,30 +1000,29 @@
       </ul>
     {% endif %}
 
-    <h3 class="kpi-pillar">The arithmetic</h3>
+    <h3 class="kpi-pillar">Le calcul</h3>
     <ul class="provenance-list">
       <li class="provenance">
         <p class="provenance-note">
-          <strong>Driver impacts</strong> come from a chained decomposition: each driver is
-          moved to its baseline value in turn, and the change in sales is attributed to it.
-          They are estimates of contribution, never measured causes, and they sum exactly to
-          the movement against the baseline named on the card.
+          <strong>Les impacts par levier</strong> viennent d'une décomposition en chaîne : chaque
+          levier est ramené tour à tour à sa valeur de référence, et la variation de ventes lui est
+          attribuée. Des estimations de contribution, jamais des causes mesurées, qui somment
+          exactement à l'évolution contre la référence nommée sur la carte.
         </p>
       </li>
       <li class="provenance">
         <p class="provenance-note">
-          <strong>The plan</strong> is the monthly planning workbook and nothing else. The
-          warehouse also publishes a goals fact; it has no target at all for two fifths of
-          what the group sells, and the business does not stand behind it.
+          <strong>Le plan</strong> est le classeur de plan mensuel et rien d'autre. L'entrepôt
+          publie aussi des objectifs ; ils n'ont aucune cible pour deux cinquièmes de ce que le
+          groupe vend, et le business ne les porte pas.
         </p>
       </li>
       <li class="provenance">
         <p class="provenance-note">
-          <strong>The perimeter</strong> of the figure at the top is the published file's
-          own: every channel, hospitality and corporate gifts included. The cards below
-          cover what the warehouse reads, which is not quite the same set — the gap is
-          closed by one source and explained by the other, and neither is asked to do the
-          other's work.
+          <strong>Le périmètre</strong> du chiffre en haut est celui du fichier publié : tous les
+          canaux, hospitality et cadeaux d'entreprise compris. Les cartes couvrent ce que
+          l'entrepôt lit, qui n'est pas tout à fait le même ensemble — une source clôt l'écart,
+          l'autre l'explique, et aucune ne fait le travail de l'autre.
         </p>
       </li>
     </ul>
@@ -1024,16 +1030,6 @@
 </section>
 
 {# ------------------------------------------------------------------ ask #}
-
-<section class="panel panel-quiet">
-  <h2>Ask Performance CoS</h2>
-  <p class="empty">
-    Not built yet. It arrives once the deterministic analytics are complete, so that it
-    answers from calculated facts rather than from a raw dataset (brief §35, Phase 5).
-    Announced rather than mocked up: a text box that appears to work and does not would
-    cost more trust than an empty section.
-  </p>
-</section>
 
 <p class="mock-note">{{ source.caveat }}</p>
 

@@ -153,7 +153,7 @@ def test_a_sheet_with_no_kpi_column_refuses_rather_than_returning_nothing():
     registry = tracker.tracker_from_rows([["A", "B"], [1, 2]])
 
     assert len(registry) == 0
-    assert registry.refused and "No header row" in registry.refused[0]
+    assert registry.refused and "Aucune ligne d'en-tête" in registry.refused[0]
 
 
 def test_an_open_point_makes_a_kpi_provisional():
@@ -229,7 +229,7 @@ def test_the_join_scores_what_it_can_and_reports_what_it_cannot():
 
     assert [item.label for item in report.kpis] == ["NPS retail"]
     assert [line.split(" (")[0] for line in report.without_target] == ["Nouveaux clients"]
-    assert "no target" in report.without_target[0]
+    assert "aucune cible" in report.without_target[0]
     assert report.unmatched_keys == ["refills_wob"]
     assert report.without_reading == 1
 
@@ -417,7 +417,7 @@ def test_a_bare_target_on_a_name_that_reads_as_a_ceiling_withholds_the_verdict()
     built = discount.to_kpi([rules.Reading("2026-07", 22.0)])
     assert built.definition_status == rules.PROVISIONAL
     assert built.question() == ""
-    assert "keep down" in built.withheld_reason
+    assert "faire baisser" in built.withheld_reason
 
 
 def test_an_operator_settles_the_direction_and_nothing_is_assumed():
@@ -494,7 +494,7 @@ def test_the_sheets_own_months_are_read_where_the_warehouse_gives_nothing():
 
     assert [(r.period, r.value) for r in built.readings] == [
         ("2026-04", 74.0), ("2026-05", 76.0)]
-    assert "not measured" in built.source
+    assert "non mesuré" in built.source
 
 
 def test_a_warehouse_reading_beats_the_sheets_own():
@@ -528,7 +528,7 @@ def test_the_definition_column_decides_whether_a_challenge_is_raised():
     assert settled.to_kpi([rules.Reading("2026-07", 1.0)]).can_be_challenged
     withheld = open_still.to_kpi([rules.Reading("2026-07", 1.0)])
     assert not withheld.can_be_challenged
-    assert "not mark this definition as settled" in withheld.withheld_reason
+    assert "ne marque pas cette définition comme arrêtée" in withheld.withheld_reason
 
 
 def test_the_perimeter_column_separates_five_rows_of_the_same_name():
@@ -614,7 +614,7 @@ def test_an_annual_amount_is_never_scored_against_one_month():
 
     amount, rate = registry.entries
     assert amount.is_amount and amount.scorable
-    assert "year's total" in amount.scorable
+    assert "total annuel" in amount.scorable
     assert not rate.is_amount and rate.scorable == ""
 
     report = kpi_registry.join_report(registry, rows_for("refills_wob", 7.4)
@@ -669,7 +669,7 @@ def test_the_same_key_is_scored_when_the_units_do_agree():
     entry = registry.entries[0]
     assert kpi_registry._units_agree("brand_com_sales", entry) == ""
     # And it is still held back, for the other reason: a year's target, one month's reading.
-    assert "year's total" in entry.scorable
+    assert "total annuel" in entry.scorable
 
 
 def test_a_group_reading_is_refused_when_the_group_has_no_row():

@@ -59,12 +59,12 @@ SURFACES = {
 CLASS_LABELS = {
     PERFORMANCE: "Performance",
     PLAN: "Plan",
-    EXECUTION: "Execution",
-    RISK: "Risk",
-    OPPORTUNITY: "Opportunity",
-    DATA: "Data",
-    ACCOUNTING: "Accounting",
-    DEFINITION: "Definition",
+    EXECUTION: "Exécution",
+    RISK: "Risque",
+    OPPORTUNITY: "Opportunité",
+    DATA: "Donnée",
+    ACCOUNTING: "Comptabilité",
+    DEFINITION: "Définition",
 }
 
 # ----------------------------------------------------------------------------- moves
@@ -76,11 +76,11 @@ REQUEST_PLAN = "request_plan"
 NO_CEO_ACTION = "no_ceo_action"
 
 MOVE_LABELS = {
-    CHALLENGE: "Challenge",
-    INVESTIGATE: "Investigate",
-    REQUEST_DATA: "Request the data",
-    REQUEST_PLAN: "Request a plan",
-    NO_CEO_ACTION: "No CEO action",
+    CHALLENGE: "Challenger",
+    INVESTIGATE: "Enquêter",
+    REQUEST_DATA: "Demander la donnée",
+    REQUEST_PLAN: "Demander un plan",
+    NO_CEO_ACTION: "Aucune action du CEO",
 }
 
 
@@ -93,10 +93,10 @@ MOVE_LABELS = {
 #: explanation. The three sentences saying what shipping means do not, and they were
 #: printed eight times on one screen.
 SELL_IN_BADGE = "SELL-IN"
-UNMEASURED_BADGE = "CAUSE NOT MEASURED"
-STALE_BADGE = "READING STALE"
-OPEN_DEFINITION_BADGE = "DEFINITION OPEN"
-NO_COMMITMENT_BADGE = "NO COMMITMENT"
+UNMEASURED_BADGE = "CAUSE NON MESURÉE"
+STALE_BADGE = "LECTURE PÉRIMÉE"
+OPEN_DEFINITION_BADGE = "DÉFINITION OUVERTE"
+NO_COMMITMENT_BADGE = "SANS ENGAGEMENT"
 #: There was a `PARTLY FRANCHISED` badge here for an hour, on the premise that a
 #: franchised store's till reaches the sell-out. It does not: the franchised network is
 #: absent from that flow entirely, measured to within a fraction of a per cent of the
@@ -162,8 +162,8 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
     """
     if is_suspect:
         return Routed(
-            DATA, NO_CEO_ACTION, "Data team",
-            "a break in the feed rather than an event in the business",
+            DATA, NO_CEO_ACTION, "Équipe data",
+            "une rupture du flux, pas un fait de commerce",
         )
 
     reclassified = _note_of(unit, context.RECLASSIFIED)
@@ -171,8 +171,8 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
         return Routed(
             ACCOUNTING, NO_CEO_ACTION,
             reclassified.action_owner or "Consolidation",
-            "plan and accounts file this revenue under different segments: a boundary, "
-            "not a result",
+            "le plan et les comptes rangent ce chiffre sous des segments différents : une "
+            "frontière, pas un résultat",
         )
 
     basis_change = _note_of(unit, context.BASIS_CHANGE)
@@ -180,14 +180,14 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
         return Routed(
             DEFINITION, NO_CEO_ACTION,
             basis_change.action_owner or "Finance",
-            "plan and actual are no longer measured the same way here",
+            "le plan et le réalisé ne se mesurent plus de la même façon ici",
         )
 
     on_hold = _note_of(unit, context.ON_HOLD)
     if on_hold is not None:
         return Routed(
             RISK, NO_CEO_ACTION, on_hold.action_owner,
-            "trading deliberately stopped; the revenue is missing and the reason known",
+            "commerce arrêté exprès ; le chiffre manque et la raison est connue",
         )
 
     # A result, then. What separates the moves is not how large it is — that decides the
@@ -195,17 +195,17 @@ def classify(unit: BusinessUnit, is_suspect: bool = False) -> Routed:
     if unit.has_driver_breakdown:
         return Routed(
             PERFORMANCE, CHALLENGE, "",
-            "the drivers behind this gap are measured",
+            "les leviers derrière cet écart sont mesurés",
         )
     if unit.basis == "shipped":
         return Routed(
             PERFORMANCE, INVESTIGATE, "",
-            "no funnel behind a shipment, and one month of them is a partner's "
-            "ordering rhythm as much as demand",
+            "pas d'entonnoir derrière une expédition, et un mois d'expéditions dit le rythme "
+            "de commande d'un partenaire autant que la demande",
         )
     return Routed(
         PERFORMANCE, REQUEST_DATA, "",
-        "nothing connected here measures the cause",
+        "rien de connecté ici ne mesure la cause",
     )
 
 
@@ -263,7 +263,7 @@ def plan_reviews(dataset: Dataset, above: Optional[bool] = None) -> List[PlanRev
             continue
         item = PlanReview(
             unit, sentence, _embedded_amount(unit),
-            above="above every reading" in sentence,
+            above="au-dessus de chaque lecture" in sentence,
             base_effect=_is_base_effect(unit, sentence),
         )
         if above is None or item.above == above:
@@ -298,11 +298,11 @@ def _embedded_amount(unit: BusinessUnit) -> float:
     """
     import re
 
-    match = re.search(r"€([\d.,]+)\s*(m|k)\b", unit.plan_vs_record or unit.chronic_plan or "")
+    match = re.search(r"([\d.,]+)\s*(M|k)€", unit.plan_vs_record or unit.chronic_plan or "")
     if not match:
         return 0.0
     try:
         value = float(match.group(1).replace(",", ""))
     except ValueError:
         return 0.0
-    return value * (1_000_000.0 if match.group(2) == "m" else 1_000.0)
+    return value * (1_000_000.0 if match.group(2) == "M" else 1_000.0)

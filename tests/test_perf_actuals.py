@@ -108,8 +108,8 @@ def test_the_screen_says_how_much_of_it_the_accounts_cover():
 
     assert [u.market for u in data.reported] == ["France"]
     assert round(data.reported_share, 2) == 0.90
-    assert data.units[0].figure_source == "the consolidation"
-    assert data.units[1].figure_source == "the warehouse"
+    assert data.units[0].figure_source == "la consolidation"
+    assert data.units[1].figure_source == "l'entrepôt"
 
 
 def test_several_published_rows_for_one_scope_are_summed_never_picked():
@@ -444,7 +444,7 @@ def test_the_reading_declares_the_month_it_speaks_for(tmp_path):
                                 "Retail", 1.0, 1.0, 1.0]])})
     read = actuals.load(named)
     assert (read.year, read.month, read.period) == (2026, 8, "2026-08")
-    assert read.month_label == "August"
+    assert read.month_label == "août"
 
     legacy = actuals.load(str(tmp_path / "nowhere 2026 05.xlsx"))
     assert legacy.month is None  # a missing file declares nothing

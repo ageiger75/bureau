@@ -203,8 +203,8 @@ def test_the_screen_speaks_where_the_grade_changes_what_may_be_done():
     moving = _unit(divergence.UNSTABLE).warehouse_speed_note
     unmeasured = _unit(divergence.NOT_GRADED).warehouse_speed_note
 
-    assert "direction" in moving
-    assert "Not checked is not agreed" in unmeasured
+    assert "sens" in moving
+    assert "Non vérifié n'est pas réconcilié" in unmeasured
 
 
 def test_a_figure_that_already_comes_from_the_accounts_carries_no_such_note():

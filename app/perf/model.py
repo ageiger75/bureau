@@ -37,13 +37,13 @@ RATE_DRIVERS = frozenset({"Conversion"})
 #: Month names for the one place a period is written out in prose. Kept here rather than
 #: imported from the source module, which imports this one.
 _MONTH_NAMES = (
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 )
 
 
 def _month_label(period: str) -> str:
-    """'2026-06' -> 'June'. The raw value back when it is not a month."""
+    """'2026-06' -> 'juin'. The raw value back when it is not a month."""
     parts = (period or "").split("-")
     if len(parts) != 2:
         return period
@@ -90,7 +90,7 @@ def retail_conversion_is_reliable(market: str) -> bool:
 
 #: Shown wherever a retail unit carries no breakdown for this reason.
 NO_COUNTER_REASON = (
-    "Store footfall is not counted reliably in this market, so conversion cannot be read."
+    "Le trafic en boutique n'est pas compté de façon fiable sur ce marché : la conversion ne se lit pas."
 )
 
 
@@ -435,7 +435,7 @@ class BusinessUnit:
         The house quotes the first, so a variance belongs to it; only the second knows why,
         so an explanation belongs to that one.
         """
-        return "the consolidation" if self.is_reported else "the warehouse"
+        return "la consolidation" if self.is_reported else "l'entrepôt"
 
     @property
     def is_sell_in(self) -> bool:
@@ -472,9 +472,9 @@ class BusinessUnit:
             return ""
         when = " (%s)" % _month_label(self.period) if self.period else ""
         return (
-            "Shipped, not sold%s: invoiced to a partner, which is when the accounts "
-            "recognise it. How much of it reached a shopper, and when, is not measured "
-            "here." % when
+            "Expédié, pas vendu%s : facturé à un partenaire, moment où les comptes le "
+            "reconnaissent. Ce qui en a atteint un client, et quand, n'est pas mesuré ici."
+            % when
         )
 
     @property
@@ -506,7 +506,7 @@ class BusinessUnit:
         if self.budget.has_breakdown and self.budget.labels == self.actual.labels:
             return self.budget, "plan"
         if self.last_year.has_breakdown and self.last_year.labels == self.actual.labels:
-            return self.last_year, "last year"
+            return self.last_year, "l'an dernier"
         return None, ""
 
     @property
@@ -562,12 +562,12 @@ class BusinessUnit:
         from .divergence import NOT_GRADED, UNSTABLE
 
         if self.divergence_grade == UNSTABLE:
-            return ("Warehouse figure, and this market's two systems part by an amount "
-                    "that moves month to month. Read the direction; the variance the "
-                    "house will publish is decided at the close.")
+            return ("Chiffre de l'entrepôt, et les deux systèmes de ce marché s'écartent d'un "
+                    "montant qui bouge d'un mois sur l'autre. Lire le sens ; l'écart que la "
+                    "maison publiera se décide à la clôture.")
         if self.divergence_grade == NOT_GRADED:
-            return ("Warehouse figure, and nothing has measured how far this market sits "
-                    "from the accounts. Not checked is not agreed.")
+            return ("Chiffre de l'entrepôt, et rien n'a mesuré à quelle distance des comptes ce "
+                    "marché se tient. Non vérifié n'est pas réconcilié.")
         return ""
 
     @property

@@ -285,5 +285,5 @@ def test_a_change_of_model_is_not_an_opening():
     present — and they are different facts. Nothing measurable separates them; the business
     knowing it is what separates them, which is why this register is written by hand."""
     reason = reference.model_changed("Vietnam")
-    assert "distributor" in reason and "subsidiary" in reason
+    assert "distributeur" in reason and "filiale" in reason
     assert "opened" not in reason and "opening" not in reason

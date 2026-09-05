@@ -387,7 +387,7 @@ PART_OWNED: Dict[str, str] = {}
 #: one on the screen beside it. Nothing about a market being short by two-thirds says
 #: which of the two it is; only counting the shops does.
 ABSENT_FROM_REFERENTIAL: Dict[str, str] = {
-    "Austria": "no shop in the referential: only what is invoiced is read",
+    "Austria": "aucune boutique au référentiel : seul ce qui est facturé est lu",
 }
 
 #: Markets that changed commercial model between the two years being compared. Not a
@@ -408,8 +408,8 @@ ABSENT_FROM_REFERENTIAL: Dict[str, str] = {
 #: all, which looks identical in a table of two columns and is a different fact. The
 #: comparison returns once twelve months exist on the new model.
 MODEL_CHANGED: Dict[str, str] = {
-    "Vietnam": "distributor until last year, subsidiary since: last year is invoiced at "
-               "wholesale and this year is sold at retail, so no year-on-year exists",
+    "Vietnam": "distributeur jusqu'à l'an dernier, filiale depuis : l'an dernier est facturé "
+               "au prix de gros et cette année vendu au détail, donc pas d'an dernier comparable",
 }
 
 
@@ -419,9 +419,9 @@ def model_changed(market: str) -> str:
 
 
 #: A country sharing the euro with the consolidation: no rate exists to explain anything.
-NO_CURRENCY = "no currency between the two sides"
+NO_CURRENCY = "aucune devise entre les deux côtés"
 #: A gap too wide for a quarter's drift against a budget rate.
-TOO_WIDE = "wider than a rate can move"
+TOO_WIDE = "plus large qu'un taux ne peut bouger"
 
 
 def beyond_the_rates(rows: Sequence[Tuple[str, float, float]],

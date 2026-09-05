@@ -248,10 +248,10 @@ def test_near_complete_coverage_names_the_gap_not_the_contents():
     # heading, "hospitality" is the business — hotels, a few per cent of the group plan,
     # and the
     # one channel no source here reads.
-    assert note.startswith("Every channel except hospitality")
+    assert note.startswith("Tous les canaux sauf hospitality")
     # The shape is the finding: what is missing, not a roll-call of what is present.
     assert "retail" not in note and "distributors" not in note
-    assert "97%" in note
+    assert "97 %" in note
     assert "dis" not in note
 
 
@@ -281,4 +281,4 @@ def test_full_coverage_says_so_plainly():
         BudgetLine("Japan", "APAC", "RET - Retail", "retail", "2026-07", 900.0, None),
     ])
 
-    assert _perimeter_note(plan, [_Unit("retail")]) == "Every channel the plan commits to."
+    assert _perimeter_note(plan, [_Unit("retail")]) == "Tous les canaux que le plan engage."

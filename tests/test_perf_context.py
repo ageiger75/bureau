@@ -91,15 +91,15 @@ def test_the_diagnosis_leads_with_the_context():
     appears to mean, which has to be read before, not after."""
     fire = analytics.routed_elsewhere(dataset_of(unit(notes=[note()])))[0]
 
-    assert fire.diagnosis.startswith("The plan and the actual are not measured")
+    assert fire.diagnosis.startswith("Le plan et le réalisé ne sont pas mesurés")
     assert "tax changed" in fire.diagnosis
 
 
 def test_the_question_stops_being_about_trading():
     fire = analytics.routed_elsewhere(dataset_of(unit(notes=[note()])))[0]
 
-    assert "rebased" in fire.question
-    assert "30 days" not in fire.question
+    assert "rebaser" in fire.question
+    assert "30 jours" not in fire.question
 
 
 def test_nobody_is_challenged_for_a_tax_change():
@@ -143,7 +143,7 @@ def test_a_one_off_asks_a_different_question_from_a_basis_change():
     basis = analytics.routed_elsewhere(dataset_of(unit(notes=[note()])))[0]
 
     assert one_off.question != basis.question
-    assert "set aside" in one_off.question
+    assert "mis de côté" in one_off.question
 
 
 def test_an_ordinary_market_is_unaffected():
@@ -288,8 +288,8 @@ def test_the_command_says_what_the_note_will_do(notes_at, capsys):
     cmd_note(["Brazil", "Sales tax changed in June."])
     out = capsys.readouterr().out
 
-    assert "not measured on the same basis" in out
-    assert "rebased" in out
+    assert "ne sont pas mesurés sur la même base" in out
+    assert "rebaser" in out
 
 
 def test_an_option_value_is_never_mistaken_for_the_note(notes_at):
@@ -482,7 +482,7 @@ def test_a_basis_change_names_the_drivers_it_moved():
     fire = analytics.routed_elsewhere(dataset_of(taxed))[0]
 
     assert "AOV" in fire.basis_caveat
-    assert "volume drivers beside it do not" in fire.basis_caveat
+    assert "leviers de volume à côté, non" in fire.basis_caveat
 
 
 def test_a_market_with_no_basis_change_carries_no_caveat():
@@ -548,7 +548,7 @@ def test_a_reclassification_is_not_a_statement_about_trading():
 
     fire = analytics.routed_elsewhere(dataset_of(reclassified))[0]
 
-    assert "boundary rather than a result" in fire.diagnosis
+    assert "une frontière, pas un résultat" in fire.diagnosis
     assert analytics.people_to_push([fire]) == []
 
 
@@ -563,7 +563,7 @@ def test_the_question_points_at_the_neighbouring_plan():
                             "Sephora.com is filed under chains.", "CEO")],
     )
 
-    assert "neighbouring segment" in analytics.routed_elsewhere(dataset_of(reclassified))[0].question
+    assert "segment voisin" in analytics.routed_elsewhere(dataset_of(reclassified))[0].question
 
 
 def test_a_reclassification_does_not_claim_the_money_drivers_moved():
@@ -717,7 +717,7 @@ def test_a_reclassified_pair_that_cancels_confirms_the_note():
 
     assert check.offsets
     assert check.net == 0.0
-    assert "The note holds" in check.message
+    assert "La note tient" in check.message
 
 
 def test_a_reclassified_pair_that_does_not_cancel_says_so_without_accusing():
@@ -735,8 +735,8 @@ def test_a_reclassified_pair_that_does_not_cancel_says_so_without_accusing():
     check, = analytics.reclassification_checks(dataset)
 
     assert not check.offsets
-    assert "wrong side" in check.message
-    assert "trading away from plan" in check.message
+    assert "mauvais côté" in check.message
+    assert "s'écartent aussi du plan" in check.message
 
 
 def test_the_boundary_verdict_reaches_the_card_it_is_about():
@@ -759,8 +759,8 @@ def test_the_boundary_verdict_reaches_the_card_it_is_about():
 
     assert found, "both legs are materially below plan"
     for fire in found:
-        assert "Not checked this month" in fire.boundary_standing
-        assert "rests on the note alone" in fire.boundary_standing
+        assert "Non vérifié ce mois-ci" in fire.boundary_standing
+        assert "ne repose que sur la note" in fire.boundary_standing
 
 
 def test_a_boundary_that_nearly_cancels_says_so_on_the_card_too():
@@ -784,8 +784,8 @@ def test_a_boundary_that_nearly_cancels_says_so_on_the_card_too():
     found = analytics.routed_elsewhere(dataset)
 
     assert [f.unit.label for f in found] == ["United States Chain Wholesale"]
-    assert "Checked this month" in found[0].boundary_standing
-    assert "cancel" in found[0].boundary_standing
+    assert "Vérifié ce mois-ci" in found[0].boundary_standing
+    assert "compensent" in found[0].boundary_standing
 
 
 def test_a_card_with_no_boundary_note_says_nothing_about_boundaries():
@@ -858,7 +858,7 @@ def test_the_check_states_which_side_gained():
     check, = analytics.reclassification_checks(dataset)
 
     assert check.direction == (
-        "The revenue lands in United States E-retailers and is missing from "
+        "Le chiffre atterrit en United States E-retailers et manque en "
         "United States Chain Wholesale."
     )
     assert check.direction in check.message
@@ -943,11 +943,11 @@ def test_a_credit_hold_is_a_real_gap_with_a_different_question():
     held = unit(notes=[note(kind=context.ON_HOLD, market="Australia", channel="")])
 
     assert context.ON_HOLD not in context.NOT_TRADING
-    assert "deliberately stopped" in context.KIND_MEANING[context.ON_HOLD]
+    assert "arrêté exprès" in context.KIND_MEANING[context.ON_HOLD]
 
     fire = analytics.Fire(held)
-    assert "what does the delay cost" in fire.question
-    assert "how much is owed" in fire.question
+    assert "que coûte le retard" in fire.question
+    assert "combien est dû" in fire.question
 
 
 def test_a_roll_up_in_the_plan_is_not_a_market_to_challenge():
@@ -980,7 +980,7 @@ def test_a_boundary_is_not_tested_on_a_month_where_nothing_crossed():
 
     assert not check.crossed
     assert not check.offsets
-    assert "nothing crossed the boundary this month" in check.message
+    assert "rien n'a franchi la frontière ce mois-ci" in check.message
     # And no accusation anywhere in it.
     assert "wrong side" not in check.message
 

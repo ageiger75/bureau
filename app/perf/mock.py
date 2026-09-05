@@ -30,6 +30,7 @@ from .kpi import (
     Kpi,
     Reading,
 )
+from .analytics import format_eur
 from .history import Ytd
 from .model import (
     ECOMMERCE,
@@ -144,11 +145,10 @@ def units() -> List[BusinessUnit]:
             # action focus of its own, so the demonstration screen carries both kinds of
             # question — one about where the plan aims, one about whether it was reachable.
             plan_vs_record=(
-                "The plan asks for +18%, where the last twelve months delivered +2% and "
-                "the last three months ran at -4% — the plan is above every reading of "
-                "the record, by up to 22 points — €4.1m across the year's plan, beside "
-                "a monthly gap of its own. The business is slowing down, which argues "
-                "against it."
+                "Le plan demande +18 %%, là où les douze derniers mois ont livré +2 %% et les "
+                "trois derniers mois ont fait -4 %% — au-dessus de chaque lecture du réalisé, "
+                "jusqu'à 22 points d'écart. %s embarqués sur l'année. Le business ralentit, "
+                "ce qui plaide contre." % format_eur(4_100_000)
             ),
             no_breakdown_reason=NO_COUNTER_REASON,
         ),

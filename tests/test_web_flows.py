@@ -23,7 +23,7 @@ def test_accueil_repond_et_annonce_le_perimetre(client):
     # Le bandeau de périmètre doit être visible : un prototype ne doit pas passer pour
     # un outil authentifié dans lequel on dépose des données réelles.
     assert "Prototype" in page_text(response)
-    assert "read only" in page_text(response)
+    assert "lecture seule" in page_text(response)
 
 
 def test_accueil_sans_dossier_propose_d_en_creer_un(client):

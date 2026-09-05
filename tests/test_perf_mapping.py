@@ -117,7 +117,7 @@ def test_last_year_carries_drivers_so_the_movement_can_be_attributed():
 
     _, label = mapped.units[0].decomposition_baseline()
 
-    assert label == "last year"
+    assert label == "l'an dernier"
 
 
 def test_last_year_without_its_drivers_is_a_plain_number():
@@ -143,7 +143,7 @@ def test_a_site_reporting_no_sessions_gets_no_invented_funnel():
     unit = mapped.units[0]
 
     assert unit.actual.has_breakdown is False
-    assert "not reported" in unit.no_breakdown_reason
+    assert "ne sont pas remontées" in unit.no_breakdown_reason
 
 
 def test_retail_conversion_is_refused_where_there_are_no_traffic_counters():
@@ -299,7 +299,7 @@ def test_the_reason_established_by_the_query_is_the_one_shown():
         budget=budget_of(line()),
     )
 
-    assert "never the orders" in mapped.units[0].no_breakdown_reason
+    assert "jamais les commandes" in mapped.units[0].no_breakdown_reason
 
 
 def test_tracking_lost_is_not_the_same_as_never_tracked():
@@ -313,7 +313,7 @@ def test_tracking_lost_is_not_the_same_as_never_tracked():
     ).units[0]
 
     assert never.no_breakdown_reason != lost.no_breakdown_reason
-    assert "stopped" in lost.no_breakdown_reason
+    assert "arrêté" in lost.no_breakdown_reason
 
 
 def test_a_market_selling_on_platforms_says_the_revenue_is_real():
@@ -327,8 +327,8 @@ def test_a_market_selling_on_platforms_says_the_revenue_is_real():
 
     reason = mapped.units[0].no_breakdown_reason
 
-    assert "revenue is counted" in reason
-    assert "none to repair" in reason
+    assert "chiffre est compté" in reason
+    assert "rien à réparer" in reason
 
 
 def test_the_status_survives_onto_the_unit():
@@ -620,9 +620,9 @@ def test_a_sell_in_unit_says_why_it_has_no_cause():
     # figure counts, and this says why no driver table follows it. They used to open on
     # the same clause, which read as padding — and padding on a card teaches a reader to
     # skim the next one.
-    assert "none missing" in unit.no_breakdown_reason
-    assert "invoiced to a partner" in unit.basis_note
-    assert "not measured here" in unit.basis_note
+    assert "aucun ne manque" in unit.no_breakdown_reason
+    assert "facturé à un partenaire" in unit.basis_note
+    assert "n'est pas mesuré ici" in unit.basis_note
 
 
 def test_a_row_with_no_segment_is_dropped():
@@ -705,11 +705,11 @@ def test_the_three_online_channels_are_told_apart():
     # which is the confusion this table exists to end.
     assert "Tmall" in CHANNEL_MEANING["marketplace"]
     assert "JD" in CHANNEL_MEANING["webp"]
-    assert "Not Tmall" in CHANNEL_MEANING["webp"]
+    assert "Pas Tmall" in CHANNEL_MEANING["webp"]
     assert "JD" not in CHANNEL_MEANING["marketplace"]
     # And each says on which side of the invoice its euros are counted.
     assert "shipper" not in CHANNEL_MEANING["webp"]
-    assert "when we ship" in CHANNEL_MEANING["webp"]
+    assert "à l'expédition" in CHANNEL_MEANING["webp"]
 
 
 def test_a_plan_nobody_can_read_leaves_the_group_variance():

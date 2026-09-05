@@ -61,27 +61,27 @@ OVERDUE = "overdue"
 NOT_DUE = "not_due"
 
 FRESHNESS_LABELS = {
-    FRESH: "Current",
-    OVERDUE: "Reading overdue",
-    NOT_DUE: "Not due yet",
+    FRESH: "À jour",
+    OVERDUE: "Lecture en retard",
+    NOT_DUE: "Pas encore attendue",
 }
 
 #: The tracker's own rule: at target or better is fine, within 5% is watch, beyond is alert.
 WATCH_BAND = 0.05
 
 FREQUENCY_LABELS = {
-    MONTHLY: "Monthly",
-    QUARTERLY: "Quarterly",
-    HALF_YEARLY: "Half-yearly",
-    ANNUAL: "Annual",
-    MILESTONE: "Milestone",
+    MONTHLY: "Mensuel",
+    QUARTERLY: "Trimestriel",
+    HALF_YEARLY: "Semestriel",
+    ANNUAL: "Annuel",
+    MILESTONE: "Jalon",
 }
 
 STATUS_LABELS = {
-    ON_TRACK: "On track",
-    WATCH: "Watch",
-    ALERT: "Alert",
-    CANNOT_JUDGE: "Cannot judge",
+    ON_TRACK: "Dans la cible",
+    WATCH: "À surveiller",
+    ALERT: "Alerte",
+    CANNOT_JUDGE: "Injugeable",
 }
 
 
@@ -361,8 +361,8 @@ class Kpi:
         if self.can_be_challenged:
             return ""
         if self.open_question:
-            return "Definition still open — %s" % self.open_question
-        return "Definition or target not locked yet; the variance is shown, the challenge is not."
+            return "Définition encore ouverte — %s" % self.open_question
+        return "Définition ou cible pas encore arrêtée ; l'écart est montré, pas la question."
 
     def question(self, today: Optional[date] = None) -> str:
         """One question, or nothing at all. Silence is a valid output here.
@@ -376,16 +376,16 @@ class Kpi:
         if self.latest is None:
             # Nothing has ever been reported: there is no performance to ask about, and
             # the figure itself is the blocker.
-            return "No reading has ever arrived. What is holding it up?"
+            return "Aucune lecture n'est jamais arrivée. Qu'est-ce qui la retient ?"
         if self.status != ALERT:
             return ""
 
         if self.is_improving:
-            return "Short of target but improving. Is the trajectory enough to close it?"
+            return "Sous la cible mais en progrès. La trajectoire suffit-elle à la rejoindre ?"
         if self.direction == DOWN:
             # "Below target" would be plainly wrong for a KPI that is supposed to fall.
-            return "Above the ceiling and still rising. What changes it before the next reading?"
-        return "Below target and still falling. What changes it before the next reading?"
+            return "Au-dessus du plafond et toujours en hausse. Qu'est-ce qui change d'ici la prochaine lecture ?"
+        return "Sous la cible et toujours en baisse. Qu'est-ce qui change d'ici la prochaine lecture ?"
 
 
 # --------------------------------------------------------------------------- selection
@@ -458,7 +458,7 @@ def by_scope(kpis: Sequence[Kpi], scope: str) -> List[Kpi]:
 #: heading happens to be first: a KPI whose domain nobody stated is a fact about the
 #: tracker, and hiding it inside a domain it does not belong to is how a panel called
 #: "Customers" ended up carrying a supply-chain metric.
-UNFILED = "Not assigned to a pillar"
+UNFILED = "Sans pilier"
 
 
 def by_pillar(kpis: Sequence[Kpi]) -> List[Tuple[str, List[Kpi]]]:

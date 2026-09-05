@@ -196,8 +196,8 @@ def test_the_question_changes_when_the_kpi_is_recovering():
     recovering = kpi(readings=[K.Reading("2026-06", 1.0), K.Reading("2026-07", 4.0)])
     sinking = kpi(readings=[K.Reading("2026-06", 4.0), K.Reading("2026-07", 1.0)])
 
-    assert "trajectory" in recovering.question(AUGUST)
-    assert "still falling" in sinking.question(AUGUST)
+    assert "trajectoire" in recovering.question(AUGUST)
+    assert "toujours en baisse" in sinking.question(AUGUST)
 
 
 def test_a_lower_is_better_kpi_is_never_told_it_is_below_target():
@@ -210,8 +210,8 @@ def test_a_lower_is_better_kpi_is_never_told_it_is_below_target():
 
     question = turnover.question(AUGUST)
 
-    assert "below target" not in question
-    assert "ceiling" in question
+    assert "Sous la cible" not in question
+    assert "plafond" in question
 
 
 def test_a_kpi_merely_on_watch_stays_quiet():
@@ -234,7 +234,7 @@ def test_a_stale_reading_keeps_its_verdict_and_carries_its_staleness():
 
     assert stale.status == K.ALERT
     assert stale.freshness(AUGUST) == K.OVERDUE
-    assert "Below target" in stale.question(AUGUST)
+    assert "Sous la cible" in stale.question(AUGUST)
 
 
 def test_a_kpi_on_target_is_not_made_amber_by_an_old_reading():
@@ -254,7 +254,7 @@ def test_a_figure_that_never_arrived_asks_about_the_figure():
 
     assert never.status == K.CANNOT_JUDGE
     assert never.freshness(AUGUST) == K.OVERDUE
-    assert "ever arrived" in never.question(AUGUST)
+    assert "jamais arrivée" in never.question(AUGUST)
 
 
 def test_a_kpi_appears_once_however_many_ways_it_is_off():

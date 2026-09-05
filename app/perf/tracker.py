@@ -344,11 +344,11 @@ class Entry:
         factor of twelve.
         """
         if not self.has_target:
-            return "the tracker states no target this reader can stand behind"
+            return "le tableau ne donne aucune cible que ce lecteur puisse porter"
         if self.is_amount:
             return (
-                "the target is a year's total (%g %s) and a reading is one period; the "
-                "sales panels above measure this against the monthly plan"
+                "la cible est un total annuel (%g %s) et une lecture couvre une période ; les "
+                "panneaux de ventes ci-dessus le mesurent contre le plan mensuel"
                 % (self.target, self.unit)
             )
         return ""
@@ -362,12 +362,12 @@ class Entry:
         if self.open_question:
             return self.open_question
         if not self.locked:
-            return "the tracker does not mark this definition as settled"
+            return "le tableau ne marque pas cette définition comme arrêtée"
         if self.reads_as_ceiling:
             return (
-                "the sheet gives \u201c%g\u201d with no sign, and this name reads as a "
-                "quantity to keep down \u2014 read as a floor it would score every "
-                "overshoot as good news" % self.target
+                "la feuille donne « %g » sans signe, et ce nom se lit comme une quantité à "
+                "faire baisser — lu comme un plancher, tout dépassement passerait pour une "
+                "bonne nouvelle" % self.target
             )
         return ""
 
@@ -381,10 +381,10 @@ class Entry:
         """
         unsettled = self.unsettled_reason
         measured = list(readings)
-        source = self.source or "KPI tracker"
+        source = self.source or "Tableau KPI"
         if not measured and self.readings:
             measured = self.readings
-            source = "KPI tracker (reported, not measured)"
+            source = "Tableau KPI (déclaré, non mesuré)"
         return rules.Kpi(
             key=self.id or _plain(self.label),
             label=self.label,
@@ -502,7 +502,7 @@ def tracker_from_rows(rows: Iterable[Sequence[object]],
             break
     if header_at is None:
         return Tracker([], refused=[
-            "No header row found: no column named KPI or Indicateur on this sheet."
+            "Aucune ligne d'en-tête : pas de colonne KPI ou Indicateur sur cette feuille."
         ], columns_missing=["kpi"])
 
     missing = [name for name in ("label",) if name not in columns]
@@ -626,7 +626,7 @@ def read_tracker(path) -> Tracker:
                     break
         if registry is None:
             raise WorkbookError(
-                "No KPI sheet in this workbook. Sheets present: %s" % ", ".join(names)
+                "Aucune feuille KPI dans ce classeur. Feuilles présentes : %s" % ", ".join(names)
             )
         points = {}
         for name in names:

@@ -37,20 +37,20 @@ def test_why_it_is_underperforming(client):
     """A diagnosis, not a description (brief §3.2)."""
     page = page_text(client.get("/"))
 
-    assert "of the gap comes from conversion" in page
+    assert "de l'écart vient de la conversion" in page
 
 
 def test_how_much_money_is_involved(client):
     page = page_text(client.get("/"))
 
-    assert "-€1.2m" in page
+    assert "-1.2 M€" in page
 
 
 def test_where_the_upside_is(client):
     page = page_text(client.get("/"))
 
     assert "Opportunités" in page
-    assert "Assumes conversion returns to last year" in page
+    assert "Suppose que la conversion revient à" in page
 
 
 def test_who_to_challenge(client):
@@ -64,7 +64,7 @@ def test_what_to_ask_them(client):
     """The question is the product. Without it the screen is a report."""
     page = page_text(client.get("/"))
 
-    assert "Why is the plan focused on sessions" in page
+    assert "Pourquoi le plan vise-t-il les sessions" in page
 
 
 def test_what_people_committed_to(client):
@@ -77,8 +77,8 @@ def test_whether_those_actions_worked(client):
     """Brief §18: delivered, and it did not work — the most easily lost fact in the loop."""
     page = page_text(client.get("/"))
 
-    assert "Done, no result" in page
-    assert "Worked" in page
+    assert "Fait, sans résultat" in page
+    assert "A marché" in page
 
 
 # --------------------------------------------------------------- honesty guarantees
@@ -89,43 +89,44 @@ def test_management_explanation_is_challenged_not_repeated(client):
     page = page_text(client.get("/"))
 
     assert "Sales are down because the market is difficult." in page
-    assert "remains unexplained" in page
+    assert "restent inexpliqués" in page
 
 
 def test_estimates_are_labelled_as_estimates(client):
     """Brief §3.3 and §32: never present an inferred relationship as a proven fact."""
     page = page_text(client.get("/"))
 
-    assert "estimates" in page
-    assert "not" in page and "measured causes" in page
+    assert "estimations" in page
+    assert "pas des causes mesurées" in page
 
 
 def test_the_ranking_can_be_inspected(client):
     """Brief §31: opaque ranking costs the trust the whole product depends on."""
     page = page_text(client.get("/"))
 
-    assert "Why am I seeing this?" in page
-    assert "consecutive months below plan" in page
-    assert "priority = € gap × persistence" in page
+    assert "Pourquoi je vois ça ?" in page
+    assert "mois consécutifs sous le plan" in page
+    assert "priorité = écart € × persistance" in page
 
 
 def test_confidence_is_shown_on_every_diagnosis(client):
-    assert "Confidence HIGH" in page_text(client.get("/"))
+    assert "Confiance haute" in page_text(client.get("/"))
 
 
 def test_the_screen_says_the_data_is_invented(client):
     """A cockpit that looks authoritative on mock numbers is worse than none."""
     page = page_text(client.get("/"))
 
-    assert "invented for demonstration" in page
+    assert "inventé pour la démonstration" in page
 
 
-def test_the_unbuilt_assistant_is_announced_not_faked(client):
-    """A text box that appears to work and does not would cost more than an empty section."""
+def test_the_unbuilt_assistant_is_not_on_the_screen(client):
+    """Une section qui annonce ce qui n'existe pas est du bruit sur l'écran d'un CEO. Elle
+    reviendra le jour où elle répond."""
     page = page_text(client.get("/"))
 
-    assert "Ask Performance CoS" in page
-    assert "Not built yet" in page
+    assert "Ask Performance CoS" not in page
+    assert "Not built yet" not in page
 
 
 def test_immaterial_markets_stay_off_the_screen(client):
@@ -181,13 +182,13 @@ def test_a_lower_is_better_kpi_is_marked_as_such(client):
     reader to work out the direction."""
     page = page_text(client.get("/"))
 
-    assert "lower is better" in page
+    assert "plus bas est mieux" in page
 
 
 def test_a_kpi_whose_definition_is_unsettled_is_shown_but_not_challenged(client):
     page = page_text(client.get("/"))
 
-    assert "No challenge raised" in page
+    assert "Pas de question posée" in page
     assert "not yet aligned with the one used in China" in page
 
 
@@ -196,9 +197,9 @@ def test_a_quarterly_kpi_is_not_reported_missing_between_readings(client):
     page = page_text(client.get("/"))
 
     assert "CLV — top customers" in page   # the genuinely late one is named
-    assert "Reading overdue" in page
+    assert "Lecture en retard" in page
     # and the rule is stated, so the absence of other flags is understood
-    assert "would teach you to ignore the flag" in page
+    assert "apprendrait à ignorer le signal" in page
 
 
 def test_a_kpi_off_on_both_axes_is_listed_once(client):
@@ -213,7 +214,7 @@ def test_a_kpi_off_on_both_axes_is_listed_once(client):
     panel = page.split("KPI suivis")[-1].split("Engagements")[0]
 
     assert panel.count("CLV — top customers") == 1
-    assert "Reading overdue" in panel
+    assert "Lecture en retard" in panel
     assert "Awaiting a reading" not in page
 
 
@@ -222,7 +223,7 @@ def test_customer_signals_are_attached_to_the_market_that_is_on_fire(client):
     where both are falling."""
     page = page_text(client.get("/"))
 
-    assert "Customer signals" in page
+    assert "Signaux clients" in page
 
 
 # ------------------------------------------------ saying which figures are not settled
@@ -281,12 +282,12 @@ def test_the_banner_does_not_deny_real_data_when_there_is_some(monkeypatch):
     with TestClient(app) as client:
         page = page_text(client.get("/"))
 
-    assert "No real data" not in page
-    assert "Internal · read only" in page
+    assert "Aucune donnée réelle" not in page
+    assert "Interne · lecture seule" in page
     # And the two facts that survived the trim are both there: real figures, nothing
     # written back. The database path and the loopback address moved to System status.
-    assert "Real company figures" in page
-    assert "nothing is written back" in page
+    assert "Chiffres réels de l'entreprise" in page
+    assert "rien n'est réécrit" in page
     assert "sqlite" not in page.lower()
 
 
@@ -298,8 +299,8 @@ def test_the_prototype_banner_still_appears_on_invented_data():
     with TestClient(app) as client:
         page = page_text(client.get("/"))
 
-    assert "Prototype · read only" in page
-    assert "No real data" in page
+    assert "Prototype · lecture seule" in page
+    assert "Aucune donnée réelle" in page
 
 
 def test_a_missing_forecast_is_a_dash_not_a_zero(monkeypatch):
@@ -464,10 +465,10 @@ def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
     trusted, while the workbook covers the current year only."""
     page = page_text(client.get("/"))
 
-    assert "above every reading of the record" in page
-    assert "Was this plan ever reachable" in page
+    assert "au-dessus de chaque lecture du réalisé" in page
+    assert "Ce plan a-t-il jamais été atteignable" in page
     # And the other one is still there. Neither hides the other.
-    assert "Why is the plan focused on sessions" in page
+    assert "Pourquoi le plan vise-t-il les sessions" in page
 
 
 def test_the_plan_finding_carries_its_euros(client):
@@ -476,7 +477,7 @@ def test_the_plan_finding_carries_its_euros(client):
     exception."""
     page = page_text(client.get("/"))
 
-    assert "across the year's plan" in page
+    assert "embarqués sur l'année" in page
 
 
 def test_the_page_can_tell_when_a_fresher_read_has_landed(client):
@@ -513,7 +514,7 @@ def test_the_plumbing_is_one_click_away_and_not_on_the_decision_screen(client):
 
     assert "127.0.0.1" not in today
     assert "autonomy level" not in today.lower()
-    assert "System status" in today          # named, so nothing looks hidden
+    assert "État du système" in today          # named, so nothing looks hidden
 
     status = page_text(client.get("/system"))
 
@@ -537,11 +538,11 @@ def test_a_repeated_paragraph_becomes_a_badge_and_a_note(client):
     page = page_text(client.get("/"))
 
     # Gone from the cards.
-    assert "Shipped, not sold (June): invoiced to a partner" not in page
+    assert "Expédié, pas vendu (juin) : facturé à un partenaire" not in page
     assert "No commitment recorded against this gap" not in page
     # And said once, where a reader who wants it can find it.
     assert "Comment lire cet écran" in page
-    assert page.count("Invoiced to a partner, which is when the accounts recognise it") == 1
+    assert page.count("Facturé à un partenaire, moment où les comptes le reconnaissent") == 1
 
 
 def test_the_screen_says_what_each_channel_actually_is(client):
@@ -551,9 +552,9 @@ def test_the_screen_says_what_each_channel_actually_is(client):
     China sits under a third name again."""
     page = page_text(client.get("/"))
 
-    assert "The channels on this screen" in page
+    assert "Les canaux de cet écran" in page
     assert "brand.com" in page          # what "E-commerce" is
-    assert "Sold when the shopper pays" in page
+    assert "Vendu quand le client paie" in page
 
     # Only the channels actually on the screen: a glossary of everything the taxonomy
     # knows would be a page of definitions for figures nobody is looking at.
@@ -573,7 +574,7 @@ def test_a_market_whose_bulk_hides_its_shoppers_says_so_on_both_bases(client):
 
     assert "Là où le vrac répond à la place des clients" in page
     assert "Hong Kong" in page
-    assert "excluding bulk" in page
+    assert "hors vrac" in page
 
 
 def test_markets_whose_two_bases_agree_stay_off_the_screen(client):
@@ -598,7 +599,7 @@ def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
     page = page_text(client.get("/"))
 
     assert "Units per transaction" in page
-    assert "markets are below this" in page
+    assert "sont sous cette cible" in page
     assert "Finland" in page
 
 

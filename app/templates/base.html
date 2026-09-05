@@ -1,7 +1,7 @@
 <!doctype html>
 {# The chrome is English with the pivot; Decision Room's own screens remain French and
    override this block. Announcing the wrong language to a screen reader is not cosmetic. #}
-<html lang="{% block lang %}en{% endblock %}">
+<html lang="{% block lang %}fr{% endblock %}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,10 +20,10 @@
       <span class="brand-module">Performance Cockpit</span>
     </a>
     <nav class="topnav">
-      <a href="/">Today</a>
+      <a href="/">Aujourd'hui</a>
       <a href="/perimetres">Périmètres</a>
       <a href="/decisions">Decision Room</a>
-      <a href="/cases">Archive</a>
+      <a href="/cases">Archives</a>
     </nav>
   </div>
 </header>
@@ -41,13 +41,13 @@
        decision, so it moved to System status. A line spent on where a file sits is a
        line taken from the five that matter. #}
     {% if reads_warehouse %}
-      <strong>Internal · read only</strong>
-      Real company figures. Nothing is sent, nothing is written back.
+      <strong>Interne · lecture seule</strong>
+      Chiffres réels de l'entreprise. Rien n'est envoyé, rien n'est réécrit.
     {% else %}
-      <strong>Prototype · read only</strong>
-      No real data. Nothing is sent, nothing is written back.
+      <strong>Prototype · lecture seule</strong>
+      Aucune donnée réelle. Rien n'est envoyé, rien n'est réécrit.
     {% endif %}
-    <a class="scope-link" href="/system">System status</a>
+    <a class="scope-link" href="/system">État du système</a>
   </div>
 </div>
 
@@ -66,9 +66,9 @@
 <footer class="footer">
   <div class="wrap">
     <p class="footer-note">
-      The tool prepares, flags and structures. The CEO decides.
+      L'outil prépare, signale et structure. Le CEO décide.
     </p>
-    <p>CEO OS {{ app_version }} · <a href="/system">System status</a></p>
+    <p>CEO OS {{ app_version }} · <a href="/system">État du système</a></p>
   </div>
 </footer>
 

@@ -372,8 +372,24 @@ la donnée est-elle saine. L'atterrissage ouvre l'écran ; le verdict nomme sa c
 quand un seul périmètre porte le total ; aucun mot sur le mois avant une semaine pleine
 lue, parce que quatre jours sans week-end ne mesurent rien ; le mois marché par marché
 est replié sous chaque périmètre ; un seul cumul, une seule langue ; la provenance vit
-dans « Comment lire cet écran ». Reste de la phase 6 : les phrases générées en anglais
-dans les cartes (feux, plans, opportunités), à passer en français.
+dans « Comment lire cet écran ».
+
+**L'usage d'abord, le 5 septembre 2026.** Relecture de toutes les demandes depuis le
+début du projet : le premier besoin non servi n'était pas une lecture de plus, c'était de
+pouvoir ouvrir l'application et la lire dans une seule langue. Trois gestes. Le lanceur
+`start.command` libère le port avant de démarrer — un serveur resté ouvert dans une autre
+fenêtre servait l'ancien code et le nouveau refusait de démarrer, ce qui est exactement le
+cas « je n'arrive plus à ouvrir l'app » — puis met à jour, relance avec rechargement, ouvre
+le navigateur. Tout ce que les cartes génèrent est en français : diagnostics, questions,
+raisons du classement, badges (`CAUSE NON MESURÉE`, `SANS ENGAGEMENT`), gestes
+(`Challenger`, `Enquêter`, `Demander la donnée`), phrases de plan, notes de contexte,
+états des KPI, bandeau et pied de page ; les euros s'écrivent « 1.2 M€ » et « 432 k€ », les
+pourcentages avec leur espace, les mois en français. Les leviers gardent leurs noms de
+maison (`Sessions`, `Conversion`, `AOV`) et prennent leur article dans la phrase. Le bruit :
+les plans sur effet de base sortent de la liste et sont comptés en une ligne ; la section
+« Ask Performance CoS », qui annonçait ce qui n'existe pas, est retirée. Reste en anglais :
+la page « État du système », registre technique qui n'est pas l'écran du CEO, et les
+données de démonstration.
 
 ### Phase 5 — B6, les moteurs du plan
 

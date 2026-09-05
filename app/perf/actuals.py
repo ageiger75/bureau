@@ -117,6 +117,10 @@ FISCAL_OPENS = 4
 MONTH_NAMES = ("JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST",
                "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER")
 
+#: Le mois tel que l'écran le nomme. Les noms de feuilles ci-dessus restent ceux du fichier.
+MONTH_LABELS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
+                "septembre", "octobre", "novembre", "décembre")
+
 #: The channel as the newer layouts write it, to the code the older one used. The plan's
 #: sixteen codes are the pivot; a name missing here is refused, not guessed.
 CHANNEL_LABELS = {
@@ -210,7 +214,7 @@ class Actuals:
 
     @property
     def month_label(self) -> str:
-        return MONTH_NAMES[self.month - 1].title() if self.month else ""
+        return MONTH_LABELS[self.month - 1] if self.month else ""
 
     @property
     def usable(self) -> bool:

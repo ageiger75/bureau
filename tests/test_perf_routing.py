@@ -65,7 +65,7 @@ def test_a_broken_feed_is_a_question_for_the_data_team():
 
     assert routed.klass == routing.DATA
     assert routed.surface == "data"
-    assert routed.destination == "Data team"
+    assert routed.destination == "Équipe data"
 
 
 def test_a_basis_change_is_a_definition_question():
@@ -211,7 +211,7 @@ def test_the_screen_shows_where_a_routed_item_went(monkeypatch):
     assert "Pas une conversation commerciale" in page
     assert "United States Chain Wholesale" in page
     assert "Consolidation" in page
-    assert "No CEO action" in page
+    assert "Aucune action du CEO" in page
 
     # And the ranking above it holds the market, not the boundary.
     where_to_push = page.split("Pas une conversation commerciale")[0]
@@ -321,10 +321,11 @@ def test_the_two_directions_are_two_lists():
     will not be news. A plan below what the business is already doing is a forecast to
     redo. Mixed into one list they cancel out: fourteen lines and no way to tell which
     half is which."""
-    above = planned("Japan EC", "the plan is above every reading of the record — €5.0m "
-                                "across the year's plan", market="Japan")
-    below = planned("HK Travel", "ran at +21% — the plan is below every reading of the "
-                                 "record — €12.6m across the year's plan", market="HK")
+    above = planned("Japan EC", "au-dessus de chaque lecture du réalisé — "
+                                "%s embarqués sur l\'année" % analytics.format_eur(5_000_000), market="Japan")
+    below = planned("HK Travel", "ont fait +21 %% — en dessous de chaque lecture du "
+                                 "réalisé, jusqu\'à 3 points d\'écart. %s embarqués sur l\'année"
+                                 % analytics.format_eur(12600000), market="HK")
     dataset = dataset_of(above, below)
 
     assert [i.unit.label for i in routing.plan_reviews(dataset, above=True)] == ["Japan EC"]
@@ -336,10 +337,12 @@ def test_a_base_effect_never_opens_the_list():
     accounting boundary already noted — any of them makes the percentage a statement about
     last year's emptiness. The first line of a Finance review has to survive Finance.
     """
-    base = planned("UK Chain", "ran at +15962% — the plan is below every reading of the "
-                               "record — €44.5m across the year's plan", market="UK")
-    real = planned("HK Travel", "ran at +21% — the plan is below every reading of the "
-                                "record — €12.6m across the year's plan", market="HK")
+    base = planned("UK Chain", "ont fait +15962 %% — en dessous de chaque lecture du "
+                               "réalisé, jusqu\'à 3 points d\'écart. %s embarqués sur l\'année"
+                               % analytics.format_eur(44500000), market="UK")
+    real = planned("HK Travel", "ont fait +21 %% — en dessous de chaque lecture du "
+                                "réalisé, jusqu\'à 3 points d\'écart. %s embarqués sur l\'année"
+                                % analytics.format_eur(12600000), market="HK")
 
     found = routing.plan_reviews(dataset_of(base, real), above=False)
 
@@ -353,8 +356,9 @@ def test_a_base_effect_never_opens_the_list():
 def test_a_market_whose_figures_are_already_noted_cannot_carry_a_comparison():
     """The American boundary is the case: a channel whose revenue is filed on the wrong
     side is not a business that grew, and its growth rate says nothing about its plan."""
-    noted = planned("US Chain", "ran at +40% — the plan is below every reading of the "
-                                "record — €9.0m across the year's plan", market="US",
+    noted = planned("US Chain", "ont fait +40 %% — en dessous de chaque lecture du "
+                                "réalisé, jusqu\'à 3 points d\'écart. %s embarqués sur l\'année"
+                                % analytics.format_eur(9000000), market="US",
                     notes=[note(context.RECLASSIFIED)])
 
     found, = routing.plan_reviews(dataset_of(noted), above=False)

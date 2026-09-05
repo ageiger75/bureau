@@ -162,7 +162,7 @@ def test_a_year_of_the_same_steady_shortfall_is_a_mis_set_plan():
     assert chronic is not None
     assert chronic.months == 14
     assert "plan" in chronic.sentence
-    assert "%.0f%%" % chronic.shortfall_pct in chronic.sentence
+    assert "%.0f %%" % chronic.shortfall_pct in chronic.sentence
 
 
 def test_a_widening_gap_is_not_a_mis_set_plan():
@@ -252,7 +252,7 @@ def test_the_year_to_date_opens_in_april():
     assert ytd.first_period == "2026-04"
     assert ytd.months == 2
     assert ytd.actual == 2000.0
-    assert ytd.label == "FY27 to date"
+    assert ytd.label == "FY27 à date"
 
 
 def test_a_month_before_the_fiscal_year_opens_looks_back_to_the_previous_april():
@@ -260,7 +260,7 @@ def test_a_month_before_the_fiscal_year_opens_looks_back_to_the_previous_april()
     ytd = history.from_rows(rows).ytd("2026-02", budget=plan(*rows, amount=100.0))
 
     assert ytd.first_period == "2025-04"
-    assert ytd.label == "FY26 to date"
+    assert ytd.label == "FY26 à date"
 
 
 def test_there_is_no_year_to_date_without_the_workbook():
@@ -321,7 +321,7 @@ def test_the_year_to_date_percentage_is_a_fraction():
     ytd = built.ytd("2026-04", budget=plan(("2026-04", 1000.0)))
 
     assert ytd.pct == -0.1
-    assert analytics.format_pct(ytd.pct) == "-10.0%"
+    assert analytics.format_pct(ytd.pct) == "-10.0 %"
 
 
 def test_a_plan_of_zero_is_not_a_plan_that_was_beaten():
@@ -397,8 +397,8 @@ def test_a_mis_set_plan_does_not_earn_the_persistence_multiplier():
     deteriorating = _unit(months_below_budget=18)
 
     assert analytics.priority_of(chronic).score < analytics.priority_of(deteriorating).score
-    assert dict(analytics.priority_of(chronic).factors)["persistence"] == 1.0
-    assert any("plan to reset" in reason for reason in analytics.priority_of(chronic).reasons)
+    assert dict(analytics.priority_of(chronic).factors)["persistance"] == 1.0
+    assert any("plan à remettre à plat" in reason for reason in analytics.priority_of(chronic).reasons)
 
 
 def test_a_mis_set_plan_is_asked_about_the_plan():
@@ -463,7 +463,7 @@ def test_a_plan_asking_for_growth_the_record_has_never_shown():
     assert moved.plan_growth == 0.25
     assert moved.stretch == 0.25
     assert moved.is_ahead_of_record
-    assert "the plan sits above every reading of the record" in moved.sentence
+    assert "au-dessus de chaque lecture du réalisé" in moved.sentence
 
 
 def test_a_plan_that_merely_continues_the_trend_says_nothing():
@@ -486,7 +486,7 @@ def test_a_plan_below_what_the_business_already_delivers():
     moved = built.track_for("Japan", ECOMMERCE).trajectory(timid)
 
     assert moved.is_behind_record
-    assert "the plan sits below every reading of the record" in moved.sentence
+    assert "en dessous de chaque lecture du réalisé" in moved.sentence
 
 
 def test_the_record_says_whether_the_business_is_speeding_up():
@@ -525,7 +525,7 @@ def test_a_shrinking_business_asked_to_grow_is_the_sharpest_case():
 
     assert moved.growth < 0
     assert moved.is_ahead_of_record
-    assert "argues against it" in moved.sentence
+    assert "plaide contre" in moved.sentence
 
 
 def test_growth_is_absent_rather_than_guessed_on_a_short_history():
@@ -558,11 +558,11 @@ def test_the_record_reaches_the_units_and_the_question():
     )
 
     unit = mapped.units[0]
-    assert "the plan sits above every reading of the record" in unit.plan_vs_record
+    assert "au-dessus de chaque lecture du réalisé" in unit.plan_vs_record
     assert unit.chronic_plan == ""
 
     fire = analytics.Fire(unit)
-    assert "Was this plan ever reachable" in fire.question
+    assert "Ce plan a-t-il jamais été atteignable" in fire.question
     assert fire.plan_vs_record == unit.plan_vs_record
 
 
@@ -642,7 +642,7 @@ def test_the_sell_in_plan_is_confronted_with_what_partners_actually_bought():
     assert round(moved.plan_growth, 10) == 0.4
     assert round(moved.recent, 10) == -0.05
     assert moved.is_ahead_of_record
-    assert "the fiscal year to date ran at" in moved.sentence
+    assert "l'exercice à date ont fait" in moved.sentence
 
 
 def test_the_sell_in_record_is_named_for_what_it_is():
@@ -741,7 +741,7 @@ def test_the_finding_is_stated_in_euros():
     # Labelled as the year's figure: the card also carries a monthly gap, and two very
     # different numbers side by side with nothing to tell them apart is how a reader ends
     # up quoting the wrong one.
-    assert "€2.0m embedded across the year" in moved.sentence
+    assert "%s embarqués sur l'année" % analytics.format_eur(2_000_000) in moved.sentence
 
 
 def test_a_reclassified_pair_is_not_reported_as_a_mis_set_plan():
@@ -790,7 +790,7 @@ def test_a_sell_in_finding_says_it_is_reading_shipments():
     # SELL-IN badge now, and stated once in the note at the foot — and this flag is what
     # the screen reads to place it.
     assert "Sell-in is shipments" not in moved.sentence
-    assert "embedded across the year" in moved.sentence
+    assert "embarqués sur l'année" in moved.sentence
 
 
 # ------------------------------------------------------------ shipped is not sold
@@ -819,8 +819,8 @@ def test_a_figure_says_whether_it_counts_what_was_sold_or_what_was_shipped():
     assert unit("b2b").basis == "shipped"
 
     assert unit("own").basis_note == ""
-    assert "Shipped, not sold" in unit("sell-in").basis_note
-    assert "not measured here" in unit("b2b").basis_note
+    assert "Expédié, pas vendu" in unit("sell-in").basis_note
+    assert "n'est pas mesuré ici" in unit("b2b").basis_note
 
 
 def test_a_sell_in_trajectory_reaches_the_unit_on_the_screen():
@@ -953,7 +953,7 @@ def test_a_total_says_when_its_two_halves_close_on_different_months():
     ytd = built.ytd("2026-07", budget=workbook, sell_in=sold_in)
 
     assert ytd.shipped_through == "2026-06"
-    assert "Sold to July, shipped to June" in ytd.basis_caveat
+    assert "Vendu jusqu'à juillet, expédié jusqu'à juin" in ytd.basis_caveat
 
 
 def test_the_caveat_is_silent_when_both_close_together():
@@ -1065,7 +1065,7 @@ def test_a_shipped_figure_names_its_own_month():
     unit = mapping.units_from_rows(rows).units[0]
 
     assert unit.period == "2026-06"
-    assert "Shipped, not sold (June)" in unit.basis_note
+    assert "Expédié, pas vendu (juin)" in unit.basis_note
     # And it no longer repeats the clause the basis note already carries.
     assert "Invoiced to a partner" not in unit.no_breakdown_reason
 
@@ -1253,7 +1253,7 @@ def test_the_year_is_taken_whole_from_the_published_file_and_not_composed():
     assert ytd.gap == pytest.approx(10_000.0)
     assert ytd.reported_share == pytest.approx(1.0)
     assert ytd.unbudgeted_actual == 0.0
-    assert "whole" in ytd.plan_source
+    assert "entière" in ytd.plan_source
 
 
 def test_hospitality_is_named_inside_the_total_rather_than_left_out_of_it():

@@ -339,10 +339,10 @@ def test_the_period_label_names_the_month_it_actually_shows(monkeypatch):
 
     dataset = SnowflakeSource().dataset()
 
-    assert dataset.period_label.startswith("July 2026 sales")
+    assert dataset.period_label.startswith("Ventes de juillet 2026")
     # Read on the 27th, "July" alone looks like a stale screen rather than the freshest
     # month that has actually closed.
-    assert "last complete month" in dataset.period_label
+    assert "dernier mois complet" in dataset.period_label
 
 
 def test_the_screen_is_stamped_with_when_it_was_read(monkeypatch):
@@ -410,7 +410,7 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
     assert response.status_code == 200
     assert "Japan" in response.text
     # And says so, rather than showing an empty board that reads as "nothing outstanding".
-    assert "Not connected to this source yet" in response.text
+    assert "Source pas encore connectée" in response.text
 
 
 # ------------------------------------------------------------- not querying every time
@@ -858,7 +858,7 @@ def test_the_history_reaches_the_screen(monkeypatch):
     assert dataset.ytd.actual == 1_000_000.0
     assert dataset.ytd.budget == 1_861_700.0
     assert dataset.ytd.unbudgeted_actual == 900_000.0
-    assert dataset.ytd.plan_source == "the planning workbook"
+    assert dataset.ytd.plan_source == "le classeur de plan"
     # The trend runs on the workbook too, so it reaches exactly as far as the workbook
     # does — one month here. The rows also carry the warehouse's own targets, which would
     # buy two years of depth; using them would mean ranking on a source the business has
@@ -1000,6 +1000,6 @@ def test_the_headline_month_names_the_other_one_when_they_differ():
     shipments."""
     from app.perf.source import _period_label
 
-    assert _period_label("2026-07") == "July 2026 sales · last complete month"
-    assert _period_label("2026-07", "2026-07") == "July 2026 sales · last complete month"
-    assert _period_label("2026-07", "2026-06").endswith("· partner invoices to June")
+    assert _period_label("2026-07") == "Ventes de juillet 2026 · dernier mois complet"
+    assert _period_label("2026-07", "2026-07") == "Ventes de juillet 2026 · dernier mois complet"
+    assert _period_label("2026-07", "2026-06").endswith("· factures partenaires jusqu'à juin")

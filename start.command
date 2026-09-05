@@ -80,6 +80,16 @@ echo
 
 # --------------------------------------------------------------- serveur
 
+# Un serveur resté ouvert dans une autre fenêtre servirait l'ancien code, et le nouveau
+# refuserait de démarrer : c'est exactement le cas où le lecteur « n'arrive plus à ouvrir
+# l'app ». Le port est le nôtre, on libère avant de démarrer, et on le dit.
+OLD="$(lsof -ti tcp:"${PORT}" 2>/dev/null || true)"
+if [ -n "${OLD}" ]; then
+  echo "→ Un ancien serveur tournait encore sur le port ${PORT} : arrêté, le nouveau prend sa place."
+  kill ${OLD} 2>/dev/null || true
+  sleep 1
+fi
+
 echo "→ Démarrage · ${URL}"
 echo
 echo "   Cette fenêtre devient le serveur : elle n'accepte plus de commandes."

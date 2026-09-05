@@ -26,8 +26,8 @@ from .model import Dataset
 #: The query anchors on the last complete month, so the screen must not say "MTD" — a
 #: label that promises a month in progress while showing a month that has closed.
 _MONTHS = (
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
 )
 
 
@@ -357,10 +357,10 @@ def _perimeter_note(budget, units=()) -> str:
     # could act on, and buries the one fact that matters at the end of the list.
     if share >= COVERAGE_INVERTS_ABOVE:
         if not left_out:
-            return "Every channel the plan commits to."
+            return "Tous les canaux que le plan engage."
         return (
-            "Every channel except %s — about %.0f%% of the plan. Nothing here measures "
-            "the rest yet." % (left_out, 100.0 * share)
+            "Tous les canaux sauf %s — environ %.0f %% du plan. Rien ici ne mesure encore "
+            "le reste." % (left_out, 100.0 * share)
         )
 
     tail = (
@@ -387,13 +387,13 @@ def _period_label(period: str, shipped: str = "") -> str:
         return "Sales"
     # "Last complete month" is not decoration: read on the 27th, a screen headed "July"
     # looks like a month-old screen unless it says why July is the freshest month there is.
-    label = "%s %s sales · last complete month" % (_MONTHS[month - 1], parts[0])
+    label = "Ventes de %s %s · dernier mois complet" % (_MONTHS[month - 1], parts[0])
     if shipped and shipped != period:
         # Only when they differ, which is not most months. A caveat printed every time is
         # a caveat read none of the time.
         other = shipped.split("-")
         if len(other) == 2 and other[1].isdigit() and 1 <= int(other[1]) <= 12:
-            label += " · partner invoices to %s" % _MONTHS[int(other[1]) - 1]
+            label += " · factures partenaires jusqu'à %s" % _MONTHS[int(other[1]) - 1]
     return label
 
 
@@ -448,10 +448,10 @@ def _published_for(period: str):
     except (TypeError, ValueError):
         wanted = None
     if declared and wanted and declared != wanted:
-        return None, ("The published file speaks for %s, the screen for %s: its figures "
-                      "are not on this headline. Drop the month's file into var/ to read "
-                      "the month as Finance closed it."
-                      % (published.get("month_label") or "another month",
+        return None, ("Le fichier publié parle de %s, l'écran de %s : ses chiffres ne sont "
+                      "pas sur cette ligne. Déposer le fichier du mois dans var/ pour lire "
+                      "le mois tel que la Finance l'a clos."
+                      % (published.get("month_label") or "un autre mois",
                          _MONTHS[wanted - 1]))
     return published, ""
 
@@ -476,12 +476,12 @@ class MockSource:
     """Invented data, clearly labelled as such everywhere it is shown."""
 
     name = "mock"
-    label = "Mock data"
+    label = "Données de démonstration"
     #: Shown in the interface. A cockpit that looks authoritative while running on
     #: invented numbers is worse than no cockpit at all.
     caveat = (
-        "Every figure on this screen is invented for demonstration. No real market, "
-        "person or product appears here."
+        "Chaque chiffre de cet écran est inventé pour la démonstration. Aucun marché, "
+        "aucune personne, aucun produit réel n'apparaît ici."
     )
 
     def dataset(self, refresh: bool = False,

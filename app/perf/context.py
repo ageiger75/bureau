@@ -76,42 +76,42 @@ NOT_TRADING = frozenset({BASIS_CHANGE, RECLASSIFIED, MOVED_CALENDAR})
 #: What each kind means for the reader, and — more usefully — what it means for the ask.
 KIND_MEANING = {
     BASIS_CHANGE: (
-        "The plan and the actual are not measured on the same basis here, so the gap "
-        "between them is not a measure of trading."
+        "Le plan et le réalisé ne sont pas mesurés sur la même base ici : l'écart entre "
+        "les deux ne mesure pas le commerce."
     ),
     ONE_OFF: (
-        "A one-off event sits inside this figure, so the gap is not the run rate."
+        "Un événement ponctuel est dans ce chiffre : l'écart n'est pas le rythme de croisière."
     ),
     ON_HOLD: (
-        "Trading here is deliberately stopped until a condition is met. The revenue is "
-        "genuinely missing, and the reason is known — so the gap is real and the question "
-        "is not about commercial performance."
+        "Le commerce est arrêté exprès ici jusqu'à ce qu'une condition soit remplie. Le "
+        "chiffre manque vraiment, et la raison est connue — l'écart est réel et la question "
+        "n'est pas de performance commerciale."
     ),
     RECLASSIFIED: (
-        "The plan and the accounts file this revenue under different segments, so the gap "
-        "here is a boundary rather than a result. The market total is unaffected."
+        "Le plan et les comptes rangent ce chiffre sous des segments différents : l'écart "
+        "ici est une frontière, pas un résultat. Le total du marché n'en est pas affecté."
     ),
     MOVED_CALENDAR: (
-        "The commercial calendar moved between the two periods compared here, so this "
-        "figure sets one event against a different one. Both periods are measured "
-        "correctly and the comparison between them is not a result."
+        "Le calendrier commercial a bougé entre les deux périodes comparées ici : ce chiffre "
+        "met un événement face à un autre. Les deux périodes sont bien mesurées et leur "
+        "comparaison n'est pas un résultat."
     ),
 }
 
 KIND_QUESTION = {
-    BASIS_CHANGE: "Should the plan be rebased, and what is the trend on a like-for-like basis?",
-    ONE_OFF: "What does the gap look like with this event set aside?",
+    BASIS_CHANGE: "Faut-il rebaser le plan, et quelle est la tendance à périmètre comparable ?",
+    ONE_OFF: "À quoi ressemble l'écart une fois cet événement mis de côté ?",
     RECLASSIFIED: (
-        "Which classification is right — and is the neighbouring segment's plan wrong by "
-        "the same amount?"
+        "Quel classement est le bon — et le plan du segment voisin est-il faux du même "
+        "montant ?"
     ),
     ON_HOLD: (
-        "What has to happen for this to resume, how much is owed, and what does the delay "
-        "cost by the time it does?"
+        "Que faut-il pour que cela reprenne, combien est dû, et que coûte le retard d'ici "
+        "là ?"
     ),
     MOVED_CALENDAR: (
-        "What do the two periods say when the window follows the event rather than the "
-        "calendar — and does the season as a whole still hold?"
+        "Que disent les deux périodes quand la fenêtre suit l'événement plutôt que le "
+        "calendrier — et la saison entière tient-elle encore ?"
     ),
 }
 

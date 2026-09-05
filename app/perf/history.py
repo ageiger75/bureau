@@ -133,10 +133,10 @@ class Chronic:
     @property
     def sentence(self) -> str:
         return (
-            "Below plan in each of the last %d months, at a ratio that never left "
-            "%.2f–%.2f. A shortfall that steady for a year is a plan set about %.0f%% "
-            "above what this business delivers, not a gap that opened — the question is "
-            "the plan, not the month."
+            "Sous le plan chacun des %d derniers mois, à un ratio qui n'a jamais quitté "
+            "%.2f–%.2f. Un manque aussi régulier depuis un an est un plan posé environ %.0f %% "
+            "au-dessus de ce que ce business livre, pas un écart qui s'est ouvert — la "
+            "question est le plan, pas le mois."
             % (self.months, self.low, self.high, self.shortfall_pct)
         )
 
@@ -302,7 +302,7 @@ class Trajectory:
 
     def __init__(self, market: str, channel: str, growth: Optional[float],
                  recent: Optional[float], plan_growth: Optional[float],
-                 recent_label: str = "the last three months",
+                 recent_label: str = "les trois derniers mois",
                  plan_amount: Optional[float] = None,
                  base_amount: Optional[float] = None) -> None:
         #: The euros behind the percentages: what the plan commits to, and what the same
@@ -431,7 +431,7 @@ class Trajectory:
         real and it is weak, and it strengthens as the year fills — so it is labelled
         rather than hidden, and the label goes on the sentence a reader takes away.
         """
-        return self.recent_label == "the fiscal year to date"
+        return self.recent_label == "l'exercice à date"
 
     @property
     def sentence(self) -> str:
@@ -445,34 +445,34 @@ class Trajectory:
         if not self.is_material:
             return ""
         turning = {
-            "accelerating": " The business is speeding up, which argues for the plan.",
-            "slowing": " The business is slowing down, which argues against it.",
-            "steady": " The trend is steady, so nothing in the record supports the change.",
+            "accelerating": " Le business accélère, ce qui plaide pour le plan.",
+            "slowing": " Le business ralentit, ce qui plaide contre.",
+            "steady": " La tendance est stable : rien dans le réalisé ne soutient le changement.",
         }.get(self.direction, "")
         # Every record is named, because a reader shown one figure cannot tell a business
         # that is still falling from one that has already turned.
         said = []
         if self.growth is not None:
-            said.append("the last twelve months delivered %s" % _pct(self.growth))
+            said.append("les douze derniers mois ont livré %s" % _pct(self.growth))
         if self.recent is not None:
-            said.append("%s ran at %s" % (self.recent_label, _pct(self.recent)))
-        where = " and ".join(said)
-        side = "the plan sits above" if self.is_ahead_of_record else "the plan sits below"
+            said.append("%s ont fait %s" % (self.recent_label, _pct(self.recent)))
+        where = " et ".join(said)
+        side = "au-dessus de chaque lecture" if self.is_ahead_of_record else "en dessous de chaque lecture"
         widest = max(abs(self.plan_growth - r) for r in self.records)
         # The sell-in caveat used to close this sentence, and the sentence appears on every
         # line of the plan review — ten prints of one fact on one screen, on a list read
         # top to bottom. It is carried by the SELL-IN badge now, and stated once in the
         # note at the foot: `is_shipment_timed` is what the caller reads to place it.
         return (
-            "The plan asks for %s, where %s — %s every reading of the record, by up to "
-            "%s. %s embedded across the year.%s"
+            "Le plan demande %s, là où %s — %s du réalisé, jusqu'à %s d'écart. "
+            "%s embarqués sur l'année.%s"
             % (_pct(self.plan_growth), where, side, _points(widest),
                _eur(abs(self.money_at_stake)), turning)
         )
 
 
 def _pct(value: Optional[float]) -> str:
-    return "n/a" if value is None else "%+.0f%%" % (100.0 * value)
+    return "n/d" if value is None else "%+.0f %%" % (100.0 * value)
 
 
 def _points(value: float) -> str:
@@ -663,9 +663,9 @@ class Ytd:
         if not self.shipped_through or self.shipped_through == self.last_period:
             return ""
         return (
-            "Sold to %s, shipped to %s: the two sources close on different dates — the "
-            "warehouse on a transaction, the consolidation on a snapshot — so this total "
-            "holds one more month of shop sales than of partner invoices."
+            "Vendu jusqu'à %s, expédié jusqu'à %s : les deux sources ne s'arrêtent pas à la "
+            "même date — l'entrepôt sur une transaction, la consolidation sur un arrêté — donc "
+            "ce total porte un mois de ventes en boutique de plus que de factures partenaires."
             % (_month_label(self.last_period), _month_label(self.shipped_through))
         )
 
@@ -873,7 +873,7 @@ class History:
                 last_year=whole["last_year"],
                 hospitality_actual=whole["hospitality"]["actual"],
                 hospitality_budget=whole["hospitality"]["budget"],
-                plan_source="the consolidation, whole",
+                plan_source="la consolidation, entière",
                 shipped_through="",
             )
         shipped = [
@@ -896,8 +896,8 @@ class History:
             reported_actual=reported_actual,
             reported_budget=reported_budget,
             reported_lines=reported_lines,
-            plan_source=("the consolidation where it covers, the planning workbook elsewhere"
-                         if reported_lines else "the planning workbook"),
+            plan_source=("la consolidation où elle couvre, le classeur de plan ailleurs"
+                         if reported_lines else "le classeur de plan"),
             shipped_through=max(shipped) if shipped else "",
         )
 
@@ -1060,8 +1060,8 @@ def _month_label(period: str) -> str:
 def _fiscal_label(period: str) -> str:
     day = _month_start(period)
     if day is None:
-        return "Year to date"
-    return "%s to date" % fiscal.year_label(day)
+        return "Exercice à date"
+    return "%s à date" % fiscal.year_label(day)
 
 
 def explained_pairs(period: str = "") -> set:
@@ -1156,7 +1156,7 @@ def sell_in_trajectories(closed_year, current, budget, explained=()) -> List[Tra
                 growth=None,
                 recent=(now / before - 1.0) if before and before > 0 else None,
                 plan_growth=(planned[where] / base - 1.0) if base > 0 else None,
-                recent_label="the fiscal year to date",
+                recent_label="l'exercice à date",
                 plan_amount=planned[where],
                 base_amount=base,
             )

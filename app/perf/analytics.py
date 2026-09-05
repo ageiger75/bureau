@@ -22,6 +22,9 @@ HIGH = "high"
 MEDIUM = "medium"
 LOW = "low"
 
+#: Le mot affiché pour chaque niveau. Les clés restent en anglais : ce sont des classes CSS.
+CONFIDENCE_LABELS = {HIGH: "haute", MEDIUM: "moyenne", LOW: "faible"}
+
 #: Share of the gap a single driver must explain for the diagnosis to be called HIGH.
 HIGH_CONFIDENCE_SHARE = 0.60
 MEDIUM_CONFIDENCE_SHARE = 0.35
@@ -167,21 +170,21 @@ def acceleration_factor(gap_history: Sequence[float]) -> Tuple[float, str]:
     the cost of waiting a month is itself growing.
     """
     if len(gap_history) < 2:
-        return 1.0, "no trend available"
+        return 1.0, "pas de tendance lisible"
     latest, previous = gap_history[-1], gap_history[-2]
     if latest < previous:
-        return 1.2, "gap widening month on month"
+        return 1.2, "écart qui se creuse d'un mois sur l'autre"
     if latest > previous:
-        return 0.85, "gap closing month on month"
-    return 1.0, "gap stable month on month"
+        return 0.85, "écart qui se referme d'un mois sur l'autre"
+    return 1.0, "écart stable d'un mois sur l'autre"
 
 
 def persistence_factor(months_below_budget: int) -> Tuple[float, str]:
     """A gap that keeps coming back is a management problem, not an accident."""
     if months_below_budget <= 1:
-        return 1.0, "first month below plan"
+        return 1.0, "premier mois sous le plan"
     capped = min(months_below_budget, 6)
-    return 1.0 + 0.15 * (capped - 1), "%d consecutive months below plan" % months_below_budget
+    return 1.0 + 0.15 * (capped - 1), "%d mois consécutifs sous le plan" % months_below_budget
 
 
 CONFIDENCE_FACTOR = {HIGH: 1.0, MEDIUM: 0.85, LOW: 0.7}
@@ -218,33 +221,33 @@ def priority_of(unit: BusinessUnit) -> Priority:
     if unit.chronic_plan:
         persistence = 1.0
         persistence_reason = (
-            "below plan every month for a year at the same ratio — a plan to reset, not a "
-            "gap that opened"
+            "sous le plan chaque mois depuis un an, au même ratio : un plan à remettre à plat, "
+            "pas un écart qui s'est ouvert"
         )
 
     score = gap * persistence * acceleration * unit.strategic_weight
 
     reasons = [
-        "%s below plan" % _eur(gap),
+        "%s sous le plan" % _eur(gap),
         persistence_reason,
         acceleration_reason,
     ]
     if unit.strategic_weight != 1.0:
-        reasons.append("strategic weight %.2f" % unit.strategic_weight)
+        reasons.append("poids stratégique %.2f" % unit.strategic_weight)
     # Still shown, because it explains the move printed on the card — and no longer a
     # factor, because it never belonged in what the problem is worth.
     reasons.append(
-        "no cause measured here, which changes the move and not the rank"
-        if baseline is None else "diagnosis confidence %s" % level.upper()
+        "aucune cause mesurée ici, ce qui change le geste et pas le rang"
+        if baseline is None else "confiance du diagnostic : %s" % CONFIDENCE_LABELS[level]
     )
 
     return Priority(
         score=score,
         factors=[
-            ("€ gap", gap),
-            ("persistence", persistence),
-            ("acceleration", acceleration),
-            ("strategic weight", unit.strategic_weight),
+            ("écart €", gap),
+            ("persistance", persistence),
+            ("accélération", acceleration),
+            ("poids stratégique", unit.strategic_weight),
         ],
         reasons=reasons,
     )
@@ -258,10 +261,10 @@ class ExplanationCheck:
 
     __slots__ = ("explanation", "verdict", "evidence", "residual_pct")
 
-    SUPPORTED = "supported"
-    PARTIAL = "partially supported"
-    UNSUPPORTED = "unsupported"
-    INSUFFICIENT = "insufficient evidence"
+    SUPPORTED = "étayée"
+    PARTIAL = "partiellement étayée"
+    UNSUPPORTED = "non étayée"
+    INSUFFICIENT = "preuve insuffisante"
 
     def __init__(
         self,
@@ -293,8 +296,8 @@ def check_explanation(unit: BusinessUnit) -> Optional[ExplanationCheck]:
         return ExplanationCheck(
             unit.management_explanation,
             ExplanationCheck.INSUFFICIENT,
-            "No comparable last year on this market — %s. Nothing can be tested against "
-            "a growth that does not exist." % withheld,
+            "Pas d'an dernier comparable sur ce marché — %s. Rien ne se teste contre une "
+            "croissance qui n'existe pas." % withheld,
             None,
         )
 
@@ -303,8 +306,8 @@ def check_explanation(unit: BusinessUnit) -> Optional[ExplanationCheck]:
         return ExplanationCheck(
             unit.management_explanation,
             ExplanationCheck.INSUFFICIENT,
-            "No market benchmark available for this scope, so the explanation cannot be "
-            "tested either way.",
+            "Aucun indice de marché sur ce périmètre : l'explication ne peut être testée "
+            "ni dans un sens ni dans l'autre.",
             None,
         )
 
@@ -317,8 +320,8 @@ def check_explanation(unit: BusinessUnit) -> Optional[ExplanationCheck]:
         verdict = ExplanationCheck.UNSUPPORTED
 
     evidence = (
-        "Market is %s while sales are %s. The market explains part of the decline; "
-        "about %s remains unexplained."
+        "Le marché fait %s quand les ventes font %s. Le marché explique une partie de la "
+        "baisse ; environ %s restent inexpliqués."
         % (_pct(unit.market_index_pct), _pct(sales_pct), _pts(residual))
     )
     return ExplanationCheck(unit.management_explanation, verdict, evidence, residual)
@@ -392,7 +395,7 @@ class Reallocation:
 
     @property
     def summary(self) -> str:
-        return "%s moved %s between channels and held its plan to within %s." % (
+        return "%s a déplacé %s entre ses canaux et tient son plan à %s près." % (
             self.market,
             _eur(self.moved),
             _eur(abs(self.net)),
@@ -400,7 +403,7 @@ class Reallocation:
 
     @property
     def question(self) -> str:
-        return "Was this deliberate, and does the plan still describe how %s sells?" % (
+        return "Était-ce voulu, et le plan décrit-il encore la façon dont %s vend ?" % (
             self.market,
         )
 
@@ -506,28 +509,27 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
         return Suspect(
             unit,
             code="zero_against_history",
-            message="No sales recorded this period, against %s last year."
+            message="Aucune vente enregistrée sur la période, contre %s l'an dernier."
             % _eur(unit.sales_last_year),
-            fix="Check the feed before reading this as a commercial collapse.",
+            fix="Vérifier le flux avant d'y lire un effondrement commercial.",
         )
 
     if unit.funnel_status == ORDER_TRACKING_LOST:
         return Suspect(
             unit,
             code="order_tracking_lost",
-            message="Order tracking stopped on this site during the period, on %s of "
-            "sales." % _eur(unit.sales_actual),
-            fix="This broke recently, so it can be found. Ask the data team, not the "
-            "market.",
+            message="Le suivi des commandes s'est arrêté sur ce site en cours de période, sur "
+            "%s de ventes." % _eur(unit.sales_actual),
+            fix="Cassé récemment, donc trouvable. À demander à l'équipe data, pas au marché.",
         )
     if unit.funnel_status == ORDERS_NOT_TRACKED:
         return Suspect(
             unit,
             code="traffic_without_orders",
-            message="Visits are recorded here but orders never are, on %s of sales."
+            message="Les visites sont enregistrées ici, jamais les commandes, sur %s de ventes."
             % _eur(unit.sales_actual),
-            fix="A tag to install, not a market to question. The sales are real; the "
-            "funnel behind them is not measured.",
+            fix="Un tag à poser, pas un marché à questionner. Les ventes sont réelles ; "
+            "l'entonnoir derrière n'est pas mesuré.",
         )
 
     # Sessions arriving with no orders behind them: the business is there, the
@@ -548,10 +550,10 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
         return Suspect(
             unit,
             code="traffic_without_orders",
-            message="%s sessions and no recorded orders, on %s of sales."
+            message="%s sessions et aucune commande enregistrée, sur %s de ventes."
             % (_num(sessions), _eur(unit.sales_actual)),
-            fix="Transaction tracking is missing here; the drivers cannot be read until "
-            "it is fixed.",
+            fix="Le suivi des transactions manque ici ; les leviers ne se lisent pas tant "
+            "qu'il n'est pas réparé.",
         )
 
     # Traffic that moves by a multiple while the money stays still. A campaign can double
@@ -576,20 +578,20 @@ def suspect_of(unit: BusinessUnit) -> Optional[Suspect]:
             return Suspect(
                 unit,
                 code="traffic_discontinuity",
-                message="Sessions are %s last year's while sales moved %s. Traffic does "
-                "not move like that on its own."
+                message="Les sessions font %s celles de l'an dernier quand les ventes bougent de "
+                "%s. Un trafic ne bouge pas ainsi tout seul."
                 % (_factor(factor), _pct(sales_move, digits=1)),
-                fix="Compare the two periods' tracking before reading any driver here: a "
-                "tag, a domain or a bot filter changed, not the audience.",
+                fix="Comparer le suivi des deux périodes avant de lire un levier ici : un tag, "
+                "un domaine ou un filtre anti-robots a changé, pas l'audience.",
             )
     return None
 
 
 def _factor(value: float) -> str:
-    """'15.9x' or 'a quarter of' — a multiple reads better than a percentage past 2x."""
+    """« 15.9 fois » ou « 0.25 fois » : un multiple se lit mieux qu'un pourcentage au-delà de 2."""
     if value >= 1.0:
-        return "%.1fx" % value
-    return "%.2fx" % value
+        return "%.1f fois" % value
+    return "%.2f fois" % value
 
 
 #: Beyond this many markets sharing one fault, it stops being a coincidence.
@@ -609,23 +611,23 @@ SUSPECT_FLOOR_EUR = 10_000.0
 #: changes who is asked and what is asked of them.
 PATTERN_MEANING = {
     "traffic_without_orders": (
-        "%d markets report sessions with no orders at all, on %s of sales between them. "
-        "That many independent tracking failures in one month is not plausible: this is "
-        "one join not matching, not %d separate incidents."
+        "%d marchés remontent des sessions sans aucune commande, sur %s de ventes à eux tous. "
+        "Autant de pannes de suivi indépendantes le même mois n'est pas plausible : c'est "
+        "une jointure qui ne joint pas, pas %d incidents séparés."
     ),
     "traffic_discontinuity": (
-        "%d markets show traffic moving by a multiple while their sales sit still, on %s "
-        "between them. A change of that shape arriving in several markets at once is a "
-        "change in how traffic is counted, not %d coincidences."
+        "%d marchés voient leur trafic bouger d'un multiple quand leurs ventes ne bougent pas, "
+        "sur %s à eux tous. Un mouvement de cette forme sur plusieurs marchés à la fois est un "
+        "changement dans la façon de compter le trafic, pas %d coïncidences."
     ),
     "order_tracking_lost": (
-        "%d markets lost their order tracking during the period, on %s of sales between "
-        "them. Tracking that stops in several markets at once stops for one reason — a "
-        "deployment, a migration — not %d times."
+        "%d marchés ont perdu le suivi de leurs commandes en cours de période, sur %s de ventes "
+        "à eux tous. Un suivi qui s'arrête sur plusieurs marchés à la fois s'arrête pour une "
+        "raison — un déploiement, une migration — pas %d fois."
     ),
     "zero_against_history": (
-        "%d markets report no sales at all against a real history, worth %s last year. "
-        "A feed that stops for %d markets at once stopped once."
+        "%d marchés ne remontent aucune vente contre un historique réel, %s l'an dernier. "
+        "Un flux qui s'arrête pour %d marchés à la fois s'est arrêté une fois."
     ),
 }
 
@@ -795,7 +797,7 @@ class ReclassificationCheck:
         lost = [label for label, gap in self.legs if gap < 0]
         if not gained or not lost:
             return ""
-        return "The revenue lands in %s and is missing from %s." % (
+        return "Le chiffre atterrit en %s et manque en %s." % (
             _listed_labels(gained), _listed_labels(lost)
         )
 
@@ -804,23 +806,23 @@ class ReclassificationCheck:
         moved = _listed_labels([label for label, _ in self.legs])
         if not self.crossed:
             return (
-                "%s: nothing crossed the boundary this month — %s move the same way, so "
-                "there is no split to test. The note stands unexamined until a month in "
-                "which the revenue it describes actually ships."
+                "%s : rien n'a franchi la frontière ce mois-ci — %s bougent dans le même sens, "
+                "il n'y a pas de bascule à tester. La note reste non examinée jusqu'à un mois "
+                "où le chiffre qu'elle décrit est réellement expédié."
                 % (self.market, moved)
             )
         if self.offsets:
             return (
-                "%s: %s move against each other and very nearly cancel — %s left over on "
-                "%s crossing the boundary. %s The note holds: this is where the revenue "
-                "is filed, not how it sold."
+                "%s : %s bougent en sens inverse et se compensent presque — %s de reste sur "
+                "%s qui franchissent la frontière. %s La note tient : c'est là où le chiffre "
+                "est rangé, pas comment il s'est vendu."
                 % (self.market, moved, _eur(abs(self.net)), _eur(self.gross),
                    self.direction)
             ).replace("  ", " ")
         return (
-            "%s: %s are noted as one boundary, but they do not cancel — %s is left over "
-            "on %s crossing. %s Either the note names the wrong side, or these channels "
-            "are also trading away from plan on their own."
+            "%s : %s sont notés comme une frontière, mais ne se compensent pas — %s de reste "
+            "sur %s qui franchissent. %s Soit la note nomme le mauvais côté, soit ces canaux "
+            "s'écartent aussi du plan par eux-mêmes."
             % (self.market, moved, _eur(abs(self.net)), _eur(self.gross), self.direction)
         ).replace("  ", " ")
 
@@ -950,7 +952,7 @@ class Fire:
         #: A forecast cut repeatedly is its own management issue, separate from the gap:
         #: it means the numbers being planned against are not to be trusted (brief §25).
         self.forecast_flag = (
-            "Forecast revised down %d times for this period."
+            "Prévision revue à la baisse %d fois sur cette période."
             % unit.forecast_revisions_down
             if unit.forecast_revisions_down >= 2
             else ""
@@ -994,10 +996,10 @@ class Fire:
         if not self.unattributed:
             return ""
         return (
-            "Two bridges: %s against %s, which the drivers above take apart, and %s of "
-            "planned growth that did not happen, which nothing here can attribute — no "
-            "plan was ever set for sessions or conversion. Together they are the %s "
-            "gap against plan."
+            "Deux ponts : %s contre %s, que les leviers ci-dessus décomposent, et %s de "
+            "croissance planifiée qui n'a pas eu lieu, que rien ici ne peut attribuer — aucun "
+            "plan n'a jamais été posé sur les sessions ou la conversion. Ensemble, ils font "
+            "l'écart de %s au plan."
             % (_eur(self.movement), self.baseline_label, _eur(self.unattributed),
                _eur(self.gap))
         )
@@ -1050,8 +1052,8 @@ class Fire:
         if not affected:
             return ""
         return (
-            "%s measures money per unit sold, so it carries the change of basis above as "
-            "well as any change in trading. The volume drivers beside it do not."
+            "%s mesure de l'argent par unité vendue : il porte le changement de base ci-dessus "
+            "autant que tout mouvement du commerce. Les leviers de volume à côté, non."
             % _listed_labels(affected)
         )
 
@@ -1065,29 +1067,29 @@ class Fire:
             return "%s %s" % (note.meaning, note.text)
         if not self.has_breakdown:
             if self.unit.no_breakdown_reason:
-                return "%s The gap is real; its cause is not measured." % (
+                return "%s L'écart est réel ; sa cause n'est pas mesurée." % (
                     self.unit.no_breakdown_reason,
                 )
             return (
-                "No driver breakdown is reported here, so the gap cannot be attributed."
+                "Aucune décomposition par levier n'est remontée ici : l'écart ne s'attribue pas."
             )
         if self.main_driver is None or self.main_share is None:
-            return "No single driver stands out; the gap is spread across all of them."
+            return "Aucun levier ne ressort ; l'écart se répartit sur tous."
         share = abs(self.main_share)
         if share > 1.15:
             # The driver cost more than the total movement because another one offset it.
             # Saying "291% of the gap" would be arithmetically right and useless.
-            return "%s cost %s on its own%s; other drivers partly offset it." % (
+            return "%s pèse %s à ce seul levier%s ; d'autres leviers l'ont en partie compensé." % (
                 self.main_driver.label,
                 _eur(abs(self.main_driver.impact)),
                 self.measured_against,
             )
         # Phrased so the sentence works for every driver label, singular or plural:
         # "Sessions accounts for" and "Conversion account for" are both wrong.
-        return "About %s of the %s comes from %s." % (
+        return "Environ %s de %s vient %s." % (
             _share(share),
             self.measured_what,
-            _driver_word(self.main_driver.label),
+            _of_driver(self.main_driver.label),
         )
 
     # The decomposition is not always measured against the plan, so the sentence cannot
@@ -1099,16 +1101,16 @@ class Fire:
     @property
     def measured_against(self) -> str:
         """The comparison base, as a suffix, or nothing when it is the plan."""
-        if self.baseline_label == "last year":
-            return " versus last year"
+        if self.baseline_label == "l'an dernier":
+            return " par rapport à l'an dernier"
         return ""
 
     @property
     def measured_what(self) -> str:
         """The noun for what was decomposed: a gap against plan, a movement against LY."""
-        if self.baseline_label == "last year":
-            return "movement versus last year"
-        return "gap"
+        if self.baseline_label == "l'an dernier":
+            return "l'évolution par rapport à l'an dernier"
+        return "l'écart"
 
     @property
     def question(self) -> str:
@@ -1132,8 +1134,8 @@ class Fire:
             # the Maison chose to stop shipping wastes the meeting and the screen's
             # credibility with it.
             return (
-                "What has to happen for this to resume, how much is owed, and what does "
-                "the delay cost by the time it does?"
+                "Que faut-il pour que cela reprenne, combien est dû, et que coûte le retard "
+                "d'ici là ?"
             )
         if self.unit.plan_vs_record and not self.unit.chronic_plan:
             # A plan asking for growth the record has never shown will be missed every
@@ -1142,9 +1144,9 @@ class Fire:
             # signed the number, and it is worth asking in month four rather than in
             # month twelve.
             return (
-                "Was this plan ever reachable? What it asks for is not what this business "
-                "has been delivering — is the number wrong, or is there a change behind "
-                "it that has not happened yet?"
+                "Ce plan a-t-il jamais été atteignable ? Ce qu'il demande n'est pas ce que ce "
+                "business livre — le chiffre est-il faux, ou y a-t-il derrière un changement "
+                "qui n'a pas encore eu lieu ?"
             )
         if self.unit.chronic_plan:
             # Before every question about this month, because none of them has an answer
@@ -1152,9 +1154,8 @@ class Fire:
             # delivered the same steady 93% of its plan every month for a year sends
             # someone to find a cause that does not exist, and again the month after.
             return (
-                "Has this plan ever been met? The shortfall has been the same every month "
-                "for a year or more — is the target wrong, or is something structural "
-                "being tolerated?"
+                "Ce plan a-t-il jamais été tenu ? Le manque est le même chaque mois depuis un an "
+                "ou plus — la cible est-elle fausse, ou tolère-t-on quelque chose de structurel ?"
             )
         if self.unit.is_sell_in:
             # Sell-in is shipments. A month of it against a month of plan is mostly a
@@ -1162,31 +1163,31 @@ class Fire:
             # this properly" is the wrong question twice over: nothing is mismeasured, and
             # the answer nobody needs is a better funnel.
             return (
-                "Is this a shipment landing in another month, or has the partner cut its "
-                "orders?"
+                "Est-ce une expédition qui tombe sur un autre mois, ou le partenaire a-t-il "
+                "réduit ses commandes ?"
             )
         if not self.has_breakdown:
             # The missing measurement is the finding. Asking what will move a driver
             # nobody measures would be asking for a guess.
             return (
-                "%s below plan where we cannot see why. What would it take to measure "
-                "this properly?" % _eur(abs(self.gap))
+                "%s sous le plan sans qu'on voie pourquoi. Que faudrait-il pour mesurer cela "
+                "correctement ?" % _eur(abs(self.gap))
             )
         if self.misaligned_plan and self.main_driver is not None:
-            return "Why is the plan focused on %s when %s is the largest driver of the gap?" % (
-                self.unit.action_focus.lower(),
-                _driver_word(self.main_driver.label),
+            return "Pourquoi le plan vise-t-il %s quand %s est le premier levier de l'écart ?" % (
+                _the_driver(self.unit.action_focus),
+                _the_driver(self.main_driver.label),
             )
         if self.forecast_flag:
             return (
-                "The forecast has been cut %d times. What has to be true for this one to "
-                "hold?" % self.unit.forecast_revisions_down
+                "La prévision a été coupée %d fois. Que faut-il pour que celle-ci tienne ?"
+                % self.unit.forecast_revisions_down
             )
         if self.main_driver is None:
-            return "What would it take to explain this gap before the next review?"
+            return "Que faudrait-il pour expliquer cet écart avant la prochaine revue ?"
         return (
-            "What will move %s within 30 days, and how much of the %s gap does each "
-            "action close?" % (_driver_word(self.main_driver.label), _eur(abs(self.gap)))
+            "Qu'est-ce qui fera bouger %s sous 30 jours, et quelle part de l'écart de %s "
+            "chaque action referme-t-elle ?" % (_the_driver(self.main_driver.label), _eur(abs(self.gap)))
         )
 
 
@@ -1333,26 +1334,26 @@ def _attach_boundary_standing(found: Sequence["Fire"], dataset: Dataset) -> None
         check = checks.get(fire.unit.market)
         if check is None:
             fire.boundary_standing = (
-                "Only one side of this boundary is noted, so nothing here can check it: "
-                "a boundary has two sides, and one description says nothing about "
-                "whether it is right."
+                "Un seul côté de cette frontière est noté, donc rien ici ne peut la vérifier : "
+                "une frontière a deux côtés, et une seule description ne dit pas si elle est "
+                "juste."
             )
         elif not check.crossed:
             fire.boundary_standing = (
-                "Not checked this month: nothing crossed this boundary — %s move the "
-                "same way — so the sentence above rests on the note alone."
+                "Non vérifié ce mois-ci : rien n'a franchi cette frontière — %s bougent dans le "
+                "même sens — la phrase ci-dessus ne repose que sur la note."
                 % _listed_labels([label for label, _ in check.legs])
             )
         elif check.offsets:
             fire.boundary_standing = (
-                "Checked this month: the two sides cancel to %s. %s"
+                "Vérifié ce mois-ci : les deux côtés se compensent à %s près. %s"
                 % (_eur(abs(check.net)), check.direction)
             )
         else:
             fire.boundary_standing = (
-                "Checked this month and they do not cancel: %s left over. Either the "
-                "note names the wrong side, or these channels are also trading away "
-                "from plan on their own." % _eur(abs(check.net))
+                "Vérifié ce mois-ci, et ils ne se compensent pas : %s de reste. Soit la note "
+                "nomme le mauvais côté, soit ces canaux s'écartent aussi du plan par "
+                "eux-mêmes." % _eur(abs(check.net))
             )
 
 
@@ -1382,8 +1383,8 @@ class Opportunity:
 
     @property
     def question(self) -> str:
-        return "What would it take to bring %s back to last year's level?" % (
-            self.driver.lower(),
+        return "Que faudrait-il pour ramener %s au niveau de l'an dernier ?" % (
+            _the_driver(self.driver),
         )
 
 
@@ -1433,9 +1434,9 @@ def opportunity_of(unit: BusinessUnit) -> Optional[Opportunity]:
         driver=label,
         amount=amount,
         assumption=(
-            "Assumes %s returns to last year's %s while %s and the other drivers hold at "
-            "today's level."
-            % (_driver_word(label), _level_pct(before, digits=2), volume_label.lower())
+            "Suppose que %s revient à %s, son niveau de l'an dernier, quand %s et les autres "
+            "leviers restent au niveau d'aujourd'hui."
+            % (_the_driver(label), _level_pct(before, digits=2), _the_driver(volume_label))
         ),
         # The formula as it is actually computed, which is not what this line used to
         # say. `Drivers.sales` is the product of every driver, so the recovery already
@@ -1488,7 +1489,7 @@ class Win:
 
     @property
     def question(self) -> str:
-        return "Is this playbook replicable in other markets?"
+        return "Cette recette est-elle reproductible sur d'autres marchés ?"
 
 
 def wins(dataset: Dataset, limit: int = 3) -> List[Win]:
@@ -1576,13 +1577,13 @@ def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
             # confidently wrong, about a named human being.
             continue
         seen.add(owner.name)
-        reason = "%s is %s below plan. %s" % (
+        reason = "%s est %s sous le plan. %s" % (
             fire.unit.label,
             _eur(abs(fire.gap)),
             fire.diagnosis,
         )
         if fire.misaligned_plan:
-            reason += " The current plan targets %s." % fire.unit.action_focus.lower()
+            reason += " Le plan actuel vise %s." % _the_driver(fire.unit.action_focus)
         pushes.append(Push(owner, reason, fire.question, fire))
         if len(pushes) >= limit:
             break
@@ -1593,20 +1594,21 @@ def people_to_push(items: Sequence[Fire], limit: int = 5) -> List[Push]:
 
 
 def _eur(amount: float) -> str:
-    """Euros at the scale a CEO reads them: millions above a million, thousands below."""
+    """Des euros à l'échelle où un CEO les lit : millions au-dessus du million, milliers en
+    dessous, à la française : le symbole après le nombre, « M€ » et « k€ »."""
     sign = "-" if amount < 0 else ""
     value = abs(amount)
     if value >= 1_000_000:
-        return "%s€%.1fm" % (sign, value / 1_000_000)
+        return "%s%.1f M€" % (sign, value / 1_000_000)
     if value >= 1_000:
-        return "%s€%.0fk" % (sign, value / 1_000)
-    return "%s€%.0f" % (sign, value)
+        return "%s%.0f k€" % (sign, value / 1_000)
+    return "%s%.0f €" % (sign, value)
 
 
 def _pct(value: Optional[float], digits: int = 1) -> str:
     if value is None:
-        return "n/a"
-    return "%+.*f%%" % (digits, value * 100) if digits else "%+.0f%%" % (value * 100)
+        return "n/d"
+    return "%+.*f %%" % (digits, value * 100) if digits else "%+.0f %%" % (value * 100)
 
 
 def _driver_value(label: str, value: float) -> str:
@@ -1636,8 +1638,8 @@ def _level_pct(value: Optional[float], digits: int = 1) -> str:
     to tell which one they are looking at.
     """
     if value is None:
-        return "n/a"
-    return "%.*f%%" % (digits, value * 100)
+        return "n/d"
+    return "%.*f %%" % (digits, value * 100)
 
 
 #: Driver labels that are initialisms, not words. Lower-casing them mid-sentence turns
@@ -1648,16 +1650,40 @@ INITIALISMS = frozenset({"AOV", "UPT", "ASP"})
 def _listed_labels(labels) -> str:
     if len(labels) < 2:
         return "".join(labels)
-    return "%s and %s" % (", ".join(labels[:-1]), labels[-1])
+    return "%s et %s" % (", ".join(labels[:-1]), labels[-1])
+
+
+#: Les leviers portent des noms de la maison, en anglais ; la phrase française les nomme
+#: avec leur article. Un nom inconnu passe tel quel, en minuscules.
+DRIVER_WORDS = {"Traffic": "trafic", "Sessions": "sessions", "Conversion": "conversion"}
+DRIVER_ARTICLES = {"Traffic": "le ", "Sessions": "les ", "Conversion": "la ",
+                   "AOV": "l'", "UPT": "l'", "ASP": "l'"}
 
 
 def _driver_word(label: str) -> str:
+    if label in DRIVER_WORDS:
+        return DRIVER_WORDS[label]
     return label if label in INITIALISMS else label.lower()
+
+
+def _the_driver(label: str) -> str:
+    """« la conversion », « les sessions », « l'AOV »."""
+    return DRIVER_ARTICLES.get(label, "") + _driver_word(label)
+
+
+def _of_driver(label: str) -> str:
+    """« de la conversion », « des sessions », « de l'AOV », « du trafic »."""
+    article = DRIVER_ARTICLES.get(label)
+    if article == "les ":
+        return "des " + _driver_word(label)
+    if article == "le ":
+        return "du " + _driver_word(label)
+    return "de " + (article or "") + _driver_word(label)
 
 
 def _share(value: float) -> str:
     """A share of a gap, unsigned: the direction is already in the sentence."""
-    return "%.0f%%" % (value * 100)
+    return "%.0f %%" % (value * 100)
 
 
 def _pts(value: float) -> str:
@@ -1666,9 +1692,9 @@ def _pts(value: float) -> str:
 
 def _num(value: float) -> str:
     if value >= 1_000_000:
-        return "%.1fm" % (value / 1_000_000)
+        return "%.1f M" % (value / 1_000_000)
     if value >= 1_000:
-        return "%.0fk" % (value / 1_000)
+        return "%.0f k" % (value / 1_000)
     return "%.2f" % value
 
 
