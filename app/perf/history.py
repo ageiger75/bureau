@@ -455,7 +455,8 @@ class Trajectory:
         if self.growth is not None:
             said.append("les douze derniers mois ont livré %s" % _pct(self.growth))
         if self.recent is not None:
-            said.append("%s ont fait %s" % (self.recent_label, _pct(self.recent)))
+            verb = "a fait" if self.recent_label.startswith("l'") else "ont fait"
+            said.append("%s %s %s" % (self.recent_label, verb, _pct(self.recent)))
         where = " et ".join(said)
         side = "au-dessus de chaque lecture" if self.is_ahead_of_record else "en dessous de chaque lecture"
         widest = max(abs(self.plan_growth - r) for r in self.records)

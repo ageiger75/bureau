@@ -68,3 +68,10 @@ def test_the_units_are_rebuilt_when_the_published_file_changes(monkeypatch):
         if path.exists():
             os.remove(str(path))
         source_module.cache_clear()
+
+
+def test_the_period_label_elides_before_a_vowel():
+    from app.perf.source import _period_label
+
+    assert _period_label("2026-08").startswith("Ventes d'août 2026")
+    assert _period_label("2026-07").startswith("Ventes de juillet 2026")

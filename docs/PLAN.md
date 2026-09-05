@@ -391,6 +391,21 @@ les plans sur effet de base sortent de la liste et sont comptés en une ligne ; 
 la page « État du système », registre technique qui n'est pas l'écran du CEO, et les
 données de démonstration.
 
+**Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par
+BU de la Finance est lu (`var/ebitda-budget.xlsx`, `app/perf/ebitda.py`) sur sa feuille de
+synthèse — la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à
+nettoyer, le pont vers l'EBITDA consolidé ajusté — et sur sa feuille COP, pour le pas de
+marge opérationnelle que le plan demande à chaque région entre la dernière prévision de
+l'exercice précédent et le budget. Deux BU du fichier font l'EMEA de l'annuaire ; le travel
+retail et « Other » restent nommés hors périmètres. À l'écran : une colonne « EBITDA au
+budget » dans la table des périmètres, une ligne sous le verdict, une carte sur chaque page
+de périmètre. Ce que le module refuse : convertir un écart de ventes en EBITDA par un taux
+moyen — le compte de gestion a mesuré qu'un réseau de boutiques perd plus d'un euro de
+contribution par euro de vente perdu quand un partenaire en rapporte trente centimes, et la
+marge marginale par canal et pays existe désormais dans `var/incremental_margin.csv`, à lire
+comme prochaine pièce de B5 à la place du taux moyen. Demandé à la Finance : un EBITDA réel
+mensuel par BU, et le contenu des honoraires imputés au canal distributeurs France.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

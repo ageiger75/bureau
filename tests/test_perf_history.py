@@ -642,7 +642,7 @@ def test_the_sell_in_plan_is_confronted_with_what_partners_actually_bought():
     assert round(moved.plan_growth, 10) == 0.4
     assert round(moved.recent, 10) == -0.05
     assert moved.is_ahead_of_record
-    assert "l'exercice à date ont fait" in moved.sentence
+    assert "l'exercice à date a fait" in moved.sentence
 
 
 def test_the_sell_in_record_is_named_for_what_it_is():

@@ -126,6 +126,11 @@ DEFAULT_STORES_FILE = "var/stores.csv"
 #: feuille par magasin de l'extraction de la CFO. Jointe au référentiel par le code.
 DEFAULT_STORE_SALES_FILE = "var/stores-sales.xlsx"
 
+#: Le budget EBITDA par BU de la Finance — la feuille de synthèse et le pont vers l'EBITDA
+#: consolidé ajusté. Un plan, jamais un réel : la Finance ne produit pas d'EBITDA par BU au
+#: mois, et le cockpit le dit plutôt que de le déduire d'un taux moyen.
+DEFAULT_EBITDA_FILE = "var/ebitda-budget.xlsx"
+
 #: Les mois précédents, gardés. Un fichier dit où on en est ; la série dit si un mois a
 #: bougé après avoir été publié — la seule différence entre les deux systèmes qui soit
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
@@ -159,6 +164,7 @@ class Settings:
     contribution_file: str = DEFAULT_CONTRIBUTION_FILE
     stores_file: str = DEFAULT_STORES_FILE
     store_sales_file: str = DEFAULT_STORE_SALES_FILE
+    ebitda_file: str = DEFAULT_EBITDA_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
@@ -301,6 +307,15 @@ class Settings:
     @property
     def has_store_sales_file(self) -> bool:
         return self.store_sales_path.exists()
+
+    @property
+    def ebitda_path(self) -> Path:
+        path = Path(self.ebitda_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_ebitda_file(self) -> bool:
+        return self.ebitda_path.exists()
 
     @property
     def actuals_folder(self) -> Path:

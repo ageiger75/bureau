@@ -195,7 +195,7 @@ def test_a_driver_that_overshoots_the_gap_is_phrased_in_euros_not_percent():
     diagnosis = analytics.fires(dataset_of(offset))[0].diagnosis
 
     assert "%" not in diagnosis
-    assert "compensé" in diagnosis
+    assert "compensent" in diagnosis
 
 
 # --------------------------------------------------------- explanation challenge

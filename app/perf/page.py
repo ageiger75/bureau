@@ -113,7 +113,7 @@ class Page:
 
     def __init__(self, name: str, lead: str, markets: Sequence[str], scope,
                  land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
-                 fires: Sequence, absent: Sequence[str]) -> None:
+                 fires: Sequence, absent: Sequence[str], ebitda=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -126,6 +126,8 @@ class Page:
         self.watched = list(watched)
         self.fires = list(fires)
         self.absent = list(absent)
+        #: Le plan EBITDA de ce périmètre, tel que la Finance l'a budgété — ou None.
+        self.ebitda = ebitda
 
     @property
     def slug(self) -> str:
@@ -153,7 +155,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
-          budget=None) -> Page:
+          budget=None, ebitda=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -182,9 +184,12 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     watched = [row for row in getattr(week, "watch", [])
                if any(_in(markets, scope_text) for scope_text in row.issue.scopes)]
     mine = [fire for fire in fires if getattr(fire.unit, "market", "") in wanted]
+    plan = ebitda.for_name(name) if ebitda is not None else None
+    if ebitda is not None and plan is None:
+        absent.append("aucune ligne EBITDA au budget pour ce périmètre")
     return Page(name, lead, sorted(markets), scope, land, group, mix,
                 subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
-                absent)
+                absent, ebitda=plan)
 
 
 def perimeters(directory, month_review) -> Dict[str, Dict[str, object]]:

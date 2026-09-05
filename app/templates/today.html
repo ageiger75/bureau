@@ -58,7 +58,7 @@
     {% if track.perimeters %}
       <table class="month-table mix-table">
         <thead>
-          <tr><th>Périmètre</th><th>Exercice à date</th><th>Écart</th><th>Atterrissage à ce rythme</th><th>Mois à date</th><th>Écart</th></tr>
+          <tr><th>Périmètre</th><th>Exercice à date</th><th>Écart</th><th>Atterrissage à ce rythme</th>{% if ebitda and ebitda.usable %}<th>EBITDA au budget</th>{% endif %}<th>Mois à date</th><th>Écart</th></tr>
         </thead>
         <tbody>
         {% for scope in track.perimeters %}
@@ -72,6 +72,10 @@
               <td class="absent" colspan="2">{{ scope.year.absent }}</td>
             {% endif %}
             <td class="num">{% if land and land.usable %}{{ land.at_pace | eur }} <small>({{ land.gap_at_pace | eur }})</small>{% else %}—{% endif %}</td>
+            {% if ebitda and ebitda.usable %}
+              {% set plan = ebitda.for_name(scope.name) %}
+              <td class="num"{% if plan and plan.step_sentence %} title="{{ plan.step_sentence }}"{% endif %}>{% if plan %}{{ plan.ebitda | eur }} <small>{{ plan.rate_label }}</small>{% else %}—{% endif %}</td>
+            {% endif %}
             {% if scope.month.usable %}
               <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
               <td class="num" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
@@ -82,7 +86,7 @@
           {% set group = month_groups.get(scope.name) %}
           {% if group and group.lines %}
           <tr class="month-detail">
-            <td colspan="6">
+            <td colspan="{{ 7 if ebitda and ebitda.usable else 6 }}">
               <details>
                 <summary>Où en est le mois, marché par marché</summary>
                 <table class="month-table">
@@ -120,12 +124,23 @@
         </tbody>
       </table>
     {% endif %}
+    {% if ebitda and ebitda.usable %}
+      {# Le plan EBITDA, en une ligne, et le rappel qu'aucun réel n'est lu : un taux moyen ne
+         convertit pas un écart de ventes en résultat, et l'écran ne le fait pas. #}
+      <p class="cockpit-caveat">
+        Plan EBITDA : {{ ebitda.plan.adjusted.ebitda | eur }} consolidé ajusté ({{ ebitda.plan.adjusted.rate_label }} des ventes)
+        pour {{ ebitda.plan.total.ebitda | eur }} de contribution des BU{% if ebitda.unhealthy_note %}, {{ ebitda.unhealthy_note }}{% endif %}.
+        {% if ebitda.others %}Hors périmètres : {% for item in ebitda.others %}{{ item.name }} {{ item.ebitda | eur }}{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}
+        {{ ebitda.note }}
+      </p>
+    {% endif %}
     {% for reason in track.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% elif track %}
     <p class="empty">
       {% for reason in track.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
     </p>
   {% endif %}
+  {% if ebitda %}{% for reason in ebitda.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
 
   <p class="cockpit-caveat">
     Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :
@@ -831,7 +846,7 @@
        point — but three off out of seventeen and three out of four are different
        businesses, and the list alone reads the same either way. #}
     <p class="lede">
-      {{ kpis_holding }} sur {{ kpis_total }} n'ont besoin de rien. {{ kpis | length }} si :
+      {{ kpis_holding }} sur {{ kpis_total }} tien{{ 't' if kpis_holding == 1 else 'nent' }} sans vous. {{ kpis | length }} demande{{ '' if kpis | length == 1 else 'nt' }} un regard :
     </p>
   {% for pillar, group in kpis_by_pillar %}
     <h3 class="kpi-pillar">{{ pillar }}</h3>
@@ -951,6 +966,7 @@
       <li class="provenance"><p class="provenance-note"><strong>Vendu et expédié ensemble</strong>, comme les comptes les reconnaissent : boutiques et sites au moment de la vente, partenaires à la facture. Hospitality et cadeaux d'entreprise inclus.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>L'EBITDA au budget.</strong> La feuille de synthèse du budget EBITDA par BU de la Finance, en millions d'euros : la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à nettoyer, le pont vers l'EBITDA consolidé ajusté. L'infobulle donne le pas de marge opérationnelle que le plan demande, de la dernière prévision de l'exercice précédent au budget. Aucun réel : la Finance ne produit pas d'EBITDA par BU au mois, et un taux moyen ne convertit pas un écart de ventes en résultat — un réseau de boutiques perd plus d'un euro de contribution par euro de vente perdu, un partenaire en rapporte trente centimes.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>Le mix.</strong> L'écart de ventes de chaque canal multiplié par son taux moyen de contribution, sommé, puis séparé en effet volume et effet mix. Un calcul avec ses coefficients, jamais un résultat. Taux marginal : absent : personnel, logistique et marketing ne sont dans aucune source lue ici. Aucun canal n'est classé sur son taux moyen, parce que ce taux dit ce qu'un canal a rapporté, pas ce que son prochain euro rapporterait. Une ligne de partenaire est lue et jamais posée sur un canal entier.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La part loyer.</strong> Lue bail par bail dans le référentiel immobilier, pondérée par les ventes des boutiques dont le bail est connu ; la couverture dit de quelles boutiques le taux parle. Un zéro à côté d'un loyer mensuel est un loyer fixe ; un zéro seul est douteux et ne compte pas ; « sans bail à notre nom » est du travel retail tenu par l'opérateur. Ce n'est qu'une part du coût marginal, et deux marchés ne se comparent jamais sur un taux qui ne couvre pas la même part de leurs ventes.</p></li>
       {% if track %}{% for caveat in track.caveats %}<li class="provenance"><p class="provenance-note">{{ caveat }}</p></li>{% endfor %}{% endif %}

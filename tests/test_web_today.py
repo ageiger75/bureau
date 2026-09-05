@@ -681,7 +681,10 @@ def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
     assert "Part au plan" in page
     assert "Taux marginal : absent" in page
     assert "Aucun canal n'est classé sur son taux moyen" in page
-    assert "EBITDA" not in page
+    # Le panneau du mix ne nomme jamais l'EBITDA : le plan EBITDA par BU, lui, a sa place
+    # en haut de l'écran, comme un plan et jamais comme un résultat du mix.
+    mix_panel = page.split("L'euro gagné est-il le bon euro")[1].split("La part loyer")[0]
+    assert "EBITDA" not in mix_panel
 
 
 def test_the_rent_share_panel_is_on_the_screen_or_says_what_it_waits_for(client):
@@ -710,3 +713,14 @@ def test_the_perimeter_pages_exist_and_an_unknown_one_is_refused(client):
     assert "Les périmètres" in index
 
     assert client.get("/perimetre/nulle-part").status_code == 404
+
+
+def test_the_ebitda_plan_is_named_when_absent_and_never_read_as_an_actual(client):
+    """Le plan EBITDA par BU a sa place en haut de l'écran, comme un plan : sans le fichier,
+    l'écran nomme ce qu'il attend, et rien ne convertit un écart de ventes en résultat."""
+    page = page_text(client.get("/"))
+
+    assert "var/ebitda-budget.xlsx absent" in page
+    # Pas de colonne sans fichier, et la note de lecture dit qu'aucun réel n'est lu.
+    assert "<th>EBITDA au budget</th>" not in client.get("/").text
+    assert "la Finance ne produit pas d'EBITDA par BU au mois" in page

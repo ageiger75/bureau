@@ -124,6 +124,15 @@ def _stores_review():
     return stores_module.build(sales, register)
 
 
+def _ebitda_review(names):
+    """Le plan EBITDA par périmètre, ou pourquoi il manque. Un plan, jamais un réel."""
+    from ..config import settings
+    from ..perf import ebitda as ebitda_module
+
+    plan = ebitda_module.current() if settings.has_ebitda_file else None
+    return ebitda_module.build(plan, [name for name in names if name != "Sans périmètre"])
+
+
 def _track(dataset, month):
     """Sommes-nous en ligne avec le plan — le mois en cours et l'exercice à date."""
     from ..config import settings
@@ -195,6 +204,7 @@ def _perimeter_inputs(session):
         "source": source, "dataset": dataset, "month": month, "track": track,
         "week": week, "fires": fires, "contribution": contribution,
         "published": published, "budget": budget, "known": known,
+        "ebitda": _ebitda_review(list(known)),
     }
 
 
@@ -237,7 +247,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
-                              published=inputs["published"], budget=inputs["budget"])
+                              published=inputs["published"], budget=inputs["budget"],
+                              ebitda=inputs["ebitda"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -310,6 +321,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     track = _track(dataset, month)
     stores = _stores_review()
     landing, landings = _landings(track, month)
+    ebitda = _ebitda_review([scope.name for scope in getattr(track, "perimeters", [])])
     month_groups = {group.name: group for group in month.groups}
     if month.loose:
         month_groups[month.loose.name] = month.loose
@@ -409,6 +421,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "track": track,
             "landing": landing,
             "landings": landings,
+            "ebitda": ebitda,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

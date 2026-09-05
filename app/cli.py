@@ -55,6 +55,7 @@
     python -m app.cli mix            le mix du mois contre le plan, repondéré aux taux
                                      moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
+    python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
@@ -4047,6 +4048,37 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_ebitda(argv: List[str]) -> int:
+    """Le plan EBITDA par périmètre, tel que l'écran le rendra. Un plan, jamais un réel."""
+    from .perf.analytics import format_eur
+    from .perf import ebitda as ebitda_module
+    from .config import settings
+
+    plan = ebitda_module.current() if settings.has_ebitda_file else None
+    names = ["Greater China", "North America", "APAC", "EMEA", "Japan", "Brazil"]
+    review = ebitda_module.build(plan, names)
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print("  %-16s %10s %8s  %s" % ("Périmètre", "EBITDA", "taux", "pas de marge demandé"))
+    for item in review.perimeters + review.others:
+        print("  %-16s %10s %8s  %s" % (item.name[:16], format_eur(item.ebitda),
+                                        item.rate_label, item.step_sentence))
+    print("")
+    print("Contribution des BU %s · EBITDA consolidé ajusté %s (%s)"
+          % (format_eur(plan.total.ebitda), format_eur(plan.adjusted.ebitda),
+             plan.adjusted.rate_label))
+    if review.unhealthy_note:
+        print(review.unhealthy_note[0].upper() + review.unhealthy_note[1:])
+    for name, amount in plan.bridge:
+        print("  %-28s %10s" % (name, format_eur(amount)))
+    for reason in review.absent:
+        print(reason)
+    print(review.note)
+    return 0
+
+
 def cmd_stores(argv: List[str]) -> int:
     """La part loyer du prochain euro, boutique par boutique, telle que l'écran la rendra.
 
@@ -4210,6 +4242,8 @@ def main(argv: List[str]) -> int:
         return cmd_mix(argv[1:])
     if command == "stores":
         return cmd_stores(argv[1:])
+    if command == "ebitda":
+        return cmd_ebitda(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

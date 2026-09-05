@@ -41,6 +41,17 @@
         <p class="verdict-basis">{{ page.landing.absent }}</p>
       {% endif %}
     </div>
+    <div class="verdict">
+      <p class="verdict-title">EBITDA au budget</p>
+      {% if page.ebitda %}
+        <p class="verdict-word">{{ page.ebitda.ebitda | eur }}</p>
+        <p class="verdict-figures">{{ page.ebitda.rate_label }} de {{ page.ebitda.sales | eur }} de ventes au plan</p>
+        <p class="verdict-basis">{% if page.ebitda.step_sentence %}{{ page.ebitda.step_sentence }} · {% endif %}aucun réel par BU n'est lu</p>
+      {% else %}
+        <p class="verdict-word is-absent">—</p>
+        <p class="verdict-basis">plan EBITDA par BU non lu</p>
+      {% endif %}
+    </div>
   </div>
   {% for reason in page.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
 </section>

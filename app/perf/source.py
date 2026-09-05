@@ -374,6 +374,11 @@ def _perimeter_note(budget, units=()) -> str:
     )
 
 
+def _of_month(name: str) -> str:
+    """« de juillet », « d'août » : l'élision devant une voyelle."""
+    return ("d'" if name[:1] in "aeiouy" else "de ") + name
+
+
 def _period_label(period: str, shipped: str = "") -> str:
     """'2026-07' -> 'July 2026 sales'. Falls back to the raw value rather than guessing."""
     parts = period.split("-")
@@ -387,7 +392,7 @@ def _period_label(period: str, shipped: str = "") -> str:
         return "Sales"
     # "Last complete month" is not decoration: read on the 27th, a screen headed "July"
     # looks like a month-old screen unless it says why July is the freshest month there is.
-    label = "Ventes de %s %s · dernier mois complet" % (_MONTHS[month - 1], parts[0])
+    label = "Ventes %s %s · dernier mois complet" % (_of_month(_MONTHS[month - 1]), parts[0])
     if shipped and shipped != period:
         # Only when they differ, which is not most months. A caveat printed every time is
         # a caveat read none of the time.

@@ -1079,9 +1079,11 @@ class Fire:
         if share > 1.15:
             # The driver cost more than the total movement because another one offset it.
             # Saying "291% of the gap" would be arithmetically right and useless.
-            return "%s pèse %s à ce seul levier%s ; d'autres leviers l'ont en partie compensé." % (
-                self.main_driver.label,
-                _eur(abs(self.main_driver.impact)),
+            impact = self.main_driver.impact
+            return "Le levier %s fait %s%s à lui seul%s ; les autres vont dans l'autre sens et compensent en partie." % (
+                _driver_word(self.main_driver.label),
+                "+" if impact > 0 else "",
+                _eur(impact),
                 self.measured_against,
             )
         # Phrased so the sentence works for every driver label, singular or plural:
