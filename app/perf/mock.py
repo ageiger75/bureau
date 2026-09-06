@@ -831,5 +831,33 @@ def daily_sales() -> List[dict]:
     return rows
 
 
+def sell_in_daily() -> List[dict]:
+    """Le sell-in facturé au jour, inventé : trois pays, deux canaux, les jours ouvrés depuis
+    le 1er du mois jusqu'à hier, et le même mois un an plus tôt en entier."""
+    import datetime
+
+    today = datetime.date.today()
+    first = today.replace(day=1)
+    rows = []
+    bases = {("JP", "webp"): 60_000.0, ("FR", "dis"): 35_000.0, ("CN", "tra"): 80_000.0}
+    for window, start in ((INVOICED_CURRENT, first),
+                          (INVOICED_LAST_YEAR, first.replace(year=first.year - 1))):
+        day = start
+        end = today - datetime.timedelta(days=1) if window == INVOICED_CURRENT else (
+            (start.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1))
+        while day <= end:
+            if day.weekday() < 5:
+                for (iso2, channel), base in bases.items():
+                    factor = 0.9 if window == INVOICED_LAST_YEAR else 1.0
+                    rows.append({"window": window, "invoice_date": day.isoformat(), "iso2": iso2,
+                                 "channel": channel, "net_eur": round(base * factor, 2)})
+            day += datetime.timedelta(days=1)
+    return rows
+
+
+INVOICED_CURRENT = "current"
+INVOICED_LAST_YEAR = "last_year"
+
+
 def month_targets(period: str) -> dict:
     return {"Japan": 4_000_000.0, "France": 2_400_000.0, "China": 6_500_000.0}

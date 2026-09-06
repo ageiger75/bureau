@@ -118,6 +118,36 @@ def _week_review(source, month):
     return weekly_module.build(rows, lumpy, org, directory)
 
 
+def _invoiced_review(source, weekly):
+    """Le sell-in du mois, facturé à date à jours facturés égaux, ou pourquoi il ne se lit
+    pas. Le pays de la facture rejoint le marché par le sell-out au jour, qui nomme les deux."""
+    from ..config import settings
+    from ..perf import invoiced as invoiced_module
+    from ..perf import owners
+    from ..perf import perimeter as perimeter_module
+
+    try:
+        rows = source.sell_in_daily()
+    except NotImplementedError as why:
+        return invoiced_module.Review(None, None, 0, None, [], [], [str(why)])
+    except Exception as why:  # pragma: no cover — l'entrepôt, pas le code
+        return invoiced_module.Review(None, None, 0, None, [], [],
+                                      ["lecture des factures au jour impossible : %s" % why])
+    names = {}
+    try:
+        for row in source.daily_sales():
+            iso2 = str(row.get("iso2") or "").strip().upper()
+            if iso2 and iso2 not in names:
+                from ..perf.budget import normalise_market
+
+                names[iso2] = normalise_market(str(row.get("market") or ""))
+    except Exception:  # noqa: BLE001 — sans sell-out au jour, les pays restent des codes
+        names = {}
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    return invoiced_module.build(rows, names, org, directory)
+
+
 def _mix_review(dataset):
     """Le mix du mois contre le plan, repondéré aux taux moyens quand un fichier les porte.
 
@@ -235,6 +265,7 @@ def _perimeter_inputs(session):
     month = _month_review(source)
     track = _track(dataset, month)
     weekly = _week_review(source, month)
+    invoiced = _invoiced_review(source, weekly)
     week, _scan = week_of.read(session, dataset=dataset, placing=False)
     fires = analytics.fires(dataset, limit=None)
     from ..perf import incremental as incremental_module
@@ -257,7 +288,7 @@ def _perimeter_inputs(session):
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
-        "weekly": weekly,
+        "weekly": weekly, "invoiced": invoiced,
     }
 
 
@@ -302,7 +333,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               fires=inputs["fires"], contribution=inputs["contribution"],
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
-                              pnl=inputs["pnl"], weekly=inputs["weekly"])
+                              pnl=inputs["pnl"], weekly=inputs["weekly"],
+                              invoiced=inputs["invoiced"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -374,6 +406,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     mix = _mix_review(dataset)
     track = _track(dataset, month)
     weekly = _week_review(source, month)
+    invoiced = _invoiced_review(source, weekly)
     stores = _stores_review()
     landing, landings = _landings(track, month)
     from ..perf import placements as placements_module
@@ -486,6 +519,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "pnl": pnl,
             "placements": placements,
             "weekly": weekly,
+            "invoiced": invoiced,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

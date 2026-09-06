@@ -86,6 +86,17 @@
 </section>
 {% endif %}
 
+{% if page.invoiced %}
+<section class="panel">
+  <h2>Le sell-in du mois</h2>
+  <div class="verdict">
+    <p class="verdict-word {{ 'is-en-retard' if page.invoiced.growth is not none and page.invoiced.growth < -0.02 else ('is-en-avance' if page.invoiced.growth is not none and page.invoiced.growth > 0.02 else '') }}">{{ page.invoiced.current | eur }}</p>
+    <p class="verdict-figures">{{ page.invoiced.growth_label }} sur les mêmes premiers jours facturés l'an dernier · {{ page.invoiced.same_dates_label }} à dates égales</p>
+    <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
+  </div>
+</section>
+{% endif %}
+
 {% if page.subjects or page.watched %}
 <section class="panel">
   <h2>Les sujets</h2>

@@ -763,3 +763,13 @@ def test_the_week_is_on_the_screen_in_full_weeks_never_against_the_plan(client):
     assert "sur la semaine précédente" in page
     assert "sur la même semaine l'an dernier" in page
     assert "vs même semaine l'an dernier" in page
+
+
+def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(client):
+    """Priorité 3 : le sell-in facturé depuis le 1er, contre les mêmes premiers jours
+    facturés l'an dernier, jamais contre le plan."""
+    page = page_text(client.get("/"))
+
+    assert "Sell-in facturé du 1er au" in page
+    assert "premiers jours facturés" in page
+    assert "jamais contre le plan" in page

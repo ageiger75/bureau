@@ -1246,6 +1246,15 @@ from semantic_view(
 """
 
 
+#: Le sell-in facturé au jour, du 1er du mois en cours à hier, et les mêmes dates un an
+#: plus tôt : `window · invoice_date · iso2 · channel · net_eur`. `window` vaut `current`
+#: ou `last_year` ; `channel` est le code du centre de profit (TRA, WEBP, DIS, WHOCH…),
+#: jamais la colonne de canal de la facture, vide quatre fois sur cinq ; `net_eur` est le
+#: net au taux fixe, jamais au taux de la facture. Écrit par l'agent entrepôt contre
+#: V_SL_F_SELLIN_INVOICE_ITEM ; vide tant qu'il n'est pas déposé ici.
+SELL_IN_DAILY = ""
+
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1257,6 +1266,7 @@ ALL = {
     "FORECAST_HISTORY": FORECAST_HISTORY,
     "MONTH_TO_DATE": MONTH_TO_DATE,
     "DAILY_SALES": DAILY_SALES,
+    "SELL_IN_DAILY": SELL_IN_DAILY,
 }
 
 

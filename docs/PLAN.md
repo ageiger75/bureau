@@ -403,9 +403,24 @@ tombe sur lundi. Jamais contre le plan, qui est mensuel. Une semaine entamée n'
 comptée et l'écran dit combien de jours attendent. Un marché dont le 1er encaisse une
 campagne est nommé quand le 1er tombe dans l'une des semaines comparées. Rangée par
 périmètre comme le mois, sur l'accueil (`#semaine`, juste après le verdict) et sur chaque
-page de périmètre ; `manage.py semaine` au terminal. Restent de la priorité 3 : le sell-in
-du mois facturé à date contre la même date l'an dernier, et les événements de gifting à
-venir par périmètre.
+page de périmètre ; `manage.py semaine` au terminal. Reste de la priorité 3 : les événements
+de gifting à venir par périmètre.
+
+**Le sell-in du mois, le 6 septembre 2026 — deuxième pièce de la priorité 3.** Les
+factures au jour existent dans l'entrepôt, fraîches à un jour, au grain de la ligne de
+facture (`app/perf/invoiced.py`, contrat `SELL_IN_DAILY` dans `queries.py`, SQL de l'agent
+entrepôt à y couler). Trois faits mesurés par l'agent entrepôt dictent la lecture : le
+canal vient du centre de profit, jamais de la colonne de canal de la facture, vide quatre
+fois sur cinq ; le taux de change de la facture est faux sur plusieurs pays, le montant est
+pris au taux fixe ; et **les factures ne se réconcilient pas canal par canal avec la
+consolidation** — un canal peut y peser deux fois et demie ce que la consolidation lui
+donne, un autre un sixième, quand le total ne s'écarte que par compensation. Donc :
+factures contre factures, à base constante, jamais contre le plan, qui est écrit sur l'axe
+de la consolidation. Et à **jours facturés égaux** — les N premiers jours facturés du même
+mois l'an dernier, N étant le nombre de jours facturés cette année — parce qu'une facture
+tombe un jour ouvré et qu'une fenêtre à dates égales compare quatre jours ouvrés à cinq ;
+la fenêtre à dates égales est rendue à côté. L'écart de canal entre factures et
+consolidation est une question pour le contrôle de gestion, à porter par le CEO.
 
 **Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par
 BU de la Finance est lu (`var/ebitda-budget.xlsx`, `app/perf/ebitda.py`) sur sa feuille de
