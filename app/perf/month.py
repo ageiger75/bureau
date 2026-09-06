@@ -348,6 +348,14 @@ def place_markets(markets: Sequence[str], org=None, directory=None):
             placed[market] = name
         for name, person in org.leads().items():
             leads.setdefault(name, person.name)
+    # Les placements décidés, par-dessus les deux : un marché tenu sous son ancien
+    # périmètre jusqu'à une date, pour comparer à périmètre constant.
+    from . import placements as placements_module
+
+    decided = placements_module.current()
+    for market, rule in decided.active.items():
+        if market in markets:
+            placed[market] = rule.perimeter
     return placed, leads
 
 

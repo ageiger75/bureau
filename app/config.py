@@ -140,6 +140,10 @@ DEFAULT_INCREMENTAL_FILE = "var/incremental_margin_channels.csv"
 #: internationaux, avec un mois de retard.
 DEFAULT_PNL_FILE = "var/pnl_bu.csv"
 
+#: Les placements décidés : un marché rangé sous un périmètre par décision du CEO, pour un
+#: temps — par-dessus l'annuaire, jamais à sa place.
+DEFAULT_PLACEMENTS_FILE = "var/placements.csv"
+
 #: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
 #: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
 #: internationaux, avec un mois de retard.
@@ -181,6 +185,7 @@ class Settings:
     ebitda_file: str = DEFAULT_EBITDA_FILE
     incremental_file: str = DEFAULT_INCREMENTAL_FILE
     pnl_file: str = DEFAULT_PNL_FILE
+    placements_file: str = DEFAULT_PLACEMENTS_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
@@ -351,6 +356,15 @@ class Settings:
     @property
     def has_pnl_file(self) -> bool:
         return self.pnl_path.exists()
+
+    @property
+    def placements_path(self) -> Path:
+        path = Path(self.placements_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_placements_file(self) -> bool:
+        return self.placements_path.exists()
 
     @property
     def pnl_path(self) -> Path:

@@ -161,6 +161,7 @@
     {% endif %}
   {% endif %}
   {% if pnl %}{% for reason in pnl.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
+  {% if placements %}{% for note in placements.notes %}<p class="cockpit-caveat">{{ note }}</p>{% endfor %}{% for fault in placements.faults %}<p class="cockpit-caveat">placements : {{ fault }}</p>{% endfor %}{% endif %}
 
   <p class="cockpit-caveat">
     Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :

@@ -242,6 +242,19 @@ class Directory:
     def unnamed_markets(self, markets) -> List[str]:
         return sorted({m for m in markets if self.entry_for(m) is None})
 
+    def place(self, decided: Dict[str, str]) -> List[str]:
+        """Apply decided placements: each market answers through the head of the decided
+        perimeter. A perimeter the directory has no head for is named, and nothing moves."""
+        faults = []
+        for market, bu in decided.items():
+            head = self._by_bu.get(_key(bu))
+            if head is None:
+                faults.append("placement de %s : aucun MD pour « %s » dans l'annuaire"
+                              % (market, bu))
+                continue
+            self._by_market[market] = head
+        return faults
+
 
 EMPTY = Directory()
 
@@ -516,11 +529,14 @@ def current() -> Directory:
     global _loaded, _loaded_from
     from ..config import settings
 
+    from . import placements as placements_module
+
     path = settings.owners_path
+    decided = placements_module.current()
     try:
-        stamp = (str(path), path.stat().st_mtime) if path.exists() else (str(path), None)
+        stamp = (str(path), path.stat().st_mtime if path.exists() else None, id(decided))
     except OSError:
-        stamp = (str(path), None)
+        stamp = (str(path), None, id(decided))
     if _loaded is None or stamp != _loaded_from:
         try:
             _loaded = load(path) if stamp[1] is not None else EMPTY
@@ -528,6 +544,9 @@ def current() -> Directory:
             # A malformed directory must not take the cockpit down. Every market simply
             # goes unnamed, which the screen already knows how to say.
             _loaded = EMPTY
+        if _loaded is not EMPTY and decided.active:
+            # The decided placements sit on top of the file, never instead of it.
+            _loaded.place({market: rule.perimeter for market, rule in decided.active.items()})
         _loaded_from = stamp
     return _loaded
 
@@ -535,8 +554,11 @@ def current() -> Directory:
 def reset() -> None:
     """Forget the loaded directory. For tests, and for a file edited while running."""
     global _loaded, _loaded_from
+    from . import placements as placements_module
+
     _loaded = None
     _loaded_from = None
+    placements_module.reset()
 
 
 def owner_for(market: str, region: str = "") -> Owner:

@@ -57,6 +57,7 @@
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
+    python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
@@ -4058,6 +4059,29 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_placements(argv: List[str]) -> int:
+    """Les placements décidés, tels que l'écran les applique par-dessus l'annuaire."""
+    from .perf import owners, placements as placements_module
+
+    decided = placements_module.current()
+    if decided.is_empty and not decided.faults:
+        print("Aucun placement décidé : %s absent ou vide." % settings.placements_path)
+        print("Une ligne par marché : market,perimeter,until,reason — voir docs/placements.example.csv.")
+        return 0
+    for note in decided.notes:
+        print(note)
+    for fault in decided.faults:
+        print("défaut : %s" % fault)
+    directory = owners.current() if settings.has_owners_file else None
+    if directory is not None and len(directory):
+        print("")
+        for market, rule in decided.active.items():
+            entry = directory.entry_for(market)
+            print("  %-28s %-16s %s" % (market[:28], rule.perimeter,
+                                        entry.name if entry is not None else "sans MD dans l'annuaire"))
+    return 0
+
+
 def cmd_pnl(argv: List[str]) -> int:
     """La contribution réalisée à date par périmètre, au compte de gestion, telle que
     l'écran la rendra."""
@@ -4305,6 +4329,8 @@ def main(argv: List[str]) -> int:
         return cmd_ebitda(argv[1:])
     if command == "pnl":
         return cmd_pnl(argv[1:])
+    if command == "placements":
+        return cmd_placements(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

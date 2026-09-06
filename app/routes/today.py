@@ -352,6 +352,9 @@ def today(request: Request, session: Session = Depends(get_session)):
     track = _track(dataset, month)
     stores = _stores_review()
     landing, landings = _landings(track, month)
+    from ..perf import placements as placements_module
+
+    placements = placements_module.current()
     # Sur les périmètres que l'annuaire et le mois connaissent — les mêmes que l'atterrissage.
     ebitda = _ebitda_review(list(landings))
     pnl = _pnl_review(list(landings), getattr(track, "period", "") or "")
@@ -457,6 +460,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "landings": landings,
             "ebitda": ebitda,
             "pnl": pnl,
+            "placements": placements,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

@@ -506,7 +506,11 @@ stade de l'exercice précédent ne tient qu'à périmètre égal des deux côté
 le cockpit : la contribution par périmètre suit l'axe région du compte de gestion tel qu'il
 est ; l'annuaire des ventes doit placer Hong Kong et Macao sous APAC de la même façon, pour
 que les colonnes de la table des périmètres parlent du même ensemble ; et le surveillant du
-5 alerte si l'axe région bouge avant avril.
+5 alerte si l'axe région bouge avant avril. L'annuaire rangeait Hong Kong sous Greater China
+et ne plaçait ni Macao ni les distributeurs de Hong Kong : la décision vit dans
+`var/placements.csv` (`app/perf/placements.py`) — un marché, un périmètre, une date de fin,
+une raison — appliqué par-dessus l'annuaire et l'organigramme, jamais à leur place, et dit
+à l'écran ; une ligne expirée ne s'applique plus et l'écran le dit aussi.
 
 En le posant, un défaut réel a été trouvé et fermé : deux règles portaient le **flux**
 entier d'un partenaire là où les autres portent un **écart**. Un flux vaut structurellement
