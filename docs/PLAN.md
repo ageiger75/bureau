@@ -136,6 +136,16 @@ Et les chapitres de la doctrine V6.1 :
 
 ---
 
+### Analyse critique du 6 septembre
+
+Relecture complète de l'écran, des demandes du lecteur et du tableau de suivi KPI FY27,
+à la demande du lecteur (« un cockpit nickel chrome avant les prochaines étapes ») :
+`docs/CRITIQUE-2026-09-06.md`. En résumé : le cockpit est une bonne machine à écarts de
+ventes ; le lecteur pilote une trajectoire de marge, la qualité de la croissance et cinq
+zones rouges. Un écran, cinq blocs, une page d'analyses à part, deux requêtes nouvelles
+(same-store sales, part saine du réalisé), et trois défauts à corriger d'abord — dont le
+montant d'un sujet pris sur un seul canal. Les priorités 5 et 6 attendent.
+
 ## 4. Règles de travail — à ne pas réapprendre
 
 **Forme des échanges.** Un bloc de code cerné de trois accents graves est destiné au
