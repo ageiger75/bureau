@@ -6,7 +6,7 @@
 {# The brief's wireframe uses emoji section markers. §28 asks for very limited visual
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
 
-<section class="cockpit-header" data-read-at="{{ read_at }}">
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}">
   {# L'écran s'ouvre sur les questions d'un CEO, dans leur ordre : où on atterrit, si on
      est en ligne, ce qui décroche et qui en répond. La provenance est dans « Comment lire
      cet écran », pas ici. #}
@@ -182,7 +182,7 @@
      contre la même l'an dernier — jamais contre le plan, qui est mensuel. #}
   {% if weekly and weekly.usable %}
     <h2>{{ weekly.title }}</h2>
-    <p class="lede">Sell-out, semaines pleines du lundi au dimanche : {{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | capitalize }}.{% endif %}</p>
+    <p class="lede">Sell-out, semaines pleines du lundi au dimanche : {{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | ucfirst }}.{% endif %}</p>
     <table class="month-table mix-table">
       <thead><tr><th>Périmètre</th><th>Semaine</th><th>vs semaine précédente</th><th>vs même semaine l'an dernier</th></tr></thead>
       <tbody>
@@ -222,7 +222,7 @@
       {% endif %}
       </tbody>
     </table>
-    {% if weekly.campaign_note %}<p class="cockpit-caveat">{{ weekly.campaign_note | capitalize }}.</p>{% endif %}
+    {% if weekly.campaign_note %}<p class="cockpit-caveat">{{ weekly.campaign_note | ucfirst }}.</p>{% endif %}
     {% for reason in weekly.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% else %}
     <h2>La semaine</h2>
@@ -273,7 +273,7 @@
      chacun a pesé l'an dernier — mesuré, jamais écrit de mémoire. #}
   <h2>{{ gifting.title if gifting else "Ce qui arrive" }}</h2>
   {% if gifting and gifting.usable %}
-    <p class="lede">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, avec le poids que chacun a pesé l'an dernier sur le sell-out du marché.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | capitalize }}.{% endif %}</p>
+    <p class="lede">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, avec le poids que chacun a pesé l'an dernier sur le sell-out du marché.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | ucfirst }}.{% endif %}</p>
     <ul class="routed-list">
     {% for group in gifting.groups + ([gifting.loose] if gifting.loose else []) %}
       <li class="routed">
@@ -286,10 +286,10 @@
     {% endfor %}
     </ul>
     {% for reason in gifting.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
-    {% if gifting.beyond_note %}<p class="cockpit-caveat">{{ gifting.beyond_note | capitalize }}.</p>{% endif %}
+    {% if gifting.beyond_note %}<p class="cockpit-caveat">{{ gifting.beyond_note | ucfirst }}.</p>{% endif %}
   {% else %}
     <p class="empty">{% if gifting %}{% for reason in gifting.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les temps forts ne sont pas lus{% endif %}</p>
-    {% if gifting and gifting.beyond_note %}<p class="cockpit-caveat">{{ gifting.beyond_note | capitalize }}.</p>{% endif %}
+    {% if gifting and gifting.beyond_note %}<p class="cockpit-caveat">{{ gifting.beyond_note | ucfirst }}.</p>{% endif %}
   {% endif %}
 </section>
 
@@ -643,7 +643,7 @@
         {% if fire.explanation_check %}
           <div class="challenge-box">
             <p class="challenge-quote">“{{ fire.explanation_check.explanation }}”</p>
-            <p class="challenge-verdict">{{ fire.explanation_check.verdict | capitalize }}</p>
+            <p class="challenge-verdict">{{ fire.explanation_check.verdict | ucfirst }}</p>
             <p class="challenge-evidence">{{ fire.explanation_check.evidence }}</p>
           </div>
         {% endif %}
@@ -985,7 +985,12 @@
   <h2>KPI suivis</h2>
   <p class="lede">Groupés sous le pilier du tableau de suivi. Qu'ils expliquent les chiffres du haut n'est pas démontré ici, donc pas affirmé.</p>
 
-  {% if "kpis" in unavailable %}
+  {% if "kpis" in pending %}
+    <p class="empty">
+      Pas encore lu sur cette machine : la lecture des KPI prend quelques minutes et se fait
+      en arrière-plan. La page se recharge d'elle-même quand elle arrive.
+    </p>
+  {% elif "kpis" in unavailable %}
     <p class="empty">
       Source pas encore connectée. Les lectures viennent de l'entrepôt ; les définitions, cibles
       et cadences du tableau KPI. Tant que les deux ne sont pas branchés, ce panneau ne dit rien

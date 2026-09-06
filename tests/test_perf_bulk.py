@@ -142,7 +142,7 @@ def test_a_cold_cache_shows_nothing_rather_than_starting_a_two_minute_query(monk
     """
     from app.perf import source
 
-    monkeypatch.setattr(source, "_read_kpi_cache", lambda: None)
+    monkeypatch.setattr(source, "_read_kpi_cache", lambda any_age=False: None)
     # `self` n'est pas utilisé : la méthode ne lit que le cache, et c'est le propos.
     assert source.SnowflakeSource.bulk_findings(None) == []
 
@@ -180,11 +180,11 @@ def test_the_reconciliation_refuses_a_window_that_is_not_the_quarter_compared():
     monkeypatched = list(read)
     source_cache = source._read_kpi_cache
     try:
-        source._read_kpi_cache = lambda: monkeypatched
+        source._read_kpi_cache = lambda any_age=False: monkeypatched
         assert cli._bulk_over(["2026-04", "2026-05", "2026-06"]) == 30.0
         # Deux mois demandés, trois lus : la fenêtre ne tombe pas sur le trimestre.
         assert cli._bulk_over(["2026-04", "2026-06"]) is None
-        source._read_kpi_cache = lambda: None
+        source._read_kpi_cache = lambda any_age=False: None
         assert cli._bulk_over(["2026-04"]) is None
     finally:
         source._read_kpi_cache = source_cache

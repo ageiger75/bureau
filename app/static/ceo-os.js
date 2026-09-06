@@ -115,7 +115,9 @@
      minutes : passé ce délai, la lecture a échoué et recharger n'y changera rien. */
 
   var FRESHNESS_EVERY_MS = 5000;
-  var FRESHNESS_FOR_MS = 600000;
+  /* Quinze minutes : la relecture complète enchaîne les chiffres du haut puis les KPI,
+     six à sept minutes en tout sur cet entrepôt, et la page doit encore voir la seconde. */
+  var FRESHNESS_FOR_MS = 900000;
 
   function watchForFreshFigures() {
     var header = document.querySelector("[data-read-at]");
@@ -124,6 +126,9 @@
       return;
     }
     var shown = header.getAttribute("data-read-at");
+    /* Les KPI ont leur propre lecture, minutes après la première : la page guette les
+       deux, sinon le panneau KPI resterait « pas encore lu » jusqu'au prochain geste. */
+    var kpisShown = header.getAttribute("data-kpis-at") || "";
     if (!shown) {
       return;
     }
@@ -137,7 +142,8 @@
       window.fetch("/freshness", { headers: { Accept: "application/json" } })
         .then(function (response) { return response.json(); })
         .then(function (body) {
-          if (body && body.as_of && body.as_of !== shown) {
+          var kpisLanded = body && typeof body.kpis === "string" && body.kpis !== kpisShown;
+          if (body && ((body.as_of && body.as_of !== shown) || kpisLanded)) {
             window.clearInterval(timer);
             /* Dit avant de recharger : une page qui se remplace sans prévenir pendant
                qu'on la lit est déroutante, même quand elle a raison de le faire. */

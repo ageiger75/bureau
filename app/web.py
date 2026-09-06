@@ -92,6 +92,17 @@ templates.env.filters["pct"] = perf_format.format_pct
 templates.env.filters["share"] = perf_format.format_share
 templates.env.filters["num"] = perf_format.format_num
 
+
+def ucfirst(text) -> str:
+    """Majuscule initiale seulement. `capitalize` abaisse tout le reste, et une phrase qui
+    nomme un marché ou un événement — « Singles Day 11.11, China » — ressortait en
+    « singles day 11.11, china » : un nom propre n'a pas à payer la ponctuation."""
+    text = "" if text is None else str(text)
+    return text[:1].upper() + text[1:]
+
+
+templates.env.filters["ucfirst"] = ucfirst
+
 templates.env.globals.update(
     {
         "app_version": __version__,

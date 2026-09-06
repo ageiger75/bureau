@@ -431,6 +431,17 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**La page n'attend plus jamais l'entrepôt, le 6 septembre 2026.** L'ouverture a pris
+quatre minutes : les chiffres du haut servaient bien le cache expiré, mais la lecture des
+KPI (trois minutes) partait dès que son cache d'un jour expirait, sous un lecteur qui
+attendait, et l'historique se relisait de même. Règle désormais unique pour toute lecture
+longue : un lecteur devant l'écran reçoit la dernière lecture quel que soit son âge, et seul
+`?refresh=1` — celui que `start.command` lance derrière l'écran — paie la requête. Une
+lecture jamais faite se dit « pas encore lu », pas « source absente ». La page guette
+séparément l'arrivée des chiffres du haut et celle des KPI, et se recharge à chacune.
+Corrigé au passage : les phrases passées par `capitalize` abaissaient les noms propres
+(« singles day 11.11, china ») ; un filtre `ucfirst` ne touche que la première lettre.
+
 **Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par
 BU de la Finance est lu (`var/ebitda-budget.xlsx`, `app/perf/ebitda.py`) sur sa feuille de
 synthèse — la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à

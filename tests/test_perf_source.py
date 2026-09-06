@@ -75,3 +75,124 @@ def test_the_period_label_elides_before_a_vowel():
 
     assert _period_label("2026-08").startswith("Ventes d'août 2026")
     assert _period_label("2026-07").startswith("Ventes de juillet 2026")
+
+
+def _kpi_source(monkeypatch):
+    """A `SnowflakeSource` whose tracker and join are stubbed, so only the cache rule is
+    under test — the workbook reader and the registry have their own suites."""
+    from types import SimpleNamespace
+
+    from app.config import settings
+    from app.perf import kpi_registry, source as source_module, tracker
+
+    monkeypatch.setattr(type(settings), "has_kpi_file", property(lambda self: True))
+    monkeypatch.setattr(tracker, "read_tracker", lambda path: SimpleNamespace(entries=[]))
+    monkeypatch.setattr(
+        kpi_registry, "join_report",
+        lambda registry, rows: SimpleNamespace(kpis=list(rows), unmatched_keys=[]),
+    )
+    monkeypatch.setattr(source_module, "_kpi_coverage", lambda report, registry: "")
+    return source_module.SnowflakeSource()
+
+
+def test_the_kpi_panel_never_makes_a_reader_wait_for_its_three_minute_read(monkeypatch):
+    """The reading is a three-minute query, and the page used to run it the first time
+    its day-old cache expired: one second for a day, then four minutes once, and the
+    reader learnt that the cockpit is slow. A reader now gets the last reading whatever
+    its age; only a refresh pays the query."""
+    import pytest
+
+    from app.perf import source as source_module, warehouse
+
+    source = _kpi_source(monkeypatch)
+    calls = []
+    monkeypatch.setattr(
+        warehouse, "rows",
+        lambda sql, params=None, label="": calls.append(label) or [("fresh",)],
+    )
+    written = []
+    monkeypatch.setattr(source_module, "_write_kpi_cache", lambda rows: written.append(rows))
+    caches = {"fresh": None, "any": None}
+    monkeypatch.setattr(
+        source_module, "_read_kpi_cache",
+        lambda any_age=False: caches["any" if any_age else "fresh"],
+    )
+
+    # Never read: the reader is told so, and the warehouse is not touched.
+    with pytest.raises(source_module.NotReadYet):
+        source.client_kpis(wait_for_warehouse=False)
+    assert calls == []
+
+    # Expired: served as it is, with the warehouse still untouched.
+    caches["any"] = [("yesterday",)]
+    assert source.client_kpis(wait_for_warehouse=False) == [("yesterday",)]
+    assert calls == []
+
+    # A refresh, or any caller with nobody in front of it, pays the read and stores it.
+    assert source.client_kpis() == [("fresh",)]
+    assert calls == ["KPI_READINGS"] and written == [[("fresh",)]]
+
+
+def test_the_history_is_served_expired_rather_than_re_read_under_a_reader(monkeypatch):
+    """Expired by age and not by anchor is the same history, a day older. Only a history
+    that does not end on the month on screen is worth a query while someone waits."""
+    from types import SimpleNamespace
+
+    from app.perf import history as history_module
+    from app.perf import queries, source as source_module, warehouse
+
+    monkeypatch.setattr(queries, "SALES_HISTORY", "select 1")
+    reads = []
+    monkeypatch.setattr(
+        warehouse, "rows",
+        lambda sql, params=None, label="": reads.append(label) or [{"period": "2026-08"}],
+    )
+    monkeypatch.setattr(source_module, "_write_disk_cache", lambda *a, **k: None)
+
+    def stored(name=source_module.CACHE_FILE, max_age=None):
+        if name != source_module.HISTORY_CACHE_FILE:
+            return None
+        if max_age == float("inf"):
+            return [{"period": "2026-08"}], 0.0, "long ago"
+        return None  # expired by age
+
+    monkeypatch.setattr(source_module, "_read_disk_cache", stored)
+
+    class Built:
+        def __init__(self, rows):
+            self.latest_period = rows[0]["period"]
+
+        def __len__(self):
+            return 1
+
+    monkeypatch.setattr(history_module, "from_rows", Built)
+    source = source_module.SnowflakeSource()
+
+    # Same anchor, reader waiting: the old file serves, no query.
+    served = source._history(queries, warehouse, "2026-08", wait_for_warehouse=False)
+    assert served.latest_period == "2026-08" and reads == []
+    # The screen moved a month on: that staleness misleads, so it is read even now.
+    source._history(queries, warehouse, "2026-09", wait_for_warehouse=False)
+    assert reads == ["SALES_HISTORY"]
+    # Nobody waiting: the expired file is re-read.
+    source._history(queries, warehouse, "2026-08", wait_for_warehouse=True)
+    assert reads == ["SALES_HISTORY", "SALES_HISTORY"]
+
+
+def test_the_screen_only_pays_the_kpi_read_when_the_reader_refreshed():
+    import inspect
+
+    from app.routes import today as today_route
+
+    assert "client_kpis(wait_for_warehouse=refresh)" in inspect.getsource(today_route.today)
+
+
+def test_ucfirst_raises_the_first_letter_and_leaves_names_alone():
+    """`capitalize` lowered everything after the first letter, and the next event was
+    printed as « singles day 11.11, china »."""
+    from app.web import ucfirst
+
+    assert ucfirst("le prochain au-delà : Singles Day 11.11, China") == (
+        "Le prochain au-delà : Singles Day 11.11, China"
+    )
+    assert ucfirst("") == "" and ucfirst(None) == ""

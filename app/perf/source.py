@@ -90,6 +90,16 @@ HISTORY_CACHE_SECONDS = 24 * 3600
 _cached = None
 
 
+class NotReadYet(Exception):
+    """Une lecture longue que personne n'a encore payée, demandée par quelqu'un qui attend.
+
+    Distincte de `NotImplementedError`, qui veut dire « pas branché » : ici tout est
+    branché, la relecture en arrière-plan apportera le panneau, et l'écran doit le dire
+    ainsi — pas « source pas encore connectée », qui enverrait chercher un câble qui
+    existe.
+    """
+
+
 def _cache_path(name: str = CACHE_FILE):
     return settings.budget_path.parent / name
 
@@ -193,8 +203,13 @@ def store_history_rows(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
 
 
-def _read_kpi_cache():
-    stored = _read_disk_cache(KPI_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+def _read_kpi_cache(any_age: bool = False):
+    """La dernière lecture des KPI, d'un jour au plus — ou de n'importe quel âge quand un
+    lecteur attend devant l'écran : un KPI bouge au mois, et une lecture de deux jours
+    répond aux mêmes questions qu'une lecture de deux heures, là où trois minutes de
+    requête ne répondent à rien."""
+    max_age = float("inf") if any_age else HISTORY_CACHE_SECONDS
+    stored = _read_disk_cache(KPI_CACHE_FILE, max_age=max_age)
     return None if stored is None else stored[0]
 
 
@@ -279,6 +294,20 @@ def last_read() -> str:
 def read_at() -> str:
     """When the warehouse was read, to the minute. UTC, like every other stamp here."""
     return now_iso()[:16].replace("T", " ") + " UTC"
+
+
+def kpi_stamp() -> str:
+    """Quand la lecture des KPI en cache a été écrite, ou vide avant la première.
+
+    Aussi bon marché que `last_read`, et pour la même raison : la page l'interroge toutes
+    les cinq secondes pour savoir si la relecture en arrière-plan a atterri. L'horodatage
+    du fichier suffit — le lire en entier toutes les cinq secondes pour en extraire une
+    date serait payer la lecture qu'on cherche justement à éviter.
+    """
+    try:
+        return "%d" % _cache_path(KPI_CACHE_FILE).stat().st_mtime
+    except OSError:
+        return ""
 
 
 LOG = logging.getLogger("ceoos.warehouse")
@@ -523,7 +552,7 @@ class MockSource:
     def commitments(self) -> List["mock.MockCommitment"]:
         return mock.commitments()
 
-    def client_kpis(self) -> List[Kpi]:
+    def client_kpis(self, wait_for_warehouse: bool = True) -> List[Kpi]:
         return mock.client_kpis()
 
     def bulk_findings(self) -> List:
@@ -619,7 +648,7 @@ class SnowflakeSource:
             LOG.info("warehouse: sell-in unavailable (%s)", exc)
             return []
 
-    def _history(self, queries, warehouse, anchor: str):
+    def _history(self, queries, warehouse, anchor: str, wait_for_warehouse: bool = True):
         """Twenty-four months behind the anchor month, or nothing.
 
         Nothing is survivable and says so on the screen: without it the cockpit compares
@@ -653,6 +682,23 @@ class SnowflakeSource:
                 built.latest_period,
                 anchor,
             )
+        elif not wait_for_warehouse:
+            # Expirée par l'âge et pas par l'ancre : la même histoire, un jour de plus. Un
+            # lecteur devant l'écran la reçoit telle quelle ; la relecture en arrière-plan
+            # la rajeunira. Seule une histoire qui ne finit pas sur le mois affiché vaut
+            # une requête pendant qu'on attend — elle est courte, et c'est la seule
+            # ancienneté qui trompe.
+            older = _read_disk_cache(HISTORY_CACHE_FILE, max_age=float("inf"))
+            if older is not None:
+                built = history_module.from_rows(older[0])
+                if not anchor or built.latest_period == anchor:
+                    LOG.info(
+                        "warehouse: history from an expired cache rather than making "
+                        "the reader wait (%d tracks, read %s)",
+                        len(built),
+                        older[2],
+                    )
+                    return built
 
         try:
             rows = warehouse.rows(queries.SALES_HISTORY, label="SALES_HISTORY")
@@ -664,7 +710,8 @@ class SnowflakeSource:
         _write_disk_cache(rows, time.time(), read_at(), HISTORY_CACHE_FILE)
         return history_module.from_rows(rows)
 
-    def _sell_in_record(self, queries, warehouse, sell_in_rows, budget):
+    def _sell_in_record(self, queries, warehouse, sell_in_rows, budget,
+                        wait_for_warehouse: bool = True):
         """What the sell-in plan asks, against what partners have been buying.
 
         Keyed by market and channel so the units can carry it. Nothing at all is a
@@ -678,6 +725,13 @@ class SnowflakeSource:
             return {}
 
         stored = _read_disk_cache(SELL_IN_HISTORY_CACHE_FILE, max_age=HISTORY_CACHE_SECONDS)
+        if stored is None and not wait_for_warehouse:
+            # Même règle que l'histoire : un exercice clos ne change pas d'un jour à
+            # l'autre, et personne n'attend devant l'écran qu'on le relise.
+            stored = _read_disk_cache(SELL_IN_HISTORY_CACHE_FILE, max_age=float("inf"))
+            if stored is not None:
+                LOG.info("warehouse: sell-in history from an expired cache rather than "
+                         "making the reader wait")
         if stored is not None:
             closed = stored[0]
         else:
@@ -767,13 +821,17 @@ class SnowflakeSource:
         period = str(rows[0].get("period") or "")
         # Read after the current month and keyed to it, so a history that ends on an older
         # month is caught and re-read rather than quietly ageing the trend by a month.
-        history = self._history(queries, warehouse, period)
+        history = self._history(queries, warehouse, period,
+                                wait_for_warehouse=wait_for_warehouse or refresh)
 
         # Sell-in rows survive the cache as part of the concatenation above, so they are
         # recovered from it rather than re-read: a screen that grew its own revenue by
         # being looked at twice is the worst failure available here.
         sold_in = [row for row in rows if row.get("segment")]
-        sell_in_record = self._sell_in_record(queries, warehouse, sold_in, budget)
+        sell_in_record = self._sell_in_record(
+            queries, warehouse, sold_in, budget,
+            wait_for_warehouse=wait_for_warehouse or refresh,
+        )
 
         # The screen is a month; the year to date is a year. Sell-in now arrives with
         # every month of the fiscal year, so the units take only the one on screen —
@@ -833,13 +891,20 @@ class SnowflakeSource:
         self._refuse_if_unwritten("COMMITMENTS")
         raise NotImplementedError("Commitment mapping not written yet.")
 
-    def client_kpis(self) -> List[Kpi]:
+    def client_kpis(self, wait_for_warehouse: bool = True) -> List[Kpi]:
         """Warehouse readings, judged against the tracker the business maintains.
 
         Both halves are required and neither substitutes for the other. Readings without a
         registry are numbers nobody can score; a registry without readings is a list of
         intentions. Missing either, this refuses — the panel then says it is not connected,
         which is true, rather than showing green on what it cannot see.
+
+        `wait_for_warehouse` follows the rule `dataset` runs on: false wherever somebody
+        is in front of the result. The reading is a three-minute query, and the screen
+        used to run it the first time its day-old cache expired — so the page opened in
+        one second for a day, then in four minutes once, and the reader learnt that the
+        cockpit is slow. A reader now gets the last reading whatever its age; a cache that
+        was never written raises `NotReadYet`, and the background refresh writes it.
         """
         self._refuse_if_unwritten("KPI_READINGS")
         if not settings.has_kpi_file:
@@ -855,6 +920,15 @@ class SnowflakeSource:
         # panel for the whole page. A KPI moves monthly — a reading a day old is the same
         # reading.
         rows = _read_kpi_cache()
+        if rows is None and not wait_for_warehouse:
+            rows = _read_kpi_cache(any_age=True)
+            if rows is None:
+                raise NotReadYet(
+                    "Les KPI n'ont pas encore été lus sur cette machine : la relecture "
+                    "en arrière-plan les apporte."
+                )
+            LOG.info("warehouse: KPI readings from an expired cache rather than making "
+                     "the reader wait")
         if rows is None:
             rows = warehouse.rows(queries.KPI_READINGS, label="KPI_READINGS")
             _write_kpi_cache(rows)
@@ -927,7 +1001,7 @@ class SnowflakeSource:
         """
         from . import bulk
 
-        rows = _read_kpi_cache()
+        rows = _read_kpi_cache(any_age=True)
         if not rows:
             return []
         return [found for found in bulk.material(rows) if found.changes_the_verdict]

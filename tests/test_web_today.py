@@ -781,3 +781,28 @@ def test_what_is_ahead_is_named_when_absent(client):
 
     assert "Ce qui arrive" in page
     assert "var/gifting.csv absent" in page
+
+
+def test_the_page_watches_for_the_kpi_reading_as_well(client):
+    """The background refresh lands the headline figures first and the KPIs minutes
+    later. The page reloads on either, or the KPI panel stayed « pas encore lu » until
+    somebody thought to reload — which is exactly the instruction not to give."""
+    page = page_text(client.get("/"))
+
+    assert "data-kpis-at=" in page
+    assert "kpis" in client.get("/freshness").json()
+
+
+def test_a_kpi_reading_not_yet_made_is_said_as_such_and_not_as_a_missing_source(
+    client, monkeypatch
+):
+    from app.perf import source as source_module
+
+    def not_yet(self, wait_for_warehouse=True):
+        raise source_module.NotReadYet("pas encore")
+
+    monkeypatch.setattr(source_module.MockSource, "client_kpis", not_yet)
+    page = page_text(client.get("/"))
+
+    assert "Pas encore lu sur cette machine" in page
+    assert "Source pas encore connectée. Les lectures viennent de l'entrepôt" not in page
