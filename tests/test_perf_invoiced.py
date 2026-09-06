@@ -40,14 +40,15 @@ def test_the_month_is_compared_on_equal_business_days_and_the_calendar_window_be
     assert review.group.current == 600.0
     assert review.group.aligned == 520.0
     assert review.group.growth_label == "+15 %"
-    assert "sur 4 jours ouvrés, +15 % à jours ouvrés égaux sur septembre 2025" in review.sentence
+    assert ", +15 % à jours ouvrés égaux sur septembre 2025 (4 jours ouvrés)" in review.sentence
     assert "à dates égales" in review.sentence
 
 
-def test_a_saturday_in_the_window_does_not_count_as_a_business_day():
-    """Mardi 1er à samedi 5 septembre 2026 : quatre jours ouvrés. L'an dernier, quatre jours
-    ouvrés depuis le lundi 1er s'arrêtent au jeudi 4 — pas au vendredi 5, que la fenêtre à
-    dates égales prend, elle."""
+def test_a_saturday_in_the_window_counts_in_the_total_never_in_the_growth():
+    """Mardi 1er à samedi 5 septembre 2026 : quatre jours ouvrés et un samedi. La croissance
+    compare les quatre jours ouvrés aux quatre premiers de l'an dernier, lundi 1er à jeudi 4 ;
+    le samedi reste dans le facturé à date, et la fenêtre à dates égales prend le vendredi 5
+    de l'an dernier, elle."""
     rows = _rows()
     rows.append({"window": "current", "invoice_date": "2026-09-05", "iso2": "JP",
                  "channel": "WEBP", "net_eur": 10.0})
@@ -55,8 +56,11 @@ def test_a_saturday_in_the_window_does_not_count_as_a_business_day():
 
     assert review.days == 4
     assert review.title == "Sell-in facturé du 1er au 5 septembre"
+    assert review.group.current == 610.0 and review.group.current_business == 600.0
     assert review.group.aligned == 520.0
+    assert review.group.growth_label == "+15 %"
     assert review.group.same_dates == 650.0
+    assert "dont 10 € le week-end" in review.sentence
     assert I.aligned_end(datetime.date(2025, 9, 1), 4) == datetime.date(2025, 9, 4)
     assert I.aligned_end(datetime.date(2026, 8, 1), 1) == datetime.date(2026, 8, 3)
     assert I.business_days(datetime.date(2026, 9, 1), datetime.date(2026, 9, 5)) == 4

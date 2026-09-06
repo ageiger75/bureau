@@ -4070,6 +4070,8 @@ def cmd_tempsforts(argv: List[str]) -> int:
     if not review.usable:
         for reason in review.absent:
             print(reason, file=sys.stderr)
+        if review.beyond_note:
+            print(review.beyond_note[0].upper() + review.beyond_note[1:] + ".")
         return 2
     print("%s · %d temps forts" % (review.title, review.count))
     for group in review.groups + ([review.loose] if review.loose else []):
@@ -4080,6 +4082,8 @@ def cmd_tempsforts(argv: List[str]) -> int:
     if review.unmeasured_note:
         print("")
         print(review.unmeasured_note[0].upper() + review.unmeasured_note[1:] + ".")
+    if review.beyond_note:
+        print(review.beyond_note[0].upper() + review.beyond_note[1:] + ".")
     for reason in review.absent:
         print(reason)
     return 0

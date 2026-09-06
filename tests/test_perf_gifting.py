@@ -69,3 +69,19 @@ def test_without_the_file_or_without_anything_ahead_the_review_says_so(tmp_path)
     assert not absent.usable and absent.absent == ["var/gifting.csv absent : les temps forts à venir ne sont pas lus"]
     quiet = G.build(_calendar(tmp_path), today=datetime.date(2027, 2, 1))
     assert not quiet.usable and "aucun temps fort dans les 6 prochaines semaines" in quiet.absent
+    assert quiet.beyond_note == ""
+
+
+def test_an_empty_horizon_still_says_what_comes_next_and_in_how_many_days(tmp_path):
+    early = G.build(_calendar(tmp_path), today=datetime.date(2026, 9, 6))
+
+    assert not early.usable
+    assert early.beyond_note.startswith("le prochain au-delà : Singles Day, Japan, du 1 au 11 novembre")
+    assert early.beyond_note.endswith(", dans 56 jours")
+
+
+def test_market_names_are_normalised_like_the_rest_of_the_cockpit(tmp_path):
+    calendar = _calendar(tmp_path, "event,market,start,end\nBlack Friday,USA,2026-11-27,2026-11-29\n"
+                                   "Noël,UK,2026-12-01,2026-12-24\n")
+
+    assert [event.market for event in calendar.events] == ["United States", "United Kingdom"]

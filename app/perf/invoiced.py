@@ -75,17 +75,20 @@ class Line:
     """Un canal, un périmètre ou le groupe : facturé à date, et l'an dernier à jours
     facturés égaux et à dates égales."""
 
-    __slots__ = ("name", "current", "aligned", "same_dates")
+    __slots__ = ("name", "current", "current_business", "aligned", "same_dates")
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.current = 0.0
+        #: La part du facturé à date tombée un jour ouvré : ce qui se compare à l'an dernier
+        #: à jours ouvrés égaux. Le week-end reste dans `current`, jamais dans la croissance.
+        self.current_business = 0.0
         self.aligned = 0.0
         self.same_dates = 0.0
 
     @property
     def growth(self) -> Optional[float]:
-        return _pct(self.current, self.aligned)
+        return _pct(self.current_business, self.aligned)
 
     @property
     def growth_same_dates(self) -> Optional[float]:
@@ -146,10 +149,12 @@ class Review:
 
         if not self.usable:
             return ""
-        text = "%s sur %d jour%s ouvré%s, %s à jours ouvrés égaux sur %s %d" % (
-            format_eur(self.group.current), self.days, "s" if self.days > 1 else "",
-            "s" if self.days > 1 else "", self.group.growth_label,
-            MONTHS_FR[self.month.month - 1], self.month.year - 1)
+        weekend = self.group.current - self.group.current_business
+        text = "%s%s, %s à jours ouvrés égaux sur %s %d (%d jour%s ouvré%s)" % (
+            format_eur(self.group.current),
+            " dont %s le week-end" % format_eur(weekend) if weekend > 0 else "",
+            self.group.growth_label, MONTHS_FR[self.month.month - 1], self.month.year - 1,
+            self.days, "s" if self.days > 1 else "", "s" if self.days > 1 else "")
         if self.group.growth_same_dates is not None:
             text += " (%s à dates égales)" % self.group.same_dates_label
         return text
@@ -230,7 +235,11 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     # compris — une fenêtre, pas un tri sur les jours facturés.
     start = month.replace(year=month.year - 1)
     end = aligned_end(start, days)
-    aligned_days = {day for day in before if start <= day <= end}
+    # Des deux côtés, les jours ouvrés seulement : le week-end facture peu, mais
+    # asymétriquement — le samedi de cette année n'a pas de pendant dans une fenêtre de
+    # l'an dernier qui finit un jeudi.
+    aligned_days = {day for day in before if start <= day <= end and day.weekday() < 5}
+    business_now = {day for day in current if day.weekday() < 5}
     same_dates = {day for day in before if day.month == month.month and day.day <= through.day}
     if not any(day.month == month.month for day in before):
         absent.append("l'an dernier ne porte aucune facture sur ce mois : pas de comparaison")
@@ -259,6 +268,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
 
     for day, entries in current.items():
         pour(entries, "current")
+        if day in business_now:
+            pour(entries, "current_business")
     for day, entries in before.items():
         if day in aligned_days:
             pour(entries, "aligned")
@@ -271,6 +282,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         market = names.get(iso2, iso2)
         merged = market_lines.setdefault(market, Line(market))
         merged.current += line.current
+        merged.current_business += line.current_business
         merged.aligned += line.aligned
         merged.same_dates += line.same_dates
     placed, _leads = place_markets(list(market_lines), org, directory)
@@ -279,6 +291,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     for market, line in market_lines.items():
         target = perimeters.setdefault(placed[market], Line(placed[market])) if placed.get(market) else loose
         target.current += line.current
+        target.current_business += line.current_business
         target.aligned += line.aligned
         target.same_dates += line.same_dates
     ordered = sorted(perimeters.values(), key=lambda line: -line.current)

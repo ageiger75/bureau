@@ -22,6 +22,8 @@ import io
 import os
 from typing import Dict, List, Optional, Sequence
 
+from .budget import normalise_market
+
 REQUIRED = ("event", "market", "start", "end")
 
 #: Combien de jours devant soi l'écran regarde.
@@ -133,6 +135,17 @@ class Calendar:
         found = [event for event in self.events if event.end >= today and event.start <= limit]
         return sorted(found, key=lambda event: (event.start, -(event.sales or 0.0)))
 
+    def next_beyond(self, today: datetime.date, horizon: int = HORIZON_DAYS) -> List[Event]:
+        """Le premier temps fort au-delà de l'horizon, avec ceux qui ouvrent le même jour —
+        pour qu'un horizon vide dise quand même ce qui vient, et dans combien de jours."""
+        limit = today + datetime.timedelta(days=horizon)
+        later = sorted((event for event in self.events if event.start > limit),
+                       key=lambda event: (event.start, -(event.sales or 0.0)))
+        if not later:
+            return []
+        first = later[0].start
+        return [event for event in later if event.start == first]
+
 
 def load(path: str) -> Calendar:
     if not path or not os.path.exists(path):
@@ -147,7 +160,7 @@ def load(path: str) -> Calendar:
             return Calendar([], ["colonnes manquantes : %s" % ", ".join(missing)], path)
         for number, record in enumerate(reader, start=2):
             name = (record.get("event") or "").strip()
-            market = (record.get("market") or "").strip()
+            market = normalise_market((record.get("market") or "").strip())
             start, end = _day(record.get("start")), _day(record.get("end"))
             if not name or not market:
                 faults.append("ligne %d : événement ou marché absent" % number)
@@ -195,12 +208,24 @@ class Review:
     """Ce qui arrive, rangé par périmètre, et ce qui manque pour le dire."""
 
     def __init__(self, today: datetime.date, groups: Sequence[Group], absent: Sequence[str],
-                 loose: Optional[Group] = None, horizon: int = HORIZON_DAYS) -> None:
+                 loose: Optional[Group] = None, horizon: int = HORIZON_DAYS,
+                 beyond: Sequence[Event] = ()) -> None:
         self.today = today
         self.groups = list(groups)
         self.absent = list(absent)
         self.loose = loose
         self.horizon = horizon
+        #: Le premier temps fort au-delà de l'horizon, quand l'horizon est vide ou non.
+        self.beyond = list(beyond)
+
+    @property
+    def beyond_note(self) -> str:
+        if not self.beyond:
+            return ""
+        first = self.beyond[0]
+        days = first.days_until(self.today)
+        return "le prochain au-delà : %s, dans %d jours" % (
+            " ; ".join(event.sentence for event in self.beyond[:3]), days)
 
     @property
     def usable(self) -> bool:
@@ -239,9 +264,10 @@ def build(calendar: Optional[Calendar], org=None, directory=None,
         return Review(today, [], ["%s absent : les temps forts à venir ne sont pas lus" % DEFAULT_GIFTING_FILE])
     absent.extend("calendrier des temps forts, %s" % fault for fault in calendar.faults)
     upcoming = calendar.upcoming(today, horizon)
+    beyond = calendar.next_beyond(today, horizon)
     if not upcoming:
         absent.append("aucun temps fort dans les %d prochaines semaines" % (horizon // 7))
-        return Review(today, [], absent, horizon=horizon)
+        return Review(today, [], absent, horizon=horizon, beyond=beyond)
     markets = sorted({event.market for event in upcoming})
     placed, _leads = place_markets(markets, org, directory)
     by_name: Dict[str, List[Event]] = {}
@@ -255,4 +281,4 @@ def build(calendar: Optional[Calendar], org=None, directory=None,
     groups = [Group(name, events) for name, events in by_name.items()]
     groups.sort(key=lambda group: -sum(event.sales or 0.0 for event in group.events))
     return Review(today, groups, absent, Group("Sans périmètre", loose) if loose else None,
-                  horizon)
+                  horizon, beyond)
