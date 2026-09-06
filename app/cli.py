@@ -4074,7 +4074,7 @@ def cmd_sellin(argv: List[str]) -> int:
         return 2
     print("%s · %s" % (review.title, review.sentence))
     print("")
-    print("  %-24s %12s %10s %10s" % ("Canal / périmètre", "facturé", "vs N-1", "dates ég."))
+    print("  %-24s %12s %10s %10s" % ("Canal / périmètre", "facturé", "j. ouvrés", "dates ég."))
     for line in review.shown_channels + review.perimeters + ([review.loose] if review.loose else []):
         print("  %-24s %12s %10s %10s" % (line.name[:24], format_eur(line.current),
                                           line.growth_label, line.same_dates_label))

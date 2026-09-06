@@ -416,10 +416,11 @@ pris au taux fixe ; et **les factures ne se réconcilient pas canal par canal av
 consolidation** — un canal peut y peser deux fois et demie ce que la consolidation lui
 donne, un autre un sixième, quand le total ne s'écarte que par compensation. Donc :
 factures contre factures, à base constante, jamais contre le plan, qui est écrit sur l'axe
-de la consolidation. Et à **jours facturés égaux** — les N premiers jours facturés du même
-mois l'an dernier, N étant le nombre de jours facturés cette année — parce qu'une facture
-tombe un jour ouvré et qu'une fenêtre à dates égales compare quatre jours ouvrés à cinq ;
-la fenêtre à dates égales est rendue à côté. L'écart de canal entre factures et
+de la consolidation. Et à **jours ouvrés égaux** — N jours ouvrés depuis le 1er cette
+année, et l'an dernier la fenêtre du 1er au jour où N jours ouvrés sont couverts, week-end
+compris — parce que l'essentiel des factures tombe un jour ouvré et qu'une fenêtre à dates
+égales compare quatre jours ouvrés à cinq ; compter les jours facturés ne suffisait pas, le
+week-end en porte. La fenêtre à dates égales est rendue à côté. L'écart de canal entre factures et
 consolidation est une question pour le contrôle de gestion, à porter par le CEO.
 
 **Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par

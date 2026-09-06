@@ -771,5 +771,5 @@ def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(cli
     page = page_text(client.get("/"))
 
     assert "Sell-in facturé du 1er au" in page
-    assert "premiers jours facturés" in page
+    assert "à jours ouvrés égaux" in page
     assert "jamais contre le plan" in page

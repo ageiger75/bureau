@@ -1,12 +1,14 @@
 """Le sell-in du mois : ce que la Maison a facturé à ses partenaires depuis le 1er, contre
 la même chose l'an dernier — à jours facturés égaux.
 
-Le sell-out se lit à la vente ; le sell-in à la facture, et une facture tombe un jour ouvré.
-Comparer le 1er au 5 septembre de cette année, un mardi à samedi, au 1er au 5 septembre de
-l'an dernier, un lundi à vendredi, compare quatre jours ouvrés à cinq et fabrique trente
-points d'écart. Ce module compare donc **les N premiers jours facturés** de chaque mois, N
-étant le nombre de jours facturés depuis le 1er cette année — et rend à côté la fenêtre à
-dates égales, pour que l'écart entre les deux alignements reste visible.
+Le sell-out se lit à la vente ; le sell-in à la facture, et l'essentiel des factures tombe
+un jour ouvré — le week-end en porte, mais peu. Comparer le 1er au 5 septembre de cette
+année, un mardi à samedi, au 1er au 5 septembre de l'an dernier, un lundi à vendredi,
+compare quatre jours ouvrés à cinq et fabrique trente points d'écart. Ce module compare
+donc **à jours ouvrés égaux** : N jours ouvrés depuis le 1er cette année, et l'an dernier
+la fenêtre qui part du 1er et s'arrête au jour où N jours ouvrés sont couverts, week-end
+compris. La fenêtre à dates égales est rendue à côté, pour que l'écart entre les deux
+alignements reste visible.
 
 Ce que ce module refuse. Rien n'est comparé au plan : les factures au jour ne se
 réconcilient pas canal par canal avec la consolidation — l'axe canal des factures et celui
@@ -108,7 +110,7 @@ class Review:
                  other_codes: Sequence[str] = ()) -> None:
         self.month = month
         self.through = through
-        #: Les jours facturés depuis le 1er, cette année — le N de l'alignement.
+        #: Les jours ouvrés depuis le 1er, cette année — le N de l'alignement.
         self.days = days
         self.group = group
         self.channels = list(channels)
@@ -130,7 +132,7 @@ class Review:
 
     @property
     def usable(self) -> bool:
-        return self.group is not None and self.group.current > 0 and self.days > 0
+        return self.group is not None and self.group.current > 0
 
     @property
     def title(self) -> str:
@@ -144,9 +146,9 @@ class Review:
 
         if not self.usable:
             return ""
-        text = "%s sur %d jour%s facturé%s, %s sur les %d premiers jours facturés de %s %d" % (
+        text = "%s sur %d jour%s ouvré%s, %s à jours ouvrés égaux sur %s %d" % (
             format_eur(self.group.current), self.days, "s" if self.days > 1 else "",
-            "s" if self.days > 1 else "", self.group.growth_label, self.days,
+            "s" if self.days > 1 else "", self.group.growth_label,
             MONTHS_FR[self.month.month - 1], self.month.year - 1)
         if self.group.growth_same_dates is not None:
             text += " (%s à dates égales)" % self.group.same_dates_label
@@ -168,6 +170,28 @@ class Review:
     @property
     def rest_channels(self) -> List[Line]:
         return sorted(self.channels, key=lambda line: -line.current)[MOST:]
+
+
+def business_days(start: datetime.date, end: datetime.date) -> int:
+    """Les jours du lundi au vendredi entre deux dates, bornes comprises."""
+    count = 0
+    day = start
+    while day <= end:
+        if day.weekday() < 5:
+            count += 1
+        day += datetime.timedelta(days=1)
+    return count
+
+
+def aligned_end(start: datetime.date, days: int) -> datetime.date:
+    """Le jour où `days` jours ouvrés sont couverts depuis `start`, bornes comprises."""
+    day = start
+    seen = 1 if start.weekday() < 5 else 0
+    while seen < days:
+        day += datetime.timedelta(days=1)
+        if day.weekday() < 5:
+            seen += 1
+    return day
 
 
 def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None, org=None,
@@ -201,15 +225,15 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         return Review(None, None, 0, None, [], [], ["aucune facture lue sur le mois en cours : le sell-in du mois ne se lit pas"])
     through = max(current)
     month = through.replace(day=1)
-    days = len(current)
-    # Les N premiers jours facturés du même mois l'an dernier, dans l'ordre des dates.
-    last_month_days = sorted(day for day in before if day.month == month.month)
-    aligned_days = set(last_month_days[:days])
+    days = business_days(month, through)
+    # L'an dernier : du 1er du même mois au jour où N jours ouvrés sont couverts, week-end
+    # compris — une fenêtre, pas un tri sur les jours facturés.
+    start = month.replace(year=month.year - 1)
+    end = aligned_end(start, days)
+    aligned_days = {day for day in before if start <= day <= end}
     same_dates = {day for day in before if day.month == month.month and day.day <= through.day}
-    if len(last_month_days) < days:
-        absent.append("l'an dernier ne porte que %d jour%s facturé%s sur ce mois : l'alignement est court"
-                      % (len(last_month_days), "s" if len(last_month_days) > 1 else "",
-                         "s" if len(last_month_days) > 1 else ""))
+    if not any(day.month == month.month for day in before):
+        absent.append("l'an dernier ne porte aucune facture sur ce mois : pas de comparaison")
 
     channels: Dict[str, Line] = {}
     countries: Dict[str, Line] = {}

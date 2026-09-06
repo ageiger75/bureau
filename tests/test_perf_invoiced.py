@@ -29,20 +29,37 @@ def _rows():
     return rows
 
 
-def test_the_month_is_compared_on_equal_invoiced_days_and_the_calendar_window_beside():
+def test_the_month_is_compared_on_equal_business_days_and_the_calendar_window_beside():
     review = I.build(_rows(), {"JP": "Japan", "FR": "France"}, today=TODAY)
 
     assert review.usable
     assert review.days == 4
     assert review.title == "Sell-in facturé du 1er au 4 septembre"
-    # 600 facturés ; les 4 premiers jours facturés de septembre 2025 valent 4 × 130 = 520 ;
-    # les mêmes dates (1er au 4) en portent aussi 4 cette fois, mais l'an dernier le 5 est
-    # un vendredi facturé de plus dans une fenêtre au 5 — ici la fenêtre s'arrête au 4.
+    # 600 facturés sur quatre jours ouvrés ; l'an dernier, quatre jours ouvrés depuis le
+    # lundi 1er septembre 2025 s'arrêtent au jeudi 4 : 4 × 130 = 520.
     assert review.group.current == 600.0
     assert review.group.aligned == 520.0
     assert review.group.growth_label == "+15 %"
-    assert "sur 4 jours facturés, +15 % sur les 4 premiers jours facturés de septembre 2025" in review.sentence
+    assert "sur 4 jours ouvrés, +15 % à jours ouvrés égaux sur septembre 2025" in review.sentence
     assert "à dates égales" in review.sentence
+
+
+def test_a_saturday_in_the_window_does_not_count_as_a_business_day():
+    """Mardi 1er à samedi 5 septembre 2026 : quatre jours ouvrés. L'an dernier, quatre jours
+    ouvrés depuis le lundi 1er s'arrêtent au jeudi 4 — pas au vendredi 5, que la fenêtre à
+    dates égales prend, elle."""
+    rows = _rows()
+    rows.append({"window": "current", "invoice_date": "2026-09-05", "iso2": "JP",
+                 "channel": "WEBP", "net_eur": 10.0})
+    review = I.build(rows, {"JP": "Japan", "FR": "France"}, today=TODAY)
+
+    assert review.days == 4
+    assert review.title == "Sell-in facturé du 1er au 5 septembre"
+    assert review.group.aligned == 520.0
+    assert review.group.same_dates == 650.0
+    assert I.aligned_end(datetime.date(2025, 9, 1), 4) == datetime.date(2025, 9, 4)
+    assert I.aligned_end(datetime.date(2026, 8, 1), 1) == datetime.date(2026, 8, 3)
+    assert I.business_days(datetime.date(2026, 9, 1), datetime.date(2026, 9, 5)) == 4
 
 
 def test_channels_are_read_by_profit_centre_code_and_named_for_the_screen():
@@ -70,13 +87,12 @@ def test_countries_become_markets_and_markets_become_perimeters(tmp_path):
     assert review.loose is not None and review.loose.current == 200.0
 
 
-def test_a_short_last_year_is_said_and_nothing_is_compared_to_the_plan():
+def test_a_missing_last_year_is_said_and_nothing_is_compared_to_the_plan():
     rows = [row for row in _rows() if row["window"] == "current"]
-    rows.append({"window": "last_year", "invoice_date": "2025-09-01", "iso2": "JP",
-                 "channel": "WEBP", "net_eur": 80.0})
     review = I.build(rows, {}, today=TODAY)
 
-    assert any("alignement est court" in reason for reason in review.absent)
+    assert any("aucune facture sur ce mois" in reason for reason in review.absent)
+    assert review.group.growth_label == "—"
     assert "jamais contre le plan" in review.note
     for name in ("budget", "plan", "target", "gap"):
         assert not hasattr(review.group, name)
