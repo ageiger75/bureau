@@ -182,7 +182,7 @@
      contre la même l'an dernier — jamais contre le plan, qui est mensuel. #}
   {% if weekly and weekly.usable %}
     <h2>{{ weekly.title }}</h2>
-    <p class="lede">{{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | capitalize }}.{% endif %}</p>
+    <p class="lede">Sell-out, semaines pleines du lundi au dimanche : {{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | capitalize }}.{% endif %}</p>
     <table class="month-table mix-table">
       <thead><tr><th>Périmètre</th><th>Semaine</th><th>vs semaine précédente</th><th>vs même semaine l'an dernier</th></tr></thead>
       <tbody>

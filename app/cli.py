@@ -4072,7 +4072,7 @@ def cmd_semaine(argv: List[str]) -> int:
         for reason in review.absent:
             print(reason, file=sys.stderr)
         return 2
-    print("%s · %s" % (review.title, review.group.sentence))
+    print("%s · sell-out, semaines pleines · %s" % (review.title, review.group.sentence))
     if review.days_note:
         print(review.days_note)
     print("")
