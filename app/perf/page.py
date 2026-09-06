@@ -114,7 +114,7 @@ class Page:
     def __init__(self, name: str, lead: str, markets: Sequence[str], scope,
                  land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
-                 weekly=None, invoiced=None) -> None:
+                 weekly=None, invoiced=None, gifting=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -137,6 +137,8 @@ class Page:
         self.weekly = weekly
         #: Le sell-in du mois facturé à date pour ce périmètre — ou None.
         self.invoiced = invoiced
+        #: Ce qui arrive sur ce périmètre dans les six semaines — ou None.
+        self.gifting = gifting
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
@@ -169,7 +171,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
-          invoiced=None) -> Page:
+          invoiced=None, gifting=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -204,9 +206,10 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     done = pnl.for_name(name) if pnl is not None else None
     seven = weekly.for_name(name) if weekly is not None and weekly.usable else None
     billed = invoiced.for_name(name) if invoiced is not None and invoiced.usable else None
+    ahead = gifting.for_name(name) if gifting is not None and gifting.usable else None
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
-                 absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed)
+                 absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead)
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

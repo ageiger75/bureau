@@ -97,6 +97,16 @@
 </section>
 {% endif %}
 
+{% if page.gifting %}
+<section class="panel">
+  <h2>Ce qui arrive</h2>
+  {% for event in page.gifting.shown %}
+    <p class="routed-why">{{ event.sentence }}{% if event.note %} <small>· {{ event.note }}</small>{% endif %}</p>
+  {% endfor %}
+  {% if page.gifting.rest %}<p class="routed-why"><small>{{ page.gifting.rest | length }} autre{{ '' if page.gifting.rest | length == 1 else 's' }} : {{ page.gifting.rest | map(attribute='name') | join(', ') }}</small></p>{% endif %}
+</section>
+{% endif %}
+
 {% if page.subjects or page.watched %}
 <section class="panel">
   <h2>Les sujets</h2>

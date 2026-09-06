@@ -773,3 +773,11 @@ def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(cli
     assert "Sell-in facturé du 1er au" in page
     assert "à jours ouvrés égaux" in page
     assert "jamais contre le plan" in page
+
+
+def test_what_is_ahead_is_named_when_absent(client):
+    """Priorité 3 : les temps forts à venir. Sans le fichier, l'écran nomme ce qu'il attend."""
+    page = page_text(client.get("/"))
+
+    assert "Ce qui arrive" in page
+    assert "var/gifting.csv absent" in page

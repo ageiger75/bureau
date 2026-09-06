@@ -59,7 +59,8 @@
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
     python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
     python -m app.cli semaine        la dernière semaine pleine, contre la précédente et l'an dernier
-    python -m app.cli sellin         le sell-in du mois facturé à date, à jours facturés égaux
+    python -m app.cli sellin         le sell-in du mois facturé à date, à jours ouvrés égaux
+    python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
@@ -4061,6 +4062,29 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_tempsforts(argv: List[str]) -> int:
+    """Ce qui arrive dans les six semaines, par périmètre, tel que l'écran le rendra."""
+    from .routes.today import _gifting_review
+
+    review = _gifting_review()
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print("%s · %d temps forts" % (review.title, review.count))
+    for group in review.groups + ([review.loose] if review.loose else []):
+        print("")
+        print("  %s" % group.name)
+        for event in group.events:
+            print("    %s%s" % (event.sentence, " · " + event.note if event.note else ""))
+    if review.unmeasured_note:
+        print("")
+        print(review.unmeasured_note[0].upper() + review.unmeasured_note[1:] + ".")
+    for reason in review.absent:
+        print(reason)
+    return 0
+
+
 def cmd_sellin(argv: List[str]) -> int:
     """Le sell-in du mois facturé à date, tel que l'écran le rendra."""
     from .perf.analytics import format_eur
@@ -4398,6 +4422,8 @@ def main(argv: List[str]) -> int:
         return cmd_semaine(argv[1:])
     if command == "sellin":
         return cmd_sellin(argv[1:])
+    if command == "tempsforts":
+        return cmd_tempsforts(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

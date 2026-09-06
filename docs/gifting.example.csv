@@ -1,0 +1,4 @@
+event,market,start,end,share_of_month_pct,uplift_pct,sales_last_year_eur,measured_on,note
+Singles Day,Northland,2026-11-01,2026-11-11,18.4,140,3200000,2025-11-01..2025-11-11,fenêtre de la plateforme
+Black Friday,Southland,2026-11-27,2026-11-30,12.1,95,800000,2025-11-28..2025-12-01,
+Noël,Southland,2026-12-01,2026-12-24,,,,,pas encore pesé

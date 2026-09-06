@@ -423,6 +423,14 @@ compris — parce que l'essentiel des factures tombe un jour ouvré et qu'une fe
 week-end en porte. La fenêtre à dates égales est rendue à côté. L'écart de canal entre factures et
 consolidation est une question pour le contrôle de gestion, à porter par le CEO.
 
+**Ce qui arrive, le 6 septembre 2026 — troisième pièce de la priorité 3.** Les temps
+forts de gifting des six prochaines semaines, par périmètre (`var/gifting.csv`,
+`app/perf/gifting.py`) : un événement par marché, sa fenêtre de cette année, et son poids
+de l'an dernier **mesuré** par l'agent entrepôt sur le sell-out — la part du mois que la
+fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les semaines qui
+l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
+un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
+
 **Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par
 BU de la Finance est lu (`var/ebitda-budget.xlsx`, `app/perf/ebitda.py`) sur sa feuille de
 synthèse — la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à

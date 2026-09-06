@@ -268,6 +268,29 @@
   {% endif %}
 </section>
 
+<section class="panel" id="temps-forts">
+  {# Ce qui arrive : les temps forts des six semaines, par périmètre, avec le poids que
+     chacun a pesé l'an dernier — mesuré, jamais écrit de mémoire. #}
+  <h2>{{ gifting.title if gifting else "Ce qui arrive" }}</h2>
+  {% if gifting and gifting.usable %}
+    <p class="lede">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, avec le poids que chacun a pesé l'an dernier sur le sell-out du marché.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | capitalize }}.{% endif %}</p>
+    <ul class="routed-list">
+    {% for group in gifting.groups + ([gifting.loose] if gifting.loose else []) %}
+      <li class="routed">
+        <p class="routed-head"><span class="routed-name">{{ group.name }}</span></p>
+        {% for event in group.shown %}
+          <p class="routed-why">{{ event.sentence }}{% if event.note %} <small>· {{ event.note }}</small>{% endif %}</p>
+        {% endfor %}
+        {% if group.rest %}<p class="routed-why"><small>{{ group.rest | length }} autre{{ '' if group.rest | length == 1 else 's' }} : {{ group.rest | map(attribute='name') | join(', ') }}</small></p>{% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+    {% for reason in gifting.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">{% if gifting %}{% for reason in gifting.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les temps forts ne sont pas lus{% endif %}</p>
+  {% endif %}
+</section>
+
 <section class="panel" id="mix">
   <h2>L'euro gagné est-il le bon euro</h2>
   {% if mix and mix.usable %}
@@ -1097,6 +1120,7 @@
       <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La semaine.</strong> Le sell-out au jour de l'entrepôt, en semaines pleines du lundi au dimanche : la dernière semaine complète lue, contre la précédente et contre la même semaine de l'an dernier, 364 jours en arrière pour que lundi tombe sur lundi. Une semaine entamée n'est pas comptée. Jamais contre le plan, qui est mensuel. Un marché dont le 1er encaisse une campagne est nommé quand le 1er tombe dans l'une des semaines comparées.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>Le sell-in du mois.</strong> Les factures au jour de l'entrepôt, du 1er du mois à hier, contre l'an dernier à jours ouvrés égaux : N jours ouvrés depuis le 1er cette année, et l'an dernier la fenêtre du 1er au jour où N jours ouvrés sont couverts, week-end compris — parce que l'essentiel des factures tombe un jour ouvré et qu'une fenêtre à dates égales compare quatre jours ouvrés à cinq. La fenêtre à dates égales est rendue à côté. Le canal vient du centre de profit ; le montant est au taux fixe. Jamais contre le plan : les factures ne se réconcilient pas canal par canal avec la consolidation, sur laquelle le plan est écrit.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>Ce qui arrive.</strong> Le calendrier des temps forts de gifting, un événement par marché, avec sa fenêtre de cette année et son poids de l'an dernier mesuré par l'agent entrepôt sur le sell-out : la part du mois que la fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les semaines qui l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est un objectif.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La contribution à date.</strong> Le compte de gestion de l'entrepôt, un instantané par mois du réalisé cumulé depuis avril par région et par nature de coût, contre le budget phasé à date, jusqu'à la contribution avant coûts internationaux. Un seul exercice de change est lu, jamais deux. L'écriture centrale et le produit financier non récurrent sont nommés à part et hors de tout total. Ce qui a été écarté du compte de gestion est dit avec son montant. Un mois de retard sur les ventes.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'EBITDA au budget.</strong> La feuille de synthèse du budget EBITDA par BU de la Finance, en millions d'euros : la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à nettoyer, le pont vers l'EBITDA consolidé ajusté. L'infobulle donne le pas de marge opérationnelle que le plan demande, de la dernière prévision de l'exercice précédent au budget. Aucun réel : la Finance ne produit pas d'EBITDA par BU au mois, et un taux moyen ne convertit pas un écart de ventes en résultat — un réseau de boutiques perd plus d'un euro de contribution par euro de vente perdu, un partenaire en rapporte trente centimes.</p></li>

@@ -148,6 +148,19 @@ def _invoiced_review(source, weekly):
     return invoiced_module.build(rows, names, org, directory)
 
 
+def _gifting_review():
+    """Ce qui arrive dans les six semaines, par périmètre, ou pourquoi on ne le sait pas."""
+    from ..config import settings
+    from ..perf import gifting as gifting_module
+    from ..perf import owners
+    from ..perf import perimeter as perimeter_module
+
+    calendar = gifting_module.current() if settings.has_gifting_file else None
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    return gifting_module.build(calendar, org, directory)
+
+
 def _mix_review(dataset):
     """Le mix du mois contre le plan, repondéré aux taux moyens quand un fichier les porte.
 
@@ -288,7 +301,7 @@ def _perimeter_inputs(session):
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
-        "weekly": weekly, "invoiced": invoiced,
+        "weekly": weekly, "invoiced": invoiced, "gifting": _gifting_review(),
     }
 
 
@@ -334,7 +347,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
-                              invoiced=inputs["invoiced"])
+                              invoiced=inputs["invoiced"], gifting=inputs["gifting"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -407,6 +420,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     track = _track(dataset, month)
     weekly = _week_review(source, month)
     invoiced = _invoiced_review(source, weekly)
+    gifting = _gifting_review()
     stores = _stores_review()
     landing, landings = _landings(track, month)
     from ..perf import placements as placements_module
@@ -520,6 +534,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,
+            "gifting": gifting,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

@@ -112,6 +112,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("incremental_path", "incremental_margin_channels.csv"),
         ("pnl_path", "pnl_bu.csv"),
         ("placements_path", "placements.csv"),
+        ("gifting_path", "gifting.csv"),
         ("pnl_path", "pnl_bu.csv"),
     ):
         monkeypatch.setattr(

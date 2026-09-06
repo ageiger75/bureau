@@ -144,6 +144,10 @@ DEFAULT_PNL_FILE = "var/pnl_bu.csv"
 #: temps — par-dessus l'annuaire, jamais à sa place.
 DEFAULT_PLACEMENTS_FILE = "var/placements.csv"
 
+#: Les temps forts de gifting, par marché, avec leur fenêtre de cette année et le poids mesuré
+#: l'an dernier par l'agent entrepôt. Ce qui arrive, jamais un objectif.
+DEFAULT_GIFTING_FILE = "var/gifting.csv"
+
 #: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
 #: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
 #: internationaux, avec un mois de retard.
@@ -186,6 +190,7 @@ class Settings:
     incremental_file: str = DEFAULT_INCREMENTAL_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     placements_file: str = DEFAULT_PLACEMENTS_FILE
+    gifting_file: str = DEFAULT_GIFTING_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
@@ -365,6 +370,15 @@ class Settings:
     @property
     def has_placements_file(self) -> bool:
         return self.placements_path.exists()
+
+    @property
+    def gifting_path(self) -> Path:
+        path = Path(self.gifting_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_gifting_file(self) -> bool:
+        return self.gifting_path.exists()
 
     @property
     def pnl_path(self) -> Path:
