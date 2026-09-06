@@ -260,6 +260,7 @@
       </tbody>
     </table>
     {% endif %}
+    {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note | capitalize }}.</p>{% endif %}
     {% for reason in invoiced.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% else %}
     <h2>Le sell-in du mois</h2>

@@ -87,3 +87,18 @@ def test_without_invoices_the_review_names_it():
 
     assert not review.usable
     assert review.absent == ["aucune facture lue sur le mois en cours : le sell-in du mois ne se lit pas"]
+
+
+def test_codes_that_are_not_commercial_channels_are_kept_apart_and_named():
+    rows = _rows()
+    rows.append({"window": "current", "invoice_date": "2026-09-02", "iso2": "FR",
+                 "channel": "HOLD", "net_eur": 1000.0})
+    rows.append({"window": "current", "invoice_date": "2026-09-02", "iso2": "FR",
+                 "channel": "", "net_eur": 5.0})
+    review = I.build(rows, {"JP": "Japan", "FR": "France"}, today=TODAY)
+
+    assert review.group.current == 600.0
+    assert review.other.current == 1005.0
+    assert review.other_codes == ["HOLD", "vide"]
+    assert review.other_note.startswith("%s facturés hors canaux commerciaux (HOLD, vide)" % __import__("app.perf.analytics", fromlist=["format_eur"]).format_eur(1005.0))
+    assert all(line.name != "HOLD" for line in review.channels)

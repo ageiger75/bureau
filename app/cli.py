@@ -4079,6 +4079,8 @@ def cmd_sellin(argv: List[str]) -> int:
         print("  %-24s %12s %10s %10s" % (line.name[:24], format_eur(line.current),
                                           line.growth_label, line.same_dates_label))
     print("")
+    if review.other_note:
+        print(review.other_note[0].upper() + review.other_note[1:] + ".")
     print(review.note)
     for reason in review.absent:
         print(reason)

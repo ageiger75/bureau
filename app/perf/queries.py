@@ -1251,8 +1251,34 @@ from semantic_view(
 #: ou `last_year` ; `channel` est le code du centre de profit (TRA, WEBP, DIS, WHOCH…),
 #: jamais la colonne de canal de la facture, vide quatre fois sur cinq ; `net_eur` est le
 #: net au taux fixe, jamais au taux de la facture. Écrit par l'agent entrepôt contre
-#: V_SL_F_SELLIN_INVOICE_ITEM ; vide tant qu'il n'est pas déposé ici.
-SELL_IN_DAILY = ""
+#: V_SL_F_SELLIN_INVOICE_ITEM. Une seule marque, comme le sell-out : la table en porte cinq,
+#: et poser cinq marques à côté d'une seule ferait une croissance de rien. `window` est un
+#: mot réservé, d'où les guillemets, qui doivent survivre au littéral.
+SELL_IN_DAILY = """
+select
+    'current'                                       as "window",
+    i.billing_date                                  as invoice_date,
+    i.country                                       as iso2,
+    i.profit_center_group_channel                   as channel,
+    round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
+from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+where i.brand_caption = 'L''OCCITANE'
+  and i.billing_date >= date_trunc('month', current_date)
+  and i.billing_date <= dateadd(day, -1, current_date)
+group by 1, 2, 3, 4
+union all
+select
+    'last_year'                                     as "window",
+    i.billing_date                                  as invoice_date,
+    i.country                                       as iso2,
+    i.profit_center_group_channel                   as channel,
+    round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
+from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+where i.brand_caption = 'L''OCCITANE'
+  and i.billing_date >= add_months(date_trunc('month', current_date), -12)
+  and i.billing_date <= last_day(add_months(date_trunc('month', current_date), -12))
+group by 1, 2, 3, 4
+"""
 
 
 ALL = {

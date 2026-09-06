@@ -37,6 +37,11 @@ CODES = {"tra": "tra", "webp": "webp", "dis": "dis", "whoch": "whoch", "whoin": 
 #: Le nombre de canaux et de périmètres portés avant de replier le reste.
 MOST = 6
 
+#: Ce que l'écran appelle les factures dont le centre de profit n'est pas un canal
+#: commercial — HOLD, RET, ALLOCATE, PROD, un code vide. Tenues à part et nommées, hors du
+#: total du groupe : elles ne disent rien du démarrage du mois chez les partenaires.
+OTHER = "hors canaux commerciaux"
+
 
 def _day(text) -> Optional[datetime.date]:
     try:
@@ -99,7 +104,8 @@ class Review:
     def __init__(self, month: Optional[datetime.date], through: Optional[datetime.date],
                  days: int, group: Optional[Line], channels: Sequence[Line],
                  perimeters: Sequence[Line], absent: Sequence[str],
-                 loose: Optional[Line] = None) -> None:
+                 loose: Optional[Line] = None, other: Optional[Line] = None,
+                 other_codes: Sequence[str] = ()) -> None:
         self.month = month
         self.through = through
         #: Les jours facturés depuis le 1er, cette année — le N de l'alignement.
@@ -109,6 +115,18 @@ class Review:
         self.perimeters = list(perimeters)
         self.absent = list(absent)
         self.loose = loose
+        #: Les factures hors canaux commerciaux, à part, avec les codes qu'elles portent.
+        self.other = other
+        self.other_codes = list(other_codes)
+
+    @property
+    def other_note(self) -> str:
+        from .analytics import format_eur
+
+        if self.other is None or not self.other.current:
+            return ""
+        return ("%s facturés hors canaux commerciaux (%s), tenus hors du total"
+                % (format_eur(self.other.current), ", ".join(self.other_codes)))
 
     @property
     def usable(self) -> bool:
@@ -196,11 +214,20 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     channels: Dict[str, Line] = {}
     countries: Dict[str, Line] = {}
     group = Line("Groupe")
+    other = Line(OTHER)
+    other_codes: List[str] = []
 
     def pour(entries, attribute):
         for entry in entries:
             code = entry["channel"]
-            label = CHANNEL_NAMES.get(CODES.get(code, code), code.upper() if code else "sans canal")
+            if code not in CODES:
+                # Pas un canal commercial : à part, nommé, hors du total.
+                setattr(other, attribute, getattr(other, attribute) + entry["amount"])
+                shown = code.upper() if code else "vide"
+                if shown not in other_codes:
+                    other_codes.append(shown)
+                continue
+            label = CHANNEL_NAMES.get(CODES[code], code.upper())
             for bucket, key in ((channels, label), (countries, entry["iso2"] or "??")):
                 line = bucket.setdefault(key, Line(key))
                 setattr(line, attribute, getattr(line, attribute) + entry["amount"])
@@ -234,4 +261,5 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     if not placed:
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")
     return Review(month, through, days, group, list(channels.values()), ordered, absent,
-                  loose if loose.current else None)
+                  loose if loose.current else None, other if other.current else None,
+                  sorted(other_codes))
