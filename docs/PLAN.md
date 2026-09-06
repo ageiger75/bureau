@@ -395,6 +395,18 @@ les plans sur effet de base sortent de la liste et sont comptés en une ligne ; 
 la page « État du système », registre technique qui n'est pas l'écran du CEO, et les
 données de démonstration.
 
+**La semaine, le 6 septembre 2026 — première pièce de la priorité 3.** Le sell-out au
+jour de l'entrepôt (`DAILY_SALES`, six semaines et les mêmes dates un an plus tôt),
+lu en semaines pleines du lundi au dimanche : la dernière semaine complète, contre la
+précédente et contre la même semaine de l'an dernier, 364 jours en arrière pour que lundi
+tombe sur lundi. Jamais contre le plan, qui est mensuel. Une semaine entamée n'est pas
+comptée et l'écran dit combien de jours attendent. Un marché dont le 1er encaisse une
+campagne est nommé quand le 1er tombe dans l'une des semaines comparées. Rangée par
+périmètre comme le mois, sur l'accueil (`#semaine`, juste après le verdict) et sur chaque
+page de périmètre ; `manage.py semaine` au terminal. Restent de la priorité 3 : le sell-in
+du mois facturé à date contre la même date l'an dernier, et les événements de gifting à
+venir par périmètre.
+
 **Le plan EBITDA par périmètre, le 5 septembre 2026.** Le classeur du budget EBITDA par
 BU de la Finance est lu (`var/ebitda-budget.xlsx`, `app/perf/ebitda.py`) sur sa feuille de
 synthèse — la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à

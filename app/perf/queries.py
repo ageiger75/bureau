@@ -1221,6 +1221,31 @@ group by market, iso2
 """
 
 
+#: Le sell-out au jour, marché par marché, sur les six dernières semaines et sur les mêmes
+#: dates un an plus tôt — 364 jours en arrière, pour que lundi tombe sur lundi. C'est ce qui
+#: permet de lire la semaine contre la semaine précédente et contre la même semaine de l'an
+#: dernier sans qu'un week-end de plus ou de moins fausse la comparaison.
+DAILY_SALES = """
+select
+    store_country                 as market,
+    store_country_iso2            as iso2,
+    transaction_date,
+    net_sales_eur
+from semantic_view(
+    dwh.semantic_layer.v_sl_ai_sellout_analysis
+    dimensions
+        d_stores.store_country,
+        d_stores.store_country_iso2,
+        f_sellout_sales_details.transaction_date
+    metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+    where d_stores.store_brand = 'L''OCCITANE'
+      and (f_sellout_sales_details.transaction_date >= dateadd(day, -42, current_date)
+           or f_sellout_sales_details.transaction_date
+              between dateadd(day, -406, current_date) and dateadd(day, -364, current_date))
+)
+"""
+
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1231,6 +1256,7 @@ ALL = {
     "COMMITMENTS": COMMITMENTS,
     "FORECAST_HISTORY": FORECAST_HISTORY,
     "MONTH_TO_DATE": MONTH_TO_DATE,
+    "DAILY_SALES": DAILY_SALES,
 }
 
 

@@ -752,3 +752,14 @@ def test_the_contribution_to_date_reaches_the_perimeter_table_and_keeps_the_cent
     assert "INT COST" in page and "tenue à part" in page
     assert "écartés du compte de gestion" in page
     assert "var/pnl_bu.csv absent" not in page
+
+
+def test_the_week_is_on_the_screen_in_full_weeks_never_against_the_plan(client):
+    """Priorité 3 : piloter le commerce à la semaine. La dernière semaine pleine, contre la
+    précédente et la même de l'an dernier ; une semaine entamée est dite non comptée."""
+    page = page_text(client.get("/"))
+
+    assert "Semaine du " in page
+    assert "sur la semaine précédente" in page
+    assert "sur la même semaine l'an dernier" in page
+    assert "vs même semaine l'an dernier" in page

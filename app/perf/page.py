@@ -113,7 +113,8 @@ class Page:
 
     def __init__(self, name: str, lead: str, markets: Sequence[str], scope,
                  land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
-                 fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None) -> None:
+                 fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
+                 weekly=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -132,6 +133,8 @@ class Page:
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
         self.pnl_breakdown = ""
+        #: La semaine de ce périmètre, marché par marché — ou None.
+        self.weekly = weekly
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
@@ -163,7 +166,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
-          budget=None, ebitda=None, incremental=None, pnl=None) -> Page:
+          budget=None, ebitda=None, incremental=None, pnl=None, weekly=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -196,9 +199,10 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     if ebitda is not None and plan is None:
         absent.append("aucune ligne EBITDA au budget pour ce périmètre")
     done = pnl.for_name(name) if pnl is not None else None
+    seven = weekly.for_name(name) if weekly is not None and weekly.usable else None
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
-                 absent, ebitda=plan, pnl=done)
+                 absent, ebitda=plan, pnl=done, weekly=seven)
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

@@ -97,6 +97,27 @@ def _month_review(source):
     return month_module.build(rows, targets, phasing, org, directory=directory)
 
 
+def _week_review(source, month):
+    """La semaine, marché par marché, ou pourquoi elle ne se lit pas. Jamais une page qui
+    tombe : la lecture est bornée à six semaines et vit dans son propre cache."""
+    from ..config import settings
+    from ..perf import owners
+    from ..perf import perimeter as perimeter_module
+    from ..perf import weekly as weekly_module
+
+    try:
+        rows = source.daily_sales()
+    except NotImplementedError as why:
+        return weekly_module.Review(None, None, None, [], [str(why)])
+    except Exception as why:  # pragma: no cover — l'entrepôt, pas le code
+        return weekly_module.Review(None, None, None, [],
+                                    ["lecture des ventes au jour impossible : %s" % why])
+    lumpy = [line.market for line in getattr(month, "lines", []) if getattr(line, "lumpy", False)]
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    return weekly_module.build(rows, lumpy, org, directory)
+
+
 def _mix_review(dataset):
     """Le mix du mois contre le plan, repondéré aux taux moyens quand un fichier les porte.
 
@@ -213,6 +234,7 @@ def _perimeter_inputs(session):
     dataset = source.dataset(wait_for_warehouse=False)
     month = _month_review(source)
     track = _track(dataset, month)
+    weekly = _week_review(source, month)
     week, _scan = week_of.read(session, dataset=dataset, placing=False)
     fires = analytics.fires(dataset, limit=None)
     from ..perf import incremental as incremental_module
@@ -235,6 +257,7 @@ def _perimeter_inputs(session):
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
+        "weekly": weekly,
     }
 
 
@@ -279,7 +302,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               fires=inputs["fires"], contribution=inputs["contribution"],
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
-                              pnl=inputs["pnl"])
+                              pnl=inputs["pnl"], weekly=inputs["weekly"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -350,6 +373,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     month = _month_review(source)
     mix = _mix_review(dataset)
     track = _track(dataset, month)
+    weekly = _week_review(source, month)
     stores = _stores_review()
     landing, landings = _landings(track, month)
     from ..perf import placements as placements_module
@@ -461,6 +485,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             "ebitda": ebitda,
             "pnl": pnl,
             "placements": placements,
+            "weekly": weekly,
             "month_groups": month_groups,
             "stores": stores,
             "week_sources": scan.sources,

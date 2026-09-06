@@ -58,6 +58,7 @@
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
     python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
+    python -m app.cli semaine        la dernière semaine pleine, contre la précédente et l'an dernier
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
@@ -4059,6 +4060,41 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_semaine(argv: List[str]) -> int:
+    """La dernière semaine pleine, marché par marché, telle que l'écran la rendra."""
+    from .perf.analytics import format_eur
+    from .perf.source import current_source
+    from .routes.today import _month_review, _week_review
+
+    source = current_source()
+    review = _week_review(source, _month_review(source))
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    print("%s · %s" % (review.title, review.group.sentence))
+    if review.days_note:
+        print(review.days_note)
+    print("")
+    print("  %-24s %10s %10s %10s" % ("Périmètre / marché", "semaine", "vs préc.", "vs N-1"))
+    for line in review.perimeters + ([review.loose] if review.loose else []):
+        print("  %-24s %10s %10s %10s" % (line.name[:24], format_eur(line.week), line.wow_label,
+                                         line.yoy_label))
+        for market in line.shown:
+            print("    %-22s %10s %10s %10s%s" % (market.name[:22], format_eur(market.week),
+                                                  market.wow_label, market.yoy_label,
+                                                  "  campagne le 1er" if market.campaign else ""))
+        if line.rest:
+            print("    %-22s %10s" % ("%d autres" % len(line.rest),
+                                      format_eur(sum(item.week for item in line.rest))))
+    if review.campaign_note:
+        print("")
+        print(review.campaign_note[0].upper() + review.campaign_note[1:] + ".")
+    for reason in review.absent:
+        print(reason)
+    return 0
+
+
 def cmd_placements(argv: List[str]) -> int:
     """Les placements décidés, tels que l'écran les applique par-dessus l'annuaire."""
     from .perf import owners, placements as placements_module
@@ -4331,6 +4367,8 @@ def main(argv: List[str]) -> int:
         return cmd_pnl(argv[1:])
     if command == "placements":
         return cmd_placements(argv[1:])
+    if command == "semaine":
+        return cmd_semaine(argv[1:])
     if command == "distribution":
         return cmd_distribution(argv[1:])
     if command == "actuals":

@@ -66,6 +66,10 @@ KPI_CACHE_FILE = "warehouse-kpis.json"
 #: heure comme la lecture principale : le mois bouge chaque jour, pas chaque minute.
 MONTH_CACHE_FILE = "warehouse-month.json"
 
+#: Le sell-out au jour des six dernières semaines et des mêmes dates l'an dernier. Borné
+#: comme le mois, et lu comme lui : une heure de cache, payée à l'ouverture si besoin.
+DAILY_CACHE_FILE = "warehouse-daily.json"
+
 #: A day. Bounded not by time but by the anchor: a cached history whose last month is not
 #: the month on screen is re-read whatever its age, because that is the only staleness
 #: that can actually mislead anyone.
@@ -95,7 +99,7 @@ def cache_forget() -> None:
     """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
     for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE,
-                 KPI_CACHE_FILE, MONTH_CACHE_FILE):
+                 KPI_CACHE_FILE, MONTH_CACHE_FILE, DAILY_CACHE_FILE):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -197,10 +201,11 @@ def _write_kpi_cache(rows) -> None:
 def month_cache_forget() -> None:
     """Oublier la seule lecture du mois en cours — quelques secondes à repayer, contre
     des minutes pour le reste. Pour une colonne ajoutée à la requête, comme pour les KPI."""
-    try:
-        _cache_path(MONTH_CACHE_FILE).unlink()
-    except OSError:
-        pass
+    for name in (MONTH_CACHE_FILE, DAILY_CACHE_FILE):
+        try:
+            _cache_path(name).unlink()
+        except OSError:
+            pass
 
 
 def _read_month_cache():
@@ -210,6 +215,15 @@ def _read_month_cache():
 
 def _write_month_cache(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), MONTH_CACHE_FILE)
+
+
+def _read_daily_cache():
+    stored = _read_disk_cache(DAILY_CACHE_FILE)
+    return None if stored is None else stored[0]
+
+
+def _write_daily_cache(rows) -> None:
+    _write_disk_cache(rows, time.time(), read_at(), DAILY_CACHE_FILE)
 
 
 def _sell_in_month(rows, sold_in, period: str):
@@ -504,6 +518,9 @@ class MockSource:
 
     def month_to_date(self) -> List[dict]:
         return mock.month_to_date()
+
+    def daily_sales(self) -> List[dict]:
+        return mock.daily_sales()
 
     def month_targets(self, period: str) -> dict:
         return mock.month_targets(period)
@@ -848,6 +865,18 @@ class SnowflakeSource:
         if rows is None:
             rows = warehouse.rows(queries.MONTH_TO_DATE, label="MONTH_TO_DATE")
             _write_month_cache(rows)
+        return rows
+
+    def daily_sales(self) -> List[dict]:
+        """Le sell-out au jour, marché par marché, six semaines et les mêmes dates l'an
+        dernier. Son propre cache, court, comme le mois."""
+        self._refuse_if_unwritten("DAILY_SALES")
+        from . import queries, warehouse
+
+        rows = _read_daily_cache()
+        if rows is None:
+            rows = warehouse.rows(queries.DAILY_SALES, label="DAILY_SALES")
+            _write_daily_cache(rows)
         return rows
 
     def month_targets(self, period: str) -> dict:

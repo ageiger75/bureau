@@ -177,6 +177,59 @@
   </p>
 </section>
 
+<section class="panel" id="semaine">
+  {# La semaine : ce qui a bougé depuis lundi. Des semaines pleines, contre la précédente et
+     contre la même l'an dernier — jamais contre le plan, qui est mensuel. #}
+  {% if weekly and weekly.usable %}
+    <h2>{{ weekly.title }}</h2>
+    <p class="lede">{{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | capitalize }}.{% endif %}</p>
+    <table class="month-table mix-table">
+      <thead><tr><th>Périmètre</th><th>Semaine</th><th>vs semaine précédente</th><th>vs même semaine l'an dernier</th></tr></thead>
+      <tbody>
+      {% for line in weekly.perimeters %}
+        <tr>
+          <td>{{ line.name }}</td>
+          <td class="num">{{ line.week | eur }}</td>
+          <td class="num {{ 'is-en-retard' if line.wow is not none and line.wow < -0.02 else ('is-en-avance' if line.wow is not none and line.wow > 0.02 else '') }}">{{ line.wow_label }}</td>
+          <td class="num {{ 'is-en-retard' if line.yoy is not none and line.yoy < -0.02 else ('is-en-avance' if line.yoy is not none and line.yoy > 0.02 else '') }}">{{ line.yoy_label }}</td>
+        </tr>
+        <tr class="month-detail">
+          <td colspan="4">
+            <details>
+              <summary>Marché par marché</summary>
+              <table class="month-table">
+                <thead><tr><th>Marché</th><th>Semaine</th><th>vs précédente</th><th>vs l'an dernier</th></tr></thead>
+                <tbody>
+                {% for market in line.shown %}
+                  <tr><td>{{ market.name }}{% if market.campaign %} <small class="absent">campagne le 1er</small>{% endif %}</td><td class="num">{{ market.week | eur }}</td><td class="num">{{ market.wow_label }}</td><td class="num">{{ market.yoy_label }}</td></tr>
+                {% endfor %}
+                {% if line.rest %}
+                  <tr class="month-rest" title="{{ line.rest | map(attribute='name') | join(', ') }}"><td>{{ line.rest | length }} autres marchés</td><td class="num">{{ line.rest | sum(attribute='week') | eur }}</td><td class="num"></td><td class="num"></td></tr>
+                {% endif %}
+                </tbody>
+              </table>
+            </details>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if weekly.loose %}
+        <tr title="{{ weekly.loose.markets | map(attribute='name') | join(', ') }}">
+          <td>{{ weekly.loose.name }} <small>· {{ weekly.loose.markets | length }} marché{{ '' if weekly.loose.markets | length == 1 else 's' }}</small></td>
+          <td class="num">{{ weekly.loose.week | eur }}</td>
+          <td class="num">{{ weekly.loose.wow_label }}</td>
+          <td class="num">{{ weekly.loose.yoy_label }}</td>
+        </tr>
+      {% endif %}
+      </tbody>
+    </table>
+    {% if weekly.campaign_note %}<p class="cockpit-caveat">{{ weekly.campaign_note | capitalize }}.</p>{% endif %}
+    {% for reason in weekly.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <h2>La semaine</h2>
+    <p class="empty">{% if weekly %}{% for reason in weekly.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les ventes au jour ne sont pas lues{% endif %}</p>
+  {% endif %}
+</section>
+
 <section class="panel" id="mix">
   <h2>L'euro gagné est-il le bon euro</h2>
   {% if mix and mix.usable %}
@@ -1004,6 +1057,7 @@
       <li class="provenance"><p class="provenance-note"><strong>Le verdict.</strong> « En ligne » : le réalisé est dans l'attendu à {{ track.tolerance_label if track else "2 %" }} près. L'attendu du mois est le plan du mois multiplié par la part que chaque marché fait d'ordinaire à cette date, selon ses trois derniers exercices, une fourchette quand ils ne s'accordent pas. Un écart en fourchette se lit du pire au meilleur cas. Aucun mot avant une semaine pleine lue. Un marché dont le 1er encaisse une campagne de plateforme sort du verdict, avec sa part du 1er affichée. Le sell-in n'entre pas dans le mois : une facture tombe quand elle tombe.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>Vendu et expédié ensemble</strong>, comme les comptes les reconnaissent : boutiques et sites au moment de la vente, partenaires à la facture. Hospitality et cadeaux d'entreprise inclus.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'exercice à date.</strong> Les mois clos tels que la consolidation les publie, tous canaux, à taux budget, plus le mois en cours tel que l'entrepôt le lit, en sell-out des deux côtés. L'entrepôt convertit au taux budget FY27, comme le plan et la consolidation. Sans fichier de consolidation, l'entrepôt contre le classeur, dit dégradé. Un fichier qui s'arrête avant le mois précédent ne comble rien.</p></li>
+      <li class="provenance"><p class="provenance-note"><strong>La semaine.</strong> Le sell-out au jour de l'entrepôt, en semaines pleines du lundi au dimanche : la dernière semaine complète lue, contre la précédente et contre la même semaine de l'an dernier, 364 jours en arrière pour que lundi tombe sur lundi. Une semaine entamée n'est pas comptée. Jamais contre le plan, qui est mensuel. Un marché dont le 1er encaisse une campagne est nommé quand le 1er tombe dans l'une des semaines comparées.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'atterrissage.</strong> Deux hypothèses et aucune prévision : les mois clos plus le plan du reste, ou les mois clos plus le plan du reste au rythme tenu jusqu'ici.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>La contribution à date.</strong> Le compte de gestion de l'entrepôt, un instantané par mois du réalisé cumulé depuis avril par région et par nature de coût, contre le budget phasé à date, jusqu'à la contribution avant coûts internationaux. Un seul exercice de change est lu, jamais deux. L'écriture centrale et le produit financier non récurrent sont nommés à part et hors de tout total. Ce qui a été écarté du compte de gestion est dit avec son montant. Un mois de retard sur les ventes.</p></li>
       <li class="provenance"><p class="provenance-note"><strong>L'EBITDA au budget.</strong> La feuille de synthèse du budget EBITDA par BU de la Finance, en millions d'euros : la contribution de chaque BU et son taux, les flux que le budget nomme lui-même à nettoyer, le pont vers l'EBITDA consolidé ajusté. L'infobulle donne le pas de marge opérationnelle que le plan demande, de la dernière prévision de l'exercice précédent au budget. Aucun réel : la Finance ne produit pas d'EBITDA par BU au mois, et un taux moyen ne convertit pas un écart de ventes en résultat — un réseau de boutiques perd plus d'un euro de contribution par euro de vente perdu, un partenaire en rapporte trente centimes.</p></li>

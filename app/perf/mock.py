@@ -808,5 +808,28 @@ def month_to_date() -> List[dict]:
     ]
 
 
+def daily_sales() -> List[dict]:
+    """Le sell-out au jour, inventé : trois marchés, six semaines lues jusqu'à hier, et
+    les mêmes dates un an plus tôt. Le Japon encaisse une campagne le 1er du mois."""
+    import datetime
+
+    today = datetime.date.today()
+    rows = []
+    bases = {("JAPAN", "JP"): 70_000.0, ("FRANCE", "FR"): 42_000.0, ("CHINA", "CN"): 95_000.0}
+    for (market, iso2), base in bases.items():
+        for back in range(1, 43):
+            day = today - datetime.timedelta(days=back)
+            weekend = 1.35 if day.weekday() >= 5 else 1.0
+            amount = base * weekend * (1.0 + 0.02 * ((back * 7) % 5))
+            if market == "JAPAN" and day.day == 1:
+                amount += 900_000.0
+            rows.append({"market": market, "iso2": iso2, "transaction_date": day.isoformat(),
+                         "net_sales_eur": round(amount, 2)})
+            before = day - datetime.timedelta(days=364)
+            rows.append({"market": market, "iso2": iso2, "transaction_date": before.isoformat(),
+                         "net_sales_eur": round(amount * 0.94, 2)})
+    return rows
+
+
 def month_targets(period: str) -> dict:
     return {"Japan": 4_000_000.0, "France": 2_400_000.0, "China": 6_500_000.0}

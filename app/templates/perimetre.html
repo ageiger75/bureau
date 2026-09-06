@@ -68,6 +68,24 @@
   {% for reason in page.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
 </section>
 
+{% if page.weekly %}
+<section class="panel">
+  <h2>La semaine</h2>
+  <p class="lede">{{ page.weekly.sentence }}.</p>
+  <table class="month-table">
+    <thead><tr><th>Marché</th><th>Semaine</th><th>vs semaine précédente</th><th>vs même semaine l'an dernier</th></tr></thead>
+    <tbody>
+    {% for market in page.weekly.shown %}
+      <tr><td>{{ market.name }}{% if market.campaign %} <small class="absent">campagne le 1er</small>{% endif %}</td><td class="num">{{ market.week | eur }}</td><td class="num">{{ market.wow_label }}</td><td class="num">{{ market.yoy_label }}</td></tr>
+    {% endfor %}
+    {% if page.weekly.rest %}
+      <tr class="month-rest" title="{{ page.weekly.rest | map(attribute='name') | join(', ') }}"><td>{{ page.weekly.rest | length }} autres marchés</td><td class="num">{{ page.weekly.rest | sum(attribute='week') | eur }}</td><td class="num"></td><td class="num"></td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
 {% if page.subjects or page.watched %}
 <section class="panel">
   <h2>Les sujets</h2>
