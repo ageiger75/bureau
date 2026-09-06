@@ -499,6 +499,15 @@ réserve, à garder en tête : un écart en euros favorise les grands marchés p
 et un petit marché qui rate une croissance ambitieuse peut compter davantage qu'un grand
 qui rate de peu. Le fichier de poids reste lisible le jour où cette réserve devient gênante.
 
+*Tranchée le 6 septembre.* **Hong Kong et Macao restent sous APAC jusqu'à la fin de
+l'exercice**, pour comparer à périmètre constant. L'organisation les a placés sous Greater
+China, mais l'axe région du compte de gestion ne l'a pas fait, et une comparaison au même
+stade de l'exercice précédent ne tient qu'à périmètre égal des deux côtés. Conséquence pour
+le cockpit : la contribution par périmètre suit l'axe région du compte de gestion tel qu'il
+est ; l'annuaire des ventes doit placer Hong Kong et Macao sous APAC de la même façon, pour
+que les colonnes de la table des périmètres parlent du même ensemble ; et le surveillant du
+5 alerte si l'axe région bouge avant avril.
+
 En le posant, un défaut réel a été trouvé et fermé : deux règles portaient le **flux**
 entier d'un partenaire là où les autres portent un **écart**. Un flux vaut structurellement
 dix à cent fois un écart, donc il occupait le premier créneau devant tous les marchés sous
