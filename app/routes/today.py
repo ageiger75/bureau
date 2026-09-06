@@ -502,6 +502,16 @@ def today(request: Request, session: Session = Depends(get_session)):
     # clore. C'est cet écran qui place, parce que c'est lui qui montre vraiment la semaine ;
     # une inspection en terminal ne déplace rien.
     week, scan = week_of.read(session, dataset=dataset, placing=True)
+    # Les trois sujets portés, préparés en conversations avec ce que la page a déjà lu :
+    # l'écart et ses canaux, le sens sur les derniers mois, la semaine, le mois en cours,
+    # la carte de feu et sa question, l'engagement en cours, les KPI qui bougent, ce qui
+    # arrive. Rien ici ne relit l'entrepôt.
+    from ..perf import conversation as conversation_module
+
+    prepared = conversation_module.build(
+        week, dataset=dataset, fires=analytics.fires(dataset, limit=None), weekly=weekly,
+        month=month, commitments=commitments.items, kpis=kpis, gifting=gifting,
+    )
     # La transaction se referme ici et pas dans le module de lecture : la politique de
     # validation appartient à la surface, pas au domaine. Sans ce commit, la session ouverte
     # par la dépendance se ferme sans écrire, et le registre paraissait sans mémoire alors
@@ -538,6 +548,7 @@ def today(request: Request, session: Session = Depends(get_session)):
             # are hard on both sides: a screen that renders everything it found hands the
             # selection back to the reader, which is the work they came for.
             "week": week,
+            "prepared": prepared,
             "month": month,
             "mix": mix,
             "track": track,

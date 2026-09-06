@@ -806,3 +806,28 @@ def test_a_kpi_reading_not_yet_made_is_said_as_such_and_not_as_a_missing_source(
 
     assert "Pas encore lu sur cette machine" in page
     assert "Source pas encore connectée. Les lectures viennent de l'entrepôt" not in page
+
+
+def test_the_subjects_to_carry_are_prepared_conversations_not_cards(client, db_session):
+    """Priorité 4 : « montant en jeu · dure depuis plusieurs lectures » ne dit rien. Chaque
+    sujet porté arrive avec l'écart, la tendance, la dernière lecture et une question ; les
+    facteurs du moteur restent, en une ligne, parce que §C6 l'exige."""
+    from app.domain import issues as I
+    from app.perf import memory
+
+    register = I.Register()
+    register.observe(I.Observation(kind="gap_to_plan", scope="Japan", seen_at="2026-08-01",
+                                   statement="3 mois consécutifs sous le plan",
+                                   amount=-900_000.0, basis=I.STAKE))
+    memory.save(db_session, register)
+    db_session.commit()
+
+    page = page_text(client.get("/"))
+
+    assert "au plus trois conversations, préparées" in page
+    assert "L'écart" in page and "La tendance" in page and "La question" in page
+    assert "La dernière lecture" in page
+    assert "Retenu pour : montant en jeu" in page
+    assert "Pourquoi : montant en jeu" not in page
+    # Le mock porte un engagement en retard sur ce marché : c'est la première question.
+    assert "était dû le" in page or "qu'est-ce qui est engagé" in page

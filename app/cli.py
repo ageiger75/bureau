@@ -62,6 +62,7 @@
     python -m app.cli sellin         le sell-in du mois facturé à date, à jours ouvrés égaux
     python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
                                      --unmatched : les codes que le référentiel ignore
+    python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
@@ -2543,6 +2544,66 @@ def cmd_distribution(argv: List[str]) -> int:
     return 0
 
 
+def cmd_conversations(argv: List[str]) -> int:
+    """Les trois sujets à porter cette semaine, préparés comme l'écran les rend.
+
+    Lecture seule : rien n'est placé ni écrit dans le registre — regarder par-dessus
+    l'épaule ne fait pas d'un sujet un sujet porté.
+    """
+    from .db import SessionFactory, create_all
+    from .perf import conversation as conversation_module
+    from .perf import week as week_of
+    from .perf.analytics import fires as fires_of
+    from .perf.source import current_source
+    from .routes.today import (_gifting_review, _invoiced_review, _month_review,
+                               _week_review)
+
+    create_all()
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    month = _month_review(source)
+    weekly = _week_review(source, month)
+    _invoiced_review(source, weekly)
+    gifting = _gifting_review()
+    try:
+        commitments = source.commitments()
+    except NotImplementedError:
+        commitments = []
+    try:
+        kpis = source.client_kpis(wait_for_warehouse=False)
+    except Exception:  # noqa: BLE001 — sans KPI, la ligne « déjà engagé » est plus courte
+        kpis = []
+
+    with SessionFactory() as session:
+        week, _scan = week_of.read(session, dataset=dataset, placing=False, save=False)
+    prepared = conversation_module.build(
+        week, dataset=dataset, fires=fires_of(dataset, limit=None), weekly=weekly,
+        month=month, commitments=commitments, kpis=kpis, gifting=gifting,
+    )
+    if not prepared.conversations and not prepared.watch:
+        print("Aucun sujet à porter : le registre est vide, ou rien n'appelle d'intervention.")
+        return 0
+    for number, talk in enumerate(prepared.conversations, start=1):
+        who = " avec %s" % talk.who if talk.who else " — aucun interlocuteur dans l'annuaire"
+        print("%d. %s · %s%s   [%s]" % (number, talk.role, talk.market or talk.issue.title,
+                                       who, talk.issue.issue_id))
+        for label, text in (("L'écart", talk.stake), ("La tendance", talk.trend),
+                            ("Ce que les chiffres disent", talk.diagnosis),
+                            ("La dernière lecture", talk.last_reading or "aucune conclusion portée encore"),
+                            ("Déjà engagé", talk.engaged), ("Ce qui arrive", talk.ahead),
+                            ("La question", talk.question)):
+            if text:
+                print("   %-28s %s" % (label, text[0].upper() + text[1:]))
+        print("   %-28s %s" % ("Retenu pour", talk.retained_for))
+        print("")
+    if prepared.watch:
+        print("Sous surveillance")
+        for item in prepared.watch:
+            name = item.issue.scopes[0] if item.issue.scopes else item.issue.title
+            print("   %-10s %s · %s" % (item.issue.issue_id, name, item.line))
+    return 0
+
+
 def cmd_issues(argv: List[str]) -> int:
     """Les sujets de management, et ce que le cockpit se rappelle d'eux.
 
@@ -4404,6 +4465,8 @@ def main(argv: List[str]) -> int:
         return cmd_org(argv[1:])
     if command == "partners":
         return cmd_partners(argv[1:])
+    if command == "conversations":
+        return cmd_conversations(argv[1:])
     if command == "issues":
         return cmd_issues(argv[1:])
     if command == "phasing":

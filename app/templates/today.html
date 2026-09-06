@@ -422,80 +422,90 @@
       {% endif %}
     </p>
   {% else %}
-    {% for label, rows, note in [
-        ('À faire cette semaine', week.attention,
-         'au plus trois — le reste attendra, et c\'est le but'),
-        ('Sous surveillance', week.watch,
-         'suivis, pas portés : interlocuteur, tendance, prochaine échéance')] %}
-      {% if rows %}
-        <h3 class="subject-heading">{{ label }} <span class="muted">— {{ note }}</span></h3>
-        <ol class="subject-list">
-          {% for row in rows %}
-            <li class="subject">
-              <p class="subject-title">
-                <span class="badge">{{ row.role }}</span>
-                <span class="subject-ref">{{ row.issue.issue_id }}</span>
-                {{ row.issue.title }}
-              </p>
-              <p class="subject-why">Pourquoi : {{ row.why }}</p>
-              <p class="subject-who">
-                {% if row.issue.accountable %}
-                  {{ row.issue.accountable }}
-                {% else %}
-                  <span class="muted">aucun interlocuteur dans l'annuaire</span>
-                {% endif %}
-              </p>
-              {% if row.issue.readings %}
-                <p class="subject-reading">
-                  Dernière lecture : {{ row.issue.readings[-1].conclusion }}
-                </p>
-              {% endif %}
+    {# Les deux gestes que la doctrine réserve à un humain. Sans eux, arbitrer demandait
+       une ligne de commande — c'est-à-dire, pour le lecteur de cet écran, ne pas être
+       offert du tout. Pas de bouton « rouvrir » : un sujet clos qui reçoit un fait nouveau
+       en ouvre un autre, qui déclare celui qu'il suit, et c'est ce lien qui rend la
+       répétition calculable. #}
+    {% macro arbitrate(issue) %}
+      <details class="subject-actions">
+        <summary>Arbitrer</summary>
+        <form method="post" action="/issues/{{ issue.issue_id }}/accept">
+          <p class="form-lede">
+            Accepter l'écart : décider de ne rien faire, et que cela se voie. Le sujet
+            dormira jusqu'à un fait postérieur à cette décision, ou jusqu'à la date de
+            réexamen.
+          </p>
+          <label>Qui décide
+            <input type="text" name="decided_by" required autocomplete="off" maxlength="200">
+          </label>
+          <label>Pourquoi
+            <textarea name="reason" required rows="2"></textarea>
+          </label>
+          <label>Réexamen (facultatif)
+            <input type="date" name="review_on">
+          </label>
+          <button type="submit">Accepter l'écart</button>
+        </form>
+        <form method="post" action="/issues/{{ issue.issue_id }}/close">
+          <p class="form-lede">
+            Clore : cause comprise, action faite, résultat constaté. Jamais prononcé par la
+            machine.
+          </p>
+          <label>Qui clôt
+            <input type="text" name="closed_by" required autocomplete="off" maxlength="200">
+          </label>
+          <label>Sur quoi
+            <textarea name="reason" required rows="2"></textarea>
+          </label>
+          <button type="submit">Clore le sujet</button>
+        </form>
+      </details>
+    {% endmacro %}
 
-              {# Les deux gestes que la doctrine réserve à un humain. Sans eux, arbitrer
-                 demandait une ligne de commande — c'est-à-dire, pour le lecteur de cet
-                 écran, ne pas être offert du tout. Pas de bouton « rouvrir » : un sujet
-                 clos qui reçoit un fait nouveau en ouvre un autre, qui déclare celui
-                 qu'il suit, et c'est ce lien qui rend la répétition calculable. #}
-              <details class="subject-actions">
-                <summary>Arbitrer</summary>
-                <form method="post" action="/issues/{{ row.issue.issue_id }}/accept">
-                  <p class="form-lede">
-                    Accepter l'écart : décider de ne rien faire, et que cela se voie. Le
-                    sujet dormira jusqu'à un fait postérieur à cette décision, ou jusqu'à
-                    la date de réexamen.
-                  </p>
-                  <label>Qui décide
-                    <input type="text" name="decided_by" required
-                           autocomplete="off" maxlength="200">
-                  </label>
-                  <label>Pourquoi
-                    <textarea name="reason" required rows="2"></textarea>
-                  </label>
-                  <label>Réexamen (facultatif)
-                    <input type="date" name="review_on">
-                  </label>
-                  <button type="submit">Accepter l'écart</button>
-                </form>
-                <form method="post" action="/issues/{{ row.issue.issue_id }}/close">
-                  <p class="form-lede">
-                    Clore : cause comprise, action faite, résultat constaté. Jamais
-                    prononcé par la machine.
-                  </p>
-                  <label>Qui clôt
-                    <input type="text" name="closed_by" required
-                           autocomplete="off" maxlength="200">
-                  </label>
-                  <label>Sur quoi
-                    <textarea name="reason" required rows="2"></textarea>
-                  </label>
-                  <button type="submit">Clore le sujet</button>
-                </form>
-              </details>
-            </li>
-          {% endfor %}
-        </ol>
-      {% endif %}
-    {% endfor %}
+    {% if prepared.conversations %}
+      <h3 class="subject-heading">À faire cette semaine <span class="muted">— au plus trois conversations, préparées ; le reste attendra, et c'est le but</span></h3>
+      <ol class="talk-list">
+        {% for talk in prepared.conversations %}
+          <li class="talk">
+            <p class="talk-title">
+              <span class="badge">{{ talk.role }}</span>
+              <strong>{{ talk.market or talk.issue.title }}</strong>
+              {% if talk.who %}<span class="talk-who">avec {{ talk.who }}</span>{% else %}<span class="muted">aucun interlocuteur dans l'annuaire</span>{% endif %}
+              <span class="subject-ref">{{ talk.issue.issue_id }}</span>
+            </p>
+            <dl class="talk-lines">
+              {% if talk.stake %}<dt>L'écart</dt><dd>{{ talk.stake | ucfirst }}.</dd>{% endif %}
+              {% if talk.trend %}<dt>La tendance</dt><dd>{{ talk.trend | ucfirst }}.</dd>{% endif %}
+              {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
+              <dt>La dernière lecture</dt>
+              <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">aucune conclusion portée encore sur ce sujet — la première s'écrit après l'appel</span>{% endif %}</dd>
+              {% if talk.engaged %}<dt>Déjà engagé</dt><dd>{{ talk.engaged | ucfirst }}.</dd>{% endif %}
+              {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
+              <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>
+            </dl>
+            <p class="subject-why">Retenu pour : {{ talk.retained_for }}</p>
+            {{ arbitrate(talk.issue) }}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+
+    {% if prepared.watch %}
+      <h3 class="subject-heading">Sous surveillance <span class="muted">— suivis, pas portés : l'écart, depuis quand, le sens, qui, la prochaine date</span></h3>
+      <ol class="watch-list">
+        {% for item in prepared.watch %}
+          <li class="watch">
+            <p class="watch-line">
+              <span class="subject-ref">{{ item.issue.issue_id }}</span>
+              <strong>{{ item.issue.scopes[0] if item.issue.scopes else item.issue.title }}</strong>
+              · {{ item.line }}
+            </p>
+            {{ arbitrate(item.issue) }}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
   {% endif %}
 
   {% if week.sleeping %}

@@ -230,3 +230,16 @@ def test_an_amount_that_does_not_say_what_it_measures_orders_nothing():
     week = S.rank(I.Register([silent, gap]), "2026-09-01")
 
     assert week.attention[0].issue.issue_id == "ISS-002"
+
+
+def test_persistence_counts_distinct_dates_and_never_repeated_readings_of_one_day():
+    """Un sujet relu trois fois le même jour n'a pas duré, il a été regardé."""
+    issue = I.Issue(issue_id="ISS-009", title="Northland · écart", accountable="Quelqu'un")
+    for statement in ("première", "corrigée", "recorrigée"):
+        issue.record(I.Observation(kind=D.GAP_TO_PLAN, scope="Northland",
+                                   seen_at="2026-08-01", amount=-1000.0, basis=I.STAKE,
+                                   statement=statement))
+    row = S.rank(I.Register([issue]), "2026-09-01").attention[0]
+
+    assert S.PERSISTENCE not in row.factors
+    assert S.PERSISTENCE in S.rank(I.Register([_issue(readings=3)]), "2026-09-01").attention[0].factors

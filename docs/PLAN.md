@@ -431,6 +431,22 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Des sujets avec de la substance, le 6 septembre 2026 — priorité 4.** Les huit fiches de
+« Qu'est-ce que je décide cette semaine » disaient toutes « montant en jeu · dure depuis
+plusieurs lectures ». Deux causes. La première était un défaut : l'écran redéposait la même
+preuve dans le registre à chaque ouverture, donc trois ouvertures dans la journée valaient
+trois lectures — une preuve identique est désormais le même fait, et la persistance compte
+des dates distinctes. La seconde était le fond : les facteurs du moteur disent pourquoi un
+sujet est là, pas de quoi parler. Les trois sujets portés sont maintenant des conversations
+préparées (`app/perf/conversation.py`, `manage.py conversations`) : l'écart du mois et ses
+canaux, la tendance sur trois mois avec la semaine et le mois en cours, ce que les leviers
+disent, la dernière lecture, ce qui est déjà engagé (engagement, KPI qui bougent), ce qui
+arrive, et une seule question — un engagement en retard ou bloqué avant tout, sinon la
+question des leviers, sinon celle qu'un écart qui dure pose à celui qui en répond. Les cinq
+sujets sous surveillance tiennent en une ligne : l'écart, depuis quand, le sens, qui, la
+prochaine date. Les facteurs du moteur restent, en une ligne discrète, parce que §C6
+l'exige. Rien ici ne relit l'entrepôt : tout vient de ce que la page a déjà lu.
+
 **La page n'attend plus jamais l'entrepôt, le 6 septembre 2026.** L'ouverture a pris
 quatre minutes : les chiffres du haut servaient bien le cache expiré, mais la lecture des
 KPI (trois minutes) partait dès que son cache d'un jour expirait, sous un lecteur qui

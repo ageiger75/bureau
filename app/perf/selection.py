@@ -256,7 +256,9 @@ def factors_of(issue, today: str, weight: float) -> Tuple[List[str], float]:
     #: *et* dont personne ne répond est pire que la somme des deux séparément.
     score = max(money, 1.0) * max(weight, 0.1)
 
-    readings = len(issue.evidence)
+    # Des dates distinctes, pas des lignes : un sujet relu trois fois le même jour n'a
+    # pas duré, il a été regardé.
+    readings = len({item.seen_at for item in issue.evidence})
     if readings >= 3:
         factors.append(PERSISTENCE)
         score *= 1.5

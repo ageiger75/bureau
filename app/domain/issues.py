@@ -278,6 +278,13 @@ class Issue:
             raise TransitionRefused(
                 "Sujet %s clos : une preuve nouvelle ouvre un sujet qui le suit, elle "
                 "n'efface pas sa clôture." % self.issue_id)
+        # Une preuve identique — même clé, même date, même phrase, même montant — est le
+        # même fait relu, pas une lecture de plus. L'écran redépose ses observations à
+        # chaque ouverture, et sans cette règle trois ouvertures dans la journée valaient
+        # « dure depuis plusieurs lectures » sur tous les sujets à la fois. Deux mesures
+        # différentes du même jour, elles, survivent toutes les deux.
+        if observation in self.evidence:
+            return
         self.evidence.append(observation)
         if observation.key not in self.covers:
             self.covers.append(observation.key)

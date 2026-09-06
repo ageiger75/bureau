@@ -946,3 +946,30 @@ input:focus, textarea:focus, select:focus {
 .is-en-avance { color: var(--good, #2e6b3a); }
 .is-en-retard { color: var(--warn, #9a3b2e); }
 .verdict-word.is-absent { opacity: 0.5; }
+
+
+/* ------------------------------------------------------- conversations préparées */
+
+.subject-heading { font-size: 13px; margin: 14px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+.subject-ref { color: var(--ink-faint); font-size: 12px; margin-left: 6px; }
+.subject-why { color: var(--ink-faint); font-size: 12.5px; margin: 6px 0 0; }
+.subject-actions { margin-top: 8px; font-size: 13px; }
+.subject-actions summary { cursor: pointer; color: var(--ink-soft); }
+.subject-actions form { margin: 10px 0 0; padding: 10px 12px; background: var(--paper-warm); border-radius: 6px; }
+.subject-actions label { display: block; margin: 6px 0; font-size: 12.5px; color: var(--ink-soft); }
+.subject-actions input, .subject-actions textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 3px; font: inherit; }
+.form-lede { margin: 0 0 6px; font-size: 12.5px; color: var(--ink-soft); }
+
+.talk-list, .watch-list { list-style: none; margin: 0; padding: 0; }
+.talk { padding: 14px 0; border-top: 1px solid var(--rule-soft); }
+.talk:first-child { border-top: 0; padding-top: 4px; }
+.talk-title { margin: 0 0 8px; font-size: 16px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.talk-who { color: var(--ink-soft); }
+.talk-lines { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; max-width: 92ch; }
+.talk-lines dt { color: var(--ink-faint); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.talk-lines dd { margin: 0; font-size: 14px; }
+.talk-question { font-weight: 600; }
+.watch { padding: 6px 0; border-top: 1px solid var(--rule-soft); }
+.watch:first-child { border-top: 0; }
+.watch-line { margin: 0; font-size: 13.5px; }
+@media (max-width: 640px) { .talk-lines { grid-template-columns: 1fr; } .talk-lines dt { padding-top: 6px; } }

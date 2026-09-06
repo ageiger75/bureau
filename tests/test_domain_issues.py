@@ -349,3 +349,18 @@ def test_a_subject_can_be_extended_by_a_key_it_already_covers():
 
     assert held is first
     assert register.of(first.issue_id) is first
+
+
+def test_the_same_fact_read_twice_in_a_day_is_one_piece_of_evidence():
+    """L'écran redépose ses observations à chaque ouverture. Sans cette règle, trois
+    ouvertures dans la journée valaient « dure depuis plusieurs lectures » sur tous les
+    sujets à la fois — la fiche qui ne disait plus rien. Deux mesures différentes du même
+    jour, elles, survivent toutes les deux."""
+    register = I.Register()
+    issue = register.observe(_seen(at="2026-08-31", statement="3 mois sous le plan"))
+    register.observe(_seen(at="2026-08-31", statement="3 mois sous le plan"))
+    register.observe(_seen(at="2026-08-31", statement="3 mois sous le plan"))
+    assert len(issue.evidence) == 1
+
+    register.observe(_seen(at="2026-08-31", statement="lecture corrigée"))
+    assert len(issue.evidence) == 2
