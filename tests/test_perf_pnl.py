@@ -183,7 +183,11 @@ def test_an_aggregate_names_the_members_that_say_the_opposite(tmp_path):
 
     emea = review.breakdown("EMEA")
     assert "distribution +" in emea
-    assert ": réellement plus bas — sauf GREAT.EU. EXCL SPACE plus lourd que le budget et que l'an dernier" in emea
+    assert ": réellement plus bas — sauf GREAT.EU. EXCL SPACE, plus lourd que le budget et que l'an dernier" in emea
+    # Au niveau du groupe, les dissidents sont groupés par verdict, le verdict dit une fois.
+    whole = review.total_breakdown
+    assert "sauf " in whole
+    assert whole.count("plus lourd que le budget et que l'an dernier") <= whole.count(" et ") + 1
     # Un périmètre d'une seule région n'a personne à nommer.
     assert "sauf" not in review.breakdown("Japan")
     # Un poste au budget se dit en deux mots.

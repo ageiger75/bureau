@@ -449,12 +449,35 @@ def dissent_of(nature: Nature, members: Dict[str, Tuple[Line, Optional[Line]]]) 
     """
     if len(members) < 2 or nature.verdict in UNFAVOURABLE:
         return ""
-    said = []
+    by_verdict: Dict[str, List[str]] = {}
     for region, (line, before) in members.items():
         for item in natures(line, before):
             if item.name == nature.name and item.verdict in UNFAVOURABLE:
-                said.append("%s %s" % (region, item.verdict))
-    return "sauf " + ", ".join(said) if said else ""
+                by_verdict.setdefault(item.verdict, []).append(region)
+    if not by_verdict:
+        return ""
+    # Groupés par verdict, le verdict une fois : « sauf SPACE et BRAZIL, plus lourds que le
+    # budget et que l'an dernier ; CHINA TOTAL et JAPAN, un phasage possible ».
+    said = []
+    for verdict in (HEAVIER, PHASING, HEAVIER_THAN_BUDGET_ONLY):
+        regions = by_verdict.get(verdict)
+        if regions:
+            said.append("%s, %s" % (_listed(regions), SHORT.get(verdict, verdict)))
+    return "sauf " + " ; ".join(said)
+
+
+#: Le verdict d'un dissident, court : il suit une liste de noms.
+SHORT = {
+    HEAVIER: "plus lourd que le budget et que l'an dernier",
+    PHASING: "sous le budget mais plus lourd que l'an dernier",
+    HEAVIER_THAN_BUDGET_ONLY: "plus lourd que le budget",
+}
+
+
+def _listed(names: List[str]) -> str:
+    if len(names) < 2:
+        return "".join(names)
+    return "%s et %s" % (", ".join(names[:-1]), names[-1])
 
 
 def breakdown_sentence(line: Line, before: Optional[Line],
