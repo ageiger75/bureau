@@ -35,14 +35,20 @@ FILE = HEADER + "".join([
     # Le même stade de l'exercice précédent : la part des ventes s'y compare, le niveau non.
     _row("FY2026", "2025-06-01", 3, "JAPAN", 22000, (-4400, -13200), 4400, 22000, 4400),
     _row("FY2026", "2025-06-01", 3, "BRAZIL", 19000, (-3000, -17000), -1000, 19000, -1000),
+    # L'EMEA de l'an dernier, membre par membre : la distribution de la France pesait bien
+    # plus, celle de l'Europe hors SPACE bien moins — l'agrégat les fond.
+    _row("FY2026", "2025-06-01", 3, "GREAT.EU. EXCL SPACE", 100000, (-20000, -58000), 22000, 100000, 22000),
+    _row("FY2026", "2025-06-01", 3, "FRANCE TOTAL", 35000, (-7000, -40000), -12000, 35000, -12000),
     # Deux instantanés de l'exercice en cours : le dernier est lu, l'autre est connu.
     _row("FY2027", "2026-05-01", 2, "JAPAN", 15000, (-3000, -10000), 2000, 16000, 2500),
     _row("FY2027", "2026-06-01", 3, "JAPAN", 23548.87, (-4683.18, -15017.96), 3847.73, 24826.95, 4000,
          bcosts=(-5000, -16000)),
     _row("FY2027", "2026-06-01", 3, "BRAZIL", 20000, (-3000, -19000), -2000, 20100, -500),
-    _row("FY2027", "2026-06-01", 3, "GREAT.EU. EXCL SPACE", 100000, (-20000, -70000), 10000, 104000, 12000),
+    _row("FY2027", "2026-06-01", 3, "GREAT.EU. EXCL SPACE", 100000, (-20000, -70000), 10000, 104000, 12000,
+         bcosts=(-20000, -72000)),
     _row("FY2027", "2026-06-01", 3, "SPACE", 25000, (-5000, -23000), -3000, 24000, 1000),
-    _row("FY2027", "2026-06-01", 3, "FRANCE TOTAL", 35000, (-7000, -22000), 6000, 36000, 5000, 3200, NOTE),
+    _row("FY2027", "2026-06-01", 3, "FRANCE TOTAL", 35000, (-7000, -22000), 6000, 36000, 5000, 3200, NOTE,
+         bcosts=(-7000, -30000)),
     _row("FY2027", "2026-06-01", 3, "WW TRAVEL RETAIL", 45000, (-10000, -21000), 14000, 39000, 11000),
     _row("FY2027", "2026-06-01", 3, "INT COST", 0, (0, 0), 22876, 0, 0),
 ])
@@ -154,7 +160,7 @@ def test_each_cost_nature_is_read_against_the_budget_and_the_same_stage_last_yea
     statement = _statement(tmp_path)
 
     assert statement.last_year_date == "2025-06-01"
-    assert sorted(statement.last_year) == ["BRAZIL", "JAPAN"]
+    assert sorted(statement.last_year) == ["BRAZIL", "FRANCE TOTAL", "GREAT.EU. EXCL SPACE", "JAPAN"]
     japan = statement.perimeter("Japan")
     items = {item.name: item for item in P.natures(japan, statement.perimeter_last_year("Japan"))}
     produits, distribution = items["produits"], items["distribution"]
@@ -165,14 +171,23 @@ def test_each_cost_nature_is_read_against_the_budget_and_the_same_stage_last_yea
     sentence = P.breakdown_sentence(japan, statement.perimeter_last_year("Japan"))
     assert sentence.startswith("Écart de contribution %s au budget phasé, dont ventes %s : "
                                % (format_eur(japan.gap), format_eur(japan.sales_gap)))
-    assert "produits +%s (coût réellement plus bas : 19.9 %% des ventes contre 20.1 %% au budget et 20.0 %% au même stade l'an dernier)" % format_eur(316_820.0) in sentence
-    assert "distribution +%s (sous le budget mais plus lourd" % format_eur(982_040.0) in sentence
-    # Sans an dernier comparable, le verdict le dit au lieu de trancher ; et les mêmes coûts
-    # sur des ventes sous le budget sont une part plus lourde, pas un poste au budget.
-    emea = statement.perimeter("EMEA")
-    verdicts = {item.name: item.verdict for item in P.natures(emea, statement.perimeter_last_year("EMEA"))}
-    assert verdicts == {"produits": P.HEAVIER_THAN_BUDGET_ONLY,
-                        "distribution": P.HEAVIER_THAN_BUDGET_ONLY}
+    assert "produits +%s, 19.9 %% des ventes contre 20.1 au budget et 20.0 l'an dernier au même stade : réellement plus bas" % format_eur(316_820.0) in sentence
+    assert "distribution +%s, 63.8 %% des ventes contre 64.4 au budget et 60.0 l'an dernier au même stade : sous le budget mais plus lourd" % format_eur(982_040.0) in sentence
+
+
+def test_an_aggregate_names_the_members_that_say_the_opposite(tmp_path):
+    """La distribution de l'EMEA est sous le budget et plus légère que l'an dernier en
+    agrégé ; l'Europe hors SPACE, elle, est plus lourde que l'an dernier. L'agrégat le dit."""
+    statement = _statement(tmp_path)
+    review = P.build(statement, NAMES)
+
+    emea = review.breakdown("EMEA")
+    assert "distribution +" in emea
+    assert ": réellement plus bas — sauf GREAT.EU. EXCL SPACE plus lourd que le budget et que l'an dernier" in emea
+    # Un périmètre d'une seule région n'a personne à nommer.
+    assert "sauf" not in review.breakdown("Japan")
+    # Un poste au budget se dit en deux mots.
+    assert "produits +0 €, au budget" in review.breakdown("Brazil") or "au budget" in review.breakdown("Brazil")
 
 
 def test_the_review_carries_the_breakdown_for_the_screen(tmp_path):

@@ -25,7 +25,7 @@ from __future__ import annotations
 import csv
 import io
 import os
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 THOUSANDS = 1_000.0
 
@@ -198,6 +198,14 @@ class Statement:
                 found.add(line)
         return found
 
+    def members(self, name: str) -> Dict[str, Tuple[Line, Optional[Line]]]:
+        """Les régions du fichier sous ce périmètre, chacune avec son même stade l'an dernier."""
+        found: Dict[str, Tuple[Line, Optional[Line]]] = {}
+        for line in self.lines:
+            if REGION_PERIMETERS.get(_key(line.region)) == name:
+                found[line.region] = (line, self.last_year.get(line.region))
+        return found
+
     def perimeter_last_year(self, name: str) -> Optional[Line]:
         found = None
         for region, line in self.last_year.items():
@@ -327,12 +335,15 @@ def current(path: Optional[str] = None) -> Statement:
 #: Sous cet écart de part, deux références sont dites égales.
 SHARE_TOLERANCE = 0.001
 
-REALLY_LOWER = "coût réellement plus bas"
-PHASING = "sous le budget mais plus lourd qu'au même stade l'an dernier : un phasage possible"
+REALLY_LOWER = "réellement plus bas"
+PHASING = "sous le budget mais plus lourd que l'an dernier, un phasage possible"
 HEAVIER = "plus lourd que le budget et que l'an dernier"
-LIGHTER_THAN_BUDGET_ONLY = "sous le budget ; pas d'an dernier comparable"
-HEAVIER_THAN_BUDGET_ONLY = "plus lourd que le budget ; pas d'an dernier comparable"
+LIGHTER_THAN_BUDGET_ONLY = "sous le budget, sans an dernier comparable"
+HEAVIER_THAN_BUDGET_ONLY = "plus lourd que le budget, sans an dernier comparable"
 AT_BUDGET = "au budget"
+
+#: Les verdicts qui contredisent un agrégat favorable : un membre qui les porte est nommé.
+UNFAVOURABLE = frozenset({HEAVIER, PHASING, HEAVIER_THAN_BUDGET_ONLY})
 
 
 class Nature:
@@ -392,18 +403,25 @@ class Nature:
             return HEAVIER
         return AT_BUDGET
 
-    @property
-    def sentence(self) -> str:
+    def sentence(self, dissent: str = "") -> str:
+        """« distribution +N, x % des ventes contre y au budget et z l'an dernier au même
+        stade : sous le budget mais plus lourd que l'an dernier… » — et, sur un agrégat, les
+        membres qui disent l'inverse."""
         from .analytics import format_eur
 
         if self.share is None or self.budget_share is None:
             return ""
-        text = "%s %s%s (%s : %.1f %% des ventes contre %.1f %% au budget" % (
-            self.name, "+" if self.gap > 0 else "", format_eur(self.gap), self.verdict,
-            self.share * 100, self.budget_share * 100)
+        head = "%s %s%s" % (self.name, "+" if self.gap > 0 else "", format_eur(self.gap))
+        if self.verdict == AT_BUDGET and not dissent:
+            return head + ", au budget"
+        text = "%s, %.1f %% des ventes contre %.1f au budget" % (
+            head, self.share * 100, self.budget_share * 100)
         if self.last_year_share is not None:
-            text += " et %.1f %% au même stade l'an dernier" % (self.last_year_share * 100)
-        return text + ")"
+            text += " et %.1f l'an dernier au même stade" % (self.last_year_share * 100)
+        text += " : " + self.verdict
+        if dissent:
+            text += " — " + dissent
+        return text
 
 
 def natures(line: Line, before: Optional[Line]) -> List[Nature]:
@@ -422,18 +440,38 @@ def natures(line: Line, before: Optional[Line]) -> List[Nature]:
     return found
 
 
-def breakdown_sentence(line: Line, before: Optional[Line]) -> str:
+def dissent_of(nature: Nature, members: Dict[str, Tuple[Line, Optional[Line]]]) -> str:
+    """Les membres d'un agrégat dont le verdict contredit le sien, nommés avec leur verdict.
+
+    Un agrégat favorable de onze centièmes de point peut masquer un membre trois points plus
+    lourd que l'an dernier : les deux lectures sont vraies à leur niveau, et l'agrégat ne
+    doit pas dire l'inverse d'un de ses membres sans le nommer.
+    """
+    if len(members) < 2 or nature.verdict in UNFAVOURABLE:
+        return ""
+    said = []
+    for region, (line, before) in members.items():
+        for item in natures(line, before):
+            if item.name == nature.name and item.verdict in UNFAVOURABLE:
+                said.append("%s %s" % (region, item.verdict))
+    return "sauf " + ", ".join(said) if said else ""
+
+
+def breakdown_sentence(line: Line, before: Optional[Line],
+                       members: Optional[Dict[str, Tuple[Line, Optional[Line]]]] = None) -> str:
     """L'écart de contribution, poste par poste, avec le verdict de chaque poste."""
     from .analytics import format_eur
 
-    items = [item for item in natures(line, before) if item.sentence]
-    if not items:
+    items = natures(line, before)
+    said = [item.sentence(dissent_of(item, members or {})) for item in items]
+    said = [text for text in said if text]
+    if not said:
         return ""
     head = "Écart de contribution %s%s au budget phasé" % (
         "+" if line.gap > 0 else "", format_eur(line.gap))
     if line.sales_gap:
         head += ", dont ventes %s%s" % ("+" if line.sales_gap > 0 else "", format_eur(line.sales_gap))
-    return head + " : " + " ; ".join(item.sentence for item in items) + "."
+    return head + " : " + " ; ".join(said) + "."
 
 
 # ------------------------------------------------------------------------- la revue
@@ -490,13 +528,16 @@ class Review:
         line = self.for_name(name)
         if line is None:
             return ""
-        return breakdown_sentence(line, self.statement.perimeter_last_year(name))
+        return breakdown_sentence(line, self.statement.perimeter_last_year(name),
+                                  self.statement.members(name))
 
     @property
     def total_breakdown(self) -> str:
         if not self.statement or not self.statement.usable:
             return ""
-        return breakdown_sentence(self.statement.total, self.statement.total_last_year)
+        members = {line.region: (line, self.statement.last_year.get(line.region))
+                   for line in self.statement.lines}
+        return breakdown_sentence(self.statement.total, self.statement.total_last_year, members)
 
     @property
     def caveat(self) -> str:
