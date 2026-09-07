@@ -115,15 +115,14 @@ def test_a_market_that_was_never_graded_is_uncertain_and_never_established():
 
 def test_two_channels_of_one_market_do_not_double_the_evidence():
     """Elles décrivent la même conversation. Les garder toutes les deux gonflerait un sujet
-    à mesure qu'un marché a des canaux, sans rien ajouter à ce qu'on en sait."""
+    à mesure qu'un marché a des canaux. Le sujet est le marché : un seul fait, avec
+    l'écart du marché — la somme de ses canaux budgétés, qui portent la même base."""
     seen = D.from_units([_Unit(market="Northland", months_below=4, gap=-1000.0),
                          _Unit(market="Northland", months_below=5, gap=-800.0)])
 
     assert len(seen) == 1
-    # La première est retenue, la seconde écartée — jamais additionnée : sommer deux
-    # montants sans avoir vérifié qu'ils portent la même base est la faute que ce dépôt
-    # refuse partout ailleurs.
-    assert seen[0].amount == -1000.0
+    assert seen[0].amount == -1800.0
+    assert seen[0].statement == "5 mois consécutifs sous le plan"
 
 
 # ----------------------------------------------------------------------- partenaires
@@ -300,3 +299,60 @@ def test_a_subject_is_reachable_by_the_key_it_covers():
     assert _issue_named(register, "gap_to_plan:Northland") is issue
     assert _issue_named(register, "gap_to_plan:Eastland") is None
     assert _issue_named(register, "ISS-999") is None
+
+
+# ------------------------------------------------------------------ le marché, pas le canal
+
+
+class _Channel(_Unit):
+    """Une unité avec son historique mensuel d'écart, comme l'écran la porte."""
+
+    def __init__(self, history=(), **kwargs):
+        super().__init__(**kwargs)
+        self.gap_history = tuple(history)
+
+
+def test_the_subject_is_the_market_with_the_sum_of_its_channels():
+    """La règle se lisait canal par canal et gardait le premier venu avec son montant : le
+    classement se faisait sur le canal en tête de liste. Le marché est la somme de ses
+    canaux budgétés, et le montant est celui du marché."""
+    seen = D.from_units([
+        _Channel(market="Northland", months_below=4, gap=-100.0, history=(-50.0, -80.0, -100.0)),
+        _Channel(market="Northland", months_below=5, gap=-900.0, history=(-700.0, -800.0, -900.0)),
+    ])
+
+    assert [item.kind for item in seen] == [D.GAP_TO_PLAN]
+    assert seen[0].amount == -1000.0
+    assert seen[0].statement == "5 mois consécutifs sous le plan"
+
+
+def test_a_market_above_plan_in_total_opens_nothing_even_with_one_channel_behind():
+    """Un canal trois mois sous le plan dans un marché au-dessus du plan n'est pas un sujet
+    de marché : la ligne disait « plus cent mille, trois mois sous le plan »."""
+    seen = D.from_units([
+        _Channel(market="Northland", months_below=3, gap=-100.0, history=(-40.0, -60.0, -100.0)),
+        _Channel(market="Northland", months_below=0, gap=300.0, below=False,
+                 history=(200.0, 250.0, 300.0)),
+    ])
+
+    assert seen == []
+
+
+def test_the_months_below_count_on_the_market_series_aligned_by_the_end():
+    """Deux canaux dont la somme n'est sous le plan que depuis deux mois : pas encore un
+    sujet, quel que soit le canal le plus ancien en retard."""
+    seen = D.from_units([
+        _Channel(market="Northland", months_below=5, gap=-100.0, history=(-100.0, -100.0, -100.0)),
+        _Channel(market="Northland", months_below=0, gap=-10.0, history=(150.0, -5.0, -10.0)),
+    ])
+
+    assert seen == []
+
+
+def test_the_market_takes_the_weakest_confidence_of_its_channels():
+    seen = D.from_units([
+        _Channel(market="Northland", months_below=4, gap=-100.0, grade="ALIGNED"),
+        _Channel(market="Northland", months_below=4, gap=-100.0, grade="OFFSET"),
+    ])
+
+    assert [item.confidence for item in seen if item.kind == D.GAP_TO_PLAN] == [I.PROBABLE]

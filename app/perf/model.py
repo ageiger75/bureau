@@ -231,6 +231,7 @@ class BusinessUnit:
         "forecast_sales",
         "months_below_budget",
         "gap_history",
+        "gap_year_to_date",
         "forecast_history",
         "market_index_pct",
         "management_explanation",
@@ -270,6 +271,7 @@ class BusinessUnit:
         strategic_weight: float = 1.0,
         months_below_budget: int = 0,
         gap_history: Sequence[float] = (),
+        gap_year_to_date: Optional[float] = None,
         forecast_history: Sequence[float] = (),
         market_index_pct: Optional[float] = None,
         management_explanation: str = "",
@@ -308,6 +310,9 @@ class BusinessUnit:
         self.months_below_budget = months_below_budget
         #: Monthly € gap vs budget, oldest first. Drives the acceleration factor.
         self.gap_history = tuple(gap_history)
+        #: Euros against the plan since the April that opens the fiscal year, through the
+        #: month on screen. None where no history was read: never zero for an absence.
+        self.gap_year_to_date = gap_year_to_date
         #: Successive forecasts for the same period, oldest first (brief §25, UK).
         self.forecast_history = tuple(forecast_history)
         #: How far this market's warehouse reading sits from the accounts, graded over the

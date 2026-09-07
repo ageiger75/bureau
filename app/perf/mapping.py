@@ -392,7 +392,7 @@ def sell_in_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
     return translated
 
 
-def _history_for(history, market, channel, budget):
+def _history_for(history, market, channel, budget, anchor: str = ""):
     """What the last twenty-four months say about this market and channel.
 
     Returns the run of months below plan, the monthly gaps behind it, and — only when it
@@ -406,10 +406,10 @@ def _history_for(history, market, channel, budget):
     months of a number nobody stands behind.
     """
     if history is None or budget is None:
-        return 0, (), "", ""
+        return 0, (), "", "", None
     track = history.track_for(market, channel)
     if track is None:
-        return 0, (), "", ""
+        return 0, (), "", "", None
 
     chronic = track.chronic_for(budget)
     return (
@@ -417,6 +417,7 @@ def _history_for(history, market, channel, budget):
         track.gap_history_for(budget),
         chronic.sentence if chronic is not None else "",
         track.trajectory(budget).sentence,
+        track.gap_year_to_date_for(budget, anchor or ""),
     )
 
 
@@ -549,8 +550,8 @@ def units_from_rows(
                 "l'évolution ne s'attribue à aucun levier."
             )
 
-        months_below, gap_history, chronic, vs_record = _history_for(
-            history, market, channel, budget
+        months_below, gap_history, chronic, vs_record, gap_ytd = _history_for(
+            history, market, channel, budget, period
         )
         # Sell-in has no sell-out history to read, so its trajectory arrives already
         # assembled from the two consolidation queries. Same finding, different source —
@@ -609,6 +610,7 @@ def units_from_rows(
                 period=period,
                 months_below_budget=months_below,
                 gap_history=gap_history,
+                gap_year_to_date=gap_ytd,
                 chronic_plan=chronic,
                 plan_vs_record=vs_record,
             )

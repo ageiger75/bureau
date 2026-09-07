@@ -1277,3 +1277,24 @@ def test_hospitality_is_named_inside_the_total_rather_than_left_out_of_it():
     assert ytd.hospitality_gap == pytest.approx(10_000.0)
     # And it is inside the total it is named in, not beside it.
     assert ytd.actual == pytest.approx(150_000.0)
+
+
+def test_the_fiscal_year_to_date_gap_sums_only_the_months_of_the_year_through_the_anchor():
+    """Since the April that opens the year, through the month on screen — never the month
+    after, never the year before, and None where nothing of the year is readable."""
+    from app.perf import history as H
+
+    track = H.Track("Northland", "retail", [
+        H.Month("2026-02", 100.0, 110.0), H.Month("2026-04", 100.0, 120.0),
+        H.Month("2026-05", 100.0, 90.0), H.Month("2026-06", 100.0, 130.0),
+    ])
+
+    plan = {"2026-02": 110.0, "2026-04": 120.0, "2026-05": 90.0, "2026-06": 130.0}
+
+    class Budget:
+        def budget_for(self, market, channel, period):
+            return plan.get(period)
+
+    assert track.gap_year_to_date_for(Budget(), "2026-05") == -10.0
+    assert track.gap_year_to_date_for(Budget(), "2026-06") == -40.0
+    assert track.gap_year_to_date_for(Budget(), "") is None

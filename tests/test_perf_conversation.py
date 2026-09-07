@@ -157,3 +157,17 @@ def test_dates_and_months_are_written_in_french():
     assert C.date_fr("2026-11-30") == "30 novembre 2026"
     assert C.date_fr("n'importe quoi") == "n'importe quoi"
     assert C.month_fr("2026-08") == "août 2026"
+
+
+def test_the_stake_opens_on_the_fiscal_year_to_date_when_the_units_carry_it():
+    """Le lecteur lit l'exercice dans la table juste au-dessus : la conversation le dit
+    d'abord, le mois ensuite."""
+    units = [_unit("E-commerce", -1200.0, (-410.0, -780.0, -1200.0)),
+             _unit("Retail", -700.0, (-450.0, -700.0), months=2)]
+    units[0].gap_year_to_date = -4000.0
+    units[1].gap_year_to_date = -2300.0
+    talk = C.build(_week([_issue()]), dataset=_Dataset(units)).conversations[0]
+
+    assert talk.year_gap == -6300.0
+    assert talk.stake.startswith("%s sous le plan sur l'exercice à date, %s sous le plan ce mois"
+                                 % (format_eur(6300.0), format_eur(1900.0)))

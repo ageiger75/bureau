@@ -169,15 +169,28 @@ class Conversation:
     # ------------------------------------------------------------------ les lignes
 
     @property
+    def year_gap(self) -> Optional[float]:
+        """L'écart de l'exercice à date, tous canaux budgétés du marché. None sans historique."""
+        values = [getattr(unit, "gap_year_to_date", None) for unit in self.units]
+        values = [value for value in values if value is not None]
+        return sum(values) if values else None
+
+    @property
     def stake(self) -> str:
-        """Combien sous le plan ce mois, depuis combien de mois, et quels canaux le portent."""
+        """L'exercice d'abord, le mois ensuite, depuis combien de mois, et quels canaux le
+        portent — dans l'ordre où le lecteur lit la table juste au-dessus."""
         gap = self.gap
         if gap is None:
             return self.issue.evidence[-1].statement if self.issue.evidence else ""
         if not self.units:
             statement = self.issue.evidence[-1].statement if self.issue.evidence else ""
             return "%s%s" % (format_eur(gap), " · " + statement if statement else "")
-        text = "%s %s le plan ce mois" % (format_eur(abs(gap)), "sous" if gap < 0 else "au-dessus du")
+        year = self.year_gap
+        text = ""
+        if year is not None:
+            text = "%s %s le plan sur l'exercice à date, " % (
+                format_eur(abs(year)), "sous" if year < 0 else "au-dessus du")
+        text += "%s %s le plan ce mois" % (format_eur(abs(gap)), "sous" if gap < 0 else "au-dessus du")
         if self.months:
             text += ", %d mois consécutifs" % self.months if self.months > 1 else ", premier mois"
         behind = sorted(

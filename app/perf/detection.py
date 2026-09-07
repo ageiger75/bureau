@@ -78,6 +78,7 @@ def from_units(units: Sequence, period: str = "", today: str = "") -> List["Obse
     va mal » enverrait les trois au même interlocuteur, dont deux pour rien.
     """
     seen: List[Observation] = []
+    seen.extend(_market_gaps(units, period, today))
     for unit in units:
         if getattr(unit, "is_aggregate", False):
             # Un agrégat n'a pas d'interlocuteur. Lui ouvrir un sujet donnerait une ligne
@@ -88,21 +89,6 @@ def from_units(units: Sequence, period: str = "", today: str = "") -> List["Obse
         if not market:
             continue
         when = dated(getattr(unit, "period", "") or "", period, today)
-
-        if (getattr(unit, "budget_known", True)
-                and getattr(unit, "is_below_budget", False)
-                and getattr(unit, "months_below_budget", 0) >= PERSISTENT_MONTHS):
-            months = unit.months_below_budget
-            seen.append(Observation(
-                kind=GAP_TO_PLAN, scope=market, seen_at=when,
-                statement="%d mois consécutifs sous le plan" % months,
-                amount=_amount(unit.gap_vs_budget), basis=STAKE,
-                # La confiance du fait suit la vitesse à laquelle l'écran a le droit de
-                # tourner sur ce marché : un écart mesuré là où les deux systèmes ne
-                # s'accordent pas est un écart dont on ne sait pas encore la taille.
-                confidence=_confidence_of(getattr(unit, "divergence_grade", "")),
-                measure="sales_actual",
-            ))
 
         if getattr(unit, "divergence_grade", "") == "UNSTABLE":
             seen.append(Observation(
@@ -136,6 +122,79 @@ def from_units(units: Sequence, period: str = "", today: str = "") -> List["Obse
             ))
 
     return _deduplicated(seen)
+
+
+def _market_gaps(units: Sequence, period: str, today: str) -> List["Observation"]:
+    """Un écart au plan par **marché**, jamais par canal.
+
+    La règle se lisait canal par canal et n'en gardait qu'un par marché — le premier venu,
+    avec son montant. Le classement des sujets se faisait donc sur le canal qui se trouvait
+    en tête de liste : le plus gros écart de l'écran pouvait passer derrière un marché dix
+    fois plus petit, et une ligne de surveillance disait « plus cent mille, trois mois
+    sous le plan » parce que le sujet était né d'un canal et la ligne montrait le marché.
+
+    Le marché est la somme de ses canaux budgétés. Les mois sous le plan se comptent sur
+    cette somme, mois par mois, alignés par la fin ; sans historique, la règle retombe sur
+    ce que le canal le plus en retard dit, comme avant.
+    """
+    grouped: Dict[str, List] = {}
+    for unit in units:
+        if getattr(unit, "is_aggregate", False) or not getattr(unit, "budget_known", True):
+            continue
+        market = getattr(unit, "market", "") or ""
+        if market:
+            grouped.setdefault(market, []).append(unit)
+
+    found: List[Observation] = []
+    for market, members in grouped.items():
+        gap = sum(getattr(unit, "gap_vs_budget", 0.0) or 0.0 for unit in members)
+        if gap >= 0:
+            continue
+        months = _months_below(members)
+        if months < PERSISTENT_MONTHS:
+            continue
+        when = dated(getattr(members[0], "period", "") or "", period, today)
+        # La confiance d'un marché est celle de son canal le moins sûr.
+        grades = [getattr(unit, "divergence_grade", "") for unit in members]
+        confidence = ESTABLISHED
+        for grade in grades:
+            candidate = _confidence_of(grade)
+            if CONFIDENCE_ORDER.index(candidate) > CONFIDENCE_ORDER.index(confidence):
+                confidence = candidate
+        found.append(Observation(
+            kind=GAP_TO_PLAN, scope=market, seen_at=when,
+            statement="%d mois consécutifs sous le plan" % months,
+            amount=_amount(gap), basis=STAKE, confidence=confidence, measure="sales_actual",
+        ))
+    return found
+
+
+#: De la plus sûre à la moins sûre, pour prendre la plus faible d'un marché.
+CONFIDENCE_ORDER = (ESTABLISHED, PROBABLE, UNCERTAIN)
+
+
+def _months_below(members: Sequence) -> int:
+    """Combien de mois consécutifs le marché, somme de ses canaux, finit sous le plan.
+
+    Sur la série alignée par la fin quand elle existe ; quand elle couvre toute la fenêtre
+    et que les canaux disent plus long, le plus long des canaux en retard. Sans série,
+    ce que le canal le plus en retard porte."""
+    histories = [tuple(getattr(unit, "gap_history", ()) or ()) for unit in members]
+    histories = [history for history in histories if history]
+    channel_runs = [getattr(unit, "months_below_budget", 0) or 0 for unit in members
+                    if (getattr(unit, "gap_vs_budget", 0.0) or 0.0) < 0]
+    if not histories:
+        return max(channel_runs, default=0)
+    depth = max(len(history) for history in histories)
+    run = 0
+    for back in range(1, depth + 1):
+        total = sum(history[-back] for history in histories if len(history) >= back)
+        if total >= 0:
+            break
+        run += 1
+    if run == depth:
+        return max([run] + channel_runs)
+    return run
 
 
 def _confidence_of(grade: str) -> str:

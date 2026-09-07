@@ -188,6 +188,16 @@ class Track:
         gaps = [actual - planned for _, actual, planned in self.against(budget)]
         return tuple(gaps[-GAP_HISTORY_MONTHS:])
 
+    def gap_year_to_date_for(self, budget, anchor: str) -> Optional[float]:
+        """The euros against the plan of record since the April that opens the fiscal year
+        `anchor` falls in, through `anchor`. None when no month of that year is readable."""
+        first = _fiscal_start(anchor)
+        if not first:
+            return None
+        gaps = [actual - planned for period, actual, planned in self.against(budget)
+                if first <= period <= anchor]
+        return sum(gaps) if gaps else None
+
     def months_below_for(self, budget) -> int:
         """The current run of consecutive months below plan, ending at the latest."""
         run = 0
