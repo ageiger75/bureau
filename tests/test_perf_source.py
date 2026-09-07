@@ -18,7 +18,7 @@ def test_the_screen_serves_an_expired_reading_rather_than_making_anyone_wait():
 
     # The screen is the one caller that must never wait, and it only accepts the cost when
     # the reader asked for it by refreshing.
-    called = inspect.getsource(today_route.today)
+    called = inspect.getsource(today_route._screen)
     assert "wait_for_warehouse=refresh" in called
 
 
@@ -184,7 +184,7 @@ def test_the_screen_only_pays_the_kpi_read_when_the_reader_refreshed():
 
     from app.routes import today as today_route
 
-    assert "client_kpis(wait_for_warehouse=refresh)" in inspect.getsource(today_route.today)
+    assert "client_kpis(wait_for_warehouse=refresh)" in inspect.getsource(today_route._screen)
 
 
 def test_ucfirst_raises_the_first_letter_and_leaves_names_alone():

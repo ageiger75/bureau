@@ -15,7 +15,7 @@ def test_today_is_the_home_page(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Sales MTD" in page_text(response)
+    assert "Qu'est-ce que je décide cette semaine" in page_text(response)
 
 
 def test_decision_room_is_still_reachable(client):
@@ -27,7 +27,7 @@ def test_decision_room_is_still_reachable(client):
 
 
 def test_where_the_business_is_underperforming(client):
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Où pousser" in page
     assert "Japan E-commerce" in page
@@ -47,7 +47,7 @@ def test_how_much_money_is_involved(client):
 
 
 def test_where_the_upside_is(client):
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Opportunités" in page
     assert "Suppose que la conversion revient à" in page
@@ -56,13 +56,16 @@ def test_where_the_upside_is(client):
 def test_who_to_challenge(client):
     page = page_text(client.get("/"))
 
-    assert "Les conversations de la semaine" in page
-    assert "Naoki" in page
+    # Une seule liste de conversations, celle du registre : l'ancienne, recalculée à chaque
+    # lecture par l'analytique, faisait du même marché deux entrées sur le même écran.
+    assert "Les conversations de la semaine" not in page
+    assert "Qu'est-ce que je décide cette semaine" in page
+    assert "Naoki" in page_text(client.get("/analyses"))
 
 
 def test_what_to_ask_them(client):
     """The question is the product. Without it the screen is a report."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Pourquoi le plan vise-t-il les sessions" in page
 
@@ -86,7 +89,7 @@ def test_whether_those_actions_worked(client):
 
 def test_management_explanation_is_challenged_not_repeated(client):
     """Brief §3.5 and §20: quantify what the stated cause leaves unexplained."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Sales are down because the market is difficult." in page
     assert "restent inexpliqués" in page
@@ -94,7 +97,7 @@ def test_management_explanation_is_challenged_not_repeated(client):
 
 def test_estimates_are_labelled_as_estimates(client):
     """Brief §3.3 and §32: never present an inferred relationship as a proven fact."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "estimations" in page
     assert "pas des causes mesurées" in page
@@ -102,7 +105,7 @@ def test_estimates_are_labelled_as_estimates(client):
 
 def test_the_ranking_can_be_inspected(client):
     """Brief §31: opaque ranking costs the trust the whole product depends on."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Pourquoi je vois ça ?" in page
     assert "mois consécutifs sous le plan" in page
@@ -110,7 +113,7 @@ def test_the_ranking_can_be_inspected(client):
 
 
 def test_confidence_is_shown_on_every_diagnosis(client):
-    assert "Confiance haute" in page_text(client.get("/"))
+    assert "Confiance haute" in page_text(client.get("/analyses"))
 
 
 def test_the_screen_says_the_data_is_invented(client):
@@ -165,7 +168,7 @@ def test_managed_kpis_are_grouped_by_the_pillar_the_tracker_files_them_under(cli
     supply metric under one heading called "Customers" — three pillars, one label, and a
     reader who would have taken the lot for a picture of the customer base.
     """
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "KPI suivis" in page
     assert "Client Acquisition" in page
@@ -180,13 +183,13 @@ def test_managed_kpis_are_grouped_by_the_pillar_the_tracker_files_them_under(cli
 def test_a_lower_is_better_kpi_is_marked_as_such(client):
     """Retail turnover above its ceiling is bad news, and the screen must not leave the
     reader to work out the direction."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "plus bas est mieux" in page
 
 
 def test_a_kpi_whose_definition_is_unsettled_is_shown_but_not_challenged(client):
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Pas de question posée" in page
     assert "not yet aligned with the one used in China" in page
@@ -194,7 +197,7 @@ def test_a_kpi_whose_definition_is_unsettled_is_shown_but_not_challenged(client)
 
 def test_a_quarterly_kpi_is_not_reported_missing_between_readings(client):
     """The US NPS has a Q1 figure and no August one. That is the calendar, not a gap."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "CLV — top customers" in page   # the genuinely late one is named
     assert "Lecture en retard" in page
@@ -210,8 +213,8 @@ def test_a_kpi_off_on_both_axes_is_listed_once(client):
     beside a market's card is a cross-reference, which is the opposite of a duplicate —
     it is what makes the card worth more than the number alone.
     """
-    page = page_text(client.get("/"))
-    panel = page.split("KPI suivis")[-1].split("Engagements")[0]
+    page = page_text(client.get("/analyses"))
+    panel = page.split("KPI suivis")[-1].split("La donnée à vérifier")[0]
 
     assert panel.count("CLV — top customers") == 1
     assert "Lecture en retard" in panel
@@ -221,7 +224,7 @@ def test_a_kpi_off_on_both_axes_is_listed_once(client):
 def test_customer_signals_are_attached_to_the_market_that_is_on_fire(client):
     """A conversion gap with recruitment holding up is a different conversation from one
     where both are falling."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Signaux clients" in page
 
@@ -445,9 +448,11 @@ def test_the_year_to_date_says_what_it_could_not_compare(client):
     warehouse the actual with no plan against it is large enough to turn a year behind
     budget into a year ahead of it, so it is named rather than absorbed."""
     page = page_text(client.get("/"))
+    how_to_read = page_text(client.get("/analyses"))
 
     assert "sans plan, hors des comparaisons" in page
     assert "sans vente lue" in page
+    page = how_to_read
     # And the basis of the total, said in the same breath as the figure. Two bases are
     # added together here — shoppers at the till, partners at the invoice — which is how
     # the accounts recognise revenue and why it must never be swapped for a sell-through
@@ -463,7 +468,7 @@ def test_a_plan_the_record_does_not_support_is_questioned_on_the_screen(client):
     the plan aims; this one asks whether it was ever reachable. It is answerable today
     where the twelve-month verdict is not: the sales record is two years deep and
     trusted, while the workbook covers the current year only."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "au-dessus de chaque lecture du réalisé" in page
     assert "Ce plan a-t-il jamais été atteignable" in page
@@ -475,7 +480,7 @@ def test_the_plan_finding_carries_its_euros(client):
     """A percentage says how far the plan is from the record; the euros say whether it is
     worth an hour. The screen ranks everything else by money and this must not be the
     exception."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "embarqués sur l'année" in page
 
@@ -535,7 +540,7 @@ def test_a_repeated_paragraph_becomes_a_badge_and_a_note(client):
     how the number was made is a footnote. "Shipped, not sold" was printed on every channel
     of every market — eight prints of one fact on a screen meant to be read in two minutes.
     """
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     # Gone from the cards.
     assert "Expédié, pas vendu (juin) : facturé à un partenaire" not in page
@@ -550,7 +555,7 @@ def test_the_screen_says_what_each_channel_actually_is(client):
     They are a partner who buys our stock and our own site, recognised at different
     moments and answered by different people — and the platform most readers picture for
     China sits under a third name again."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Les canaux de cet écran" in page
     assert "brand.com" in page          # what "E-commerce" is
@@ -570,7 +575,7 @@ def test_a_market_whose_bulk_hides_its_shoppers_says_so_on_both_bases(client):
     One of them alone is a wrong answer to the question this screen asks, and which one is
     wrong depends on the market — so the card carries the pair and names the difference.
     """
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Là où le vrac répond à la place des clients" in page
     assert "Hong Kong" in page
@@ -596,7 +601,7 @@ def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
     Le montrer et s'arrêter revient à afficher la seule chose qui ne demande aucune
     action — l'inverse exact de ce que cet écran est censé faire.
     """
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Units per transaction" in page
     assert "sont sous cette cible" in page
@@ -670,12 +675,12 @@ def test_the_month_in_progress_is_on_the_screen_with_two_rates_per_market(client
     page = page_text(client.get("/"))
 
     assert "à date" in page
-    assert "une facture tombe quand elle tombe" in page
+    assert "une facture tombe quand elle tombe" in page_text(client.get("/analyses"))
 
 def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
     """B5, première pièce : le mix par canal contre le plan se lit sans aucun taux, le
     taux marginal est dit absent, et rien ne s'appelle EBITDA ni résultat."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "L'euro gagné est-il le bon euro" in page
     assert "Part au plan" in page
@@ -690,7 +695,7 @@ def test_the_mix_is_on_the_screen_as_a_calculation_never_as_a_result(client):
 def test_the_rent_share_panel_is_on_the_screen_or_says_what_it_waits_for(client):
     """B5, deuxième pièce : la part loyer se lit boutique par boutique, et sans fichier le
     panneau nomme ce qu'il attend au lieu de rendre un zéro."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "La part loyer du prochain euro" in page
     assert "stores-sales.xlsx" in page
@@ -723,7 +728,7 @@ def test_the_ebitda_plan_is_named_when_absent_and_never_read_as_an_actual(client
     assert "var/ebitda-budget.xlsx absent" in page
     # Pas de colonne sans fichier, et la note de lecture dit qu'aucun réel n'est lu.
     assert "<th>EBITDA au budget</th>" not in client.get("/").text
-    assert "la Finance ne produit pas d'EBITDA par BU au mois" in page
+    assert "la Finance ne produit pas d'EBITDA par BU au mois" in page_text(client.get("/analyses"))
 
 
 def test_the_contribution_to_date_is_named_when_absent(client):
@@ -802,7 +807,7 @@ def test_a_kpi_reading_not_yet_made_is_said_as_such_and_not_as_a_missing_source(
         raise source_module.NotReadYet("pas encore")
 
     monkeypatch.setattr(source_module.MockSource, "client_kpis", not_yet)
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "Pas encore lu sur cette machine" in page
     assert "Source pas encore connectée. Les lectures viennent de l'entrepôt" not in page

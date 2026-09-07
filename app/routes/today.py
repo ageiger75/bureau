@@ -398,6 +398,28 @@ def freshness():
 
 @router.get("/")
 def today(request: Request, session: Session = Depends(get_session)):
+    """L'écran du lundi : le verdict, la semaine, trois conversations, les zones rouges, ce
+    qui a changé. Tout le reste est vrai et vit sur la page Analyses."""
+    built = _screen(request, session)
+    if not isinstance(built, dict):
+        return built
+    return render(request, "today.html", built)
+
+
+@router.get("/analyses")
+def analyses(request: Request, session: Session = Depends(get_session)):
+    """Ce qui est vrai et n'est pas pour le lundi : où pousser avec ses leviers, les plans à
+    revoir, les opportunités, ce qui marche, le mix, les KPI, et la donnée à vérifier. Le
+    même contexte que l'écran du jour — une lecture, deux pages."""
+    built = _screen(request, session)
+    if not isinstance(built, dict):
+        return built
+    return render(request, "analyses.html", built)
+
+
+def _screen(request: Request, session: Session):
+    """Tout ce que les deux pages lisent, calculé une fois. Rend un dictionnaire, ou la
+    réponse « source incomplète » quand l'entrepôt n'est pas encore branché."""
     source = current_source()
     # `?refresh=1` forces a fresh read. Not a button, deliberately: a CEO who can make the
     # screen wait three minutes with one click will do it by reflex and learn that the
@@ -543,9 +565,7 @@ def today(request: Request, session: Session = Depends(get_session)):
     # qu'il l'avait — un état porté redevenait « détecté » au rechargement suivant.
     session.commit()
 
-    return render(
-        request,
-        "today.html",
+    return dict(
         {
             "user": None,
             "source": source,

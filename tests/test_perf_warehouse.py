@@ -406,9 +406,10 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
 
     with TestClient(app) as client:
         response = client.get("/")
+        analyses = client.get("/analyses")
 
     assert response.status_code == 200
-    assert "Japan" in response.text
+    assert "Japan" in analyses.text
     # And says so, rather than showing an empty board that reads as "nothing outstanding".
     assert "Source pas encore connectée" in response.text
 

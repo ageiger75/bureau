@@ -206,7 +206,7 @@ def test_the_screen_shows_where_a_routed_item_went(monkeypatch):
     monkeypatch.setattr(today_route, "current_source", lambda: Stub())
 
     with TestClient(app) as client:
-        page = client.get("/").text
+        page = client.get("/analyses").text
 
     assert "Pas une conversation commerciale" in page
     assert "United States Chain Wholesale" in page
