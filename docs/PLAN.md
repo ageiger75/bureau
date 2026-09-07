@@ -441,6 +441,19 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**L'euro suivant en boutique, le 7 septembre 2026.** L'agent entrepôt a régressé la
+variation de contribution sur la variation de ventes des boutiques comparables, quatre
+exercices empilés, la dernière année des boutiques fermées écartée — le Royaume-Uni, qui
+paraissait ne répondre à rien, était pollué par dix-huit boutiques en fin de vie, hypothèse
+du CEO confirmée. `var/incremental_margin_retail.csv` (`app/perf/retail_margin.py`,
+`manage.py retail`) : par pays, la pente et son R² dit en un mot, la pente en hausse, la
+dérive annuelle à ventes constantes, et le côté d'où récupérer l'euro suivant — bailleur
+ou exploitation — que la décomposition par le bail explique sans mieux prédire. Le retail
+entre dans le mix avec un taux mesuré (`method` lue dans le fichier des canaux) : la
+couverture du calcul marginal passe d'un cinquième à deux tiers des ventes. Chaque page de
+périmètre porte ses marchés. Décision : la pente du pays est la mesure ; le bail est une
+explication ; « part loyer » sera remplacé par la dérive.
+
 **Des sujets avec de la substance, le 6 septembre 2026 — priorité 4.** Les huit fiches de
 « Qu'est-ce que je décide cette semaine » disaient toutes « montant en jeu · dure depuis
 plusieurs lectures ». Deux causes. La première était un défaut : l'écran redéposait la même

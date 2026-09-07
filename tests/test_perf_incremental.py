@@ -141,3 +141,26 @@ def test_the_file_faults_reach_the_review_by_name(tmp_path):
     review = M.build(_month(), None, read)
 
     assert any(reason.startswith("marge incrémentale, ligne 2") for reason in review.absent)
+
+
+def test_a_method_column_is_read_when_present_and_named_in_the_mix(tmp_path):
+    """Le retail est régressé sur ses boutiques, pas lu sur deux paires d'exercices : le
+    fichier le dit dans une colonne à part, et le mix le répète pour que le lecteur sache
+    d'où vient le seul taux qui couvre la moitié des ventes."""
+    text = HEADER.rstrip("\n") + ",method\n" + (
+        "2026-03-01,2025-03-01,SELL OUT,RETAIL,700000,473000,66.3,37,34,47.6,,23.8,"
+        "signes opposes,mesure,pente regressee sur boutiques comparables\n"
+        "2026-03-01,2025-03-01,SELL IN,WEB PARTNERS,260000,257000,98.7,12,8,49.7,26.5,42.4,"
+        "meme signe,mesure,\n"
+    )
+    read = _read(tmp_path, text)
+
+    by_name = {rate.name: rate for rate in read.rates}
+    retail = by_name["RETAIL"]
+    assert retail.measured
+    assert retail.method == "pente regressee sur boutiques comparables"
+    assert retail.previous is None
+    assert by_name["WEB PARTNERS"].method == ""
+
+    review = M.build(_month(), M.load(_file(tmp_path, CANONICAL)), read)
+    assert "Retail : Pente regressee sur boutiques comparables." in review.marginal

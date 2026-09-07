@@ -1,0 +1,5 @@
+market,stores,observations,slope_pct,r2,slope_up_pct,r2_up,n_up,slope_down_pct,r2_down,n_down,intercept_keur,products_pct,staff_pct,rent_pct,average_margin_pct,fiscal_years,method,excluded_observations,exclusion_rule,residual_slope_pct,lease_pct,lease_coverage_pct
+MONDE,1200,4000,45.0,0.65,38.0,0.30,2300,50.0,0.80,1700,-8.0,-16.0,-6.0,-22.0,23.0,FY2023 FY2024 FY2025 FY2026,pente regressee sur boutiques comparables ; la pente du marche est la mesure,280,derniere annee des boutiques fermees ecartee,58.0,11.0,87.0
+NORTHLAND,180,600,44.0,0.83,45.0,0.40,350,40.0,0.85,250,-9.0,-16.0,-3.0,-19.0,28.0,FY2023 FY2024 FY2025 FY2026,pente regressee sur boutiques comparables,26,derniere annee des boutiques fermees ecartee,73.0,21.0,75.0
+EASTLAND,90,300,30.0,0.20,15.0,0.10,150,45.0,0.70,150,-16.0,-20.0,-25.0,-18.0,24.0,FY2023 FY2024 FY2025 FY2026,pente regressee sur boutiques comparables,37,derniere annee des boutiques fermees ecartee,-5.0,21.0,78.0
+WESTLAND,12,30,,,,,,,,,,,,,,,sous le plancher de 40 observations,0,derniere annee des boutiques fermees ecartee,,,

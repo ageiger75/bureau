@@ -56,6 +56,7 @@
                                      moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
+    python -m app.cli retail         l'euro suivant en boutique, pays par pays, pente et précision
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
     python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
     python -m app.cli semaine        la dernière semaine pleine, contre la précédente et l'an dernier
@@ -4283,6 +4284,40 @@ def cmd_pnl(argv: List[str]) -> int:
     return 0
 
 
+def cmd_retail(argv: List[str]) -> int:
+    """L'euro suivant en boutique, pays par pays, tel que les pages de périmètre le rendent."""
+    from .config import settings
+    from .perf import retail_margin as retail_module
+    from .perf.analytics import format_eur
+
+    if not settings.has_retail_margin_file:
+        print("Fichier absent : %s" % settings.retail_margin_path, file=sys.stderr)
+        return 2
+    read = retail_module.current()
+    for fault in read.faults:
+        print(fault, file=sys.stderr)
+    if read.is_empty:
+        return 2
+    world = read.world
+    if world is not None:
+        print("Monde · %s." % world.sentence)
+        print("")
+    print("  %-20s %7s %6s %7s %6s %9s %9s %8s" % (
+        "Marché", "pente", "R²", "hausse", "R²", "dérive/an", "bailleur", "exploit."))
+    for line in sorted(read.countries, key=lambda item: (not item.measured, -(item.slope or 0.0))):
+        if not line.measured:
+            print("  %-20s %s" % (line.market[:20], line.sentence))
+            continue
+        print("  %-20s %6.0f %% %6.2f %6s %6s %9s %9s %8s" % (
+            line.market[:20], line.slope * 100, line.r2,
+            "%.0f %%" % (line.slope_up * 100) if line.slope_up is not None else "—",
+            "%.2f" % line.r2_up if line.r2_up is not None else "—",
+            format_eur(line.drift) if line.drift is not None else "—",
+            "%.0f %%" % (line.lease * 100) if line.lease is not None else "—",
+            "%.0f %%" % (line.residual * 100) if line.residual is not None else "—"))
+    return 0
+
+
 def cmd_ebitda(argv: List[str]) -> int:
     """Le plan EBITDA par périmètre, tel que l'écran le rendra. Un plan, jamais un réel."""
     from .perf.analytics import format_eur
@@ -4479,6 +4514,8 @@ def main(argv: List[str]) -> int:
         return cmd_mix(argv[1:])
     if command == "stores":
         return cmd_stores(argv[1:])
+    if command == "retail":
+        return cmd_retail(argv[1:])
     if command == "ebitda":
         return cmd_ebitda(argv[1:])
     if command == "pnl":

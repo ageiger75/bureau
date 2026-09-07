@@ -302,7 +302,16 @@ def _perimeter_inputs(session):
         "ebitda": _ebitda_review(list(known)),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
         "weekly": weekly, "invoiced": invoiced, "gifting": _gifting_review(),
+        "retail": _retail_margin(),
     }
+
+
+def _retail_margin():
+    """L'euro suivant en boutique, pays par pays — ou None sans le fichier."""
+    from ..config import settings
+    from ..perf import retail_margin as retail_module
+
+    return retail_module.current() if settings.has_retail_margin_file else None
 
 
 @router.get("/perimetres")
@@ -347,7 +356,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
-                              invoiced=inputs["invoiced"], gifting=inputs["gifting"])
+                              invoiced=inputs["invoiced"], gifting=inputs["gifting"],
+                              retail=inputs["retail"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })

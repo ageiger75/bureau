@@ -135,6 +135,11 @@ DEFAULT_EBITDA_FILE = "var/ebitda-budget.xlsx"
 #: taux du prochain euro, là où la série est stable, et un statut nommé partout ailleurs.
 DEFAULT_INCREMENTAL_FILE = "var/incremental_margin_channels.csv"
 
+#: L'euro suivant en boutique, pays par pays : la pente régressée sur les boutiques
+#: comparables par l'agent entrepôt, sa précision, la dérive à ventes constantes et la part
+#: du bail. Une mesure, jamais un taux moyen.
+DEFAULT_RETAIL_MARGIN_FILE = "var/incremental_margin_retail.csv"
+
 #: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
 #: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
 #: internationaux, avec un mois de retard.
@@ -188,6 +193,7 @@ class Settings:
     store_sales_file: str = DEFAULT_STORE_SALES_FILE
     ebitda_file: str = DEFAULT_EBITDA_FILE
     incremental_file: str = DEFAULT_INCREMENTAL_FILE
+    retail_margin_file: str = DEFAULT_RETAIL_MARGIN_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     placements_file: str = DEFAULT_PLACEMENTS_FILE
     gifting_file: str = DEFAULT_GIFTING_FILE
@@ -352,6 +358,15 @@ class Settings:
     @property
     def has_incremental_file(self) -> bool:
         return self.incremental_path.exists()
+
+    @property
+    def retail_margin_path(self) -> Path:
+        path = Path(self.retail_margin_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_retail_margin_file(self) -> bool:
+        return self.retail_margin_path.exists()
 
     @property
     def pnl_path(self) -> Path:

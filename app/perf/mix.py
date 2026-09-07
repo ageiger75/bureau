@@ -494,6 +494,11 @@ class Review:
         text = ("Taux marginal mesuré au compte de gestion%s sur %s des ventes du mois : %s."
                 % (" (instantané du %s)" % when if when else "", self.marginal_coverage_label,
                    names))
+        methods = [(piece.label, piece.marginal.method) for piece in self.measured
+                   if getattr(piece.marginal, "method", "")]
+        if methods:
+            text += " " + " ".join("%s : %s." % (label, method[0].upper() + method[1:])
+                                   for label, method in methods)
         others = [piece for piece in self.slices if not piece.measured]
         if others:
             reasons = []

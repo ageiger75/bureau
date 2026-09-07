@@ -184,4 +184,14 @@
   </table>
 </section>
 {% endif %}
+
+{% if page.retail %}
+<section class="panel">
+  <h2>L'euro suivant en boutique</h2>
+  <p class="lede">Ce qu'un euro de plus dans une boutique existante rapporte de contribution, mesuré sur les boutiques comparables{% if page.retail_years %} ({{ page.retail_years }}){% endif %}, la dernière année des boutiques fermées écartée. La pente est la mesure ; le bail explique, sans mieux prédire.</p>
+  {% for line in page.retail %}
+    <p class="routed-why"><strong>{{ line.market }}</strong> · {{ line.sentence }}.</p>
+  {% endfor %}
+</section>
+{% endif %}
 {% endblock %}

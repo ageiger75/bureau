@@ -110,6 +110,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("store_sales_path", "stores-sales.xlsx"),
         ("ebitda_path", "ebitda-budget.xlsx"),
         ("incremental_path", "incremental_margin_channels.csv"),
+        ("retail_margin_path", "incremental_margin_retail.csv"),
         ("pnl_path", "pnl_bu.csv"),
         ("placements_path", "placements.csv"),
         ("gifting_path", "gifting.csv"),

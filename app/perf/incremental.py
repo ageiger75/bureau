@@ -84,13 +84,13 @@ class Marginal:
     """Une ligne du fichier : un canal, sa mesure sur deux paires, son statut."""
 
     __slots__ = ("name", "group", "channels", "marginal", "previous", "average", "status",
-                 "sales", "coverage", "snapshot", "snapshot_prev", "line")
+                 "sales", "coverage", "snapshot", "snapshot_prev", "line", "method")
 
     def __init__(self, name: str, group: str, channels: Tuple[str, ...],
                  marginal: Optional[float], previous: Optional[float],
                  average: Optional[float], status: str, sales: Optional[float],
                  coverage: Optional[float], snapshot: str, snapshot_prev: str,
-                 line: int) -> None:
+                 line: int, method: str = "") -> None:
         self.name = name
         self.group = group
         self.channels = tuple(channels)
@@ -103,6 +103,9 @@ class Marginal:
         self.snapshot = snapshot
         self.snapshot_prev = snapshot_prev
         self.line = line
+        #: Comment le taux a été mesuré, quand la méthode diffère de celle du fichier —
+        #: le retail est régressé sur ses boutiques, pas lu sur deux paires d'exercices.
+        self.method = method
 
     @property
     def measured(self) -> bool:
@@ -207,7 +210,8 @@ def load(path: str) -> Incremental:
                 _pct(record.get("average_margin_pct") or ""), status,
                 _number(record.get("sales_ty") or ""), _pct(record.get("coverage_pct") or ""),
                 (record.get("snapshot_date") or "").strip(),
-                (record.get("snapshot_date_prev") or "").strip(), number))
+                (record.get("snapshot_date_prev") or "").strip(), number,
+                " ".join((record.get("method") or "").split())))
     return Incremental(rates, faults, path)
 
 
