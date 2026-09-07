@@ -337,6 +337,32 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------------------ white spaces #}
+
+<section class="panel" id="white-spaces">
+  <h2>Les white spaces internes</h2>
+  <p class="lede">Là où l'on pourrait vendre et où l'on ne vend pas, lu dans nos propres chiffres. Chaque taille porte son hypothèse ; rien ici n'est un objectif.</p>
+  {% if whitespaces and whitespaces.usable %}
+    {% for label, spaces in [("Un canal que les pairs ont et que ce marché n'a pas", whitespaces.channels), ("Un mix sous le plan depuis plusieurs mois", whitespaces.mixes), ("Des boutiques sous la médiane de leur marché", whitespaces.stores)] %}
+      {% if spaces %}
+        <h3 class="subject-heading">{{ label }}</h3>
+        <ul class="routed-list">
+          {% for space in spaces %}
+            <li class="routed"{% if space.details %} title="{{ space.details | join(' · ') }}"{% endif %}>
+              <p class="routed-head"><span class="routed-name">{{ space.market }} · {{ space.label }}</span> <span class="routed-amount">{{ space.amount_label }}</span></p>
+              <p class="routed-why">{{ space.basis | ucfirst }}.</p>
+              <p class="ask">{{ space.question }}</p>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endfor %}
+  {% else %}
+    <p class="empty">Aucun white space interne lisible sur cette lecture.</p>
+  {% endif %}
+  {% if whitespaces %}{% for reason in whitespaces.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}
+</section>
+
 {# ------------------------------------------------------------------ wins #}
 
 <section class="panel">

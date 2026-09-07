@@ -321,6 +321,24 @@ def _perimeter_inputs(session):
     }
 
 
+def _white_spaces(dataset, month):
+    """Les trois formes internes de white space, sur ce que la page a déjà lu."""
+    from ..config import settings
+    from ..perf import month as month_module
+    from ..perf import owners
+    from ..perf import perimeter as perimeter_module
+    from ..perf import stores as stores_module
+    from ..perf import whitespace as whitespace_module
+
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    markets = sorted({unit.market for unit in getattr(dataset, "units", []) or []
+                      if getattr(unit, "market", "") and not getattr(unit, "is_aggregate", False)})
+    placed, _leads = month_module.place_markets(markets, org, directory)
+    sales = stores_module.current_sales() if settings.has_store_sales_file else None
+    return whitespace_module.build(dataset, placed, sales)
+
+
 def _red_zones(kpi_rows, pnl, invoiced, track):
     """Les cinq fronts du lecteur, avec leur chiffre — ou ce qui manque pour le lire."""
     from ..config import settings
@@ -507,6 +525,7 @@ def _screen(request: Request, session: Session):
     kpi_rows = getattr(source, "kpi_rows", list)()
     samestore = samestore_module.build(kpi_rows)
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
+    whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
     # a déjà lu. Après la semaine et le sell-in, parce qu'elles s'en servent.
     month_groups = {group.name: group for group in month.groups}
@@ -630,6 +649,7 @@ def _screen(request: Request, session: Session):
             "samestore": samestore,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
+            "whitespaces": whitespaces,
             "changes": changes,
             "placements": placements,
             "weekly": weekly,

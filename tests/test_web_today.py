@@ -888,3 +888,10 @@ def test_what_changed_since_last_monday_is_on_the_screen(client, db_session):
     assert "Ce qui a changé depuis lundi dernier" in page
     assert ("sujet" in page.split("Ce qui a changé depuis lundi dernier")[1][:400]
             or "rien n'a bougé" in page.split("Ce qui a changé depuis lundi dernier")[1][:400])
+
+
+def test_the_internal_white_spaces_live_on_the_analyses_page_with_their_hypotheses(client):
+    page = page_text(client.get("/analyses"))
+
+    assert "Les white spaces internes" in page
+    assert "Beauté Research" in page

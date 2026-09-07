@@ -63,6 +63,7 @@
     python -m app.cli sellin         le sell-in du mois facturé à date, à jours ouvrés égaux
     python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
     python -m app.cli zones          les zones rouges nommées par le lecteur, chacune avec son chiffre
+    python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4125,6 +4126,33 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_whitespaces(argv: List[str]) -> int:
+    """Les trois formes internes de white space, telles que la page Analyses les rend."""
+    from .perf.source import current_source
+    from .routes.today import _month_review, _white_spaces
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    review = _white_spaces(dataset, _month_review(source))
+    for label, spaces in (("Canal absent", review.channels), ("Mix sous le plan", review.mixes),
+                          ("Boutiques sous la médiane", review.stores)):
+        if not spaces:
+            continue
+        print(label)
+        for space in spaces:
+            print("  %-22s %-26s %10s  %s" % (space.market[:22], space.label[:26], space.amount_label,
+                                              space.basis[0].upper() + space.basis[1:]))
+            print("  %-22s %-26s %10s  %s" % ("", "", "", space.question))
+            for detail in space.details[:8]:
+                print("  %-22s %-26s %10s    %s" % ("", "", "", detail))
+        print("")
+    if not review.usable:
+        print("Aucun white space interne lisible sur cette lecture.")
+    for reason in review.absent:
+        print(reason[0].upper() + reason[1:] + ".")
+    return 0
+
+
 def cmd_zones(argv: List[str]) -> int:
     """Les zones rouges, telles que l'écran les rendra : une ligne chacune."""
     from .config import settings
@@ -4558,6 +4586,8 @@ def main(argv: List[str]) -> int:
         return cmd_sellin(argv[1:])
     if command == "zones":
         return cmd_zones(argv[1:])
+    if command == "whitespaces":
+        return cmd_whitespaces(argv[1:])
     if command == "tempsforts":
         return cmd_tempsforts(argv[1:])
     if command == "distribution":
