@@ -339,6 +339,17 @@ def _white_spaces(dataset, month):
     return whitespace_module.build(dataset, placed, sales)
 
 
+def _products(source, refresh: bool = False, scope: str = ""):
+    """Ce qui marche par produit, sur la dernière lecture produit : jamais une requête sous
+    un lecteur, la requête seulement quand la relecture est demandée."""
+    from ..perf import products as products_module
+
+    reader = getattr(source, "product_rows", None)
+    rows = reader(wait_for_warehouse=refresh) if reader is not None else []
+    note = getattr(source, "product_note", "") or ""
+    return products_module.build(rows, scope or products_module.GROUP, note=note)
+
+
 def _red_zones(kpi_rows, pnl, invoiced, track):
     """Les cinq fronts du lecteur, avec leur chiffre — ou ce qui manque pour le lire."""
     from ..config import settings
@@ -524,6 +535,7 @@ def _screen(request: Request, session: Session):
 
     kpi_rows = getattr(source, "kpi_rows", list)()
     samestore = samestore_module.build(kpi_rows)
+    products = _products(source, refresh)
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
     whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
@@ -647,6 +659,7 @@ def _screen(request: Request, session: Session):
             "ebitda": ebitda,
             "pnl": pnl,
             "samestore": samestore,
+            "products": products,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,

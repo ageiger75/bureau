@@ -8,7 +8,7 @@
 
 <section class="cockpit-header">
   <p class="cockpit-eyebrow">Analyses · {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}</p>
-  <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
+  <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
 </section>
 
 {# ------------------------------------------------------------------ where to push #}
@@ -389,6 +389,54 @@
     {% endfor %}
   </ul>
   {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ produits #}
+
+<section class="panel" id="produits">
+  <h2>Ce qui marche, par produit</h2>
+  {% if products and products.usable %}
+    <p class="lede">{{ products.basis | ucfirst }}.</p>
+    <p class="product-headline">{{ products.headline }}</p>
+    {% for level in products.levels %}
+      <h3 class="subject-heading">{{ level.title }}</h3>
+      {% if level.sentence %}<p class="routed-why">{{ level.sentence | ucfirst }}.</p>{% endif %}
+      {% if level.growing or level.falling %}
+      <table class="month-table product-table">
+        <thead>
+          <tr><th>{{ level.word | ucfirst }}</th><th>Exercice à date</th><th>vs l'an dernier</th><th>Écart</th><th>Part</th><th>Dernier mois</th></tr>
+        </thead>
+        <tbody>
+          {% for label, lines in [("Ce qui pousse", level.growing), ("Ce qui recule", level.falling)] %}
+            {% if lines %}
+              <tr class="product-group"><th colspan="6">{{ label }}</th></tr>
+              {% for line in lines %}
+                <tr>
+                  <td>{{ line.name }}{% if line.hero %} <span class="badge">héros</span>{% endif %}</td>
+                  <td class="num">{{ line.sales | eur }}</td>
+                  <td class="num">{{ line.growth_label }}</td>
+                  <td class="num">{{ line.delta_label }}</td>
+                  <td class="num">{{ line.share | share }}</td>
+                  <td class="num">{{ line.month_label }}</td>
+                </tr>
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% if level.launched or level.stopped %}
+        <p class="cockpit-caveat">
+          {% if level.launched %}Lancé sur l'exercice : {% for line in level.launched[:5] %}{{ line.name }} {{ line.sales | eur }}{% if not loop.last %} · {% endif %}{% endfor %}{% if level.launched | length > 5 %} · et {{ level.launched | length - 5 }} de plus{% endif %}.{% endif %}
+          {% if level.stopped %}Arrêté : {% for line in level.stopped[:5] %}{{ line.name }} ({{ line.last_year | eur }} l'an dernier){% if not loop.last %} · {% endif %}{% endfor %}{% if level.stopped | length > 5 %} · et {{ level.stopped | length - 5 }} de plus{% endif %}.{% endif %}
+        </p>
+      {% endif %}
+    {% endfor %}
+    <p class="ask">{{ products.question }}</p>
+  {% else %}
+    <p class="empty">Aucune vente par produit lue sur cette lecture.</p>
+  {% endif %}
+  {% if products %}{% for reason in products.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}
 </section>
 
 <section class="panel" id="mix">

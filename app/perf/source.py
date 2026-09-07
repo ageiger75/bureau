@@ -61,6 +61,11 @@ SELL_IN_HISTORY_CACHE_FILE = "warehouse-sell-in-history.json"
 #: waiting on it — a panel is worth a stale figure, never the whole page.
 KPI_CACHE_FILE = "warehouse-kpis.json"
 
+#: Le sell-out par produit. Lu comme les KPI : jamais sous un lecteur, une lecture d'un
+#: jour est la même lecture, et une lecture de n'importe quel âge vaut mieux qu'une page
+#: qui attend.
+PRODUCT_CACHE_FILE = "warehouse-products.json"
+
 #: Le mois en cours, marché par marché. La plus petite lecture de ce fichier — un mois,
 #: une dimension — et la seule que l'écran a le droit de payer sans cache chaud. Une
 #: heure comme la lecture principale : le mois bouge chaque jour, pas chaque minute.
@@ -113,7 +118,8 @@ def cache_forget() -> None:
     """Drop the disk caches too. For `--refresh`, and for a warehouse known to have moved."""
     cache_clear()
     for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE,
-                 KPI_CACHE_FILE, MONTH_CACHE_FILE, DAILY_CACHE_FILE, INVOICED_CACHE_FILE):
+                 KPI_CACHE_FILE, MONTH_CACHE_FILE, DAILY_CACHE_FILE, INVOICED_CACHE_FILE,
+                 PRODUCT_CACHE_FILE):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -215,6 +221,25 @@ def _read_kpi_cache(any_age: bool = False):
 
 def _write_kpi_cache(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), KPI_CACHE_FILE)
+
+
+def product_cache_forget() -> None:
+    """Oublie la lecture produit seule : un niveau ajouté à `PRODUCT_SALES` rend la lecture
+    de la veille incomplète sans rendre l'historique périmé."""
+    try:
+        _cache_path(PRODUCT_CACHE_FILE).unlink()
+    except OSError:
+        pass
+
+
+def _read_product_cache(any_age: bool = False):
+    max_age = float("inf") if any_age else HISTORY_CACHE_SECONDS
+    stored = _read_disk_cache(PRODUCT_CACHE_FILE, max_age=max_age)
+    return None if stored is None else stored[0]
+
+
+def _write_product_cache(rows) -> None:
+    _write_disk_cache(rows, time.time(), read_at(), PRODUCT_CACHE_FILE)
 
 
 def month_cache_forget() -> None:
@@ -557,6 +582,11 @@ class MockSource:
 
     def kpi_rows(self) -> List[dict]:
         return mock.kpi_rows()
+
+    product_note = ""
+
+    def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.product_rows()
 
     def bulk_findings(self) -> List:
         return mock.bulk_findings()
@@ -951,6 +981,41 @@ class SnowflakeSource:
         rapporté, et une page qui attendrait trois minutes pour ce chiffre le paierait à
         chaque ouverture."""
         return _read_kpi_cache(any_age=True) or []
+
+    #: Pourquoi la lecture produit manque, quand elle manque : l'écran le dit tel quel.
+    product_note = ""
+
+    def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le sell-out par produit, à trois niveaux, de la dernière lecture — ou rien.
+
+        La règle des KPI : sous un lecteur, la lecture d'hier ou d'avant-hier ; la requête
+        elle-même seulement quand quelqu'un a demandé la relecture (`?refresh=1`, la
+        commande) et que la lecture du jour manque. Tant que la requête n'est pas écrite,
+        rien n'est lu et la note le dit — jamais une erreur, jamais un écran vide sans
+        raison.
+        """
+        from . import queries
+
+        if not queries.ALL.get("PRODUCT_SALES", "").strip():
+            self.product_note = ("la lecture par produit n'est pas encore écrite : PRODUCT_SALES, "
+                                 "dans app/perf/queries.py, attend les colonnes du référentiel")
+            return []
+        rows = _read_product_cache()
+        if rows is None and not wait_for_warehouse:
+            rows = _read_product_cache(any_age=True)
+            if rows is None:
+                self.product_note = ("les produits n'ont pas encore été lus sur cette machine : "
+                                     "la relecture en arrière-plan les apporte")
+                return []
+            LOG.info("warehouse: product reading from an expired cache rather than making "
+                     "the reader wait")
+        if rows is None:
+            from . import warehouse
+
+            rows = warehouse.rows(queries.PRODUCT_SALES, label="PRODUCT_SALES")
+            _write_product_cache(rows)
+        self.product_note = ""
+        return rows
 
     def month_to_date(self) -> List[dict]:
         """Le mois en cours, marché par marché, jusqu'au dernier jour lu.

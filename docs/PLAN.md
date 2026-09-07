@@ -442,6 +442,16 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Les produits, le 7 septembre 2026.** « On vend des produits, des catégories : j'ai
+besoin de savoir ce qui marche. » `app/perf/products.py`, `manage.py products`, bloc « Ce
+qui marche, par produit » sur Analyses : trois niveaux — catégorie, gamme, référence — sur
+l'exercice à date contre les mêmes mois de l'an dernier, ce qui pousse et ce qui recule en
+euros d'écart, la part, le dernier mois ; les lancements et les arrêts nommés à part, jamais
+rangés dans une croissance infinie. Lu dans un cache propre (`warehouse-products.json`),
+jamais sous un lecteur — la règle des KPI. La requête `PRODUCT_SALES` attend les colonnes
+du référentiel produit, confirmées par l'agent entrepôt ; tant qu'elle est vide, le bloc dit
+qu'elle n'est pas écrite.
+
 **Priorités 5 et 6, le 7 septembre 2026.** Les white spaces internes
 (`app/perf/whitespace.py`, `manage.py whitespaces`, page Analyses) en trois formes mesurées
 sur nos propres chiffres : un canal que les pairs d'un marché portent et qu'il n'a pas,

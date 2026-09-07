@@ -1281,6 +1281,30 @@ group by 1, 2, 3, 4
 """
 
 
+#: Le sell-out par produit, à trois niveaux, sur treize mois : ce qui marche et ce qui
+#: recule, catégorie par catégorie, gamme par gamme, référence par référence. Une ligne par
+#: `scope · level · name · period` :
+#:
+#:     scope       text     -- 'LOEP' pour le groupe, sinon le pays (STORE_COUNTRY)
+#:     level       text     -- 'category', 'range' ou 'product'
+#:     name        text     -- le libellé du niveau, jamais un code seul
+#:     period      text     -- 'YYYY-MM', le mois de transaction
+#:     net_sales   number   -- NET_SALES_EUR, FLAG_TURNOVER = 1, hors vrac (FLAG_BULK 2 à 5)
+#:     is_hero     number   -- 1 quand la référence est un héros du référentiel, sinon 0
+#:
+#: Les catégories et les gammes sont rendues pour le groupe et pour chaque pays ; les
+#: références pour le groupe seulement — quarante pays fois quelques milliers de références
+#: fois treize mois n'est pas une lecture, c'est un extrait. Treize mois, pour que
+#: l'exercice à date ait son an dernier en face mois par mois ; la fenêtre s'aligne sur
+#: celle de `KPI_READINGS` (`first_month_yoy`).
+#:
+#: Les trois libellés viennent de la dimension produit du référentiel, dont les colonnes
+#: sont à confirmer par l'agent entrepôt avant d'écrire la requête ici — une requête
+#: écrite sur des noms devinés rendrait des chiffres qui ont l'air justes et ne le sont
+#: pas. Vide tant qu'elle n'est pas confirmée : l'écran dit alors que la lecture produit
+#: n'est pas écrite, et rien d'autre ne l'attend.
+PRODUCT_SALES = ""
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1293,6 +1317,7 @@ ALL = {
     "MONTH_TO_DATE": MONTH_TO_DATE,
     "DAILY_SALES": DAILY_SALES,
     "SELL_IN_DAILY": SELL_IN_DAILY,
+    "PRODUCT_SALES": PRODUCT_SALES,
 }
 
 

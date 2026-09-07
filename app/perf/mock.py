@@ -13,7 +13,7 @@ therefore cannot claim a sales figure its own drivers do not support.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from ..domain.commitments import CommitmentInput
 from ..domain.enums import CommitmentStatus
@@ -861,6 +861,79 @@ INVOICED_LAST_YEAR = "last_year"
 
 def month_targets(period: str) -> dict:
     return {"Japan": 4_000_000.0, "France": 2_400_000.0, "China": 6_500_000.0}
+
+
+
+#: Les produits inventés : six catégories, neuf gammes, deux ou trois références par gamme.
+#: Aucun nom réel ; les mots de catégorie sont ceux de n'importe quelle maison de beauté.
+#: Une gamme est lancée sur l'exercice, une autre arrêtée l'hiver dernier.
+PRODUCT_RANGES = (
+    # gamme, catégorie, ventes mensuelles de base, croissance annuelle, références
+    ("Sable d'Or", "Corps", 2_600_000.0, 0.09, ("crème mains", "lait corps", "savon")),
+    ("Miel des Cimes", "Corps", 1_900_000.0, -0.06, ("crème mains", "gel douche", "baume")),
+    ("Rosée de Roche", "Visage", 1_500_000.0, 0.14, ("sérum", "crème jour", "masque")),
+    ("Aube Boréale", "Visage", 900_000.0, -0.11, ("crème nuit", "huile")),
+    ("Lin Sauvage", "Cheveux", 1_100_000.0, 0.03, ("shampoing", "après-shampoing")),
+    ("Brume de Cèdre", "Parfum", 1_300_000.0, 0.05, ("eau de toilette", "eau de parfum")),
+    ("Écorce Noire", "Maison", 700_000.0, -0.02, ("bougie", "diffuseur")),
+    ("Bois de Reine", "Coffrets", 400_000.0, 0.0, ("coffret mains", "coffret corps")),
+    ("Pluie d'Argile", "Visage", 350_000.0, 0.0, ("gommage",)),
+)
+PRODUCT_LAUNCHED = "Bois de Reine"
+PRODUCT_LAUNCHED_FROM = "2026-05"
+PRODUCT_STOPPED = "Pluie d'Argile"
+PRODUCT_STOPPED_AFTER = "2025-12"
+PRODUCT_HEROES = ("Sable d'Or crème mains", "Rosée de Roche sérum")
+#: Trois marchés portent les catégories et les gammes ; les références ne sont lues qu'au
+#: niveau du groupe, comme dans l'entrepôt.
+PRODUCT_MARKETS = {"Japan": (0.21, -0.05), "Brazil": (0.06, 0.08), "China": (0.26, 0.02)}
+
+
+def product_rows() -> List[dict]:
+    """Ce que la lecture produit rapporte de brut, inventé : dix-huit mois de sell-out par
+    catégorie, gamme et référence pour le groupe, et par catégorie et gamme pour trois
+    marchés — de quoi lire l'exercice à date contre l'an dernier, un lancement et un
+    arrêt."""
+    rows: List[dict] = []
+    for back in range(17, -1, -1):
+        index = 2026 * 12 + 7 - back
+        period = "%04d-%02d" % (index // 12, index % 12 + 1)
+        seasonal = 1.0 + 0.10 * ((index % 12) in (10, 11))
+        by_category: Dict[str, float] = {}
+        by_range: Dict[str, float] = {}
+        for name, category, base, yearly, items in PRODUCT_RANGES:
+            if name == PRODUCT_LAUNCHED and period < PRODUCT_LAUNCHED_FROM:
+                continue
+            if name == PRODUCT_STOPPED and period > PRODUCT_STOPPED_AFTER:
+                continue
+            total = base * seasonal * (1.0 + yearly) ** ((17 - back) / 12.0)
+            weights = [1.0 / (position + 1) for position in range(len(items))]
+            for position, item in enumerate(items):
+                label = "%s %s" % (name, item)
+                # La première référence de la gamme porte la tendance plus fort que les
+                # autres : ce qui pousse pousse d'abord par son produit de tête.
+                twist = 1.0 + (0.4 if position == 0 else -0.2) * yearly * ((17 - back) / 12.0)
+                value = total * weights[position] / sum(weights) * twist
+                rows.append({"scope": "LOEP", "level": "product", "name": label,
+                             "period": period, "net_sales": round(value),
+                             "is_hero": 1 if label in PRODUCT_HEROES else 0})
+                by_range[name] = by_range.get(name, 0.0) + value
+                by_category[category] = by_category.get(category, 0.0) + value
+        for name, value in by_range.items():
+            rows.append({"scope": "LOEP", "level": "range", "name": name, "period": period,
+                         "net_sales": round(value)})
+        for name, value in by_category.items():
+            rows.append({"scope": "LOEP", "level": "category", "name": name,
+                         "period": period, "net_sales": round(value)})
+        for market, (weight, shift) in PRODUCT_MARKETS.items():
+            factor = weight * (1.0 + shift) ** ((17 - back) / 12.0)
+            for name, value in by_range.items():
+                rows.append({"scope": market, "level": "range", "name": name,
+                             "period": period, "net_sales": round(value * factor)})
+            for name, value in by_category.items():
+                rows.append({"scope": market, "level": "category", "name": name,
+                             "period": period, "net_sales": round(value * factor)})
+    return rows
 
 
 def kpi_rows() -> List[dict]:

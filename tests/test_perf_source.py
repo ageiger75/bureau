@@ -196,3 +196,36 @@ def test_ucfirst_raises_the_first_letter_and_leaves_names_alone():
         "Le prochain au-delà : Singles Day 11.11, China"
     )
     assert ucfirst("") == "" and ucfirst(None) == ""
+
+
+def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
+    """La lecture produit suit la règle des KPI : jamais une requête sous un lecteur, la
+    lecture d'hier sinon, et une note à la place d'une erreur tant que la requête n'est
+    pas écrite ou pas encore lue sur cette machine."""
+    from app.perf import queries, source as source_module, warehouse
+
+    source = source_module.SnowflakeSource.__new__(source_module.SnowflakeSource)
+    monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "")
+    assert source.product_rows(wait_for_warehouse=True) == []
+    assert "PRODUCT_SALES" in source.product_note
+
+    monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 1")
+    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
+    calls = []
+    monkeypatch.setattr(warehouse, "rows",
+                        lambda sql, params=None, label="": calls.append(label) or [("fresh",)])
+    written = []
+    monkeypatch.setattr(source_module, "_write_product_cache", lambda rows: written.append(rows))
+    caches = {"fresh": None, "any": None}
+    monkeypatch.setattr(source_module, "_read_product_cache",
+                        lambda any_age=False: caches["any" if any_age else "fresh"])
+
+    assert source.product_rows() == []
+    assert "pas encore été lus" in source.product_note and calls == []
+
+    caches["any"] = [("yesterday",)]
+    assert source.product_rows() == [("yesterday",)]
+    assert source.product_note == "" and calls == []
+
+    assert source.product_rows(wait_for_warehouse=True) == [("fresh",)]
+    assert calls == ["PRODUCT_SALES"] and written == [[("fresh",)]]
