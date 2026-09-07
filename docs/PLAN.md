@@ -441,6 +441,23 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Nickel chrome, le 7 septembre 2026.** Deux pages pour une lecture. L'écran du jour
+tient en cinq blocs : le verdict (l'exercice et son atterrissage, la contribution à date en
+carte avec un mot et une table par nature à la place d'un paragraphe, le same-store sales lu
+dans la dernière lecture des KPI — jamais une requête — et le mois muet avant une semaine
+pleine) ; cette semaine (sell-out, sell-in, ce qui arrive) ; trois conversations, détectées
+au niveau du **marché** — somme des canaux budgétés, et non plus le premier canal venu avec
+son montant — et ouvrant sur l'exercice à date ; les zones rouges (`var/red_zones.csv`,
+`app/perf/redzones.py`, `manage.py zones` : Japon, Travel Retail, Chine retail, Brésil,
+Sephora US, décision du CEO, le Brésil remplaçant le Moyen-Orient), au plus cinq, chacune
+avec la mesure que le cockpit sait tenir, « à brancher » sinon ; ce qui a changé depuis lundi
+dernier (`app/perf/changes.py`), lu dans le registre et les engagements. Tout ce qui
+explique, classe, propose ou vérifie vit sur `/analyses` avec le même contexte : où pousser
+et ses leviers, les plans, les opportunités, ce qui marche, le mix, la part loyer, les KPI,
+la donnée à vérifier, la méthode. Les « conversations de la semaine » de l'analytique ont
+disparu : le registre fait foi. Reste à brancher : le centre de profit Sephora en sell-in, et
+le same-store sales hors cleaning, qui demande une clé que l'entrepôt n'écrit pas encore.
+
 **L'euro suivant en boutique, le 7 septembre 2026.** L'agent entrepôt a régressé la
 variation de contribution sur la variation de ventes des boutiques comparables, quatre
 exercices empilés, la dernière année des boutiques fermées écartée — le Royaume-Uni, qui

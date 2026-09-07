@@ -26,10 +26,11 @@ def test_the_example_file_reads_five_zones_with_their_measures(tmp_path):
     board = _board(tmp_path)
 
     assert not board.faults
-    assert [zone.name for zone in board.zones][:2] == ["Japon", "Japon — coûts"]
+    assert [zone.name for zone in board.zones] == [
+        "Japon", "Travel Retail", "Chine retail", "Brésil", "Sephora US"]
     assert [zone.measure for zone in board.zones] == [
-        Z.SAMESTORE, Z.DISTRIBUTION_COST, Z.SELL_IN_CHANNEL, Z.RETAIL_EX_BULK, Z.PROFIT_CENTRE]
-    assert board.zones[2].argument == "Travel Retail"
+        Z.SAMESTORE, Z.SELL_IN_CHANNEL, Z.RETAIL_EX_BULK, Z.YEAR_GAP, Z.PROFIT_CENTRE]
+    assert board.zones[1].argument == "Travel Retail"
 
 
 def test_an_unknown_measure_is_refused_by_name_and_a_sixth_zone_waits(tmp_path):

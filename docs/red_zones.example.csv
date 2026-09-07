@@ -1,6 +1,6 @@
 zone,scope,measure,target,note
 Japon,Japan,samestore,≥ 0 %,redressement : le same-store sales doit repasser positif
-Japon — coûts,Japan,distribution_cost,,part des ventes contre le budget et l'an dernier
 Travel Retail,Travel Retail,sell_in_channel:Travel Retail,≥ flat,protéger le canal
 Chine retail,China,retail_ex_bulk,,le retail hors vrac contre tout compris
+Brésil,Brazil,year_gap,,l'exercice à date du périmètre
 Sephora US,United States,profit_centre:SEPHORA,,montée en charge : le centre de profit en sell-in
