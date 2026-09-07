@@ -30,8 +30,8 @@
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
   {% endif %}
 
+  <div class="verdicts">
   {% if track and track.usable %}
-    <div class="verdicts">
       <div class="verdict">
         <p class="verdict-title">{{ track.year_title }}</p>
         {% if track.group.year.usable %}
@@ -45,7 +45,12 @@
       </div>
       <div class="verdict">
         <p class="verdict-title">{{ track.month_title }}</p>
-        {% if track.group.month.usable %}
+        {% if track.group.month.usable and track.group.month.early %}
+          {# Avant une semaine pleine, aucun chiffre : une fourchette de trente points à six
+             jours lus est du bruit présenté comme un chiffre. #}
+          <p class="verdict-word is-trop-tôt">{{ track.group.month.label }}</p>
+          <p class="verdict-basis">{{ track.month_sentence }}</p>
+        {% elif track.group.month.usable %}
           <p class="verdict-word is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</p>
           <p class="verdict-figures">{{ track.group.month.actual | eur }} vendus · attendu {% if track.group.month.narrow %}{{ track.group.month.middle | eur }}{% else %}{{ track.group.month.low | eur }} à {{ track.group.month.high | eur }}{% endif %} · <strong>{{ track.group.month.gap_label }}</strong></p>
           <p class="verdict-basis">{{ track.month_sentence }}{% if track.month_without %} · {{ track.month_without }}{% endif %}</p>
@@ -54,7 +59,34 @@
           <p class="verdict-basis">{{ track.group.month.absent }}</p>
         {% endif %}
       </div>
-    </div>
+  {% endif %}
+      <div class="verdict">
+        {# Le premier chiffre du board : le résultat suit-il les ventes. Une carte et un mot,
+           là où un paragraphe de quatre cents mots l'enterrait. #}
+        <p class="verdict-title">{{ pnl.title if pnl else "Contribution à date" }}</p>
+        {% if pnl and pnl.usable and pnl.total %}
+          <p class="verdict-word {{ 'is-en-retard' if pnl.total.gap < 0 else 'is-en-avance' }}">{{ pnl.verdict_word }}</p>
+          <p class="verdict-figures">{{ pnl.total.contribution | eur }} de contribution ({{ pnl.total.rate_label }} des ventes) · <strong>{{ pnl.total.gap | eur }}</strong> contre {{ pnl.total.budget_contribution | eur }} au budget phasé</p>
+          <p class="verdict-basis">compte de gestion, {{ pnl.snapshot.period_label }}, {{ pnl.snapshot.months }} mois · ventes à {{ pnl.total.sales_index_label }} du budget</p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">{% if pnl and pnl.absent %}{{ pnl.absent[0] }}{% else %}contribution par BU non lue{% endif %}</p>
+        {% endif %}
+      </div>
+      <div class="verdict">
+        {# Le deuxième chiffre du board, lu dans la dernière lecture des KPI. #}
+        <p class="verdict-title">Same-store sales</p>
+        {% if samestore %}
+          <p class="verdict-word {{ 'is-en-retard' if (samestore.ytd_growth if samestore.ytd_growth is not none else samestore.growth) < 0 else 'is-en-avance' }}">{{ samestore.word }}</p>
+          <p class="verdict-figures">{{ samestore.sentence }}</p>
+          <p class="verdict-basis">la cible du board est hors cleaning : ce chiffre ne retire ni le vrac ni les flux à nettoyer, il se lit en dessous d'elle</p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">pas de lecture des magasins comparables : la relecture des KPI l'apporte</p>
+        {% endif %}
+      </div>
+  </div>
+  {% if track and track.usable %}
     {% if track.perimeters %}
       <table class="month-table mix-table">
         <thead>
@@ -80,7 +112,9 @@
               {% set done = pnl.for_name(scope.name) %}
               <td class="num{% if done and done.gap < 0 %} is-en-retard{% endif %}"{% if done %} title="Ventes {{ done.sales | eur }}, {{ done.sales_index_label }} du budget phasé · contribution au budget {{ done.budget_contribution | eur }} ({{ done.budget_rate_label }})"{% endif %}>{% if done %}{{ done.contribution | eur }} <small>{{ done.rate_label }} · {{ done.gap | eur }} vs budget</small>{% else %}—{% endif %}</td>
             {% endif %}
-            {% if scope.month.usable %}
+            {% if scope.month.usable and scope.month.early %}
+              <td class="absent" colspan="2">{{ scope.month.label }}</td>
+            {% elif scope.month.usable %}
               <td class="verdict-cell is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</td>
               <td class="num" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
             {% else %}
@@ -145,20 +179,29 @@
     </p>
   {% endif %}
   {% if ebitda %}{% for reason in ebitda.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
-  {% if pnl and pnl.usable %}
-    {# Le résultat suit-il les ventes : la contribution réalisée cumulée, contre le budget
-       phasé, un mois derrière les ventes. L'écriture centrale est nommée et tenue à part. #}
-    <p class="cockpit-caveat">
-      {{ pnl.title }} ({{ pnl.snapshot.period_label }}, {{ pnl.snapshot.months }} mois) : {{ pnl.total.contribution | eur }} de contribution
-      sur {{ pnl.total.sales | eur }} de ventes ({{ pnl.total.rate_label }}), contre {{ pnl.total.budget_contribution | eur }} au budget phasé,
-      soit <strong>{{ pnl.total.gap | eur }}</strong>{% if pnl.central_note %} · {{ pnl.central_note }}{% endif %}{% if pnl.excluded_note %} · {{ pnl.excluded_note }}{% endif %}.
-      {{ pnl.note }}
-    </p>
-    {% if pnl.total_breakdown %}
-      {# Ce que porte l'écart, poste par poste, avec le test qui sépare un coût plus bas d'un
-         budget phasé autrement : la part des ventes au même stade de l'exercice précédent. #}
-      <p class="cockpit-caveat">{{ pnl.total_breakdown }} {{ pnl.caveat }}</p>
-    {% endif %}
+  {% if pnl and pnl.usable and pnl.total_natures %}
+    {# Poste par poste, en table : la part des ventes, contre le budget, contre le même
+       stade l'an dernier, et un mot. Le test qui sépare une économie d'un budget phasé
+       autrement est la troisième colonne. #}
+    <details class="pnl-detail">
+      <summary>Poste par poste : ce qui porte l'écart de contribution</summary>
+      <table class="month-table mix-table">
+        <thead><tr><th>Nature</th><th>Écart au budget</th><th>Part des ventes</th><th>Budget</th><th>L'an dernier au même stade</th><th>Lecture</th></tr></thead>
+        <tbody>
+        {% for nature, dissent in pnl.total_natures %}
+          <tr>
+            <td>{{ nature.name | ucfirst }}</td>
+            <td class="num {{ 'is-en-retard' if nature.gap < 0 else '' }}">{{ nature.gap | eur }}</td>
+            <td class="num">{{ nature.share_label }}</td>
+            <td class="num">{{ nature.budget_share_label }}</td>
+            <td class="num">{{ nature.last_year_share_label }}</td>
+            <td class="{{ 'is-en-retard' if nature.unfavourable else '' }}">{{ nature.cell }}{% if dissent %} <small>· {{ dissent }}</small>{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <p class="cockpit-caveat">{{ pnl.caveat }}{% if pnl.central_note %} {{ pnl.central_note | ucfirst }}.{% endif %}{% if pnl.excluded_note %} {{ pnl.excluded_note | ucfirst }}.{% endif %} {{ pnl.note }}</p>
+    </details>
   {% endif %}
   {% if pnl %}{% for reason in pnl.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}{% endif %}
   {% if placements %}{% for note in placements.notes %}<p class="cockpit-caveat">{{ note }}</p>{% endfor %}{% for fault in placements.faults %}<p class="cockpit-caveat">placements : {{ fault }}</p>{% endfor %}{% endif %}

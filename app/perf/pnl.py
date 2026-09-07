@@ -403,6 +403,31 @@ class Nature:
             return HEAVIER
         return AT_BUDGET
 
+    @staticmethod
+    def _share_label(value: Optional[float]) -> str:
+        return "—" if value is None else "%.1f %%" % (value * 100)
+
+    @property
+    def share_label(self) -> str:
+        return self._share_label(self.share)
+
+    @property
+    def budget_share_label(self) -> str:
+        return self._share_label(self.budget_share)
+
+    @property
+    def last_year_share_label(self) -> str:
+        return self._share_label(self.last_year_share)
+
+    @property
+    def cell(self) -> str:
+        """Le verdict en deux mots, pour une table."""
+        return CELL.get(self.verdict, self.verdict)
+
+    @property
+    def unfavourable(self) -> bool:
+        return self.verdict in UNFAVOURABLE
+
     def sentence(self, dissent: str = "") -> str:
         """« distribution +N, x % des ventes contre y au budget et z l'an dernier au même
         stade : sous le budget mais plus lourd que l'an dernier… » — et, sur un agrégat, les
@@ -472,6 +497,22 @@ SHORT = {
     PHASING: "sous le budget mais plus lourd que l'an dernier",
     HEAVIER_THAN_BUDGET_ONLY: "plus lourd que le budget",
 }
+
+#: Le verdict d'une nature en deux ou trois mots, pour une cellule de table.
+CELL = {
+    REALLY_LOWER: "réellement plus bas",
+    PHASING: "phasage possible",
+    HEAVIER: "plus lourd",
+    LIGHTER_THAN_BUDGET_ONLY: "sous le budget",
+    HEAVIER_THAN_BUDGET_ONLY: "plus lourd que le budget",
+    AT_BUDGET: "au budget",
+}
+
+#: Au-delà de cette part du budget de contribution, l'écart total a un mot.
+CONTRIBUTION_TOLERANCE = 0.01
+ABOVE_BUDGET = "au-dessus du budget"
+BELOW_BUDGET = "sous le budget"
+ON_BUDGET = "au budget"
 
 
 def _listed(names: List[str]) -> str:
@@ -605,6 +646,30 @@ class Review:
 
         labels = {line.exclusion for line in self.statement.lines if line.exclusion}
         return "%s écartés du compte de gestion : %s" % (format_eur(excluded), " · ".join(sorted(labels)))
+
+    @property
+    def verdict_word(self) -> str:
+        """L'écart de contribution total, en un mot : au-dessus, sous, ou au budget phasé."""
+        total = self.total
+        if total is None:
+            return ""
+        margin = abs(total.budget_contribution) * CONTRIBUTION_TOLERANCE
+        if total.gap > margin:
+            return ABOVE_BUDGET
+        if total.gap < -margin:
+            return BELOW_BUDGET
+        return ON_BUDGET
+
+    @property
+    def total_natures(self) -> List[Tuple["Nature", str]]:
+        """Chaque nature de coût du total, avec les régions qui disent l'inverse — pour une
+        table, là où le paragraphe demandait quatre cents mots."""
+        if not self.statement or not self.statement.usable:
+            return []
+        members = {line.region: (line, self.statement.last_year.get(line.region))
+                   for line in self.statement.lines}
+        found = natures(self.statement.total, self.statement.total_last_year)
+        return [(nature, dissent_of(nature, members)) for nature in found]
 
     @property
     def lag_months(self) -> Optional[int]:

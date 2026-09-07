@@ -555,6 +555,9 @@ class MockSource:
     def client_kpis(self, wait_for_warehouse: bool = True) -> List[Kpi]:
         return mock.client_kpis()
 
+    def kpi_rows(self) -> List[dict]:
+        return mock.kpi_rows()
+
     def bulk_findings(self) -> List:
         return mock.bulk_findings()
 
@@ -940,6 +943,14 @@ class SnowflakeSource:
         self.kpi_judged = len(report.kpis)
         self.kpi_tracked = len(registry.entries)
         return report.kpis
+
+    def kpi_rows(self) -> List:
+        """Les lignes brutes de la dernière lecture des KPI, quel que soit leur âge, ou rien.
+
+        Jamais une requête : le same-store sales se lit dans ce que la lecture des KPI a déjà
+        rapporté, et une page qui attendrait trois minutes pour ce chiffre le paierait à
+        chaque ouverture."""
+        return _read_kpi_cache(any_age=True) or []
 
     def month_to_date(self) -> List[dict]:
         """Le mois en cours, marché par marché, jusqu'au dernier jour lu.

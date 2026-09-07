@@ -836,3 +836,24 @@ def test_the_subjects_to_carry_are_prepared_conversations_not_cards(client, db_s
     assert "Pourquoi : montant en jeu" not in page
     # Le mock porte un engagement en retard sur ce marché : c'est la première question.
     assert "était dû le" in page or "qu'est-ce qui est engagé" in page
+
+
+def test_the_three_board_figures_head_the_screen_and_the_month_stays_silent_before_a_week(client):
+    """Nickel chrome : l'exercice, la contribution et le same-store sales en cartes, un mot
+    chacun. Le mois n'imprime aucune fourchette avant une semaine pleine."""
+    from tests.conftest import TEST_DIR
+    from tests.test_perf_pnl import FILE
+
+    (TEST_DIR / "pnl_bu.csv").write_text(FILE, encoding="utf-8")
+    try:
+        page = page_text(client.get("/"))
+    finally:
+        (TEST_DIR / "pnl_bu.csv").unlink()
+
+    assert "Same-store sales" in page
+    assert "magasins comparables, sell-out, vrac compris" in page
+    assert "Poste par poste : ce qui porte l'écart de contribution" in page
+    assert "L'an dernier au même stade" in page
+    assert ("au-dessus du budget" in page or "sous le budget" in page or "au budget" in page)
+    # Le paragraphe de quatre cents mots n'est plus là : la table le remplace.
+    assert "Écart de contribution" not in page.split("Poste par poste")[0]

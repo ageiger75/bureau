@@ -973,3 +973,7 @@ input:focus, textarea:focus, select:focus {
 .watch:first-child { border-top: 0; }
 .watch-line { margin: 0; font-size: 13.5px; }
 @media (max-width: 640px) { .talk-lines { grid-template-columns: 1fr; } .talk-lines dt { padding-top: 6px; } }
+
+.is-trop-tôt { color: var(--ink-faint); }
+.pnl-detail { margin: 6px 0 10px; }
+.pnl-detail summary { cursor: pointer; color: var(--ink-soft); font-size: 13.5px; }

@@ -11,7 +11,10 @@
   <div class="verdicts">
     <div class="verdict">
       <p class="verdict-title">{{ track.month_title }}</p>
-      {% if page.scope and page.scope.month.usable %}
+      {% if page.scope and page.scope.month.usable and page.scope.month.early %}
+        <p class="verdict-word is-trop-tôt">{{ page.scope.month.label }}</p>
+        <p class="verdict-basis">{{ track.days_label }}, revoir après une semaine pleine</p>
+      {% elif page.scope and page.scope.month.usable %}
         <p class="verdict-word is-{{ page.scope.month.label | replace(' ', '-') }}">{{ page.scope.month.label }}</p>
         <p class="verdict-figures">{{ page.scope.month.actual | eur }} vendus · attendu {% if page.scope.month.narrow %}{{ page.scope.month.middle | eur }}{% else %}{{ page.scope.month.low | eur }} à {{ page.scope.month.high | eur }}{% endif %} · <strong>{{ page.scope.month.gap_label }}</strong></p>
         <p class="verdict-basis">{{ page.scope.month.coverage_label }} du plan sell-out du mois</p>

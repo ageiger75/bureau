@@ -491,6 +491,11 @@ def _screen(request: Request, session: Session):
     ebitda = _ebitda_review(list(landings))
     pnl = _pnl_review(list(landings), getattr(track, "period", "") or "")
     pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])])
+    # Le deuxième chiffre du board, lu dans la dernière lecture des KPI : jamais une requête.
+    from ..perf import samestore as samestore_module
+
+    kpi_rows = getattr(source, "kpi_rows", list)()
+    samestore = samestore_module.build(kpi_rows)
     month_groups = {group.name: group for group in month.groups}
     if month.loose:
         month_groups[month.loose.name] = month.loose
@@ -601,6 +606,8 @@ def _screen(request: Request, session: Session):
             "landings": landings,
             "ebitda": ebitda,
             "pnl": pnl,
+            "samestore": samestore,
+            "kpi_rows": kpi_rows,
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,

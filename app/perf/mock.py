@@ -861,3 +861,25 @@ INVOICED_LAST_YEAR = "last_year"
 
 def month_targets(period: str) -> dict:
     return {"Japan": 4_000_000.0, "France": 2_400_000.0, "China": 6_500_000.0}
+
+
+def kpi_rows() -> List[dict]:
+    """Ce que la lecture des KPI rapporte de brut, inventé : quinze mois de ventes à
+    magasins comparables, pour le groupe et trois marchés, avec des valeurs qui donnent une
+    croissance lisible sur le mois et sur l'exercice."""
+    rows: List[dict] = []
+    shapes = {
+        "LOEP": (24_000_000.0, 0.021),
+        "Japan": (5_100_000.0, -0.038),
+        "Brazil": (1_400_000.0, 0.064),
+        "China": (6_300_000.0, 0.012),
+    }
+    for scope, (base, yearly) in shapes.items():
+        for back in range(15, -1, -1):
+            index = 2026 * 12 + 7 - back
+            period = "%04d-%02d" % (index // 12, index % 12 + 1)
+            seasonal = 1.0 + 0.08 * ((index % 12) in (10, 11))
+            value = base * seasonal * (1.0 + yearly) ** ((15 - back) / 12.0)
+            rows.append({"scope": scope, "kpi_key": "same_store_sales", "period": period,
+                         "value": round(value)})
+    return rows
