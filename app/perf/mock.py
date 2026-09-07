@@ -882,4 +882,12 @@ def kpi_rows() -> List[dict]:
             value = base * seasonal * (1.0 + yearly) ** ((15 - back) / 12.0)
             rows.append({"scope": scope, "kpi_key": "same_store_sales", "period": period,
                          "value": round(value)})
+            # Toutes les ventes, et les mêmes sans le vrac : un huitième de vrac en Chine,
+            # presque rien ailleurs — de quoi lire les deux bases.
+            bulk_share = 0.12 if scope == "China" else 0.01
+            whole = value * 1.6
+            rows.append({"scope": scope, "kpi_key": "net_sales", "period": period,
+                         "value": round(whole)})
+            rows.append({"scope": scope, "kpi_key": "net_sales_hors_bulk", "period": period,
+                         "value": round(whole * (1 - bulk_share))})
     return rows

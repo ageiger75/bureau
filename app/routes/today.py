@@ -321,6 +321,16 @@ def _perimeter_inputs(session):
     }
 
 
+def _red_zones(kpi_rows, pnl, invoiced, track):
+    """Les cinq fronts du lecteur, avec leur chiffre — ou ce qui manque pour le lire."""
+    from ..config import settings
+    from ..perf import redzones as redzones_module
+
+    board = redzones_module.current() if settings.has_red_zones_file else None
+    return redzones_module.build(board, kpi_rows=kpi_rows, pnl=pnl, invoiced=invoiced,
+                                 track=track)
+
+
 def _retail_margin():
     """L'euro suivant en boutique, pays par pays — ou None sans le fichier."""
     from ..config import settings
@@ -496,6 +506,9 @@ def _screen(request: Request, session: Session):
 
     kpi_rows = getattr(source, "kpi_rows", list)()
     samestore = samestore_module.build(kpi_rows)
+    redzones = _red_zones(kpi_rows, pnl, invoiced, track)
+    # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
+    # a déjà lu. Après la semaine et le sell-in, parce qu'elles s'en servent.
     month_groups = {group.name: group for group in month.groups}
     if month.loose:
         month_groups[month.loose.name] = month.loose
@@ -608,6 +621,7 @@ def _screen(request: Request, session: Session):
             "pnl": pnl,
             "samestore": samestore,
             "kpi_rows": kpi_rows,
+            "redzones": redzones,
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,

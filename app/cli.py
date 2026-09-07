@@ -62,6 +62,7 @@
     python -m app.cli semaine        la dernière semaine pleine, contre la précédente et l'an dernier
     python -m app.cli sellin         le sell-in du mois facturé à date, à jours ouvrés égaux
     python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
+    python -m app.cli zones          les zones rouges nommées par le lecteur, chacune avec son chiffre
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4124,6 +4125,35 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_zones(argv: List[str]) -> int:
+    """Les zones rouges, telles que l'écran les rendra : une ligne chacune."""
+    from .config import settings
+    from .perf import redzones as redzones_module
+    from .perf.source import current_source
+    from .routes.today import _invoiced_review, _month_review, _pnl_review, _track, _week_review
+
+    if not settings.has_red_zones_file:
+        print("Fichier absent : %s — voir docs/red_zones.example.csv" % settings.red_zones_path,
+              file=sys.stderr)
+        return 2
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    month = _month_review(source)
+    track = _track(dataset, month)
+    invoiced = _invoiced_review(source, _week_review(source, month))
+    pnl = _pnl_review([scope.name for scope in getattr(track, "perimeters", [])],
+                      getattr(track, "period", "") or "")
+    review = redzones_module.build(redzones_module.current(),
+                                   kpi_rows=getattr(source, "kpi_rows", list)(), pnl=pnl,
+                                   invoiced=invoiced, track=track)
+    for item in review.readings:
+        print("%-18s %10s  %s%s" % (item.name[:18], item.word, item.sentence[0].upper() + item.sentence[1:],
+                                    " · " + item.note if item.note else ""))
+    for reason in review.absent:
+        print(reason, file=sys.stderr)
+    return 0
+
+
 def cmd_tempsforts(argv: List[str]) -> int:
     """Ce qui arrive dans les six semaines, par périmètre, tel que l'écran le rendra."""
     from .routes.today import _gifting_review
@@ -4526,6 +4556,8 @@ def main(argv: List[str]) -> int:
         return cmd_semaine(argv[1:])
     if command == "sellin":
         return cmd_sellin(argv[1:])
+    if command == "zones":
+        return cmd_zones(argv[1:])
     if command == "tempsforts":
         return cmd_tempsforts(argv[1:])
     if command == "distribution":

@@ -153,6 +153,10 @@ DEFAULT_PLACEMENTS_FILE = "var/placements.csv"
 #: l'an dernier par l'agent entrepôt. Ce qui arrive, jamais un objectif.
 DEFAULT_GIFTING_FILE = "var/gifting.csv"
 
+#: Les zones rouges : au plus cinq fronts nommés par le lecteur, chacun avec la mesure que
+#: le cockpit sait tenir. Un bloc fixe, pas une découverte du moteur.
+DEFAULT_RED_ZONES_FILE = "var/red_zones.csv"
+
 #: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
 #: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
 #: internationaux, avec un mois de retard.
@@ -197,6 +201,7 @@ class Settings:
     pnl_file: str = DEFAULT_PNL_FILE
     placements_file: str = DEFAULT_PLACEMENTS_FILE
     gifting_file: str = DEFAULT_GIFTING_FILE
+    red_zones_file: str = DEFAULT_RED_ZONES_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
@@ -390,6 +395,15 @@ class Settings:
     def gifting_path(self) -> Path:
         path = Path(self.gifting_file)
         return path if path.is_absolute() else ROOT / path
+
+    @property
+    def red_zones_path(self) -> Path:
+        path = Path(self.red_zones_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_red_zones_file(self) -> bool:
+        return self.red_zones_path.exists()
 
     @property
     def has_gifting_file(self) -> bool:

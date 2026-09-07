@@ -461,6 +461,29 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------------------ zones rouges #}
+
+<section class="panel" id="zones-rouges">
+  <h2>Les zones rouges</h2>
+  {% if redzones and redzones.usable %}
+    <p class="lede">Les fronts que vous avez nommés, tenus chaque semaine avec leur chiffre. Rien à découvrir ici : à tenir.</p>
+    <ol class="watch-list">
+      {% for item in redzones.readings %}
+        <li class="watch">
+          <p class="watch-line">
+            <strong>{{ item.name }}</strong>
+            · <span class="{{ 'is-en-retard' if item.direction == 'en retard' else ('is-en-avance' if item.direction == 'en avance' else '') }}{% if not item.wired %} muted{% endif %}">{{ item.word }}</span>
+            · {{ item.sentence | ucfirst }}{% if item.note %} <small>· {{ item.note }}</small>{% endif %}
+          </p>
+        </li>
+      {% endfor %}
+    </ol>
+    {% for reason in redzones.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  {% else %}
+    <p class="empty">{% if redzones %}{% for reason in redzones.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les zones rouges ne sont pas lues{% endif %}</p>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ commitments #}
 
 <section class="panel">

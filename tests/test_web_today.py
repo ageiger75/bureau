@@ -857,3 +857,25 @@ def test_the_three_board_figures_head_the_screen_and_the_month_stays_silent_befo
     assert ("au-dessus du budget" in page or "sous le budget" in page or "au budget" in page)
     # Le paragraphe de quatre cents mots n'est plus là : la table le remplace.
     assert "Écart de contribution" not in page.split("Poste par poste")[0]
+
+
+def test_the_red_zones_are_a_fixed_block_with_one_line_each(client):
+    """Nommées par le lecteur, tenues avec leur chiffre — jamais découvertes par le moteur.
+    Sans le fichier, le bloc dit ce qu'il attend."""
+    from tests.conftest import TEST_DIR
+
+    page = page_text(client.get("/"))
+    assert "Les zones rouges" in page
+    assert "red_zones.csv absent" in page
+
+    (TEST_DIR / "red_zones.csv").write_text(
+        "zone,scope,measure,target,note\nJapon,Japan,samestore,≥ 0 %,redressement\n"
+        "Sephora US,United States,profit_centre:SEPH,,montée en charge\n", encoding="utf-8")
+    try:
+        page = page_text(client.get("/"))
+    finally:
+        (TEST_DIR / "red_zones.csv").unlink()
+
+    assert "Rien à découvrir ici : à tenir" in page
+    assert "Japon" in page and "same-store sales" in page.lower()
+    assert "à brancher" in page
