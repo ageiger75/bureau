@@ -107,23 +107,56 @@
 </section>
 {% endif %}
 
-{% if page.subjects or page.watched %}
+{% if page.talks or page.watch_lines or page.subjects or page.watched %}
 <section class="panel">
   <h2>Les sujets</h2>
-  {% for label, rows in [('À porter cette semaine', page.subjects), ('Sous surveillance', page.watched)] %}
-    {% if rows %}
-      <h3 class="subject-heading">{{ label }}</h3>
-      <ol class="subject-list">
-        {% for row in rows %}
-          <li class="subject">
-            <p class="subject-title"><span class="badge">{{ row.role }}</span> <span class="subject-ref">{{ row.issue.issue_id }}</span> {{ row.issue.title }}</p>
-            <p class="subject-why">Pourquoi : {{ row.why }}</p>
-            {% if row.issue.readings %}<p class="subject-reading">Dernière lecture : {{ row.issue.readings[-1].conclusion }}</p>{% endif %}
-          </li>
-        {% endfor %}
-      </ol>
-    {% endif %}
-  {% endfor %}
+  {% if page.talks %}
+    <h3 class="subject-heading">À porter cette semaine</h3>
+    <ol class="talk-list">
+      {% for talk in page.talks %}
+        <li class="talk">
+          <p class="talk-title">
+            <span class="badge">{{ talk.role }}</span>
+            <strong>{{ talk.market or talk.issue.title }}</strong>
+            {% if talk.who %}<span class="talk-who">avec {{ talk.who }}</span>{% endif %}
+            <span class="subject-ref">{{ talk.issue.issue_id }}</span>
+          </p>
+          <dl class="talk-lines">
+            {% if talk.stake %}<dt>L'écart</dt><dd>{{ talk.stake | ucfirst }}.</dd>{% endif %}
+            {% if talk.trend %}<dt>La tendance</dt><dd>{{ talk.trend | ucfirst }}.</dd>{% endif %}
+            {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
+            <dt>La dernière lecture</dt>
+            <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">aucune conclusion portée encore — la première s'écrit après l'appel</span>{% endif %}</dd>
+            {% if talk.engaged %}<dt>Déjà engagé</dt><dd>{{ talk.engaged | ucfirst }}.</dd>{% endif %}
+            {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
+            <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>
+          </dl>
+        </li>
+      {% endfor %}
+    </ol>
+  {% elif page.subjects %}
+    <h3 class="subject-heading">À porter cette semaine</h3>
+    <ol class="subject-list">
+      {% for row in page.subjects %}
+        <li class="subject"><p class="subject-title"><span class="badge">{{ row.role }}</span> <span class="subject-ref">{{ row.issue.issue_id }}</span> {{ row.issue.title }}</p></li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+  {% if page.watch_lines %}
+    <h3 class="subject-heading">Sous surveillance</h3>
+    <ol class="watch-list">
+      {% for item in page.watch_lines %}
+        <li class="watch"><p class="watch-line"><span class="subject-ref">{{ item.issue.issue_id }}</span> <strong>{{ item.issue.scopes[0] }}</strong> · {{ item.line }}</p></li>
+      {% endfor %}
+    </ol>
+  {% elif page.watched %}
+    <h3 class="subject-heading">Sous surveillance</h3>
+    <ol class="subject-list">
+      {% for row in page.watched %}
+        <li class="subject"><p class="subject-title"><span class="badge">{{ row.role }}</span> <span class="subject-ref">{{ row.issue.issue_id }}</span> {{ row.issue.title }}</p></li>
+      {% endfor %}
+    </ol>
+  {% endif %}
 </section>
 {% endif %}
 

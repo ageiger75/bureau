@@ -115,7 +115,7 @@ class Page:
                  land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
-                 retail_years: str = "") -> None:
+                 retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = ()) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -143,6 +143,10 @@ class Page:
         #: L'euro suivant en boutique, marché par marché, mesuré — vide sans le fichier.
         self.retail = list(retail)
         self.retail_years = retail_years
+        #: Les conversations préparées de ce périmètre, et ses lignes de surveillance —
+        #: la même préparation que l'écran du jour, filtrée sur ses marchés.
+        self.talks = list(talks)
+        self.watch_lines = list(watch_lines)
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
@@ -175,7 +179,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
-          invoiced=None, gifting=None, retail=None) -> Page:
+          invoiced=None, gifting=None, retail=None, prepared=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -212,10 +216,14 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     billed = invoiced.for_name(name) if invoiced is not None and invoiced.usable else None
     ahead = gifting.for_name(name) if gifting is not None and gifting.usable else None
     stores = retail.for_markets(markets) if retail is not None and not retail.is_empty else []
+    talks = [talk for talk in getattr(prepared, "conversations", ()) or () if talk.market in wanted]
+    watch_lines = [item for item in getattr(prepared, "watch", ()) or ()
+                   if item.issue.scopes and item.issue.scopes[0] in wanted]
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
-                 retail=stores, retail_years=retail.years if retail is not None else "")
+                 retail=stores, retail_years=retail.years if retail is not None else "",
+                 talks=talks, watch_lines=watch_lines)
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

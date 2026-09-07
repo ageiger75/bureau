@@ -58,6 +58,10 @@ OPERATIONS_FLOOR = 0.2
 LANDLORD = "bailleur"
 OPERATIONS = "exploitation"
 
+#: En dessous, le bail ne suit pas les ventes : un loyer fixe, et on le dit ainsi plutôt
+#: que « le bailleur prend zéro centime ».
+FIXED_LEASE = 0.005
+
 
 def _pct(raw) -> Optional[float]:
     text = str(raw or "").strip().replace("%", "")
@@ -186,6 +190,9 @@ class Line:
             return ("l'exploitation perd sur l'euro suivant avant même la part du bailleur "
                     "(%s) : croître n'y paie pas, et le bail n'y est pour rien"
                     % _cents(self.lease))
+        if self.lease < FIXED_LEASE:
+            return ("le bail est fixe, le bailleur ne prend rien sur l'euro suivant ; "
+                    "l'exploitation en garde %s" % _cents(self.residual))
         text = "le bailleur prend %s, l'exploitation en garde %s avant lui" % (
             _cents(self.lease), _cents(self.residual))
         if self.side == LANDLORD:

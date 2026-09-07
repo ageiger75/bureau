@@ -104,3 +104,29 @@ def test_the_page_carries_the_lines_of_its_markets(tmp_path):
     assert [line.market for line in built.retail] == ["Northland", "Westland"]
     assert built.retail_years == read.years
     assert page_module.build("Elsewhere", "", ["Nowhere"], data, None, None).retail == []
+
+
+def test_a_fixed_lease_is_said_as_such_and_never_as_zero_cents(tmp_path):
+    text = ("market,slope_pct,r2,method,residual_slope_pct,lease_pct\n"
+            "SOUTHLAND,63.0,0.8,pente,56.0,0.0\n")
+    south = _read(tmp_path, text).of("Southland")
+
+    assert "0 centime" not in south.sentence
+    assert "le bail est fixe, le bailleur ne prend rien sur l'euro suivant" in south.sentence
+
+
+def test_the_page_carries_the_prepared_conversations_of_its_markets(tmp_path):
+    from types import SimpleNamespace
+
+    from app.perf import page as page_module
+    from app.perf.mock import dataset
+
+    here = SimpleNamespace(market="Northland", issue=SimpleNamespace(scopes=["Northland"]))
+    away = SimpleNamespace(market="Elsewhere", issue=SimpleNamespace(scopes=["Elsewhere"]))
+    watched = SimpleNamespace(issue=SimpleNamespace(scopes=["Northland"]), line="x")
+    prepared = SimpleNamespace(conversations=[here, away], watch=[watched])
+
+    built = page_module.build("Somewhere", "", ["Northland"], dataset(), None, None,
+                              prepared=prepared)
+
+    assert built.talks == [here] and built.watch_lines == [watched]

@@ -281,6 +281,21 @@ def _perimeter_inputs(session):
     invoiced = _invoiced_review(source, weekly)
     week, _scan = week_of.read(session, dataset=dataset, placing=False)
     fires = analytics.fires(dataset, limit=None)
+    from ..perf import conversation as conversation_module
+
+    try:
+        commitments = source.commitments()
+    except NotImplementedError:
+        commitments = []
+    try:
+        kpis = source.client_kpis(wait_for_warehouse=False)
+    except Exception:  # noqa: BLE001 — sans KPI, la ligne « déjà engagé » est plus courte
+        kpis = []
+    gifting = _gifting_review()
+    prepared = conversation_module.build(
+        week, dataset=dataset, fires=fires, weekly=weekly, month=month,
+        commitments=commitments, kpis=kpis, gifting=gifting,
+    )
     from ..perf import incremental as incremental_module
 
     contribution = mix_module.current() if settings.has_contribution_file else None
@@ -301,8 +316,8 @@ def _perimeter_inputs(session):
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
-        "weekly": weekly, "invoiced": invoiced, "gifting": _gifting_review(),
-        "retail": _retail_margin(),
+        "weekly": weekly, "invoiced": invoiced, "gifting": gifting,
+        "retail": _retail_margin(), "prepared": prepared,
     }
 
 
@@ -357,7 +372,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
-                              retail=inputs["retail"])
+                              retail=inputs["retail"], prepared=inputs["prepared"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
