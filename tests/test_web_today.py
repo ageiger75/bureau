@@ -879,3 +879,12 @@ def test_the_red_zones_are_a_fixed_block_with_one_line_each(client):
     assert "Rien à découvrir ici : à tenir" in page
     assert "Japon" in page and "same-store sales" in page.lower()
     assert "à brancher" in page
+
+
+def test_what_changed_since_last_monday_is_on_the_screen(client, db_session):
+    """Le seul bloc qui a une mémoire : un sujet ouvert à cette lecture y est déjà."""
+    page = page_text(client.get("/"))
+
+    assert "Ce qui a changé depuis lundi dernier" in page
+    assert ("sujet" in page.split("Ce qui a changé depuis lundi dernier")[1][:400]
+            or "rien n'a bougé" in page.split("Ce qui a changé depuis lundi dernier")[1][:400])

@@ -582,6 +582,14 @@ def _screen(request: Request, session: Session):
     # par la dépendance se ferme sans écrire, et le registre paraissait sans mémoire alors
     # qu'il l'avait — un état porté redevenait « détecté » au rechargement suivant.
     session.commit()
+    # Ce qui a changé depuis lundi dernier : relu après l'écriture, pour que les sujets
+    # ouverts à cette lecture y soient déjà.
+    from datetime import date as _date
+
+    from ..perf import changes as changes_module
+    from ..perf import memory as memory_module
+
+    changes = changes_module.build(memory_module.load(session), commitments.items, _date.today())
 
     return dict(
         {
@@ -622,6 +630,7 @@ def _screen(request: Request, session: Session):
             "samestore": samestore,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
+            "changes": changes,
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,

@@ -82,6 +82,8 @@ def to_domain(row: "ManagementIssue") -> "domain.Issue":
         trend=row.trend,
         progress=row.progress,
         confidence=row.confidence,
+        opened_at=row.created_at or "",
+        updated_at=row.updated_at or "",
         follows=row.follows,
         merged_into=row.merged_into,
         closed_reason=row.closed_reason,

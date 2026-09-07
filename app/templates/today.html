@@ -484,6 +484,20 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------------------ ce qui a changé #}
+
+<section class="panel" id="changements">
+  <h2>Ce qui a changé depuis lundi dernier</h2>
+  <p class="lede">{{ changes.sentence | ucfirst }}.</p>
+  {% if not changes.is_quiet %}
+    <ol class="watch-list">
+      {% for item in changes.items %}
+        <li class="watch"><p class="watch-line"><span class="badge">{{ item.kind }}</span> <span class="subject-ref">{{ item.when }}</span> {{ item.text }}</p></li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ commitments #}
 
 <section class="panel">

@@ -254,6 +254,11 @@ class Issue:
     #: qui pointe vers le passé : confondre les deux ferait d'une fusion une rechute.
     merged_into: str = ""
     closed_reason: str = ""
+    #: Quand le sujet a été ouvert, et quand il a bougé pour la dernière fois — posés par la
+    #: persistance, jamais par le domaine, et vides sur un sujet jamais écrit. C'est ce qui
+    #: permet à l'écran de dire ce qui a changé depuis lundi dernier.
+    opened_at: str = ""
+    updated_at: str = ""
 
     trend: str = STABLE
     progress: str = ON_TRACK
