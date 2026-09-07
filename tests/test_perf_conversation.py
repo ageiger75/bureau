@@ -189,3 +189,21 @@ def test_the_watch_line_counts_months_like_the_detection_and_says_the_year_first
     assert line.months == 5
     assert line.line.startswith("%s sur l'exercice · %s ce mois · 5 mois sous le plan"
                                 % (format_eur(-6300.0), format_eur(-1900.0)))
+
+
+
+def test_a_known_and_wanted_cause_is_pointed_to_arbitration_not_to_a_call():
+    """Livraisons suspendues à un client qui ne paie pas : la cause est connue et voulue, le
+    sujet se tranche par un arbitrage, et la machine le dit sans le décider."""
+    from app.perf import routing
+
+    fire = SimpleNamespace(unit=SimpleNamespace(market="Northland"), gap=-100.0,
+                           diagnosis="Le commerce est arrêté exprès ici.",
+                           question="Que faut-il pour que cela reprenne ?",
+                           routed=SimpleNamespace(move=routing.NO_CEO_ACTION))
+    talk = C.build(_week([_issue()]), fires=[fire]).conversations[0]
+
+    assert talk.arbitrate_hint.startswith("À arbitrer plutôt qu'à challenger")
+    other = SimpleNamespace(unit=SimpleNamespace(market="Northland"), gap=-100.0, diagnosis="",
+                            question="", routed=SimpleNamespace(move=routing.CHALLENGE))
+    assert C.build(_week([_issue()]), fires=[other]).conversations[0].arbitrate_hint == ""

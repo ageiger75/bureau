@@ -2593,7 +2593,7 @@ def cmd_conversations(argv: List[str]) -> int:
                             ("Ce que les chiffres disent", talk.diagnosis),
                             ("La dernière lecture", talk.last_reading or "aucune conclusion portée encore"),
                             ("Déjà engagé", talk.engaged), ("Ce qui arrive", talk.ahead),
-                            ("La question", talk.question)):
+                            ("La question", talk.question), ("Le geste", talk.arbitrate_hint)):
             if text:
                 print("   %-28s %s" % (label, text[0].upper() + text[1:]))
         print("   %-28s %s" % ("Retenu pour", talk.retained_for))

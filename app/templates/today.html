@@ -420,6 +420,7 @@
               {% if talk.engaged %}<dt>Déjà engagé</dt><dd>{{ talk.engaged | ucfirst }}.</dd>{% endif %}
               {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
               <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>
+              {% if talk.arbitrate_hint %}<dt>Le geste</dt><dd>{{ talk.arbitrate_hint }}</dd>{% endif %}
             </dl>
             <p class="subject-why">Retenu pour : {{ talk.retained_for }}</p>
             {{ arbitrate(talk.issue) }}

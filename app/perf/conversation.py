@@ -308,6 +308,19 @@ class Conversation:
         return "Qu'est-ce qui a changé, et qu'est-ce qui est engagé ?"
 
     @property
+    def arbitrate_hint(self) -> str:
+        """Quand la cause est connue et voulue, l'appel n'est pas le bon geste : le sujet se
+        tranche par un arbitrage, avec une date de réexamen, et libère son créneau. La
+        machine le dit ; le lecteur décide."""
+        from . import routing
+
+        routed = getattr(self.fire, "routed", None) if self.fire is not None else None
+        if routed is None or getattr(routed, "move", "") != routing.NO_CEO_ACTION:
+            return ""
+        return ("À arbitrer plutôt qu'à challenger : la cause est connue et voulue. Accepter "
+                "l'écart avec une date de réexamen libère ce créneau pour un sujet ouvert.")
+
+    @property
     def retained_for(self) -> str:
         """Les facteurs du moteur, tels quels — pourquoi ce sujet est là (§C6)."""
         return self.row.why
