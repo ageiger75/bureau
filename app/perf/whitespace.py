@@ -32,6 +32,9 @@ PEERS_LEAST = 2
 PEERS_SHARE = 0.5
 CHANNEL_SHARE = 0.05
 
+#: Au-delà, les pairs se comptent au lieu de se nommer ; la liste reste dans `details`.
+NAMED_PEERS = 4
+
 #: Les mois consécutifs sous la part planifiée avant qu'un mix devienne un white space.
 MIX_MONTHS = 3
 
@@ -147,11 +150,14 @@ def absent_channels(units: Sequence, placed: Dict[str, str], no_site: Sequence[s
                 continue
             label = labels.get(code, code)
             carrying = [peer for peer in peers if code in by_market[peer]]
+            # Quatre pairs se nomment ; dix-sept se comptent, et le périmètre les nomme.
+            named = (", ".join(carrying) if len(carrying) <= NAMED_PEERS
+                     else "%d marchés de %s" % (len(carrying), perimeter))
             found.append(Space(
                 CHANNEL_ABSENT, market, label, total * share,
                 "part médiane de %s chez %s (%.0f %% de leurs ventes), appliquée aux %s de ce "
-                "marché ce mois" % (label, ", ".join(carrying), share * 100, format_eur(total)),
-                "Pourquoi %s n'a pas %s quand %s l'ont ?" % (market, label, ", ".join(carrying)),
+                "marché ce mois" % (label, named, share * 100, format_eur(total)),
+                "Pourquoi %s n'a pas %s quand %s l'ont ?" % (market, label, named),
                 carrying,
             ))
     found.sort(key=lambda space: -(space.amount or 0.0))
@@ -183,10 +189,13 @@ def mixes_below_plan(units: Sequence) -> List[Space]:
             year = getattr(unit, "gap_year_to_date", None)
             amount = -year if year is not None and year < 0 else -sum(history[-MIX_MONTHS:])
             label = getattr(unit, "channel_label", unit.channel)
+            # Une décimale quand l'entier ne sépare plus les deux parts : « 1 % contre 1 % »
+            # dit que rien ne cloche, et c'est faux.
+            digits = 0 if round(share * 100) != round(plan_share * 100) else 1
             found.append(Space(
                 MIX_BELOW_PLAN, market, label, amount,
-                "%s fait %.0f %% du marché contre %.0f %% au plan, sous le plan depuis %d mois ; "
-                "%s" % (label, share * 100, plan_share * 100, MIX_MONTHS,
+                "%s fait %.*f %% du marché contre %.*f %% au plan, sous le plan depuis %d mois ; "
+                "%s" % (label, digits, share * 100, digits, plan_share * 100, MIX_MONTHS,
                         "l'écart de l'exercice à date" if year is not None
                         else "l'écart des %d derniers mois" % MIX_MONTHS),
                 "Le plan voyait %s comme un relais sur %s : qu'est-ce qui n'a pas été fait, ou "

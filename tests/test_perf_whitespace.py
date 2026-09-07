@@ -92,3 +92,46 @@ def test_the_review_names_what_it_could_not_read_and_the_external_gap():
     assert any("aucune unité lue" in reason for reason in review.absent)
     assert any("ventes par boutique non lues" in reason for reason in review.absent)
     assert any("Beauté Research" in reason for reason in review.absent)
+
+
+def test_many_peers_are_counted_under_their_perimeter_rather_than_listed():
+    """Dix-sept pairs nommés dans une phrase ne se lisent pas ; ils se comptent, et le
+    périmètre les nomme. Quatre se nomment encore. La liste reste dans les détails."""
+    from types import SimpleNamespace
+
+    units = []
+    placed = {}
+    for index in range(7):
+        name = "Pair %d" % index
+        placed[name] = "Ouest"
+        units.append(SimpleNamespace(market=name, channel="retail", channel_label="Retail",
+                                     sales_actual=100.0, sales_budget=100.0, is_aggregate=False,
+                                     budget_known=True))
+        units.append(SimpleNamespace(market=name, channel="ecommerce", channel_label="E-commerce",
+                                     sales_actual=50.0, sales_budget=50.0, is_aggregate=False,
+                                     budget_known=True))
+    placed["Seul"] = "Ouest"
+    units.append(SimpleNamespace(market="Seul", channel="retail", channel_label="Retail",
+                                 sales_actual=100.0, sales_budget=100.0, is_aggregate=False,
+                                 budget_known=True))
+    found = W.absent_channels(units, placed)
+
+    assert len(found) == 1
+    assert "7 marchés de Ouest" in found[0].basis and "7 marchés de Ouest l'ont" in found[0].question
+    assert len(found[0].details) == 7
+
+
+def test_a_mix_share_that_rounds_to_its_plan_share_shows_a_decimal():
+    from types import SimpleNamespace
+
+    def unit(channel, actual, budget, history):
+        return SimpleNamespace(market="Northland", channel=channel, channel_label=channel,
+                               sales_actual=actual, sales_budget=budget, gap_history=history,
+                               gap_year_to_date=None, is_aggregate=False, budget_known=True)
+
+    units = [unit("Retail", 9880.0, 9880.0, (1.0, 1.0, 1.0)),
+             unit("Marketplace", 120.0, 135.0, (-5.0, -5.0, -15.0))]
+    found = W.mixes_below_plan(units)
+
+    assert len(found) == 1
+    assert "1.2 % du marché contre 1.3 % au plan" in found[0].basis
