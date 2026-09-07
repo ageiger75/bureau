@@ -519,7 +519,7 @@ class Review:
             return ""
         parts = ["%s (%s des ventes)" % (piece.label, piece.actual_share_label)
                  for piece in self.uncovered]
-        return "Sans taux, donc hors du calcul : %s." % ", ".join(parts)
+        return "Sans taux moyen, donc hors du calcul au taux moyen : %s." % ", ".join(parts)
 
     @property
     def partners_note(self) -> str:

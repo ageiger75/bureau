@@ -160,7 +160,7 @@ def test_a_channel_without_a_rate_is_absent_with_its_weight_never_zero(tmp_path)
 
     travel = next(piece for piece in review.slices if piece.channel == "tra")
     assert not travel.covered and travel.weighted is None and travel.rate_label == "absent"
-    assert review.uncovered_note == "Sans taux, donc hors du calcul : Travel Retail (9 % des ventes)."
+    assert review.uncovered_note == "Sans taux moyen, donc hors du calcul au taux moyen : Travel Retail (9 % des ventes)."
     assert review.coverage_label == "91 %"
     assert not review.thin
     # La somme ne prend que les canaux couverts, sans rien inventer pour le troisième.
