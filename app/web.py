@@ -16,35 +16,6 @@ from . import __version__
 from .config import ROOT, settings
 from .db import database_label
 from .perf import analytics as perf_format
-from .domain.enums import (
-    CASE_STATUS_LABELS,
-    CASE_STATUS_MEANINGS,
-    CHALLENGE_KIND_LABELS,
-    CHALLENGE_STATUS_LABELS,
-    CHALLENGE_VOICE_LABELS,
-    CHALLENGE_VOICE_ORDER,
-    CHALLENGE_VOICE_QUESTIONS,
-    CLAIM_CATEGORY_HINTS,
-    CLAIM_CATEGORY_LABELS,
-    CLAIM_CATEGORY_ORDER,
-    COMMITMENT_STATUS_LABELS,
-    CONFIDENTIALITY_LABELS,
-    MATERIALITY_LABELS,
-    NEXT_STEP_LABELS,
-    REVERSIBILITY_LABELS,
-    REVIEW_STATUS_LABELS,
-    SEVERITY_LABELS,
-    CaseStatus,
-    ChallengeStatus,
-    ClaimCategory,
-    CommitmentStatus,
-    Confidentiality,
-    Materiality,
-    NextStep,
-    Reversibility,
-    ReviewStatus,
-    Severity,
-)
 from .domain.commitments import ALERT_LABELS
 
 templates = Jinja2Templates(directory=str(ROOT / "app" / "templates"))
@@ -117,34 +88,6 @@ templates.env.globals.update(
         # above is worse than no banner: it tells a passing reader the numbers are
         # invented when they are the Maison's own.
         "reads_warehouse": settings.reads_warehouse,
-        "CASE_STATUS_LABELS": CASE_STATUS_LABELS,
-        "CASE_STATUS_MEANINGS": CASE_STATUS_MEANINGS,
-        "CLAIM_CATEGORY_LABELS": CLAIM_CATEGORY_LABELS,
-        "CLAIM_CATEGORY_HINTS": CLAIM_CATEGORY_HINTS,
-        "CLAIM_CATEGORY_ORDER": CLAIM_CATEGORY_ORDER,
-        "MATERIALITY_LABELS": MATERIALITY_LABELS,
-        "REVERSIBILITY_LABELS": REVERSIBILITY_LABELS,
-        "CONFIDENTIALITY_LABELS": CONFIDENTIALITY_LABELS,
-        "CHALLENGE_VOICE_LABELS": CHALLENGE_VOICE_LABELS,
-        "CHALLENGE_VOICE_QUESTIONS": CHALLENGE_VOICE_QUESTIONS,
-        "CHALLENGE_VOICE_ORDER": CHALLENGE_VOICE_ORDER,
-        "CHALLENGE_KIND_LABELS": CHALLENGE_KIND_LABELS,
-        "CHALLENGE_STATUS_LABELS": CHALLENGE_STATUS_LABELS,
-        "SEVERITY_LABELS": SEVERITY_LABELS,
-        "COMMITMENT_STATUS_LABELS": COMMITMENT_STATUS_LABELS,
-        "COMMITMENT_ALERT_LABELS": ALERT_LABELS,
-        "REVIEW_STATUS_LABELS": REVIEW_STATUS_LABELS,
-        "NEXT_STEP_LABELS": NEXT_STEP_LABELS,
-        "CaseStatus": CaseStatus,
-        "ChallengeStatus": ChallengeStatus,
-        "CommitmentStatus": CommitmentStatus,
-        "NextStep": NextStep,
-        "ReviewStatus": ReviewStatus,
-        "Severity": Severity,
-        "ClaimCategory": ClaimCategory,
-        "Materiality": Materiality,
-        "Reversibility": Reversibility,
-        "Confidentiality": Confidentiality,
     }
 )
 

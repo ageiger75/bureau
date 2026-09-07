@@ -18,9 +18,9 @@ def test_today_is_the_home_page(client):
     assert "Qu'est-ce que je décide cette semaine" in page_text(response)
 
 
-def test_decision_room_is_still_reachable(client):
-    """Nothing was deleted. Decision Room simply no longer owns the front door."""
-    assert client.get("/decisions").status_code == 200
+def test_decision_room_is_gone(client):
+    """Retiré le 7 septembre 2026 : une seule porte, et elle donne sur le cockpit."""
+    assert client.get("/decisions").status_code == 404
 
 
 # ------------------------------------------------------- the eight questions of §34

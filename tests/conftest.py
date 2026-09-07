@@ -31,9 +31,7 @@ os.environ["CEOOS_DATABASE_URL"] = "sqlite:///%s" % (TEST_DIR / "test.db")
 from starlette.testclient import TestClient  # noqa: E402
 
 from app.db import SessionFactory, create_all, drop_all  # noqa: E402
-from app.domain.enums import UserRole  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -154,38 +152,7 @@ def db_session():
 
 
 @pytest.fixture
-def ceo(db_session) -> User:
-    """Identité minimale : la tranche 1 prend l'utilisateur courant dans la base."""
-    user = User(
-        email="ceo@test.local",
-        display_name="CEO de test",
-        role=UserRole.CEO.value,
-    )
-    db_session.add(user)
-    db_session.commit()
-    return user
-
-
-@pytest.fixture
-def client(ceo):
-    del ceo  # présence requise, pas l'objet
-    with TestClient(app) as test_client:
-        yield test_client
-
-
-@pytest.fixture
-def empty_client():
-    """Client sur une base sans aucun utilisateur, pour vérifier l'écran d'amorçage."""
-    with TestClient(app) as test_client:
-        yield test_client
-
-
-@pytest.fixture
-def seeded_client():
-    """Client sur les données de démonstration."""
-    from seed.demo import seed
-
-    seed()
+def client():
     with TestClient(app) as test_client:
         yield test_client
 
@@ -199,22 +166,3 @@ def page_text(response) -> str:
     mais un mauvais motif fonctionnel. Le test d'échappement, lui, lit `response.text` brut.
     """
     return html.unescape(response.text)
-
-
-def create_case(client: TestClient, **overrides) -> str:
-    """Crée un dossier via l'interface et retourne son identifiant.
-
-    Passer par le vrai formulaire plutôt que par l'ORM : un test qui insère directement en
-    base ne prouve pas que le parcours utilisateur fonctionne.
-    """
-    payload = {
-        "title": "Dossier de test",
-        "question": "Faut-il faire A plutôt que B avant la fin du trimestre ?",
-        "context": "Contexte de test.",
-        "deadline": "2026-12-31",
-        "confidentiality": "confidential",
-    }
-    payload.update(overrides)
-    response = client.post("/cases", data=payload, follow_redirects=False)
-    assert response.status_code == 303, response.text
-    return response.headers["location"].rsplit("/", 1)[-1]

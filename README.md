@@ -2,15 +2,11 @@
 
 Application privée, locale, sur données fictives. Sponsor : Adrien Geiger.
 
-Elle porte aujourd'hui **deux produits**, dont un seul est actif :
-
-| | | |
-| --- | --- | --- |
-| **CEO Performance Cockpit** | `/` | Produit principal. Où pousser, qui challenger, où est l'argent, si les engagements passés produisent des résultats, et ce que font les clients — recrutement, ARC, panier, NPS. Voir `PIVOT.md`. |
-| **Decision Room** | `/decisions` | Prototype précédent, complet et testé, conservé intact. Écrit en français. Documenté ci-dessous. |
-
-Le pivot de l'un vers l'autre — ce qui est réutilisé, ce qui est mis de côté, et pourquoi
-rien n'a été supprimé — est décrit dans **`PIVOT.md`**.
+Un seul produit : le **CEO Performance Cockpit**, sur `/`. L'écran du lundi en cinq blocs —
+le verdict, la semaine, trois conversations, les zones rouges, ce qui a changé — et une page
+« Analyses » pour tout ce qui explique, classe, propose ou vérifie. Le prototype précédent,
+Decision Room, a été retiré le 7 septembre 2026 ; son histoire est dans `PIVOT.md` et le
+registre des sujets, seule pièce conservée, dans `app/domain/issues.py`.
 
 **L'état du produit, ce qui manque et l'ordre des travaux sont dans `docs/PLAN.md`.**
 C'est le document à lire en premier pour reprendre le travail : il porte aussi les règles
@@ -19,21 +15,6 @@ de mesure apprises sur de vraies données, qu'aucune relecture du code ne redonn
 **La langue de l'interface est le français.** La doctrine V6.1 demandait un écran en
 anglais ; le lecteur a tranché pour le français, qui est déjà celle du terminal, des notes
 de contexte et du registre. L'écran web est encore en anglais et doit être repris.
-
----
-
-# Decision Room
-
-Prototype des **tranches verticales 1 et 2** du MVP décrit dans
-`Brief_Construction_CEO_OS_Decision_Room.docx`. Il n'est plus la page d'accueil ; il reste
-atteignable sur `/decisions` et ses tests restent verts.
-
-L'unité de travail est la décision : une question explicite, des affirmations qualifiées,
-des options comparables, une position assumée, une décision enregistrée avec ses raisons,
-et une revue qui la confronte aux résultats. Ce n'est ni un tableau de bord, ni une
-interface de chat.
-
-Sponsor : Adrien Geiger · application privée, locale, sur données fictives.
 
 ---
 
@@ -136,79 +117,6 @@ Tester la connexion à l'entrepôt sans lire aucune donnée métier :
 ```bash
 .venv/bin/python manage.py warehouse
 ```
-
----
-
-## Ce que fait le produit
-
-| Écran | Contenu |
-| --- | --- |
-| **Accueil** | Dossiers ouverts triés par urgence puis par fragilité. Blocs « demande attention », engagements en retard et revues. |
-| **Nouveau dossier** | Titre, question à trancher, contexte, échéance, confidentialité. |
-| **Dossier** | Diagnostic, synthèse, cadrage, socle factuel, options, challenge, recommandation, décision, engagements, revue — sur une page, sections repliables. |
-| **Archive** | Dossiers clos et les leçons qu'ils laissent : « archivé et retrouvable » (brief §6). |
-
-Le parcours complet du brief §19 fonctionne : créer → sourcer → contester → comparer →
-prendre position → décider → suivre → apprendre → clore. Tout est modifiable et enregistré
-en SQLite.
-
-### Le point du produit
-
-Le brief impose de séparer les faits des hypothèses (§4), interdit de présenter une
-moyenne ou un score de confiance comme une vérité (§10), et exige une critique qui ne soit
-pas du spectacle (§9). Concrètement :
-
-- **Quatre catégories obligatoires** : fait sourcé, hypothèse, opinion, à vérifier.
-- **Avertissement, pas refus.** Un fait sans source est enregistré tel quel, puis signalé
-  sur le dossier, sur l'accueil et dans le diagnostic. Bloquer la saisie pousserait à
-  requalifier le fait douteux pour faire taire le message — ce qui effacerait justement
-  l'information qu'on veut garder. *(Décision de périmètre prise avec le sponsor.)*
-- **Deux ou trois options.** Moins de deux bloque le passage en « Prêt à décider », plus de
-  trois aussi. Le statu quo manquant produit un avertissement.
-- **Un dossier jamais contesté ne peut pas être déclaré prêt.** C'est la parade
-  structurelle au risque principal du produit : devenir une machine à confirmer
-  l'intuition de départ. Une objection bloquante sans réponse écrite bloque également, et
-  les voix qui ne se sont pas exprimées sont nommées.
-- **Position nette obligatoire.** La recommandation exige « Voilà ce que je ferais » **et**
-  les conditions qui l'invalideraient. Ces deux champs sont refusés s'ils sont vides —
-  contrairement à un fait sans source, il n'y a ici aucune information à conserver.
-- **Aucun score.** Le diagnostic liste des bloquants et des avertissements nommés, jamais
-  une note agrégée. La couverture des sources n'est affichée que s'il existe au moins un
-  fait : « 100 % » sur un ensemble vide serait de la fausse précision.
-- **Désaccords affichés.** La recommandation a un champ dédié aux désaccords non résolus.
-- **Décider ne se fait pas en changeant un statut.** Le choix, les raisons, les réserves,
-  les critères de succès et la date de revue passent par l'écran Décision — c'est
-  exactement ce qu'une réunion perd (brief §2).
-- **L'écart avec la recommandation est déduit, pas déclaré.** Choisir une autre option que
-  celle recommandée marque la divergence sans que personne ait à cocher une case, et
-  l'absence de raison écrite est signalée.
-- **Un engagement sans propriétaire ni date est enregistré et signalé** — le refuser le
-  ferait vivre hors du dossier. **Une revue sans résultat ni leçon, elle, ne peut pas être
-  close** : une revue vide n'apprend rien à la décision suivante. Et une revue terminée ne
-  se réécrit pas — une attente réajustée après coup ne s'infirme jamais.
-
-### États d'un dossier
-
-`Brouillon → En analyse → Prêt à décider → Décidé → En exécution → À revoir → Clos`,
-avec retour en arrière autorisé — découvrir une inconnue après coup doit pouvoir ramener
-un dossier en analyse, et la réouverture d'un dossier clos est possible mais explicite.
-
-Chaque entrée dans la boucle a sa condition, et chaque refus explique pourquoi :
-
-| Passage | Condition |
-| --- | --- |
-| → Prêt à décider | Le diagnostic ne relève aucun bloquant. |
-| → Décidé | Une décision est enregistrée par l'écran Décision. |
-| → En exécution | Au moins un engagement existe : une décision qui ne se traduit en rien s'oublie. |
-| → À revoir | Une revue est planifiée — sa date se fixe au moment de la décision. |
-| → Clos | La revue est terminée. |
-
-`Décidé` et `Clos` ne sont pas proposés comme de simples boutons d'état : les offrir
-laisserait croire qu'on peut décider, ou clore, sans rien enregistrer.
-
-À partir de `Décidé`, un dossier ne se juge plus sur sa maturité mais sur son exécution :
-son échéance de décision est derrière lui, et la rappeler indéfiniment noierait les vrais
-signaux — engagements en retard et revue échue.
 
 ---
 
@@ -332,35 +240,3 @@ travail — environnement, dépendances, schéma, données fictives — pour qu'
 cloné démarre sans intervention.
 
 ---
-
-## Données de démonstration
-
-Quatre dossiers fictifs, **volontairement imparfaits** : ils servent à vérifier que l'outil
-signale les défauts, pas à présenter une belle page.
-
-| Référence | État | Défaut installé exprès |
-| --- | --- | --- |
-| `DR-2026-001` Flagship Milan | En analyse | Un fait affirmé sans source ; deux comptages de trafic qui se contredisent (42 000 vs 28 000) sans qu'aucun soit retenu ; une hypothèse déterminante sans test ; une objection bloquante sans réponse ; aucune recommandation. |
-| `DR-2026-002` Calendrier promotionnel | Prêt à décider | Dossier abouti et réellement contesté, avec un désaccord non résolu affiché tel quel. |
-| `DR-2026-003` Reformulation | Brouillon | Échéance déjà dépassée, une seule hypothèse, aucune option, jamais contesté. |
-| `DR-2026-004` Réseau Europe du Nord | En exécution | Décision prise contre la recommandation, avec sa raison écrite ; un engagement critique en retard, un autre bloqué ; revue échue. |
-
-Aucun nom, chiffre ou document réel de L'OCCITANE n'y figure.
-
----
-
-## Suite proposée
-
-| Tranche | Contenu | État |
-| --- | --- | --- |
-| 1 | Cadrage, socle factuel, options, recommandation | Fait |
-| 2 | Challenge, décision, engagements, revue | Fait |
-| 3 | Import de documents et passages cités | À faire — rend la traçabilité réelle : `source_ref` devient un lien |
-| 4 | Agents IA, prompts versionnés, jeu d'évaluation | Ne vaut la peine qu'une fois les passages indexés disponibles |
-| 5 | Entra ID, RBAC, audit | Nécessaire avant tout usage multi-utilisateurs |
-| 6 | Microsoft Graph en lecture seule | Dernier, conformément au brief §20 |
-
-Le brief conclut : tester d'abord sur trois décisions historiques, et ne pas poursuivre les
-intégrations si le produit n'améliore pas nettement la qualité du cadrage et du challenge.
-La boucle complète étant fonctionnelle, ce test est désormais possible — et il devrait
-précéder la tranche 3.

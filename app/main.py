@@ -1,4 +1,4 @@
-"""Point d'entrée FastAPI de CEO OS — Decision Room.
+"""Point d'entrée FastAPI de CEO OS — Performance Cockpit.
 
 Deux garde-fous sont posés ici plutôt que dans la documentation :
   * l'application refuse toute requête ne venant pas de la boucle locale ;
@@ -38,7 +38,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="CEO OS — Decision Room",
+    title="CEO OS — Performance Cockpit",
     version=__version__,
     docs_url=None,       # pas de surface d'API publiée : l'interface est en HTML
     redoc_url=None,
@@ -103,7 +103,7 @@ include_all(app)
 async def http_error(request: Request, exc: HTTPException):
     """Page d'erreur lisible plutôt qu'un JSON brut, l'interface étant en HTML."""
     if exc.status_code == 404:
-        message = "Ce dossier n'existe pas, ou n'est pas accessible."
+        message = "Cette page n'existe pas."
     elif exc.status_code == 503:
         message = str(exc.detail)
     else:

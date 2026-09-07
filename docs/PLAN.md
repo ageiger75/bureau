@@ -18,9 +18,10 @@ bibliothèque standard, aucune ressource externe, écoute locale seulement, lect
 garantie deux fois (code et rôle d'entrepôt). La suite de tests est verte et chaque test
 ferme un défaut qui a été vu, pas un défaut imaginé.
 
-**Deux produits cohabitent dans le dépôt.** Decision Room (`/decisions`, 202 tests
-d'origine, intact) et le Performance Cockpit (`/`, écran « Today », plus `/system`). Le
-premier n'est plus la porte d'entrée mais n'a pas été retiré.
+**Un seul produit dans le dépôt depuis le 7 septembre 2026.** Decision Room a été retiré
+(routes, domaine, modèles, gabarits, jeu de démonstration) ; seul le registre des sujets,
+qu'il avait fait naître, reste. Le Performance Cockpit tient `/`, `/analyses`, les pages de
+périmètre et `/system`.
 
 **L'écran web lit** : `analytics` (les écarts, leurs ponts, une liste de sujets
 recalculée à chaque lecture), `routing`, `kpi`, `provenance`, `commitments`, `source`.
@@ -441,6 +442,16 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Priorités 5 et 6, le 7 septembre 2026.** Les white spaces internes
+(`app/perf/whitespace.py`, `manage.py whitespaces`, page Analyses) en trois formes mesurées
+sur nos propres chiffres : un canal que les pairs d'un marché portent et qu'il n'a pas,
+dimensionné sur la part médiane des pairs ; un mix sous sa part planifiée depuis trois mois,
+dimensionné sur l'exercice à date ; les boutiques sous la moitié de la médiane de leur marché,
+dimensionnées à la médiane. Chaque taille porte son hypothèse. Les white spaces externes
+attendent l'extrait Beauté Research pour l'Asie, dont la demande est écrite dans `var/`.
+Decision Room retiré : routes, services, domaine des dossiers, modèles, gabarits, jeu de
+démonstration, et leurs tests ; le registre des sujets et les règles d'engagement restent.
+
 **Nickel chrome, le 7 septembre 2026.** Deux pages pour une lecture. L'écran du jour
 tient en cinq blocs : le verdict (l'exercice et son atterrissage, la contribution à date en
 carte avec un mot et une table par nature à la place d'un paragraphe, le same-store sales lu
@@ -560,8 +571,7 @@ qu'elle décrit ; une phrase non traçable ne s'affiche pas.
 
 ### En attente, sans date
 
-Retrait de Decision Room ; PostgreSQL ; annuaire d'entreprise et audit — nécessaires avant
-tout usage à plusieurs.
+PostgreSQL ; annuaire d'entreprise et audit — nécessaires avant tout usage à plusieurs.
 
 ---
 
@@ -593,7 +603,7 @@ tout usage à plusieurs.
 
 **Encore ouvert.**
 
-4. **Decision Room** : conserver ou retirer. Sans réponse, on conserve.
+4. **Decision Room** : retiré le 7 septembre 2026, sur « go ».
 
 *Tranchée le 3 septembre.* **Pas de pondération stratégique pour l'instant : le classement
 se fait sur le plus gros écart au plan.** L'argument du lecteur tient — le plan porte déjà

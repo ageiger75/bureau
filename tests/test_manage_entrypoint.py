@@ -75,30 +75,6 @@ def test_commande_inconnue_echoue_avec_l_aide():
     assert "Commande inconnue" in result.stderr
 
 
-def test_reset_est_refuse_hors_environnement_local(tmp_path):
-    """Garde-fou : `seed --reset` effacerait de vraies décisions en pilote."""
-    env_file = tmp_path / "unused"
-    del env_file
-
-    result = subprocess.run(
-        [sys.executable, str(MANAGE), "seed", "--reset"],
-        cwd=str(tmp_path),
-        capture_output=True,
-        text=True,
-        timeout=60,
-        env={
-            "PATH": "/usr/bin:/bin",
-            "HOME": str(tmp_path),
-            "CEOOS_ENV": "pilot",
-            "CEOOS_SECRET_KEY": "x" * 40,
-            "CEOOS_DATABASE_URL": "sqlite:///%s" % (tmp_path / "pilot.db"),
-        },
-    )
-
-    assert result.returncode == 2
-    assert "Refusé" in result.stderr
-
-
 def test_serving_on_a_busy_port_says_the_old_code_is_still_being_served(capsys):
     """Le message du serveur — « address already in use » et un numéro d'erreur — dit ce
     qui a échoué et jamais ce qui se passe. Une fenêtre laissée ouverte continue de servir

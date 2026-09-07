@@ -193,55 +193,6 @@ ul.bullets li { margin-bottom: 3px; }
 .badge-sq { background: var(--white); border-style: dashed; }
 .badge-conf { background: var(--white); }
 
-/* ------------------------------------------------------------------ accueil */
-
-.panel-attention { border-left: 3px solid var(--warn); }
-.attention-list { list-style: none; margin: 0; padding: 0; }
-.attention-list li {
-  padding: 7px 0; border-bottom: 1px solid var(--rule-soft);
-  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-}
-.attention-list li:last-child { border-bottom: 0; }
-.attention-why { color: var(--warn); font-size: 13px; }
-
-.case-list { display: grid; gap: 14px; }
-
-/* Archive : la leçon d'une décision close se lit comme un paragraphe, pas comme une
-   ligne de tableau. C'est le seul contenu du produit qu'on relit sans son dossier. */
-.lesson-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
-.lesson-list li { border-left: 2px solid var(--rule); padding-left: 14px; }
-.lesson-source { color: var(--ink-soft); font-size: 13px; margin: 0 0 4px; }
-
-.case-card {
-  background: var(--white); border: 1px solid var(--rule);
-  border-left: 3px solid var(--rule); border-radius: var(--radius); padding: 16px 18px;
-}
-.case-card.urgency-overdue  { border-left-color: var(--alert); }
-.case-card.urgency-critical { border-left-color: var(--warn); }
-.case-card.urgency-soon     { border-left-color: #d8cfa8; }
-
-.case-card-head {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  gap: 16px; flex-wrap: wrap; margin-bottom: 8px;
-}
-.case-card-title h3 { margin: 0; font-size: 17px; }
-.case-card-title h3 a { color: var(--ink); }
-.case-ref {
-  display: block; font-family: var(--mono); font-size: 11.5px;
-  color: var(--ink-faint); letter-spacing: 0.04em; margin-bottom: 2px;
-}
-.case-card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
-
-.case-question { color: var(--ink-soft); margin: 0 0 10px; max-width: 88ch; }
-
-.case-meta { list-style: none; display: flex; flex-wrap: wrap; gap: 18px; margin: 0 0 10px; padding: 0; font-size: 13px; }
-.case-meta-head { margin-top: 12px; }
-
-.case-diagnosis summary,
-.case-diagnosis-ok { font-size: 13px; color: var(--ink-faint); cursor: pointer; }
-.case-diagnosis-ok { color: var(--ok); margin: 0; }
-.case-diagnosis[open] summary { margin-bottom: 8px; color: var(--ink-soft); }
-
 /* ------------------------------------------------------------------ dossier */
 
 .breadcrumb { font-size: 13px; color: var(--ink-faint); margin: 0 0 6px; }
@@ -486,23 +437,6 @@ input:focus, textarea:focus, select:focus {
 .voice-prompts { margin-bottom: 16px; }
 .voice-prompts ul.bullets { font-size: 13px; color: var(--ink-soft); }
 
-/* ------------------------------------------------------------- décision */
-
-.panel-decision { border-left: 3px solid var(--ink); }
-.decision-option { font-size: 15px; margin: 0 0 16px; }
-.badge-divergence {
-  background: var(--warn-soft); border-color: #e7d3ab; color: var(--warn);
-  margin-left: 8px;
-}
-.decision-block { margin-bottom: 16px; }
-.decision-block h3 {
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--ink-faint); margin-bottom: 5px;
-}
-.decision-reservations { border-left: 2px solid var(--warn); padding-left: 12px; }
-.decision-divergence { border-left: 2px solid var(--warn); padding-left: 12px; }
-.decision-change { border-left: 2px solid var(--rule); padding-left: 12px; }
-
 /* ---------------------------------------------------------- engagements */
 
 .commitment-list { list-style: none; margin: 0; padding: 0; }
@@ -528,24 +462,6 @@ input:focus, textarea:focus, select:focus {
 .badge-cmt-rearbitration_needed {
   background: var(--alert-soft); border-color: var(--alert); color: var(--alert); font-weight: 600;
 }
-
-/* ------------------------------------------------ accueil : lignes plates */
-
-.panel-overdue { border-left: 3px solid var(--alert); }
-.panel-reviews { border-left: 3px solid var(--accent); }
-
-.commitment-lines { list-style: none; margin: 0; padding: 0; }
-.commitment-lines li {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
-  padding: 9px 0; border-bottom: 1px solid var(--rule-soft);
-}
-.commitment-lines li:last-child { border-bottom: 0; }
-.line-main { flex: 1 1 auto; min-width: 0; }
-.line-action { margin: 0 0 2px; }
-.line-meta { margin: 0; font-size: 12.5px; color: var(--ink-faint); }
-.line-critical .line-action { font-weight: 600; }
-
-.case-diagnosis-alert { font-size: 13px; color: var(--alert); margin: 0; }
 
 /* ---------------------------------------------------------------- revue */
 

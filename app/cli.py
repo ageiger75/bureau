@@ -1,8 +1,6 @@
 """Commandes d'administration locale.
 
     python -m app.cli migrate        crée le schéma manquant
-    python -m app.cli seed           insère les données fictives si la base est vide
-    python -m app.cli seed --reset    efface tout et réinsère
     python -m app.cli check          vérifie la configuration et affiche le périmètre actif
     python -m app.cli warehouse      teste la connexion Snowflake sans lire de donnée métier
                                      --schemas / --tables SCHEMA / --columns SCHEMA.TABLE
@@ -119,27 +117,6 @@ def cmd_migrate() -> int:
         print("Colonne refusée     %s" % reason, file=sys.stderr)
     print("Schéma à jour · %s" % database_label())
     return 1 if refused else 0
-
-
-def cmd_seed(argv: List[str]) -> int:
-    reset = "--reset" in argv
-    if reset and not settings.is_local:
-        # Un --reset hors local effacerait de vraies décisions.
-        print(
-            "Refusé : --reset n'est autorisé que si CEOOS_ENV=local (actuel : %s)."
-            % settings.env,
-            file=sys.stderr,
-        )
-        return 2
-
-    from seed.demo import seed
-
-    # « Dossiers » et non « données de démonstration » : cette ligne parle des dossiers
-    # de Decision Room dans SQLite, jamais des chiffres de performance, qui viennent d'une
-    # tout autre source. Le mot précédent s'affichait à chaque lancement et laissait
-    # croire que l'écran entier tournait sur des chiffres inventés.
-    print("Dossiers Decision Room · %s" % seed(reset=reset))
-    return 0
 
 
 def cmd_check() -> int:
@@ -4542,8 +4519,6 @@ def main(argv: List[str]) -> int:
     command = argv[0]
     if command == "migrate":
         return cmd_migrate()
-    if command == "seed":
-        return cmd_seed(argv[1:])
     if command == "check":
         return cmd_check()
     if command == "warehouse":

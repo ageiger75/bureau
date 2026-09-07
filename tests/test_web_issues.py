@@ -148,6 +148,7 @@ def test_a_subject_can_be_arbitrated_by_the_key_it_covers(client, db_session):
         "reason": "Écart accepté",
     }, follow_redirects=True)
 
+    db_session.expire_all()
     held = memory.load(db_session).holding(("gap_to_plan", "Northland"))
     assert held.status == I.VARIANCE_ACCEPTED
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# CEO OS — Decision Room · démarrage local
-# Crée le venv si absent, applique les migrations, sème les données fictives, lance le serveur.
+# CEO OS — Performance Cockpit · démarrage local
+# Crée le venv si absent, applique les migrations, lance le serveur.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -59,12 +59,6 @@ fi
 echo "→ Migrations"
 $PY -m app.cli migrate
 
-if [ "${1:-}" = "--reset" ]; then
-  echo "→ Réinitialisation des données fictives"
-  $PY -m app.cli seed --reset
-else
-  $PY -m app.cli seed
-fi
 
 # L'adresse d'écoute n'est pas passée en argument : elle est fixée dans app/cli.py, pour
 # qu'aucune commande ne puisse exposer le service hors de la boucle locale.

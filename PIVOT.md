@@ -149,3 +149,12 @@ a team's report loses the argument in the room, whatever its arithmetic says.
 Phase 2 was pulled forward deliberately. The brief's own success test (§34) is whether the
 screen makes a CEO want to act — and a screen whose numbers do not add up would fail that
 test for the wrong reason.
+
+---
+
+*7 septembre 2026.* Decision Room a été retiré du dépôt sur décision du lecteur : routes,
+services, domaine des dossiers, modèles, gabarits, jeu de démonstration et leurs tests. Ce
+qui en reste est ce que le cockpit avait repris : le registre des sujets
+(`app/domain/issues.py`, `app/perf/memory.py`) et les règles d'engagement
+(`app/domain/commitments.py`). Ce document garde l'histoire du pivot ; il ne décrit plus un
+produit actif.
