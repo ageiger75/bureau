@@ -78,3 +78,13 @@ def test_the_persistence_stamps_reach_the_domain(db_session):
 
     loaded = memory.load(db_session).of(issue.issue_id)
     assert loaded.opened_at and loaded.updated_at
+
+
+
+def test_the_list_is_capped_and_the_rest_counted():
+    """Le jour où le registre est né, tout est « ouvert » : la liste se compte au-delà de dix."""
+    register = I.Register([_issue("ISS-%03d" % n, "2026-09-03T10:00:00") for n in range(1, 15)])
+
+    changes = C.build(register, today=TODAY)
+
+    assert len(changes.shown) == C.Changes.MOST and changes.hidden == 4

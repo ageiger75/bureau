@@ -209,3 +209,15 @@ def test_the_sentence_names_who_is_ahead_and_who_is_behind(tmp_path):
     assert "en avance : Nord" in sentence
     assert "en retard : Sud" in sentence
     assert track.month_without.startswith("hors Nord : en retard")
+
+
+
+def test_a_band_too_wide_to_conclude_is_said_undecided_never_in_line():
+    """« En ligne » entre moins quinze et plus quinze pour cent n'est pas un verdict, c'est
+    l'absence d'un. Le mot le dit ; un écart net dans une large fourchette garde le sien."""
+    wide = T.Verdict(actual=15.0, low=13.0, high=17.6)
+    assert wide.wide and wide.label == T.UNDECIDED
+    behind = T.Verdict(actual=10.0, low=13.0, high=17.6)
+    assert behind.label == T.BEHIND
+    narrow = T.Verdict(actual=15.0, low=14.8, high=15.2)
+    assert narrow.label == T.IN_LINE

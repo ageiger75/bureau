@@ -18,7 +18,7 @@ import csv
 import io
 import os
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Tuple, Dict, List, Optional
 
 REQUIRED = ("market", "perimeter")
 
@@ -85,9 +85,27 @@ class Placements:
     @property
     def notes(self) -> List[str]:
         """Ce que l'écran dit : les décisions en vigueur, puis celles qui ont expiré."""
-        said = ["Placement décidé : %s." % rule.label for rule in self.active.values()]
+        # Une ligne par décision, pas par marché : trois marchés rangés sous le même
+        # périmètre à la même date pour la même raison sont une décision.
+        grouped: Dict[Tuple[str, str, str], List[str]] = {}
+        for rule in self.active.values():
+            grouped.setdefault((rule.perimeter, rule.until, rule.reason), []).append(rule.market)
+        said = []
+        for (perimeter, until, reason), markets in grouped.items():
+            text = "%s → %s" % (_listed(markets), perimeter)
+            if until:
+                text += " jusqu'au %s" % until
+            if reason:
+                text += " (%s)" % reason
+            said.append("Placement décidé : %s." % text)
         said.extend("Placement expiré, plus appliqué : %s." % rule.label for rule in self.expired)
         return said
+
+
+def _listed(names: List[str]) -> str:
+    if len(names) < 2:
+        return "".join(names)
+    return "%s et %s" % (", ".join(names[:-1]), names[-1])
 
 
 def load(path: str, today: Optional[date] = None) -> Placements:

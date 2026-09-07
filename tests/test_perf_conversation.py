@@ -171,3 +171,21 @@ def test_the_stake_opens_on_the_fiscal_year_to_date_when_the_units_carry_it():
     assert talk.year_gap == -6300.0
     assert talk.stake.startswith("%s sous le plan sur l'exercice à date, %s sous le plan ce mois"
                                  % (format_eur(6300.0), format_eur(1900.0)))
+
+
+
+def test_the_watch_line_counts_months_like_the_detection_and_says_the_year_first():
+    """Un sujet ouvert pour « 3 mois consécutifs » ne peut pas être suivi en « 2 mois » :
+    la ligne compte comme la détection, sur le marché somme de ses canaux."""
+    watched = I.Issue(issue_id="ISS-002", title="Northland · divergence", accountable="")
+    watched.record(I.Observation(kind=D.DIVERGENCE, scope="Northland", seen_at="2026-08-01",
+                                 amount=-500.0, basis=I.STAKE))
+    units = [_unit("E-commerce", -1200.0, (-410.0, -780.0, -1200.0), months=2),
+             _unit("Retail", -700.0, (-450.0, -700.0), months=5)]
+    units[0].gap_year_to_date = -4000.0
+    units[1].gap_year_to_date = -2300.0
+    line = C.build(_week([watched]), dataset=_Dataset(units)).watch[0]
+
+    assert line.months == 5
+    assert line.line.startswith("%s sur l'exercice · %s ce mois · 5 mois sous le plan"
+                                % (format_eur(-6300.0), format_eur(-1900.0)))

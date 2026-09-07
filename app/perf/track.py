@@ -39,6 +39,12 @@ IN_LINE = "en ligne"
 AHEAD = "en avance"
 BEHIND = "en retard"
 TOO_EARLY = "trop tôt"
+#: L'attendu est une fourchette trop large pour qu'un mot tienne : « en ligne » entre moins
+#: quinze et plus quinze pour cent n'est pas un verdict, c'est l'absence d'un.
+UNDECIDED = "indécis"
+
+#: Au-delà de cette part de l'attendu, la fourchette ne conclut pas.
+WIDE = 0.2
 
 #: Avant une semaine pleine, aucun mot sur le mois. Le 1er septembre 2026 est un mardi :
 #: quatre jours lus, aucun week-end, et la forme du mois suppose des jours égaux — une
@@ -116,11 +122,18 @@ class Verdict:
         return (self.high - self.low) <= TOLERANCE * self.middle if self.middle else True
 
     @property
+    def wide(self) -> bool:
+        """La fourchette de l'attendu dépasse ce qu'un verdict peut porter."""
+        return bool(self.middle) and (self.high - self.low) / self.middle > WIDE
+
+    @property
     def label(self) -> str:
         if not self.usable:
             return ""
         if self.early:
             return TOO_EARLY
+        if self.wide and self.direction == IN_LINE:
+            return UNDECIDED
         return self.direction
 
     @property
@@ -225,6 +238,9 @@ class Track:
             return ""
         if verdict.early:
             head = "Trop tôt pour conclure : %s, revoir après une semaine pleine" % self.days_label
+        elif verdict.label == UNDECIDED:
+            head = ("Fourchette trop large pour conclure (%s) : la forme du mois diverge selon "
+                    "les exercices" % verdict.gap_label)
         else:
             head = "%s au total (%s)" % (verdict.label.capitalize(), verdict.gap_label)
         parts = [head]

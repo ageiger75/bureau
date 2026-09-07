@@ -154,6 +154,12 @@ def _market_gaps(units: Sequence, period: str, today: str) -> List["Observation"
         if months < PERSISTENT_MONTHS:
             continue
         when = dated(getattr(members[0], "period", "") or "", period, today)
+        # Le montant en jeu est l'exercice à date quand l'historique le porte : un marché
+        # deux millions derrière depuis avril passait derrière un marché deux cent mille
+        # derrière ce mois-ci. Sans historique, le mois.
+        years = [getattr(unit, "gap_year_to_date", None) for unit in members]
+        years = [value for value in years if value is not None]
+        stake = sum(years) if years else gap
         # La confiance d'un marché est celle de son canal le moins sûr.
         grades = [getattr(unit, "divergence_grade", "") for unit in members]
         confidence = ESTABLISHED
@@ -164,7 +170,7 @@ def _market_gaps(units: Sequence, period: str, today: str) -> List["Observation"
         found.append(Observation(
             kind=GAP_TO_PLAN, scope=market, seen_at=when,
             statement="%d mois consécutifs sous le plan" % months,
-            amount=_amount(gap), basis=STAKE, confidence=confidence, measure="sales_actual",
+            amount=_amount(stake), basis=STAKE, confidence=confidence, measure="sales_actual",
         ))
     return found
 

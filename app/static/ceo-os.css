@@ -977,3 +977,4 @@ input:focus, textarea:focus, select:focus {
 .is-trop-tôt { color: var(--ink-faint); }
 .pnl-detail { margin: 6px 0 10px; }
 .pnl-detail summary { cursor: pointer; color: var(--ink-soft); font-size: 13.5px; }
+.is-indécis { color: var(--ink-faint); }

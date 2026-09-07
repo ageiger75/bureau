@@ -109,6 +109,19 @@ def _series(units: Sequence) -> List[float]:
     return series
 
 
+def _months_below(units: Sequence) -> int:
+    """Le même compte que la détection : le marché, somme de ses canaux, mois par mois."""
+    from .detection import _months_below as count
+
+    return count(list(units)) if units else 0
+
+
+def _year_gap(units: Sequence) -> Optional[float]:
+    values = [getattr(unit, "gap_year_to_date", None) for unit in units]
+    values = [value for value in values if value is not None]
+    return sum(values) if values else None
+
+
 def _listed(parts: Sequence[str]) -> str:
     parts = [part for part in parts if part]
     if not parts:
@@ -171,9 +184,7 @@ class Conversation:
     @property
     def year_gap(self) -> Optional[float]:
         """L'écart de l'exercice à date, tous canaux budgétés du marché. None sans historique."""
-        values = [getattr(unit, "gap_year_to_date", None) for unit in self.units]
-        values = [value for value in values if value is not None]
-        return sum(values) if values else None
+        return _year_gap(self.units)
 
     @property
     def stake(self) -> str:
@@ -305,12 +316,13 @@ class Conversation:
 class Watch:
     """Un sujet suivi, en une ligne : l'écart, depuis quand, le sens, qui, la prochaine date."""
 
-    __slots__ = ("row", "gap", "months", "direction", "next_on")
+    __slots__ = ("row", "gap", "months", "direction", "next_on", "year_gap")
 
     def __init__(self, row, gap: Optional[float] = None, months: int = 0,
-                 direction: str = "", next_on: str = "") -> None:
+                 direction: str = "", next_on: str = "", year_gap: Optional[float] = None) -> None:
         self.row = row
         self.gap = gap
+        self.year_gap = year_gap
         self.months = months
         self.direction = direction
         self.next_on = next_on
@@ -322,8 +334,11 @@ class Watch:
     @property
     def line(self) -> str:
         parts = []
+        if self.year_gap is not None:
+            parts.append("%s sur l'exercice" % format_eur(self.year_gap))
         if self.gap is not None:
-            parts.append(format_eur(self.gap))
+            parts.append("%s ce mois" % format_eur(self.gap) if self.year_gap is not None
+                         else format_eur(self.gap))
         if self.months:
             parts.append("%d mois sous le plan" % self.months)
         elif self.issue.evidence and self.issue.evidence[-1].statement:
@@ -431,7 +446,7 @@ def build(week, dataset=None, fires: Sequence = (), weekly=None, month=None,
         units = _market_units(dataset, market)
         conversations.append(Conversation(
             row, units=units, series=_series(units),
-            months=max((getattr(unit, "months_below_budget", 0) or 0 for unit in units), default=0),
+            months=_months_below(units),
             week=_week_line(weekly, market), month=_month_line(month, market),
             fire=_fire_for(fires, market), commitment=_commitment_for(commitments, market),
             signals=_signals_for(kpis, market), coming=_coming_for(gifting, market),
@@ -448,8 +463,8 @@ def build(week, dataset=None, fires: Sequence = (), weekly=None, month=None,
                     break
         arbitration = row.issue.arbitration
         watch.append(Watch(
-            row, gap=gap,
-            months=max((getattr(unit, "months_below_budget", 0) or 0 for unit in units), default=0),
+            row, gap=gap, year_gap=_year_gap(units),
+            months=_months_below(units),
             direction=_direction(_series(units)),
             next_on=arbitration.review_on if arbitration is not None and arbitration.review_on else "",
         ))

@@ -67,6 +67,17 @@ class Changes:
     def items(self) -> List[Change]:
         return self.opened + self.closed + self.read + self.arbitrated + self.overdue + self.due
 
+    #: Au-delà, la liste se compte : le jour où le registre est né, tout est « ouvert ».
+    MOST = 10
+
+    @property
+    def shown(self) -> List[Change]:
+        return self.items[:self.MOST]
+
+    @property
+    def hidden(self) -> int:
+        return max(0, len(self.items) - self.MOST)
+
     @property
     def is_quiet(self) -> bool:
         return not self.items

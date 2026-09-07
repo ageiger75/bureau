@@ -41,7 +41,10 @@ def test_only_the_rules_still_in_force_apply(tmp_path):
 def test_the_screen_says_what_is_decided_and_what_has_expired(tmp_path):
     notes = _read(tmp_path).notes
 
-    assert notes[0].startswith("Placement décidé : Hong Kong → APAC jusqu'au 2027-03-31 (périmètre constant")
+    # Une ligne par décision, pas par marché : les marchés rangés ensemble sont nommés ensemble.
+    assert notes[0].startswith("Placement décidé : ")
+    assert "Hong Kong" in notes[0] and "→ APAC jusqu'au 2027-03-31 (périmètre constant" in notes[0]
+    assert "Macau" in notes[0]  # rangé sous le même périmètre à la même date : la même ligne
     assert any(note.startswith("Placement expiré, plus appliqué : Old Market → EMEA") for note in notes)
 
 
