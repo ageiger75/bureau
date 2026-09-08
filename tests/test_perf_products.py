@@ -126,3 +126,28 @@ def test_the_invented_rows_read_as_a_whole_screen():
     assert review.level("range").launched and review.level("range").stopped
     assert review.level("product").growing[0].hero
     assert review.headline.startswith("Sur l'exercice à date, les ventes font")
+
+
+def test_placeholder_labels_are_not_products_and_disagreeing_levels_are_said():
+    rows = (_rows("product", "AVAILABLE SKU OCC-XX1", _year(500.0, 500.0))
+            + _rows("product", "Sable d'Or crème mains", _year(100.0, 110.0))
+            + _rows("category", "Corps", _year(100.0, 110.0)))
+    review = P.build(rows)
+
+    assert [line.name for line in review.level("product").lines] == ["Sable d'Or crème mains"]
+    assert not any("s'accordent" in reason for reason in review.absent)
+
+    apart = P.build(rows + _rows("category", "Visage", _year(50.0, 60.0)))
+    assert any("les niveaux ne s'accordent pas" in reason for reason in apart.absent)
+
+
+def test_the_product_query_is_written_on_the_stored_line_never_the_translated_one():
+    """La colonne traduite est un appel à un modèle par ligne : cinq minutes pour un
+    `count(distinct)`, deux graphies pour une gamme, des crédits à chaque lecture."""
+    from app.perf import queries
+
+    sql = queries.PRODUCT_SALES.lower()
+    assert "p.product_line " in sql or "p.product_line\n" in sql
+    assert "product_line_en" not in sql
+    assert "last_product_id" in sql and "store_brand" in sql
+    assert "'product'" in sql and "'range'" in sql and "'category'" in sql

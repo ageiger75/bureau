@@ -448,9 +448,13 @@ qui marche, par produit » sur Analyses : trois niveaux — catégorie, gamme, r
 l'exercice à date contre les mêmes mois de l'an dernier, ce qui pousse et ce qui recule en
 euros d'écart, la part, le dernier mois ; les lancements et les arrêts nommés à part, jamais
 rangés dans une croissance infinie. Lu dans un cache propre (`warehouse-products.json`),
-jamais sous un lecteur — la règle des KPI. La requête `PRODUCT_SALES` attend les colonnes
-du référentiel produit, confirmées par l'agent entrepôt ; tant qu'elle est vide, le bloc dit
-qu'elle n'est pas écrite.
+jamais sous un lecteur — la règle des KPI. La requête `PRODUCT_SALES` est écrite sur les
+colonnes confirmées par l'agent entrepôt le 8 septembre (segment, ligne stockée, dernier
+libellé par identifiant de référence) ; elle tient en moins d'une minute, et le cockpit la
+relance lui-même. À ne jamais y introduire : la colonne de gamme traduite, qui est un appel à
+un modèle par ligne. Les briefs à l'agent entrepôt se paient en jetons, pas en requêtes
+(l'entrepôt pèse deux pour cent de la facture) : un brief = une tâche bornée, une requête
+déjà écrite, une réponse de dix lignes dans `var/`, une session neuve par brief.
 
 **Priorités 5 et 6, le 7 septembre 2026.** Les white spaces internes
 (`app/perf/whitespace.py`, `manage.py whitespaces`, page Analyses) en trois formes mesurées

@@ -46,6 +46,13 @@ MOST = 5
 #: elle reste dans le tableau complet, pas dans les cinq de l'écran.
 LEAST_SHARE = 0.002
 
+#: Les libellés d'attente du référentiel : une référence créée avant d'être nommée. Ce
+#: n'est pas un produit, et le plus fréquent des libellés en serait un sans cette règle.
+PLACEHOLDER_PREFIXES = ("AVAILABLE SKU",)
+
+#: Au-delà, les niveaux ne racontent plus la même somme, et la lecture le dit.
+LEVELS_AGREE = 0.005
+
 
 def _fiscal_year(period: str) -> int:
     year, month = int(period[:4]), int(period[5:7])
@@ -296,6 +303,8 @@ def _read(rows: Iterable[dict], scope: str) -> Dict[str, Dict[str, dict]]:
         if len(period) != 7:
             continue
         name = str(row.get("name") or "").strip() or "(sans nom)"
+        if name.upper().startswith(PLACEHOLDER_PREFIXES):
+            continue
         entry = read.setdefault(level, {}).setdefault(name, {"periods": {}, "hero": False})
         entry["periods"][period] = entry["periods"].get(period, 0.0) + _number(row.get("net_sales"))
         if str(row.get("is_hero") or "").strip().lower() in ("1", "true", "yes", "oui"):
@@ -349,6 +358,12 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "") -> Review:
                               stopped=sales <= 0 and last_year > 0))
         if lines:
             levels.append(Level(level, lines))
+    totals = [level.total for level in levels if level.total > 0]
+    if len(totals) > 1 and (max(totals) - min(totals)) > LEVELS_AGREE * max(totals):
+        absent.append("les niveaux ne s'accordent pas sur l'exercice à date : %s — une "
+                      "lecture incomplète, ou des libellés écartés qui pèsent"
+                      % ", ".join("%s %s" % (level.words, format_eur(level.total))
+                                  for level in levels))
     missing = [LEVEL_WORDS[level][1] for level in LEVELS if level not in read]
     if missing and scope != GROUP:
         absent.append("les %s ne sont lues qu'au niveau du groupe" % " et ".join(missing))

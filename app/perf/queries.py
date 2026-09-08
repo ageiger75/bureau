@@ -1298,12 +1298,106 @@ group by 1, 2, 3, 4
 #: l'exercice à date ait son an dernier en face mois par mois ; la fenêtre s'aligne sur
 #: celle de `KPI_READINGS` (`first_month_yoy`).
 #:
-#: Les trois libellés viennent de la dimension produit du référentiel, dont les colonnes
-#: sont à confirmer par l'agent entrepôt avant d'écrire la requête ici — une requête
-#: écrite sur des noms devinés rendrait des chiffres qui ont l'air justes et ne le sont
-#: pas. Vide tant qu'elle n'est pas confirmée : l'écran dit alors que la lecture produit
-#: n'est pas écrite, et rien d'autre ne l'attend.
-PRODUCT_SALES = ""
+#: Les trois libellés viennent de la dimension produit, colonnes confirmées par l'agent
+#: entrepôt le 8 septembre 2026 sur la dimension seule puis sur un mois, puis sur treize :
+#:
+#: - `category` = `PRODUCT_SEGMENT`, une vingtaine de valeurs, celle que `home_wob` lit
+#:   déjà. La vue promeut un sous-segment au rang de segment par un `case` ; c'est sa
+#:   lecture, pas la nôtre.
+#: - `range` = `PRODUCT_LINE`, la franchise telle qu'elle est **stockée**. Jamais
+#:   `PRODUCT_LINE_EN` : cette colonne n'est pas stockée, c'est un appel à un modèle de
+#:   traduction évalué ligne à ligne à chaque lecture — un simple `count(distinct)` dessus
+#:   a été annulé deux fois au plafond de cinq minutes, elle n'est pas déterministe (la
+#:   même gamme en deux graphies d'une lecture à l'autre) et chaque appel coûte des crédits.
+#:   Une requête qui l'introduirait ici casserait la lecture sans qu'aucun garde-fou du
+#:   dépôt ne le voie : c'est un `select` légitime.
+#: - `product` = `LAST_PRODUCT_DESC_EN`, identité par `LAST_PRODUCT_ID`, qui rassemble
+#:   les rebrandings d'une même référence. Les libellés d'attente du référentiel
+#:   (« AVAILABLE SKU … ») sont écartés par le lecteur, pas ici.
+#:
+#: Le filtre de marque porte sur le **magasin**, comme partout ailleurs dans ce fichier :
+#: ce qu'une boutique de la marque vend d'une autre marque reste dans ses ventes, et une
+#: catégorie qui pèse moins d'un pour cent n'atteint jamais les cinq lignes de l'écran.
+#: Filtrer aussi la marque produit serait une décision, pas une correction.
+#:
+#: Mesuré à la validation : treize mois en moins d'une minute, quelques gigaoctets — la
+#: lecture se relance donc par le cockpit lui-même (`manage.py products --refresh`,
+#: `?refresh=1`), jamais par un agent. `query_history` rend zéro octet scanné pour cette
+#: requête parce que le fait est lu par un accès Search Optimization qu'elle n'attribue
+#: pas ; le volume se lit dans `get_query_operator_stats`. Ne jamais conclure « requête
+#: gratuite » d'un zéro sur ce compte.
+PRODUCT_SALES = """
+with period as (
+    select
+        date_trunc('month', add_months(anchor, -1))  as last_month,
+        date_trunc('month', add_months(anchor, -13)) as first_month
+    from (
+        -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
+        select max(max_sales_date) as anchor
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_sellout_analysis
+            metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+            where f_sellout_sales_details.transaction_date
+                  >= dateadd(month, -3, current_date)
+        )
+    )
+),
+base as (
+    select
+        s.store_country,
+        date_trunc('month', f.transaction_date)  as month,
+        p.product_segment                        as category,
+        p.product_line                           as range_name,
+        p.last_product_id                        as product_id,
+        p.last_product_desc_en                   as product_name,
+        p.is_hero,
+        f.net_sales_eur
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores   s on s.store_skey   = f.store_skey
+    join dwh.semantic_layer.v_sl_ai_d_products p on p.product_skey = f.product_skey
+    cross join period pr
+    where f.flag_turnover = 1
+      and s.store_brand = 'L''OCCITANE'
+      -- Bulk excluded exactly as the view's own `BULK_SALES` fact defines it.
+      and coalesce(f.flag_bulk, 0) not in (2, 3, 4, 5)
+      and f.transaction_date >= dateadd(month, -15, current_date)
+      and date_trunc('month', f.transaction_date)
+          between pr.first_month and pr.last_month
+)
+select
+    iff(grouping(store_country) = 1, 'LOEP',
+        coalesce(store_country, '(sans pays)'))    as scope,
+    'category'                                     as level,
+    coalesce(category, '(sans catégorie)')         as name,
+    to_char(month, 'YYYY-MM')                      as period,
+    sum(net_sales_eur)                             as net_sales,
+    0                                              as is_hero
+from base
+group by grouping sets ((store_country, category, month), (category, month))
+union all
+select
+    iff(grouping(store_country) = 1, 'LOEP',
+        coalesce(store_country, '(sans pays)')),
+    'range',
+    coalesce(range_name, '(sans gamme)'),
+    to_char(month, 'YYYY-MM'),
+    sum(net_sales_eur),
+    0
+from base
+group by grouping sets ((store_country, range_name, month), (range_name, month))
+union all
+-- Group only: forty countries times thousands of references times thirteen months is
+-- an extract, not a reading.
+select
+    'LOEP',
+    'product',
+    coalesce(max(product_name), '(sans libellé)'),
+    to_char(month, 'YYYY-MM'),
+    sum(net_sales_eur),
+    max(iff(is_hero = 1, 1, 0))
+from base
+group by product_id, month
+"""
 
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
