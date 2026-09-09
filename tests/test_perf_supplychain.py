@@ -95,3 +95,15 @@ def test_nothing_read_is_a_stated_absence():
     review = S.build(notes=["pas encore lu"])
     assert not review.usable and review.notes == ["pas encore lu"]
     assert review.service_sentence == "" and review.against(None) == []
+
+
+def test_every_query_of_the_registry_chains_its_ctes_with_a_comma():
+    """Un `)` suivi d'un `nom as (` sans virgule est une erreur de compilation que seul
+    l'entrepôt voyait — après le pull, sur la machine du lecteur."""
+    import re
+
+    from app.perf import queries
+
+    broken = re.compile(r"\)\s*\n\s*[a-z_]+ as \(")
+    for name, sql in queries.ALL.items():
+        assert not broken.search(sql), name

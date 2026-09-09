@@ -1705,7 +1705,7 @@ a as (
     where actual_sales_month_date >= %(from)s and actual_sales_month_date < %(to)s
       and brand_id = 'OC'
     group by 1, 2
-)
+),
 d as (
     select forecast_area_id as market, max(forecast_area_desc) as label
     from dwh.semantic_layer.v_sl_d_forecast_area_channel
