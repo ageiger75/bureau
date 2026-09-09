@@ -1408,6 +1408,34 @@ from base
 group by product_id, month
 """
 
+#: Les clients : le pont « clients × panier = ventes » et le flux de la base, sur l'exercice
+#: à date contre le même exercice à date un an plus tôt, pour le groupe et par pays. Une
+#: ligne par `scope · window · segment` :
+#:
+#:     scope         text    -- 'LOEP' pour le groupe, sinon le pays (STORE_COUNTRY)
+#:     window        text    -- 'ty' l'exercice à date, 'ly' le même exercice à date un an avant
+#:     through       text    -- 'YYYY-MM', le dernier mois complet de la fenêtre 'ty'
+#:     segment       text    -- voir ci-dessous
+#:     clients       number  -- clients (ou visites pour 'walkin') distincts dans la fenêtre
+#:     transactions  number  -- tickets
+#:     sales         number  -- NET_SALES_EUR, FLAG_TURNOVER = 1, hors vrac
+#:
+#: Segments, sur le sell-out en propre (boutiques et site) :
+#:
+#: - `arc` : les clients enregistrés actifs dans la fenêtre — Active Registered Clients.
+#: - `walkin` : les tickets sans client enregistré ; `clients` compte les tickets.
+#: - `retained` : dans 'ty', les clients actifs dans 'ty' qui l'étaient aussi dans 'ly'.
+#: - `reactivated` : actifs dans 'ty', pas dans 'ly', mais déjà clients avant 'ly'.
+#: - `new` : première transaction dans 'ty'.
+#: - `lost` : dans 'ty', les clients de la base 'ly' sans transaction dans 'ty' ; leurs
+#:   `sales` et `transactions` sont ceux de 'ly', ce qui a été perdu.
+#:
+#: La fenêtre 'ly' ne porte que `arc` et `walkin` : c'est la base, et le pont de l'an
+#: dernier. Les colonnes du client sur le fait de sell-out — la clé client, le drapeau
+#: « enregistré », la première transaction — sont à confirmer par l'agent entrepôt avant
+#: d'écrire la requête ici : vide tant qu'elle ne l'est pas, et l'écran le dit.
+CLIENT_FLOW = ""
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1421,6 +1449,7 @@ ALL = {
     "DAILY_SALES": DAILY_SALES,
     "SELL_IN_DAILY": SELL_IN_DAILY,
     "PRODUCT_SALES": PRODUCT_SALES,
+    "CLIENT_FLOW": CLIENT_FLOW,
 }
 
 

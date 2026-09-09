@@ -12,7 +12,7 @@
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
                                      reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
-                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit
+                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit, --clients celle des clients
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans ce que le plan ne couvre pas (--goals : le
@@ -63,6 +63,7 @@
     python -m app.cli zones          les zones rouges nommées par le lecteur, chacune avec son chiffre
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
+    python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -1633,6 +1634,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
     if "--products" in tuple(argv):
         source.product_cache_forget()
         print("Lecture par produit oubliée. Le reste reste en cache.")
+        return 0
+    if "--clients" in tuple(argv):
+        source.client_cache_forget()
+        print("Lecture des clients oubliée. Le reste reste en cache.")
         return 0
     if "--month" in tuple(argv):
         source.month_cache_forget()
@@ -4193,6 +4198,43 @@ def cmd_products(argv: List[str]) -> int:
     return 0
 
 
+def cmd_clients(argv: List[str]) -> int:
+    """La conversation sur les clients — le pont, le flux — telle que la page la rend, pour
+    le groupe ou un pays (`--scope`). `--refresh` va à l'entrepôt si la lecture du jour
+    manque."""
+    from .perf.source import current_source
+    from .routes.today import _clients
+
+    argv = list(argv)
+    scope = ""
+    if "--scope" in argv:
+        at = argv.index("--scope")
+        scope = argv[at + 1] if at + 1 < len(argv) else ""
+    review = _clients(current_source(), refresh="--refresh" in argv, scope=scope)
+    if review.usable:
+        print(review.basis[0].upper() + review.basis[1:] + ".")
+        print(review.headline + ".")
+        print("")
+        for pair in review.bridge:
+            print("  %-24s %8s %8s   panier %6s %8s   %10s %8s" % (
+                pair.word, pair.clients_label, pair.clients_growth_label, pair.atv_label,
+                pair.atv_growth_label, pair.sales_label, pair.sales_growth_label))
+        print("")
+        for part in ([review.lost] if review.lost else []) + review.flow:
+            print("  %-24s %8s %-16s panier %6s %8s   %10s" % (
+                part.word, part.clients_label, part.share_label, part.atv_label,
+                part.atv_vs_base_label, part.sales_label))
+        if review.read:
+            print("")
+            print(review.read[0].upper() + review.read[1:] + ".")
+        print(review.question)
+    elif not review.absent:
+        print("Aucune lecture clients sur cette lecture.")
+    for reason in review.absent:
+        print(reason[0].upper() + reason[1:] + ".", file=sys.stderr)
+    return 0
+
+
 def _print_product_coverage(source, review, scope: str) -> None:
     """Le dernier mois lu, trois lectures côte à côte par marché : par produit, la lecture
     des KPI, le sell-out au jour. Là où elles ne s'accordent pas, la lecture produit
@@ -4662,6 +4704,8 @@ def main(argv: List[str]) -> int:
         return cmd_whitespaces(argv[1:])
     if command == "products":
         return cmd_products(argv[1:])
+    if command == "clients":
+        return cmd_clients(argv[1:])
     if command == "tempsforts":
         return cmd_tempsforts(argv[1:])
     if command == "distribution":

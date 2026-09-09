@@ -940,6 +940,11 @@ def product_rows() -> List[dict]:
     return rows
 
 
+def client_rows() -> List[dict]:
+    """Voir plus bas : rempli avec le module clients."""
+    return _client_rows()
+
+
 def kpi_rows() -> List[dict]:
     """Ce que la lecture des KPI rapporte de brut, inventé : quinze mois de ventes à
     magasins comparables, pour le groupe et trois marchés, avec des valeurs qui donnent une
@@ -967,4 +972,46 @@ def kpi_rows() -> List[dict]:
                          "value": round(whole)})
             rows.append({"scope": scope, "kpi_key": "net_sales_hors_bulk", "period": period,
                          "value": round(whole * (1 - bulk_share))})
+    return rows
+
+
+#: Les clients inventés : le pont et le flux, pour le groupe et trois marchés. La base de
+#: l'an dernier s'érode chez les fidèles et le recrutement compense en nombre, pas en
+#: valeur — la lecture que le bloc doit savoir dire.
+CLIENT_SHAPES = {
+    #            arc_ly, arc_ty, retained, reactivated, new, atv_ly, atv_ty_retained, atv_new, walkin_ly, walkin_ty
+    "LOEP":  (1_900_000, 1_960_000, 1_150_000, 210_000, 600_000, 78.0, 80.0, 61.0, 2_400_000, 2_300_000),
+    "Japan": (420_000, 400_000, 260_000, 40_000, 100_000, 64.0, 63.0, 52.0, 610_000, 570_000),
+    "China": (380_000, 430_000, 220_000, 50_000, 160_000, 92.0, 96.0, 70.0, 300_000, 320_000),
+    "France": (210_000, 214_000, 130_000, 24_000, 60_000, 58.0, 60.0, 47.0, 480_000, 470_000),
+}
+CLIENT_THROUGH = "2026-08"
+
+
+def _client_rows() -> List[dict]:
+    rows: List[dict] = []
+    for scope, shape in CLIENT_SHAPES.items():
+        (arc_ly, arc_ty, retained, reactivated, new, atv_ly, atv_ret, atv_new,
+         walkin_ly, walkin_ty) = shape
+        lost = arc_ly - retained
+        tickets = 1.6
+        def row(window, segment, clients, atv, per=tickets):
+            transactions = clients * per
+            rows.append({"scope": scope, "window": window, "through": CLIENT_THROUGH,
+                         "segment": segment, "clients": clients,
+                         "transactions": round(transactions), "sales": round(transactions * atv)})
+        row("ly", "arc", arc_ly, atv_ly)
+        row("ly", "walkin", walkin_ly, atv_ly * 0.7, per=1.0)
+        row("ty", "retained", retained, atv_ret, per=1.9)
+        row("ty", "reactivated", reactivated, atv_ly * 0.95, per=1.3)
+        row("ty", "new", new, atv_new, per=1.15)
+        row("ty", "lost", lost, atv_ly * 0.9, per=1.2)
+        row("ty", "walkin", walkin_ty, atv_ly * 0.72, per=1.0)
+        # Le pont de l'exercice : la somme des trois segments actifs.
+        active = [r for r in rows if r["scope"] == scope and r["window"] == "ty"
+                  and r["segment"] in ("retained", "reactivated", "new")]
+        rows.append({"scope": scope, "window": "ty", "through": CLIENT_THROUGH, "segment": "arc",
+                     "clients": sum(r["clients"] for r in active),
+                     "transactions": sum(r["transactions"] for r in active),
+                     "sales": sum(r["sales"] for r in active)})
     return rows

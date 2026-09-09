@@ -952,3 +952,20 @@ def test_a_region_page_carries_its_routed_subjects_beside_the_sell_in(client, mo
 
     assert "Pas une conversation commerciale" in page
     assert "Japan E-retailers" in page and "Elsewhere Retail" not in page
+
+
+def test_the_clients_conversation_lives_on_analyses_and_on_each_region(client, monkeypatch):
+    """Au global pour le marketing, par région pour la région : le pont clients × panier =
+    ventes et le flux de la base, sur les deux pages, et jamais sur l'écran du jour."""
+    from app.perf import page as page_module
+
+    analyses = page_text(client.get("/analyses"))
+    assert "Les clients" in analyses
+    assert "Clients × panier = ventes" in analyses
+    assert "D'où viennent les clients" in analyses
+    assert "Clients × panier = ventes" not in page_text(client.get("/"))
+
+    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    region = page_text(client.get("/perimetre/nord"))
+    assert "Clients × panier = ventes" in region

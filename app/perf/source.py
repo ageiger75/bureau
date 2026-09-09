@@ -119,7 +119,7 @@ def cache_forget() -> None:
     cache_clear()
     for name in (CACHE_FILE, HISTORY_CACHE_FILE, SELL_IN_HISTORY_CACHE_FILE,
                  KPI_CACHE_FILE, MONTH_CACHE_FILE, DAILY_CACHE_FILE, INVOICED_CACHE_FILE,
-                 PRODUCT_CACHE_FILE):
+                 PRODUCT_CACHE_FILE, "warehouse-clients.json"):
         try:
             _cache_path(name).unlink()
         except OSError:
@@ -238,6 +238,13 @@ def product_cache_forget() -> None:
         pass
 
 
+def client_cache_forget() -> None:
+    try:
+        _cache_path(QUERY_CACHES["clients"][0]).unlink()
+    except OSError:
+        pass
+
+
 def _query_fingerprint(sql: str) -> str:
     """L'empreinte de la requête qui a produit une lecture. Quand la requête change — une
     fenêtre, une colonne — la lecture d'hier n'est plus la même lecture, et le cache le
@@ -247,20 +254,40 @@ def _query_fingerprint(sql: str) -> str:
     return hashlib.sha1(" ".join(sql.split()).encode("utf-8")).hexdigest()[:16]
 
 
-def _read_product_cache(any_age: bool = False):
+#: Les lectures qui ont leur propre fichier, leur propre requête et leur propre fil :
+#: `nom → (fichier, requête)`. La règle est la même pour chacune — jamais sous un lecteur,
+#: la lecture d'hier sinon, l'empreinte de la requête avec la lecture — et elle n'est
+#: écrite qu'une fois.
+QUERY_CACHES = {
+    "products": (PRODUCT_CACHE_FILE, "PRODUCT_SALES"),
+    "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
+}
+
+
+def _read_query_cache(name: str, any_age: bool = False):
     from . import queries
 
+    file_name, query_name = QUERY_CACHES[name]
     max_age = float("inf") if any_age else HISTORY_CACHE_SECONDS
-    stored = _read_disk_cache(PRODUCT_CACHE_FILE, max_age=max_age,
-                              fingerprint=_query_fingerprint(queries.PRODUCT_SALES))
+    stored = _read_disk_cache(file_name, max_age=max_age,
+                              fingerprint=_query_fingerprint(queries.ALL.get(query_name, "")))
     return None if stored is None else stored[0]
 
 
-def _write_product_cache(rows) -> None:
+def _write_query_cache(name: str, rows) -> None:
     from . import queries
 
-    _write_disk_cache(rows, time.time(), read_at(), PRODUCT_CACHE_FILE,
-                      fingerprint=_query_fingerprint(queries.PRODUCT_SALES))
+    file_name, query_name = QUERY_CACHES[name]
+    _write_disk_cache(rows, time.time(), read_at(), file_name,
+                      fingerprint=_query_fingerprint(queries.ALL.get(query_name, "")))
+
+
+def _read_product_cache(any_age: bool = False):
+    return _read_query_cache("products", any_age)
+
+
+def _write_product_cache(rows) -> None:
+    _write_query_cache("products", rows)
 
 
 def reading_age() -> Optional[float]:
@@ -271,62 +298,79 @@ def reading_age() -> Optional[float]:
         return None
 
 
-def product_stamp() -> str:
-    """Quand la lecture produit en cache a été écrite, ou vide avant la première. Le mtime
-    du fichier, comme pour les KPI : la page l'interroge toutes les cinq secondes."""
+def query_stamp(name: str) -> str:
+    """Quand une lecture en cache a été écrite, ou vide avant la première. Le mtime du
+    fichier, comme pour les KPI : la page l'interroge toutes les cinq secondes."""
     try:
-        return "%d" % _cache_path(PRODUCT_CACHE_FILE).stat().st_mtime
+        return "%d" % _cache_path(QUERY_CACHES[name][0]).stat().st_mtime
     except OSError:
         return ""
 
 
-#: Une lecture en arrière-plan à la fois : la relecture du démarrage l'écrit d'ordinaire ;
-#: ceci couvre la première ouverture après que la requête a changé, sans que personne ait
-#: à relancer quoi que ce soit. Un échec est gardé pour que la page le dise, et la lecture
-#: se réessaie après un délai plutôt qu'à chaque ouverture.
-_products_behind = {"started": 0.0, "error": "", "running": False}
+def product_stamp() -> str:
+    return query_stamp("products")
+
+
+def client_stamp() -> str:
+    return query_stamp("clients")
+
+
+#: Une lecture en arrière-plan à la fois par requête : la relecture du démarrage l'écrit
+#: d'ordinaire ; ceci couvre la première ouverture après que la requête a changé, sans que
+#: personne ait à relancer quoi que ce soit. Un échec est gardé pour que la page le dise,
+#: et la lecture se réessaie après un délai plutôt qu'à chaque ouverture.
+_behind = {name: {"started": 0.0, "error": "", "running": False} for name in QUERY_CACHES}
 RETRY_BEHIND_SECONDS = 10 * 60
 
 
-def products_behind_note() -> str:
+def behind_note(name: str) -> str:
     """Ce que la page doit dire de la lecture en arrière-plan : rien tant qu'elle court,
     l'erreur si elle a échoué."""
-    if _products_behind["error"]:
+    if _behind[name]["error"]:
         return ("la lecture en arrière-plan a échoué (%s) ; nouvel essai dans dix minutes, "
-                "ou tout de suite par « manage.py products --refresh »" % _products_behind["error"])
+                "ou tout de suite par « manage.py %s --refresh »" % (_behind[name]["error"], name))
     return ""
 
 
-def read_products_behind() -> bool:
-    """Lance la lecture produit dans un fil, et rend vrai si elle est partie.
+def read_behind(name: str) -> bool:
+    """Lance une lecture dans un fil, et rend vrai si elle est partie.
 
     La règle de toute la maison — jamais une requête sous un lecteur — reste entière :
     le lecteur reçoit la page tout de suite, le fil écrit le cache quelques minutes plus
     tard, et la page, qui guette l'horodatage, se recharge d'elle-même.
     """
-    state = _products_behind
+    state = _behind[name]
     if state["running"]:
         return False
     if state["error"] and time.time() - state["started"] < RETRY_BEHIND_SECONDS:
         return False
     state.update(started=time.time(), error="", running=True)
+    query_name = QUERY_CACHES[name][1]
 
     def work() -> None:
         from . import queries, warehouse
 
         try:
-            rows = warehouse.rows(queries.PRODUCT_SALES, label="PRODUCT_SALES")
-            _write_product_cache(rows)
+            rows = warehouse.rows(queries.ALL[query_name], label=query_name)
+            _write_query_cache(name, rows)
         except Exception as exc:  # pragma: no cover — depends on the warehouse
             state["error"] = str(exc).strip().splitlines()[0][:160] if str(exc).strip() else type(exc).__name__
-            LOG.warning("warehouse: product reading behind the screen failed (%s)", exc)
+            LOG.warning("warehouse: %s reading behind the screen failed (%s)", name, exc)
         finally:
             state["running"] = False
 
     import threading
 
-    threading.Thread(target=work, name="products-behind", daemon=True).start()
+    threading.Thread(target=work, name="%s-behind" % name, daemon=True).start()
     return True
+
+
+def products_behind_note() -> str:
+    return behind_note("products")
+
+
+def read_products_behind() -> bool:
+    return read_behind("products")
 
 
 def month_cache_forget() -> None:
@@ -674,6 +718,11 @@ class MockSource:
 
     def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.product_rows()
+
+    client_note = ""
+
+    def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.client_rows()
 
     def bulk_findings(self) -> List:
         return mock.bulk_findings()
@@ -1069,11 +1118,12 @@ class SnowflakeSource:
         chaque ouverture."""
         return _read_kpi_cache(any_age=True) or []
 
-    #: Pourquoi la lecture produit manque, quand elle manque : l'écran le dit tel quel.
+    #: Pourquoi une lecture manque, quand elle manque : l'écran le dit tel quel.
     product_note = ""
+    client_note = ""
 
-    def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
-        """Le sell-out par produit, à trois niveaux, de la dernière lecture — ou rien.
+    def _query_rows(self, name: str, wait_for_warehouse: bool, what: str) -> List[dict]:
+        """Une lecture à cache propre, de la dernière lecture — ou rien.
 
         La règle des KPI : sous un lecteur, la lecture d'hier ou d'avant-hier ; la requête
         elle-même seulement quand quelqu'un a demandé la relecture (`?refresh=1`, la
@@ -1083,29 +1133,39 @@ class SnowflakeSource:
         """
         from . import queries
 
-        if not queries.ALL.get("PRODUCT_SALES", "").strip():
-            self.product_note = ("la lecture par produit n'est pas encore écrite : PRODUCT_SALES, "
-                                 "dans app/perf/queries.py, attend les colonnes du référentiel")
+        query_name = QUERY_CACHES[name][1]
+        note_field = "%s_note" % ("product" if name == "products" else "client")
+        if not queries.ALL.get(query_name, "").strip():
+            setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
+                    "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
             return []
-        rows = _read_product_cache()
+        rows = _read_query_cache(name)
         if rows is None and not wait_for_warehouse:
-            rows = _read_product_cache(any_age=True)
+            rows = _read_query_cache(name, any_age=True)
             if rows is None:
-                read_products_behind()
-                self.product_note = products_behind_note() or (
-                    "les produits n'ont pas encore été lus sur cette machine : la lecture "
-                    "est partie en arrière-plan, la page se rechargera d'elle-même dans "
-                    "quelques minutes")
+                read_behind(name)
+                setattr(self, note_field, behind_note(name) or (
+                    "la lecture %s n'a pas encore eu lieu sur cette machine : elle est partie "
+                    "en arrière-plan, la page se rechargera d'elle-même dans quelques minutes"
+                    % what))
                 return []
-            LOG.info("warehouse: product reading from an expired cache rather than making "
-                     "the reader wait")
+            LOG.info("warehouse: %s reading from an expired cache rather than making the "
+                     "reader wait", name)
         if rows is None:
             from . import warehouse
 
-            rows = warehouse.rows(queries.PRODUCT_SALES, label="PRODUCT_SALES")
-            _write_product_cache(rows)
-        self.product_note = ""
+            rows = warehouse.rows(queries.ALL[query_name], label=query_name)
+            _write_query_cache(name, rows)
+        setattr(self, note_field, "")
         return rows
+
+    def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le sell-out par produit, à trois niveaux, de la dernière lecture — ou rien."""
+        return self._query_rows("products", wait_for_warehouse, "par produit")
+
+    def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Les clients — le pont et le flux — de la dernière lecture, ou rien."""
+        return self._query_rows("clients", wait_for_warehouse, "des clients")
 
     def month_to_date(self) -> List[dict]:
         """Le mois en cours, marché par marché, jusqu'au dernier jour lu.

@@ -352,6 +352,17 @@ def _product_rows(source):
     return reader(wait_for_warehouse=False) if reader is not None else []
 
 
+def _clients(source, refresh: bool = False, scope: str = "", markets=None):
+    """La conversation sur les clients, sur la dernière lecture clients : jamais une requête
+    sous un lecteur, la requête seulement quand la relecture est demandée."""
+    from ..perf import clients as clients_module
+
+    reader = getattr(source, "client_rows", None)
+    rows = reader(wait_for_warehouse=refresh) if reader is not None else []
+    note = getattr(source, "client_note", "") or ""
+    return clients_module.build(rows, scope or clients_module.GROUP, note=note, markets=markets)
+
+
 def _products(source, refresh: bool = False, scope: str = ""):
     """Ce qui marche par produit, sur la dernière lecture produit : jamais une requête sous
     un lecteur, la requête seulement quand la relecture est demandée."""
@@ -425,6 +436,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                                            note=inputs["product_note"])
     products_module.check_coverage(products, inputs["product_rows"],
                                    getattr(inputs["source"], "kpi_rows", list)(), item["markets"])
+    clients = _clients(inputs["source"], scope=label, markets=item["markets"])
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
@@ -433,7 +445,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
                               retail=inputs["retail"], prepared=inputs["prepared"],
-                              products=products, elsewhere=inputs["elsewhere"])
+                              products=products, elsewhere=inputs["elsewhere"],
+                              clients=clients)
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -455,7 +468,7 @@ def freshness():
     # recharge à chacune des deux, sinon le panneau KPI restait « pas encore lu » jusqu'à
     # ce que quelqu'un pense à recharger — ce qui est exactement la consigne à ne pas donner.
     return {"as_of": source.last_read(), "kpis": source.kpi_stamp(),
-            "products": source.product_stamp()}
+            "products": source.product_stamp(), "clients": source.client_stamp()}
 
 
 @router.get("/")
@@ -523,7 +536,7 @@ def _screen(request: Request, session: Session):
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
-    from ..perf.source import NotReadYet, kpi_stamp, product_stamp
+    from ..perf.source import NotReadYet, client_stamp, kpi_stamp, product_stamp
 
     pending = []
     try:
@@ -559,6 +572,7 @@ def _screen(request: Request, session: Session):
     kpi_rows = getattr(source, "kpi_rows", list)()
     samestore = samestore_module.build(kpi_rows)
     products = _products(source, refresh)
+    clients = _clients(source, refresh)
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
     whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
@@ -684,6 +698,7 @@ def _screen(request: Request, session: Session):
             "pnl": pnl,
             "samestore": samestore,
             "products": products,
+            "clients": clients,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,
@@ -749,6 +764,7 @@ def _screen(request: Request, session: Session):
             "pending": pending,
             "kpis_at": kpi_stamp(),
             "products_at": product_stamp(),
+            "clients_at": client_stamp(),
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,

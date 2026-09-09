@@ -442,6 +442,17 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Les clients, le 9 septembre 2026.** « Il faut avoir la conversation aussi sur les
+clients. » `app/perf/clients.py`, `manage.py clients`, bloc « Les clients » sur Analyses et
+sur chaque page de périmètre : le pont clients × panier = ventes (enregistrés, visites sans
+compte, part des enregistrés), puis le flux de la base de l'an dernier — perdus, retenus,
+réactivés, nouveaux — avec le panier de chaque segment contre celui de la base, et la phrase
+qui en découle (où la valeur s'érode). Cache propre, fingerprint, lecture en arrière-plan :
+le mécanisme des produits, généralisé (`QUERY_CACHES`). La requête `CLIENT_FLOW` attend
+les colonnes du client sur le fait de sell-out, confirmées par l'agent entrepôt.
+Aussi ce jour : les gammes du mois dans la conversation (« sur quoi »), et les écarts hors
+commerce sur la page de région, sous son sell-in.
+
 **Les produits par périmètre, le 9 septembre 2026.** « Au global pour parler avec le
 marketing global, à l'échelle région pour parler avec la région. » Le même bloc « Ce qui
 marche, par produit » (`templates/partials/_products.html`) sert Analyses au groupe et chaque

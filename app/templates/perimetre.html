@@ -245,6 +245,11 @@
   {% with products = page.products %}{% include "partials/_products.html" %}{% endwith %}
 </section>
 
+<section class="panel" id="clients">
+  <h2>Les clients</h2>
+  {% with clients = page.clients %}{% include "partials/_clients.html" %}{% endwith %}
+</section>
+
 {% if page.retail %}
 <section class="panel">
   <h2>L'euro suivant en boutique</h2>

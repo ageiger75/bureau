@@ -6,9 +6,9 @@
 {# Ce qui est vrai et n'est pas pour le lundi. L'écran du jour tient en cinq blocs ;
    tout ce qui explique, classe, propose ou vérifie vit ici, avec le même contexte. #}
 
-<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}">
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}">
   <p class="cockpit-eyebrow">Analyses · {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}</p>
-  <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
+  <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, les clients, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
 </section>
 
 {# ------------------------------------------------------------------ where to push #}
@@ -396,6 +396,13 @@
 <section class="panel" id="produits">
   <h2>Ce qui marche, par produit</h2>
   {% include "partials/_products.html" %}
+</section>
+
+{# ------------------------------------------------------------------ clients #}
+
+<section class="panel" id="clients">
+  <h2>Les clients</h2>
+  {% include "partials/_clients.html" %}
 </section>
 
 <section class="panel" id="mix">

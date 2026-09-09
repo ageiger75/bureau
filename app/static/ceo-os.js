@@ -130,6 +130,7 @@
        deux, sinon le panneau KPI resterait « pas encore lu » jusqu'au prochain geste. */
     var kpisShown = header.getAttribute("data-kpis-at") || "";
     var productsShown = header.getAttribute("data-products-at") || "";
+    var clientsShown = header.getAttribute("data-clients-at") || "";
     if (!shown) {
       return;
     }
@@ -145,7 +146,8 @@
         .then(function (body) {
           var kpisLanded = body && typeof body.kpis === "string" && body.kpis !== kpisShown;
           var productsLanded = body && typeof body.products === "string" && body.products !== productsShown;
-          if (body && ((body.as_of && body.as_of !== shown) || kpisLanded || productsLanded)) {
+          var clientsLanded = body && typeof body.clients === "string" && body.clients !== clientsShown;
+          if (body && ((body.as_of && body.as_of !== shown) || kpisLanded || productsLanded || clientsLanded)) {
             window.clearInterval(timer);
             /* Dit avant de recharger : une page qui se remplace sans prévenir pendant
                qu'on la lit est déroutante, même quand elle a raison de le faire. */

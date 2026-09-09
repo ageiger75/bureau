@@ -1,0 +1,60 @@
+{# La conversation sur les clients : le pont et le flux, au groupe (Analyses) et par
+   périmètre. Attend `clients`, une lecture de app/perf/clients.py, ou None. #}
+  {% if clients and clients.usable %}
+    <p class="lede">{{ clients.basis | ucfirst }}.</p>
+    <p class="product-headline">{{ clients.headline }}.</p>
+    <h3 class="subject-heading">Clients × panier = ventes</h3>
+    <table class="month-table product-table">
+      <thead>
+        <tr><th></th><th>Clients</th><th>vs l'an dernier</th><th>Panier</th><th>vs l'an dernier</th><th>Ventes</th><th>vs l'an dernier</th></tr>
+      </thead>
+      <tbody>
+        {% for pair in clients.bridge %}
+          <tr>
+            <td>{{ pair.word | ucfirst }}</td>
+            <td class="num">{{ pair.clients_label }}</td>
+            <td class="num">{{ pair.clients_growth_label }}</td>
+            <td class="num">{{ pair.atv_label }}</td>
+            <td class="num">{{ pair.atv_growth_label }}</td>
+            <td class="num">{{ pair.sales_label }}</td>
+            <td class="num">{{ pair.sales_growth_label }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if clients.flow %}
+      <h3 class="subject-heading">D'où viennent les clients, et ce que chacun vaut</h3>
+      <table class="month-table product-table">
+        <thead>
+          <tr><th></th><th>Clients</th><th>Part</th><th>Panier</th><th>vs la base de l'an dernier</th><th>Ventes</th></tr>
+        </thead>
+        <tbody>
+          {% if clients.lost %}
+            <tr>
+              <td>{{ clients.lost.word | ucfirst }}</td>
+              <td class="num">{{ clients.lost.clients_label }}</td>
+              <td class="num">{{ clients.lost.share_label }}</td>
+              <td class="num">{{ clients.lost.atv_label }}</td>
+              <td class="num">{{ clients.lost.atv_vs_base_label }}</td>
+              <td class="num">{{ clients.lost.sales_label }} l'an dernier</td>
+            </tr>
+          {% endif %}
+          {% for part in clients.flow %}
+            <tr>
+              <td>{{ part.word | ucfirst }}</td>
+              <td class="num">{{ part.clients_label }}</td>
+              <td class="num">{{ part.share_label }}</td>
+              <td class="num">{{ part.atv_label }}</td>
+              <td class="num">{{ part.atv_vs_base_label }}</td>
+              <td class="num">{{ part.sales_label }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+    {% if clients.read %}<p class="routed-why">{{ clients.read | ucfirst }}.</p>{% endif %}
+    <p class="ask">{{ clients.question }}</p>
+  {% else %}
+    <p class="empty">Aucune lecture clients sur cette lecture.</p>
+  {% endif %}
+  {% if clients %}{% for reason in clients.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}

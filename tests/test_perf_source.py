@@ -210,22 +210,21 @@ def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
     assert "PRODUCT_SALES" in source.product_note
 
     monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 1")
-    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
     calls = []
     monkeypatch.setattr(warehouse, "rows",
                         lambda sql, params=None, label="": calls.append(label) or [("fresh",)])
     written = []
-    monkeypatch.setattr(source_module, "_write_product_cache", lambda rows: written.append(rows))
+    monkeypatch.setattr(source_module, "_write_query_cache", lambda name, rows: written.append(rows))
     caches = {"fresh": None, "any": None}
-    monkeypatch.setattr(source_module, "_read_product_cache",
-                        lambda any_age=False: caches["any" if any_age else "fresh"])
+    monkeypatch.setattr(source_module, "_read_query_cache",
+                        lambda name, any_age=False: caches["any" if any_age else "fresh"])
 
     started = []
-    monkeypatch.setattr(source_module, "read_products_behind", lambda: started.append(True) or True)
+    monkeypatch.setattr(source_module, "read_behind", lambda name: started.append(name) or True)
     assert source.product_rows() == []
-    assert "pas encore été lus" in source.product_note and calls == []
+    assert "pas encore eu lieu" in source.product_note and calls == []
     # Jamais sous le lecteur, mais lancée derrière lui : la page se recharge quand elle atterrit.
-    assert started == [True]
+    assert started == ["products"]
 
     caches["any"] = [("yesterday",)]
     assert source.product_rows() == [("yesterday",)]
@@ -242,12 +241,12 @@ def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(mo
 
     from app.perf import queries, source as source_module, warehouse
 
-    monkeypatch.setattr(source_module, "_products_behind",
+    monkeypatch.setitem(source_module._behind, "products",
                         {"started": 0.0, "error": "", "running": False})
-    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
+    monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 1")
     monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label="": [("fresh",)])
     written = []
-    monkeypatch.setattr(source_module, "_write_product_cache", lambda rows: written.append(rows))
+    monkeypatch.setattr(source_module, "_write_query_cache", lambda name, rows: written.append(rows))
     ran = []
 
     class Immediate:
@@ -272,7 +271,7 @@ def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(mo
     assert source_module.read_products_behind() is True
     assert "invalid identifier" in source_module.products_behind_note()
     assert source_module.read_products_behind() is False
-    source_module._products_behind["started"] = 0.0
+    source_module._behind["products"]["started"] = 0.0
     assert source_module.read_products_behind() is True
 
 
@@ -283,10 +282,10 @@ def test_a_product_cache_written_by_another_query_is_not_this_reading(tmp_path, 
     from app.perf import queries, source as source_module
 
     monkeypatch.setattr(source_module, "_cache_path", lambda name=source_module.CACHE_FILE: tmp_path / name)
-    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
+    monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 1")
     source_module._write_product_cache([{"scope": "LOEP"}])
     assert source_module._read_product_cache() == [{"scope": "LOEP"}]
 
-    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 2")
+    monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 2")
     assert source_module._read_product_cache() is None
     assert source_module._read_product_cache(any_age=True) is None

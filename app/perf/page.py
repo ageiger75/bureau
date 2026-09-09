@@ -116,7 +116,7 @@ class Page:
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
                  retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = (),
-                 products=None, elsewhere: Sequence = ()) -> None:
+                 products=None, elsewhere: Sequence = (), clients=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -151,6 +151,8 @@ class Page:
         #: Ce qui marche par produit sur ce périmètre — catégories et gammes, la somme de
         #: ses marchés — ou None sans lecture produit.
         self.products = products
+        #: Les clients de ce périmètre — le pont et le flux, la somme de ses marchés — ou None.
+        self.clients = clients
         #: Les écarts de ce périmètre qui ne sont pas une conversation commerciale — une
         #: frontière comptable, une mesure qui a changé, des livraisons arrêtées exprès —
         #: portés ici, à côté du sell-in, parce que c'est là qu'on les cherche.
@@ -188,7 +190,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
           invoiced=None, gifting=None, retail=None, prepared=None, products=None,
-          elsewhere: Sequence = ()) -> Page:
+          elsewhere: Sequence = (), clients=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -232,7 +234,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
                  retail=stores, retail_years=retail.years if retail is not None else "",
-                 talks=talks, watch_lines=watch_lines, products=products,
+                 talks=talks, watch_lines=watch_lines, products=products, clients=clients,
                  elsewhere=[fire for fire in elsewhere
                             if getattr(getattr(fire, "unit", None), "market", "") in wanted])
     if pnl is not None and done is not None:
