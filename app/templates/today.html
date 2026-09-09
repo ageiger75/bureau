@@ -20,9 +20,10 @@
   {% endif %}
 
   {% if landing and landing.usable %}
+    <p class="verdict-title">Atterrissage de l'exercice, ventes nettes{% if landing.weighted_usable %} : entre les deux hypothèses{% endif %}</p>
     <p class="cockpit-total">{% if landing.weighted_usable %}{{ landing.low | eur }} à {{ landing.high | eur }}{% else %}{{ landing.at_pace | eur }}{% endif %}</p>
     <p class="lede">
-      Plan {{ landing.full_plan | eur }} · à ce rythme sur le plan <strong>{{ landing.gap_at_pace | eur }}</strong>{% if landing.weighted_usable %} · à la croissance tenue ({{ landing.growth_label }}) <strong>{{ landing.gap_at_growth | eur }}</strong>, l'écart entre les deux est le phasage du plan{% endif %} · si le reste tient le plan {{ landing.gap_at_plan | eur }} · {{ landing.months_left }} mois restent, mois clos à {{ landing.pace_label }} du plan.
+      Plan {{ landing.full_plan | eur }} · à ce rythme sur le plan {{ landing.at_pace | eur }} (<strong>{{ landing.gap_at_pace | eur }}</strong>){% if landing.weighted_usable %} · à la croissance tenue ({{ landing.growth_label }}) {{ landing.at_growth | eur }} (<strong>{{ landing.gap_at_growth | eur }}</strong>), l'écart entre les deux est le phasage du plan{% endif %} · si le reste tient le plan {{ landing.gap_at_plan | eur }} · {{ landing.months_left }} mois restent, mois clos à {{ landing.pace_label }} du plan.
     </p>
     {% if landing.moved_events %}
       <p class="cockpit-caveat">Temps forts qui changent de mois : {{ landing.moved_events | join(" · ") }}.</p>

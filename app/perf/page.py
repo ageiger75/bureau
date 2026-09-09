@@ -186,8 +186,15 @@ def _closed_three(published, markets: Optional[Sequence[str]]):
     return actual, budget, last_year
 
 
-#: Les temps forts nommés à côté de l'atterrissage ; au-delà, on compte.
+#: Les temps forts nommés à côté de l'atterrissage ; au-delà, on compte. Et les marchés
+#: nommés sous chacun ; au-delà, on compte aussi.
 MOST_MOVED = 5
+MOST_MOVED_MARKETS = 4
+
+#: En deçà de cette part du mois sur son marché le plus lourd, un temps fort qui change de
+#: mois ne change rien à l'atterrissage : un Cyber Monday à cinq pour cent du mois dans
+#: neuf pays est du bruit à côté d'un Nouvel An lunaire à un tiers du mois.
+LEAST_MOVED_SHARE = 0.10
 
 
 def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence[str]) -> List[str]:
@@ -225,8 +232,12 @@ def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence
     for (name, this_month, last_month), markets_found in grouped.items():
         markets_found.sort(key=lambda item: -(item[1] or 0.0))
         heaviest = max((share or 0.0) for _m, share in markets_found)
+        if any(share is not None for _m, share in markets_found) and heaviest < LEAST_MOVED_SHARE:
+            continue
         who = ", ".join("%s%s" % (market, " %.0f %%" % (share * 100) if share is not None else "")
-                        for market, share in markets_found)
+                        for market, share in markets_found[:MOST_MOVED_MARKETS])
+        if len(markets_found) > MOST_MOVED_MARKETS:
+            who += ", %d autres" % (len(markets_found) - MOST_MOVED_MARKETS)
         found.append((-heaviest, "%s en %s (%s l'an dernier) : %s%s"
                       % (name, MONTHS_FR[int(this_month) - 1], MONTHS_FR[int(last_month) - 1], who,
                          " du mois" if any(share is not None for _m, share in markets_found) else "")))
