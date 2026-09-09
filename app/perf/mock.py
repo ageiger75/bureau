@@ -1013,6 +1013,15 @@ def _client_rows() -> List[dict]:
         row("ty", "retained", retained, atv_ret, per=1.9)
         row("ty", "reactivated", reactivated, atv_ly * 0.95, per=1.3)
         row("ty", "new", new, atv_new, per=1.15)
+        for channel, part, atv_twist in (("MALL STORE", 0.62, 1.05), ("E-COMMERCE", 0.33, 0.9),
+                                         ("MARKETPLACE", 0.05, 0.8)):
+            rows.append({"scope": scope, "window": "ty", "through": CLIENT_THROUGH, "segment": "new",
+                         "clients": round(new * part), "transactions": round(new * part * 1.15),
+                         "sales": round(new * part * 1.15 * atv_new * atv_twist), "channel": channel})
+            rows.append({"scope": scope, "window": "ly", "through": CLIENT_THROUGH, "segment": "new",
+                         "clients": round(new * 0.9 * (part + (0.03 if channel == "MALL STORE" else -0.015))),
+                         "transactions": round(new * 0.9 * part * 1.15),
+                         "sales": round(new * 0.9 * part * 1.15 * atv_ly * 0.8), "channel": channel})
         row("ty", "lost", lost, atv_ly * 0.9, per=1.2)
         row("ty", "walkin", walkin_ty, atv_ly * 0.72, per=1.0)
         # Le pont de l'exercice : la somme des trois segments actifs.

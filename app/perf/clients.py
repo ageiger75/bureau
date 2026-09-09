@@ -50,6 +50,16 @@ FLOW = ("retained", "reactivated", "new", "unknown")
 #: ligne qui trouble plus qu'elle ne dit.
 LEAST_SHARE = 0.005
 
+#: Les sous-canaux de l'entrepôt, repliés en trois mots : la boutique, le site, la place
+#: de marché. Tout ce qui n'est pas en ligne est une boutique — corner, outlet, mall.
+CHANNEL_FAMILIES = {"e-commerce": "site", "marketplace": "marketplace"}
+CHANNEL_DEFAULT = "boutique"
+
+
+def channel_family(sub_channel) -> str:
+    return CHANNEL_FAMILIES.get(str(sub_channel or "").strip().lower(), CHANNEL_DEFAULT)
+
+
 #: En deçà, la part perdue est celle de l'an dernier : la saison, pas une dégradation.
 LOST_NOTICED = 2.0
 
@@ -215,18 +225,56 @@ class Flow:
     atv_vs_base_label = property(lambda self: format_pct(self.atv_vs_base))
 
 
+class Entry:
+    """D'où entrent les nouveaux : une famille de canal, sa part des nouveaux, son panier,
+    et la même part l'an dernier."""
+
+    __slots__ = ("family", "segment", "of", "before")
+
+    def __init__(self, family: str, segment: Segment, of: float, before: Optional["Entry"] = None) -> None:
+        self.family = family
+        self.segment = segment
+        self.of = of
+        self.before = before
+
+    @property
+    def share(self) -> Optional[float]:
+        return self.segment.clients / self.of if self.of > 0 else None
+
+    share_label = property(lambda self: "—" if self.share is None else "%.0f %%" % (self.share * 100))
+    clients_label = property(lambda self: _count(self.segment.clients))
+    atv_label = property(lambda self: _atv(self.segment.atv))
+    sales_label = property(lambda self: format_eur(self.segment.sales))
+
+    @property
+    def before_share_label(self) -> str:
+        if self.before is None or self.before.share is None:
+            return "—"
+        return "%.0f %%" % (self.before.share * 100)
+
+    @property
+    def share_change_label(self) -> str:
+        if self.before is None or self.before.share is None or self.share is None:
+            return "—"
+        change = (self.share - self.before.share) * 100
+        return "%+.0f pt%s" % (change, "s" if abs(change) >= 2 else "")
+
+
 class Review:
     """Un périmètre : le pont, le flux, la phrase, la question, et ce qui manque."""
 
     def __init__(self, scope: str = GROUP, through: str = "", bridge: Sequence[Pair] = (),
                  flow: Sequence[Flow] = (), lost: Optional[Flow] = None,
-                 absent: Sequence[str] = (), approximate: bool = False) -> None:
+                 absent: Sequence[str] = (), approximate: bool = False,
+                 entries: Sequence[Entry] = ()) -> None:
         self.scope = scope
         self.through = through
         self.bridge = list(bridge)
         self.flow = list(flow)
         self.lost = lost
         self.absent = list(absent)
+        #: D'où entrent les nouveaux, la famille la plus large d'abord.
+        self.entries = list(entries)
         #: Une somme de marchés : un client actif dans deux pays y compte deux fois.
         self.approximate = approximate
 
@@ -342,6 +390,21 @@ class Review:
         return " ; ".join(parts)
 
     @property
+    def entries_sentence(self) -> str:
+        """« Les nouveaux entrent par la boutique à 70 % (72 % l'an dernier), par le site
+        à 28 % »."""
+        if not self.entries:
+            return ""
+        parts = []
+        for entry in self.entries:
+            text = "%s %s" % (entry.family if entry.family != "site" else "le site", entry.share_label)
+            if entry.before is not None and entry.before.share is not None:
+                text += " (%s l'an dernier, %s)" % (entry.before_share_label, entry.share_change_label)
+            text += ", panier %s" % entry.atv_label
+            parts.append(text)
+        return "les nouveaux entrent par : " + " · ".join(parts)
+
+    @property
     def question(self) -> str:
         retained = self.part("retained")
         lost = self.lost
@@ -360,7 +423,8 @@ class Review:
 
 
 def _read(rows: Iterable[dict], scopes_wanted: Sequence[str]) -> Dict[tuple, Segment]:
-    """(window, segment) → segment sommé sur les périmètres voulus, et le dernier mois."""
+    """(window, segment) → segment sommé sur les périmètres voulus ; les lignes découpées
+    par canal sous (window, segment, famille)."""
     wanted = {_key(scope) for scope in scopes_wanted}
     found: Dict[tuple, Segment] = {}
     for row in rows:
@@ -372,8 +436,21 @@ def _read(rows: Iterable[dict], scopes_wanted: Sequence[str]) -> Dict[tuple, Seg
             continue
         piece = Segment(segment, _number(row.get("clients")), _number(row.get("transactions")),
                         _number(row.get("sales")))
-        found.setdefault((window, segment), Segment(segment)).add(piece)
+        channel = row.get("channel")
+        key = (window, segment, channel_family(channel)) if channel not in (None, "") else (window, segment)
+        found.setdefault(key, Segment(segment)).add(piece)
     return found
+
+
+def _entries(found: Dict[tuple, Segment], window: str) -> List[Entry]:
+    """D'où entrent les nouveaux d'une fenêtre, la famille la plus large d'abord."""
+    total = found.get((window, "new"))
+    of = total.clients if total is not None else 0.0
+    items = [Entry(family, piece, of) for (w, segment, family), piece in
+             ((key, piece) for key, piece in found.items() if len(key) == 3)
+             if w == window and segment == "new" and piece.usable]
+    items.sort(key=lambda entry: -entry.segment.clients)
+    return items
 
 
 def _through(rows: Iterable[dict], scopes_wanted: Sequence[str]) -> str:
@@ -443,8 +520,12 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
     elif lost is not None and lost.before is None:
         absent.append("l'exercice d'avant n'est pas dans la lecture : la part perdue ne se "
                       "compare pas encore à l'an dernier au même mois")
+    entries = _entries(found, "ty")
+    earlier_entries = {entry.family: entry for entry in _entries(found, "ly")}
+    for entry in entries:
+        entry.before = earlier_entries.get(entry.family)
     review = Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,
-                    approximate=bool(markets) and len(scopes_wanted) > 1)
+                    approximate=bool(markets) and len(scopes_wanted) > 1, entries=entries)
     if review.flow_noise:
         review.absent.append(review.flow_noise)
     if 0 < review.window_months < 12 and lost is not None:

@@ -1419,6 +1419,8 @@ group by product_id, month
 #:     clients       number  -- clients (ou visites pour 'walkin') distincts dans la fenêtre
 #:     transactions  number  -- tickets
 #:     sales         number  -- NET_SALES_EUR, FLAG_TURNOVER = 1, hors vrac
+#:     channel       text    -- vide sur les totaux ; sur `new`, le sous-canal du premier
+#:                              ticket de la fenêtre (STORE_SUB_CHANNEL), la ligne découpée
 #:
 #: Segments, sur le sell-out en propre (boutiques et site) :
 #:
@@ -1498,6 +1500,8 @@ base as (
         f.store_skey || '|' || f.transaction_date || '|' || f.transaction_till
             || '|' || f.transaction_number                           as ticket,
         iff(f.transaction_date >= pr.ty_from, 'ty', 'ly')            as "window",
+        f.transaction_date,
+        s.store_sub_channel                                          as sub_channel,
         f.net_sales_eur
     from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
     join dwh.semantic_layer.v_sl_ai_d_stores  s on s.store_skey  = f.store_skey
@@ -1520,6 +1524,8 @@ scoped as (
         client_skey,
         max(flag_walkin)                               as flag_walkin,
         min(first_date)                                as first_date,
+        -- Le canal du premier ticket de la fenêtre : d'où le client est entré.
+        min_by(sub_channel, transaction_date)          as entry_channel,
         count(distinct ticket)                         as transactions,
         sum(net_sales_eur)                             as sales
     from base
@@ -1534,6 +1540,7 @@ classified as (
         ty.client_skey,
         ty.transactions,
         ty.sales,
+        ty.entry_channel,
         case
             when ly.client_skey is not null        then 'retained'
             when ty.first_date is null             then 'unknown'
@@ -1547,23 +1554,31 @@ classified as (
     where ty."window" = 'ty'
 )
 select scope, 'ty' as "window", pr.through, segment,
-       count(*) as clients, sum(transactions) as transactions, sum(sales) as sales
+       count(*) as clients, sum(transactions) as transactions, sum(sales) as sales,
+       null as channel
 from classified cross join period pr
 group by scope, pr.through, segment
 union all
+-- Les nouveaux, par canal d'entrée : la même ligne, découpée. Le total reste au-dessus.
+select scope, 'ty', pr.through, 'new',
+       count(*), sum(transactions), sum(sales), coalesce(entry_channel, '(sans canal)')
+from classified cross join period pr
+where segment = 'new'
+group by scope, pr.through, entry_channel
+union all
 select scope, "window", pr.through, 'arc',
-       count(*), sum(transactions), sum(sales)
+       count(*), sum(transactions), sum(sales), null
 from registered cross join period pr
 group by scope, "window", pr.through
 union all
 select scope, "window", pr.through, 'walkin',
-       sum(transactions), sum(transactions), sum(sales)
+       sum(transactions), sum(transactions), sum(sales), null
 from scoped cross join period pr
 where flag_walkin = 1
 group by scope, "window", pr.through
 union all
 select ly.scope, 'ty', pr.through, 'lost',
-       count(*), sum(ly.transactions), sum(ly.sales)
+       count(*), sum(ly.transactions), sum(ly.sales), null
 from registered ly
 left join registered ty
   on ty.scope = ly.scope and ty."window" = 'ty' and ty.client_skey = ly.client_skey

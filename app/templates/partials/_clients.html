@@ -55,6 +55,7 @@
       </table>
     {% endif %}
     {% if clients.read %}<p class="routed-why">{{ clients.read | ucfirst }}.</p>{% endif %}
+    {% if clients.entries_sentence %}<p class="routed-why">{{ clients.entries_sentence | ucfirst }}.</p>{% endif %}
     <p class="ask">{{ clients.question }}</p>
   {% else %}
     <p class="empty">Aucune lecture clients sur cette lecture.</p>

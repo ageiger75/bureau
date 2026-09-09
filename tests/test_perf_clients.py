@@ -186,3 +186,36 @@ def test_the_client_query_is_one_template_run_twice_and_shifted_a_window():
                     ("ty", "arc", "2026-08"), ("ty", "lost", "2026-08")]
     review = C.build(rows)
     assert review.lost.share_label == "40 % de la base" and review.lost.before_share_label == "33 %"
+
+
+def test_the_new_clients_say_where_they_entered_against_last_year():
+    """D'où viennent les nouveaux : le canal du premier ticket, replié en boutique, site,
+    place de marché, avec la même part l'an dernier. Les lignes découpées ne s'ajoutent
+    jamais au total, qui reste au-dessus."""
+    rows = _rows(retained_atv=84.0)
+    rows += [
+        dict(_row("LOEP", "ty", "new", 25, 33, 33 * 62.0), channel="MALL STORE"),
+        dict(_row("LOEP", "ty", "new", 8, 11, 11 * 55.0), channel="E-COMMERCE"),
+        dict(_row("LOEP", "ty", "new", 2, 3, 3 * 40.0), channel="MARKETPLACE"),
+        dict(_row("LOEP", "ly", "new", 30, 45, 2_600.0)),
+        dict(_row("LOEP", "ly", "new", 24, 36, 2_100.0), channel="STREET STORE"),
+        dict(_row("LOEP", "ly", "new", 6, 9, 500.0), channel="E-COMMERCE"),
+    ]
+    review = C.build(rows)
+
+    assert review.part("new").clients_label == "35"          # le total n'a pas bougé
+    assert [entry.family for entry in review.entries] == ["boutique", "site", "marketplace"]
+    boutique = review.entries[0]
+    assert boutique.share_label == "71 %" and boutique.before_share_label == "80 %"
+    assert boutique.share_change_label == "-9 pts"
+    assert review.entries_sentence.startswith("les nouveaux entrent par : boutique 71 % (80 % l'an dernier, -9 pts), panier 62 €")
+    assert "le site 23 %" in review.entries_sentence
+    assert C.build(_rows()).entries == [] and C.build(_rows()).entries_sentence == ""
+
+
+def test_the_client_query_splits_the_new_by_their_entry_channel():
+    from app.perf import queries
+
+    sql = queries.CLIENT_FLOW.lower()
+    assert "min_by(sub_channel, transaction_date)" in sql
+    assert "store_sub_channel" in sql and "coalesce(entry_channel, '(sans canal)')" in sql
