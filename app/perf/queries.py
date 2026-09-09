@@ -1680,7 +1680,9 @@ group by 1, 2
 #: valeur, marque L'Occitane : `period · market · forecast_eur · actual_eur`. Le cockpit
 #: fait le biais `(forecast - actual) / actual` — négatif, les ventes sont au-dessus de la
 #: prévision, la convention du rapport — et la précision `1 - |forecast - actual| / actual`,
-#: toujours sur des sommes. Écrit par l'agent entrepôt le 9 septembre 2026.
+#: toujours sur des sommes. Écrit par l'agent entrepôt le 9 septembre 2026. Le marché de
+#: prévision est un code ; son libellé vient de la dimension zone × canal, distinct par
+#: zone (`label`), et le code reste à côté pour le jour où deux libellés se ressemblent.
 #:
 #: Réserve à garder écrite : sur le mois vérifié, ce calcul trouve la prévision AU-DESSUS
 #: du réel quand le rapport de la supply dit l'inverse, et la précision dépend entièrement
@@ -1704,11 +1706,18 @@ a as (
       and brand_id = 'OC'
     group by 1, 2
 )
+d as (
+    select forecast_area_id as market, max(forecast_area_desc) as label
+    from dwh.semantic_layer.v_sl_d_forecast_area_channel
+    group by 1
+)
 select to_char(coalesce(f.month_date, a.month_date), 'YYYY-MM')  as period,
        coalesce(f.market, a.market)                              as market,
+       d.label                                                   as label,
        round(coalesce(f.forecast_eur, 0), 2)                     as forecast_eur,
        round(coalesce(a.actual_eur, 0), 2)                       as actual_eur
 from f full outer join a on f.month_date = a.month_date and f.market = a.market
+left join d on d.market = coalesce(f.market, a.market)
 """ % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
 
 #: Le sell-in livré sur commandé, en valeur, par mois de livraison demandée et par canal de

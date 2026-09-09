@@ -328,7 +328,10 @@ def build(osa_rows: Sequence[dict] = (), forecast_rows: Sequence[dict] = (), ord
     service = _block("service", osa_rows, "unit", "rupture_eur", "demand_eur", Service,
                      lambda rate: None if rate is None else 1.0 - rate,
                      sort_key=lambda line: (line.osa if line.osa is not None else 1.0))
-    forecast = [row for row in forecast_rows
+    # Le libellé du marché de prévision quand la dimension le donne, le code sinon —
+    # jamais un nom déduit d'un code.
+    forecast = [dict(row, market=(str(row.get("label") or "").strip() or row.get("market")))
+                for row in forecast_rows
                 if (_number(row.get("actual_eur")) or 0.0) > 0 and (_number(row.get("forecast_eur")) or 0.0) > 0]
     bias = _block("bias", forecast, "market", "forecast_eur", "actual_eur", Bias,
                   lambda rate: None if rate is None else rate - 1.0,
