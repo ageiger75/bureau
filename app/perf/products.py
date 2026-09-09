@@ -89,6 +89,12 @@ def _mended(name: str) -> str:
         return name
 
 
+def _key(text) -> str:
+    """L'entrepôt écrit les pays en capitales, l'annuaire et le plan en minuscules
+    accentuées : un marché est le même sous les deux graphies."""
+    return str(text or "").strip().casefold()
+
+
 def month_fr(period: str) -> str:
     try:
         return "%s %s" % (MONTHS_FR[int(period[5:7]) - 1], period[:4])
@@ -306,11 +312,11 @@ class Review:
 def aggregate(rows: Iterable[dict], markets: Sequence[str], scope: str) -> List[dict]:
     """Les lignes d'un périmètre : la somme, mois par mois, des catégories et des gammes de
     ses marchés. Les références ne sont lues qu'au groupe, donc elles n'y sont pas."""
-    wanted = set(markets)
+    wanted = {_key(market) for market in markets}
     summed: Dict[tuple, float] = {}
     heroes: Dict[tuple, bool] = {}
     for row in rows:
-        if str(row.get("scope") or "") not in wanted:
+        if _key(row.get("scope")) not in wanted:
             continue
         level = str(row.get("level") or "").strip().lower()
         if level == "product" or level not in LEVELS:
@@ -337,18 +343,25 @@ def for_markets(rows: Iterable[dict], markets: Sequence[str], scope: str, note: 
 
 def scopes(rows: Iterable[dict]) -> List[str]:
     """Les périmètres lus, le groupe d'abord."""
-    found = sorted({str(row.get("scope") or "") for row in rows} - {""})
-    if GROUP in found:
-        found.remove(GROUP)
-        found.insert(0, GROUP)
+    seen: Dict[str, str] = {}
+    for row in rows:
+        name = str(row.get("scope") or "").strip()
+        if name:
+            seen.setdefault(_key(name), name)
+    found = sorted(seen.values())
+    group = next((name for name in found if _key(name) == _key(GROUP)), None)
+    if group is not None:
+        found.remove(group)
+        found.insert(0, group)
     return found
 
 
 def _read(rows: Iterable[dict], scope: str) -> Dict[str, Dict[str, dict]]:
     """level → name → {period → sales, hero}."""
     read: Dict[str, Dict[str, dict]] = {}
+    wanted = _key(scope)
     for row in rows:
-        if str(row.get("scope") or "") != scope:
+        if _key(row.get("scope")) != wanted:
             continue
         level = str(row.get("level") or "").strip().lower()
         if level not in LEVELS:

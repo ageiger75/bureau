@@ -4150,7 +4150,8 @@ def cmd_products(argv: List[str]) -> int:
         scope = argv[at + 1] if at + 1 < len(argv) else ""
     source = current_source()
     review = _products(source, refresh="--refresh" in argv, scope=scope)
-    if scope and not review.usable and scope not in products_module.scopes(source.product_rows()):
+    if scope and not review.usable and scope.casefold() not in [
+            name.casefold() for name in products_module.scopes(source.product_rows())]:
         # Un périmètre plutôt qu'un marché : la somme de ses marchés.
         from .config import settings
         from .perf import owners

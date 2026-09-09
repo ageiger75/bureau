@@ -194,3 +194,15 @@ def test_a_perimeter_reads_the_sum_of_its_markets_without_the_references():
 
     nothing = P.for_markets(rows, ["Nowhere"], "Vide")
     assert not nothing.usable
+
+
+def test_a_market_written_in_capitals_by_the_warehouse_is_the_same_market():
+    """L'entrepôt écrit UNITED STATES, l'annuaire United States : une page de périmètre
+    qui ne trouvait « aucune vente par produit » les lisait comme deux marchés."""
+    rows = (_rows("category", "Corps", _year(100.0, 110.0), scope="UNITED STATES")
+            + _rows("category", "Corps", _year(10.0, 12.0), scope="CANADA"))
+
+    assert P.build(rows, "United States").usable
+    region = P.for_markets(rows, ["United States", "Canada"], "North America")
+    assert region.level("category").lines[0].sales == 5 * 122.0
+    assert P.scopes(rows) == ["CANADA", "UNITED STATES"]
