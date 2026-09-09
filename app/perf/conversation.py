@@ -215,10 +215,14 @@ class Conversation:
             key=lambda unit: unit.gap_vs_budget,
         )
         if len(self.units) > 1 and behind:
+            # Les trois canaux qui portent l'écart ; au-delà, on compte. Un canal à moins
+            # deux cents euros dans la phrase d'un écart de deux millions n'est pas lu.
             text += " · " + ", ".join(
                 "%s %s" % (getattr(unit, "channel_label", ""), format_eur(unit.gap_vs_budget))
-                for unit in behind
+                for unit in behind[:3]
             )
+            if len(behind) > 3:
+                text += ", %d autres" % (len(behind) - 3)
         return text
 
     @property

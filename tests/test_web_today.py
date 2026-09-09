@@ -833,7 +833,7 @@ def test_the_subjects_to_carry_are_prepared_conversations_not_cards(client, db_s
 
     page = page_text(client.get("/"))
 
-    assert "au plus trois conversations, préparées" in page
+    assert "À faire cette semaine" in page
     assert "L'écart" in page and "La tendance" in page and "La question" in page
     assert "La dernière lecture" in page
     assert "Retenu pour : montant en jeu" in page
@@ -880,7 +880,7 @@ def test_the_red_zones_are_a_fixed_block_with_one_line_each(client):
     finally:
         (TEST_DIR / "red_zones.csv").unlink()
 
-    assert "Rien à découvrir ici : à tenir" in page
+    assert "Les zones rouges" in page
     assert "Japon" in page and "same-store sales" in page.lower()
     assert "à brancher" in page
 
@@ -999,7 +999,7 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
 
     today = page_text(client.get("/"))
     analyses = page_text(client.get("/analyses"))
-    assert "Prévision supply de juillet 2026" in today
+    assert "Prévision supply : l'exercice à +2.7 %" in today
     assert "La prévision supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
     # Ce que l'entrepôt voit, à côté : ses trois mesures nommées comme les siennes.

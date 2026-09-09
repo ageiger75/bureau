@@ -224,8 +224,10 @@ class Review:
             return ""
         first = self.beyond[0]
         days = first.days_until(self.today)
-        return "le prochain au-delà : %s, dans %d jours" % (
-            " ; ".join(event.sentence for event in self.beyond[:3]), days)
+        text = "le prochain au-delà : %s, dans %d jours" % (first.sentence, days)
+        if len(self.beyond) > 1:
+            text += " · et %d autre%s" % (len(self.beyond) - 1, "s" if len(self.beyond) > 2 else "")
+        return text
 
     @property
     def usable(self) -> bool:

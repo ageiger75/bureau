@@ -95,12 +95,12 @@ def test_a_moved_weighed_event_in_the_remaining_months_is_named_never_weighted()
         ]
 
     moved = P.moved_events(_Calendar(), ["Northland"], ["2026-09", "2026-10", "2026-11", "2026-12"])
-    assert moved == ["Fête mobile (Northland) : en novembre cette année, en octobre l'an dernier, 31 % du mois l'an dernier",
-                     "Petite (Northland) : en octobre cette année, en septembre l'an dernier"]
+    assert moved == ["Fête mobile en novembre (octobre l'an dernier) : Northland 31 % du mois",
+                     "Petite en octobre (septembre l'an dernier) : Northland"]
     assert P.moved_events(None, ["Northland"], ["2026-11"]) == []
     # Le groupe voit tous les marchés ; au-delà de cinq, on compte.
     everything = P.moved_events(_Calendar(), None, ["2026-10", "2026-11"])
-    assert len(everything) == 3 and everything[0].startswith("Ailleurs")
+    assert len(everything) == 3 and everything[0].startswith("Ailleurs en novembre (octobre l'an dernier) : Southland 50 %")
 
 
 def test_the_landing_is_absent_without_closed_months_or_a_plan():

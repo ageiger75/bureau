@@ -149,6 +149,14 @@ class Review:
         return text
 
     @property
+    def forecast_short(self) -> str:
+        """La même prévision sans sa note, pour l'écran du jour."""
+        group = self.group
+        if group is None or group.growth is None:
+            return ""
+        return "prévision supply : l'exercice à %s sur le précédent" % group.growth_label
+
+    @property
     def service_sentence(self) -> str:
         group = self.group
         parts = []

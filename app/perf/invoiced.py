@@ -160,6 +160,10 @@ class Review:
         return text
 
     @property
+    def short_note(self) -> str:
+        return "Factures contre factures, jamais contre le plan."
+
+    @property
     def note(self) -> str:
         return ("Factures contre factures, à base constante, jamais contre le plan : les "
                 "factures au jour ne se réconcilient pas canal par canal avec la "

@@ -49,7 +49,7 @@ def test_the_week_reads_against_the_previous_and_the_same_week_last_year():
     assert north.week == 7000.0 and north.previous == 7000.0
     assert abs(north.last_year - 5600.0) < 1e-6
     assert north.wow_label == "+0 %" and north.yoy_label == "+25 %"
-    assert review.days_note.startswith("6 jours lus depuis, non comptés")
+    assert review.days_note.startswith("6 jours entamés, non comptés")
     assert review.group.sentence.endswith("+0 % sur la semaine précédente, +25 % sur la même semaine l'an dernier")
 
 

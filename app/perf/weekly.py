@@ -180,7 +180,7 @@ class Review:
         extra = (self.read_through - self.span.end).days
         if extra <= 0:
             return ""
-        return ("%d jour%s lu%s depuis, non compté%s : une semaine entamée ne se compare pas"
+        return ("%d jour%s entamé%s, non compté%s"
                 % (extra, "s" if extra > 1 else "", "s" if extra > 1 else "",
                    "s" if extra > 1 else ""))
 

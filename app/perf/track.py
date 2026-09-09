@@ -239,8 +239,7 @@ class Track:
         if verdict.early:
             head = "Trop tôt pour conclure : %s, revoir après une semaine pleine" % self.days_label
         elif verdict.label == UNDECIDED:
-            head = ("Fourchette trop large pour conclure (%s) : la forme du mois diverge selon "
-                    "les exercices" % verdict.gap_label)
+            head = "Fourchette trop large pour conclure : la forme du mois diverge selon les exercices"
         else:
             head = "%s au total (%s)" % (verdict.label.capitalize(), verdict.gap_label)
         parts = [head]

@@ -150,7 +150,7 @@
             {% if talk.on_ranges %}<dt>Sur quoi</dt><dd>{{ talk.on_ranges | ucfirst }}.</dd>{% endif %}
             {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
             <dt>La dernière lecture</dt>
-            <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">aucune conclusion portée encore — la première s'écrit après l'appel</span>{% endif %}</dd>
+            <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">pas encore de lecture</span>{% endif %}</dd>
             {% if talk.engaged %}<dt>Déjà engagé</dt><dd>{{ talk.engaged | ucfirst }}.</dd>{% endif %}
             {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
             <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>

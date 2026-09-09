@@ -22,14 +22,10 @@
   {% if landing and landing.usable %}
     <p class="cockpit-total">{% if landing.weighted_usable %}{{ landing.low | eur }} à {{ landing.high | eur }}{% else %}{{ landing.at_pace | eur }}{% endif %}</p>
     <p class="lede">
-      À ce rythme sur le plan, l'exercice atterrit à {{ landing.at_pace | eur }}, soit
-      <strong>{{ landing.gap_at_pace | eur }}</strong> contre un plan de {{ landing.full_plan | eur }}.
-      {% if landing.weighted_usable %}À la croissance tenue sur l'an dernier ({{ landing.growth_label }}), les mois restants pesant ce qu'ils ont pesé : {{ landing.at_growth | eur }}, soit {{ landing.gap_at_growth | eur }} ; l'écart entre les deux, {{ landing.phasing_gap | eur }}, est le phasage du plan.{% endif %}
-      Si le reste tient le plan : {{ landing.at_plan | eur }}, soit {{ landing.gap_at_plan | eur }}.
-      {{ landing.months_left }} mois restent ; le rythme des mois clos est de {{ landing.pace_label }}.
+      Plan {{ landing.full_plan | eur }} · à ce rythme sur le plan <strong>{{ landing.gap_at_pace | eur }}</strong>{% if landing.weighted_usable %} · à la croissance tenue ({{ landing.growth_label }}) <strong>{{ landing.gap_at_growth | eur }}</strong>, l'écart entre les deux est le phasage du plan{% endif %} · si le reste tient le plan {{ landing.gap_at_plan | eur }} · {{ landing.months_left }} mois restent, mois clos à {{ landing.pace_label }} du plan.
     </p>
     {% if landing.moved_events %}
-      <p class="cockpit-caveat">Temps forts pesés qui changent de mois sur les mois restants, que le poids de l'an dernier ne voit pas : {{ landing.moved_events | join(" · ") }}.</p>
+      <p class="cockpit-caveat">Temps forts qui changent de mois : {{ landing.moved_events | join(" · ") }}.</p>
     {% endif %}
   {% elif landing %}
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
@@ -84,7 +80,7 @@
         {% if samestore %}
           <p class="verdict-word {{ 'is-en-retard' if (samestore.ytd_growth if samestore.ytd_growth is not none else samestore.growth) < 0 else 'is-en-avance' }}">{{ samestore.word }}</p>
           <p class="verdict-figures">{{ samestore.sentence }}</p>
-          <p class="verdict-basis">la cible du board est hors cleaning : ce chiffre ne retire ni le vrac ni les flux à nettoyer, il se lit en dessous d'elle</p>
+          <p class="verdict-basis">vrac et flux à nettoyer compris : se lit en dessous de la cible du board, qui les retire</p>
         {% else %}
           <p class="verdict-word is-absent">—</p>
           <p class="verdict-basis">pas de lecture des magasins comparables : la relecture des KPI l'apporte</p>
@@ -185,7 +181,7 @@
          convertit pas un écart de ventes en résultat, et l'écran ne le fait pas. #}
       <p class="cockpit-caveat">
         Plan EBITDA : {{ ebitda.plan.adjusted.ebitda | eur }} consolidé ajusté ({{ ebitda.plan.adjusted.rate_label }} des ventes)
-        pour {{ ebitda.plan.total.ebitda | eur }} de contribution des BU{% if ebitda.unhealthy_note %}, {{ ebitda.unhealthy_note }}{% endif %}.
+        pour {{ ebitda.plan.total.ebitda | eur }} de contribution des BU{% if ebitda.unhealthy_short %}, {{ ebitda.unhealthy_short }}{% endif %}.
         {% if ebitda.others %}Hors périmètres : {% for item in ebitda.others %}{{ item.name }} {{ item.ebitda | eur }}{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}
         {{ ebitda.note }}
       </p>
@@ -228,7 +224,7 @@
     Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :
     {{ header.actual | eur }} vendus, {{ header.vs_budget.gap | eur }} contre le plan ({{ header.vs_budget.pct | pct }}),
     {{ header.vs_last_year.pct | pct }} contre l'an dernier{% if header.published %}, consolidation{% else %}, entrepôt{% endif %}.
-    {% if header.forecast %}Prévision de la période : {{ header.forecast | eur }}.{% endif %}{% if supply and supply.forecast_sentence %} {{ supply.forecast_sentence | ucfirst }}.{% elif not header.forecast %}Aucune prévision remontée.{% endif %}
+    {% if header.forecast %}Prévision de la période : {{ header.forecast | eur }}.{% endif %}{% if supply and supply.forecast_short %} {{ supply.forecast_short | ucfirst }}.{% elif not header.forecast %}Aucune prévision remontée.{% endif %}
     {% if dataset.ytd and dataset.ytd.unbudgeted_actual %}
       {{ dataset.ytd.unbudgeted_actual | eur }} vendus sur {{ dataset.ytd.unbudgeted_lines }} marché-mois sans plan, hors des comparaisons.
     {% endif %}
@@ -243,7 +239,7 @@
      contre la même l'an dernier — jamais contre le plan, qui est mensuel. #}
   {% if weekly and weekly.usable %}
     <h2>{{ weekly.title }}</h2>
-    <p class="lede">Sell-out, semaines pleines du lundi au dimanche : {{ weekly.group.sentence }}.{% if weekly.days_note %} {{ weekly.days_note | ucfirst }}.{% endif %}</p>
+    <p class="lede">{{ weekly.group.sentence | ucfirst }} · semaines pleines, sell-out{% if weekly.days_note %} · {{ weekly.days_note }}{% endif %}.</p>
     <table class="month-table mix-table">
       <thead><tr><th>Périmètre</th><th>Semaine</th><th>vs semaine précédente</th><th>vs même semaine l'an dernier</th></tr></thead>
       <tbody>
@@ -296,7 +292,7 @@
      l'an dernier. Factures contre factures, jamais contre le plan. #}
   {% if invoiced and invoiced.usable %}
     <h2>{{ invoiced.title }}</h2>
-    <p class="lede">{{ invoiced.sentence }}. {{ invoiced.note }} <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>
+    <p class="lede">{{ invoiced.sentence }}. {{ invoiced.short_note }} <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>
     {% if invoiced.perimeters %}
     <table class="month-table mix-table">
       <thead><tr><th>Périmètre</th><th>Facturé à date</th><th>vs l'an dernier à jours ouvrés égaux</th><th>à dates égales</th></tr></thead>
@@ -323,13 +319,13 @@
      chacun a pesé l'an dernier — mesuré, jamais écrit de mémoire. #}
   <h2>{{ gifting.title if gifting else "Ce qui arrive" }}</h2>
   {% if gifting and gifting.usable %}
-    <p class="lede">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, avec le poids que chacun a pesé l'an dernier sur le sell-out du marché.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | ucfirst }}.{% endif %}</p>
+    <p class="lede">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, pesé{{ '' if gifting.count == 1 else 's' }} sur l'an dernier.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | ucfirst }}.{% endif %}</p>
     <ul class="routed-list">
     {% for group in gifting.groups + ([gifting.loose] if gifting.loose else []) %}
       <li class="routed">
         <p class="routed-head"><span class="routed-name">{{ group.name }}</span></p>
         {% for event in group.shown %}
-          <p class="routed-why">{{ event.sentence }}{% if event.note %} <small>· {{ event.note }}</small>{% endif %}</p>
+          <p class="routed-why">{{ event.sentence }}</p>
         {% endfor %}
         {% if group.rest %}<p class="routed-why"><small>{{ group.rest | length }} autre{{ '' if group.rest | length == 1 else 's' }} : {{ group.rest | map(attribute='name') | join(', ') }}</small></p>{% endif %}
       </li>
@@ -346,7 +342,7 @@
 <section class="panel">
   <h2>Qu'est-ce que je décide cette semaine</h2>
   <p class="lede">
-    Ce que le cockpit retient d'une lecture à l'autre. Trois sujets à porter, cinq sous surveillance.
+    Trois sujets à porter, cinq sous surveillance.
     {% if not week.weights_read %}
       Classé sur le plus gros écart au plan.
     {% endif %}
@@ -408,7 +404,7 @@
     {% endmacro %}
 
     {% if prepared.conversations %}
-      <h3 class="subject-heading">À faire cette semaine <span class="muted">— au plus trois conversations, préparées ; le reste attendra, et c'est le but</span></h3>
+      <h3 class="subject-heading">À faire cette semaine</h3>
       <ol class="talk-list">
         {% for talk in prepared.conversations %}
           <li class="talk">
@@ -424,7 +420,7 @@
               {% if talk.on_ranges %}<dt>Sur quoi</dt><dd>{{ talk.on_ranges | ucfirst }}.</dd>{% endif %}
               {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
               <dt>La dernière lecture</dt>
-              <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">aucune conclusion portée encore sur ce sujet — la première s'écrit après l'appel</span>{% endif %}</dd>
+              <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">pas encore de lecture</span>{% endif %}</dd>
               {% if talk.engaged %}<dt>Déjà engagé</dt><dd>{{ talk.engaged | ucfirst }}.</dd>{% endif %}
               {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
               <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>
@@ -442,7 +438,7 @@
     {% endif %}
 
     {% if prepared.watch %}
-      <h3 class="subject-heading">Sous surveillance <span class="muted">— suivis, pas portés : l'écart, depuis quand, le sens, qui, la prochaine date</span></h3>
+      <h3 class="subject-heading">Sous surveillance</h3>
       <ol class="watch-list">
         {% for item in prepared.watch %}
           <li class="watch">
@@ -461,15 +457,12 @@
   {% if week.sleeping %}
     <p class="subject-sleeping">
       {{ week.sleeping | length }} sujet{{ '' if week.sleeping | length == 1 else 's' }}
-      arbitré{{ '' if week.sleeping | length == 1 else 's' }} — ne remonte
-      {{ '' if week.sleeping | length == 1 else 'nt' }} que sur un fait nouveau ou à leur
-      date de réexamen. Arbitrer doit servir à quelque chose.
+      arbitré{{ '' if week.sleeping | length == 1 else 's' }}, en veille jusqu'à un fait nouveau ou la date de réexamen.
     </p>
   {% endif %}
   {% if week.annex %}
     <p class="subject-annex">
-      {{ week.annex | length }} autre{{ '' if week.annex | length == 1 else 's' }} au
-      registre, hors des créneaux : vus et comptés, pas portés cette semaine.
+      {{ week.annex | length }} autre{{ '' if week.annex | length == 1 else 's' }} au registre.
     </p>
   {% endif %}
 </section>
@@ -479,7 +472,6 @@
 <section class="panel" id="zones-rouges">
   <h2>Les zones rouges</h2>
   {% if redzones and redzones.usable %}
-    <p class="lede">Les fronts que vous avez nommés, tenus chaque semaine avec leur chiffre. Rien à découvrir ici : à tenir.</p>
     <ol class="watch-list">
       {% for item in redzones.readings %}
         <li class="watch">

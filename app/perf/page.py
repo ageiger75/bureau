@@ -206,7 +206,7 @@ def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence
     from .invoiced import MONTHS_FR
 
     wanted = {str(m).strip().casefold() for m in markets} if markets is not None else None
-    found = []
+    grouped = {}
     for event in events:
         market = str(getattr(event, "market", "") or "")
         if wanted is not None and market.strip().casefold() not in wanted:
@@ -219,10 +219,17 @@ def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence
         if len(measured) < 7 or measured[5:7] == this_month[5:7]:
             continue
         share = getattr(event, "share", None)
-        weight = ", %.0f %% du mois l'an dernier" % (share * 100) if share is not None else ""
-        found.append((-(share or 0.0), "%s (%s) : en %s cette année, en %s l'an dernier%s"
-                      % (event.name, market, MONTHS_FR[int(this_month[5:7]) - 1],
-                         MONTHS_FR[int(measured[5:7]) - 1], weight)))
+        key = (str(event.name), this_month[5:7], measured[5:7])
+        grouped.setdefault(key, []).append((market, share))
+    found = []
+    for (name, this_month, last_month), markets_found in grouped.items():
+        markets_found.sort(key=lambda item: -(item[1] or 0.0))
+        heaviest = max((share or 0.0) for _m, share in markets_found)
+        who = ", ".join("%s%s" % (market, " %.0f %%" % (share * 100) if share is not None else "")
+                        for market, share in markets_found)
+        found.append((-heaviest, "%s en %s (%s l'an dernier) : %s%s"
+                      % (name, MONTHS_FR[int(this_month) - 1], MONTHS_FR[int(last_month) - 1], who,
+                         " du mois" if any(share is not None for _m, share in markets_found) else "")))
     found.sort()
     lines = [text for _weight, text in found[:MOST_MOVED]]
     if len(found) > MOST_MOVED:

@@ -58,8 +58,7 @@ TOTAL = "TOTAL BUSINESS CONTRIBUTION"
 ADJUSTED = "CONSO EBITDA ADJUSTED"
 COUNTRIES = "TOTAL COUNTRIES"
 
-UNREAD_NOTE = ("L'EBITDA réel par BU n'est pas lu : la Finance ne le produit pas au mois. "
-               "Ce panneau montre le plan, jamais un atterrissage.")
+UNREAD_NOTE = "Le plan, jamais un réel : l'EBITDA par BU n'est pas lu, la Finance ne le produit pas au mois."
 
 
 def _text(value) -> str:
@@ -392,6 +391,17 @@ class Review:
     @property
     def note(self) -> str:
         return UNREAD_NOTE
+
+    @property
+    def unhealthy_short(self) -> str:
+        """La même chose sans les noms des lignes, pour l'écran du jour."""
+        plan = self.plan
+        if plan is None or plan.unhealthy_total is None or not plan.unhealthy:
+            return ""
+        from .analytics import format_eur
+
+        return "dont %s d'EBITDA sur %s de flux à nettoyer" % (
+            format_eur(plan.unhealthy_total.ebitda), format_eur(plan.unhealthy_total.sales))
 
     @property
     def unhealthy_note(self) -> str:

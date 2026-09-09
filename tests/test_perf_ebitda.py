@@ -166,7 +166,7 @@ def test_no_actual_is_ever_derived_from_the_plan(tmp_path):
     review = E.build(_plan(tmp_path), NAMES)
 
     assert "n'est pas lu" in review.note
-    assert "jamais un atterrissage" in review.note
+    assert "jamais un réel" in review.note
     for name in ("at_pace", "landing", "actual", "gap"):
         assert not hasattr(review, name)
         assert not hasattr(review.perimeters[0], name)
