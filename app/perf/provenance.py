@@ -1264,7 +1264,7 @@ REGISTER: Dict[str, Measure] = {
         "sell-out. No other channel type is excluded.\n\n"
         "So this does not explain the long tail of small shortfalls across thirty markets, "
         "which is what it was reached for: twenty-nine of those markets have no such store "
-        "at all. Widening the join corrects 2.2% in five markets and nothing anywhere "
+        "at all. Widening the join corrects a couple of points in five markets and nothing anywhere "
         "else — worth doing, and not the answer to the other question.\n\n"
         "Two of the five match a budgeted department-store channel and are a plain "
         "correction; three do not. France carries several times more external counters than "

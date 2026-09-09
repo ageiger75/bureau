@@ -14,7 +14,7 @@ finding is not the level of either — it is the moment they stop telling the sa
 The exclusion is the warehouse's own: `FLAG_BULK IN (2, 3, 4, 5)`, applied in
 `queries.KPI_READINGS`. What each of those four values means is still unanswered by the
 view's owner, so nothing here claims that bulk is daigou. It claims only that this money
-is not ordinary retail, which the prices support: 4.37 to 9.10 € a unit against 11.11 €.
+is not ordinary retail, which the unit prices support: a fraction of the ordinary retail one.
 """
 
 from typing import Dict, List, Optional, Sequence
@@ -25,9 +25,9 @@ SALES_KEY = "net_sales"
 EX_BULK_KEY = "net_sales_hors_bulk"
 
 #: How much bulk a market must carry before its presence changes anything the reader does.
-#: Below this the two bases move together and printing both is noise; the group figure —
-#: 1.9% — sits under it, which is the point: at group level bulk is a rounding difference,
-#: and in Hong Kong it is a sixth of the market.
+#: Below this the two bases move together and printing both is noise; the group figure
+#: sits under it, which is the point: at group level bulk is a rounding difference, and in
+#: one market it is a sizeable share of everything sold.
 #:
 #: A fraction, not points, like every other rate this application carries. The two
 #: conventions in one codebase is how a growth rate reaches a screen a hundred times too

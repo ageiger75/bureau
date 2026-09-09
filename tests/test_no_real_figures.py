@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 #: Les fichiers versionnés qui portent du texte écrit par nous.
 SOURCES = sorted(
     path
-    for pattern in ("app/**/*.py", "app/**/*.html", "tests/**/*.py", "*.py", "*.md")
+    for pattern in ("app/**/*.py", "app/**/*.html", "tests/**/*.py", "*.py", "*.md", "docs/**/*.md")
     for path in ROOT.glob(pattern)
     if "__pycache__" not in path.parts and path.name != Path(__file__).name
 )
@@ -36,6 +36,15 @@ MONEY = re.compile(r"\d[\d  ]*[.,]?\d*\s?(?:k€|M€|m€|k EUR)")
 #: Les codes d'entité de la consolidation. `M_106`, `M_105_TRA` : chacun désigne une
 #: société réelle, et la liste des codes est elle-même une information.
 ENTITY = re.compile(r"\bM_0\d\d")
+
+#: Un prix unitaire ou une exposition en euros, au centime : « 4.37 € » ne s'invente pas,
+#: il se lit dans une facture.
+UNIT_EUR = re.compile(r"\d+[.,]\d{2} ?€")
+
+#: Un pourcentage à la décimale dans le code de l'application. Un seuil s'écrit rond
+#: (« 5 % ») ; un pourcentage à la décimale dans un commentaire est une lecture réelle qui
+#: a servi d'exemple. Les tests gardent le droit à leurs fixtures inventées.
+DECIMAL_PCT = re.compile(r"\d+[.,]\d+ ?%(?!%)")
 
 #: Ce que le formatage légitime produit, et qui n'est donc pas un montant écrit en dur.
 ALLOWED = (
@@ -50,7 +59,9 @@ def _offending(path: Path):
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if any(token in line for token in ALLOWED):
             continue
-        if MONEY.search(line) or ENTITY.search(line):
+        in_app = "app" in path.relative_to(ROOT).parts
+        if (MONEY.search(line) or ENTITY.search(line) or UNIT_EUR.search(line)
+                or (in_app and DECIMAL_PCT.search(line))):
             found.append("%s:%d %s" % (path.relative_to(ROOT), number, line.strip()[:90]))
     return found
 

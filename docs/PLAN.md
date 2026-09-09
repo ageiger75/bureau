@@ -398,7 +398,7 @@ cas « je n'arrive plus à ouvrir l'app » — puis met à jour, relance avec re
 le navigateur. Tout ce que les cartes génèrent est en français : diagnostics, questions,
 raisons du classement, badges (`CAUSE NON MESURÉE`, `SANS ENGAGEMENT`), gestes
 (`Challenger`, `Enquêter`, `Demander la donnée`), phrases de plan, notes de contexte,
-états des KPI, bandeau et pied de page ; les euros s'écrivent « 1.2 M€ » et « 432 k€ », les
+états des KPI, bandeau et pied de page ; les euros s'écrivent en millions ou en milliers d'euros avec une décimale, les
 pourcentages avec leur espace, les mois en français. Les leviers gardent leurs noms de
 maison (`Sessions`, `Conversion`, `AOV`) et prennent leur article dans la phrase. Le bruit :
 les plans sur effet de base sortent de la liste et sont comptés en une ligne ; la section

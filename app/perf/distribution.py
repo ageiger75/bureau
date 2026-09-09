@@ -301,7 +301,7 @@ class Distribution:
         """Combien de lignes portent une valeur pour cette colonne, sur combien.
 
         Rendu comme un couple et non comme un pourcentage : « 4 428 sur 5 636 » se
-        conteste, « 78,6 % » s'accepte. Et un total dont on ignore la couverture est un
+        conteste, « 79 % » s'accepte. Et un total dont on ignore la couverture est un
         plancher, pas une mesure.
         """
         rows = self.of_base(base, perimeter)

@@ -905,9 +905,9 @@ order by s.entity_code, s.segment, s.snapshot_date
 #: Two keys carry a settled figure that disagrees with the tracker, and the disagreement is
 #: worth more than a silent match:
 #:
-#: * `heroes_wob` returns 25.1% for FY26 against the tracker's 28.9%. Five perimeters were
-#:   tested — with and without marketplace, outlet, own retail only, turnover-relevant
-#:   products — and all land between 25.1 and 25.7%. The cause is the hero list itself, not
+#: * `heroes_wob` returns a few points under the tracker's figure for FY26. Five perimeters
+#:   were tested — with and without marketplace, outlet, own retail only, turnover-relevant
+#:   products — and all land within a point of each other. The cause is the hero list itself, not
 #:   the scope: the product referential and the RGM figure do not designate the same
 #:   products.
 #: * `nps_retail` returns 72.7 against a stated global 74. "Global" is not defined: the

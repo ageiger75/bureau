@@ -2402,8 +2402,8 @@ def _actuals_series(folder: str, detail: bool) -> int:
 EXPOSURE_COLUMN = "free_goods_value"
 
 #: Plancher sous lequel une entité ne remonte pas au classement par distance. Le module le
-#: prévoyait et l'écran ne le passait pas : un compte a remonté à 2 064 fois ses seuils
-#: pour 236 € d'exposition, ce qui est le défaut du petit dénominateur revenu par la porte
+#: prévoyait et l'écran ne le passait pas : un compte a remonté à des milliers de fois ses
+#: seuils pour quelques centaines d'euros d'exposition — le défaut du petit dénominateur revenu par la porte
 #: de derrière. Une anomalie qui ne coûte rien n'est pas une anomalie à porter.
 DISTANCE_FLOOR = 25_000.0
 

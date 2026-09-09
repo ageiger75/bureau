@@ -1634,7 +1634,7 @@ def _level_pct(value: Optional[float], digits: int = 1) -> str:
     """A rate as it stands, with no sign.
 
     `_pct` always signs, which is right for a movement and wrong for a level: printed
-    the same way, last year's conversion rate of 2.30% reads as a rise of 2.30 points —
+    the same way, last year's conversion rate of two and a half per cent reads as a rise of as many points —
     and the driver tables two cards above print exactly that kind of number in exactly
     that form. Same notation, two different quantities, is how a reader stops being able
     to tell which one they are looking at.

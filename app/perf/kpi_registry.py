@@ -94,7 +94,7 @@ GROUP_NAMES = frozenset(("loep", "groupe", "group", "monde", "total", "comex"))
 
 #: Keys whose value is an amount of money, from the query's own contract rather than from
 #: a guess about magnitudes. It matters because the tracker states some of these against a
-#: *growth rate*: `Brand.com` carries a target of 10.2%, and the warehouse returns the
+#: *growth rate*: `Brand.com` carries a target stated as a growth rate, and the warehouse returns the
 #: euros sold. Matched on the name they look like one measure; they are two, and scoring
 #: one against the other produced "6 847 662% — on track".
 AMOUNT_KEYS = frozenset(("net_sales", "same_store_sales", "brand_com_sales"))

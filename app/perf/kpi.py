@@ -243,7 +243,7 @@ class Kpi:
         """Where the figure stands. Never a comment on how old it is.
 
         A KPI whose definition is still being argued cannot be scored at all, however
-        comfortable the arithmetic looks. Refills reads 9.6% against a target of 5.3% and
+        comfortable the arithmetic looks. Refills read well above its target and
         came out "on track" — while the tracker's own open points say the two numbers may
         not be in the same base, one stated in value and the other in units. A green
         verdict drawn across an unsettled definition is the most expensive thing this

@@ -254,7 +254,7 @@ class Level:
 
     @property
     def title(self) -> str:
-        """« Gammes · 12, +4.2 % sur l'exercice »."""
+        """« Gammes · 12, +4 % sur l'exercice »."""
         head = "%s · %d" % (self.words[0].upper() + self.words[1:], len(self.lines))
         if self.growth is not None:
             head += ", %s sur l'exercice" % format_pct(self.growth)

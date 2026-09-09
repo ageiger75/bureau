@@ -158,7 +158,7 @@ class Verdict:
 
     @property
     def gap_label(self) -> str:
-        """« +1,2 % » ou « -3 à +1 % » — jamais un point quand l'attendu est une fourchette."""
+        """« +1 % » ou « -3 à +1 % » — jamais un point quand l'attendu est une fourchette."""
         if not self.usable:
             return ""
         if self.narrow:

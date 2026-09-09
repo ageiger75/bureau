@@ -43,7 +43,7 @@ BIAS_NOTICED = 0.05
 
 
 def _pct(text) -> Optional[float]:
-    """« 97.6 », « 97,6 % », « -1.9 » → une fraction ; vide → None."""
+    """« 97 », « 97 % », « -2 » → une fraction ; vide → None."""
     raw = str(text or "").strip().replace("%", "").replace(",", ".").replace("−", "-").strip()
     if not raw:
         return None
@@ -51,7 +51,7 @@ def _pct(text) -> Optional[float]:
         value = float(raw)
     except ValueError:
         return None
-    # Le fichier écrit des pour cent, comme le rapport : 97.6, -1.9, 2.7.
+    # Le fichier écrit des pour cent, comme le rapport : 97, -2, 3.
     return value / 100.0
 
 
@@ -138,7 +138,7 @@ class Review:
 
     @property
     def forecast_sentence(self) -> str:
-        """« Prévision supply de juillet 2026 : l'exercice à +3.1 % sur le précédent »."""
+        """« Prévision supply de juillet 2026 : l'exercice à +3 % sur le précédent »."""
         group = self.group
         if group is None or group.growth is None:
             return ""

@@ -219,7 +219,7 @@ def units() -> List[BusinessUnit]:
             win_driver="Almond bundles paired with in-store demonstration",
         ),
         # -- Italy: a small miss, below the materiality floor. Present in the data, absent
-        #    from the screen — a -1.2% variance on a small market is not CEO work.
+        #    from the screen — a one-point variance on a small market is not CEO work.
         BusinessUnit(
             key="italy-retail",
             label="Italy Retail",

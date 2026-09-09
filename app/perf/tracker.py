@@ -1,6 +1,6 @@
 """The KPI tracker read as a registry: what each KPI is, and what would count as good.
 
-The warehouse supplies values. Values alone cannot be judged — 25.1% is neither good nor
+The warehouse supplies values. Values alone cannot be judged — a share is neither good nor
 bad until something says what was asked for — so the cockpit refuses to show a KPI it has
 only half of. This module supplies the other half from the tracker the business actually
 maintains, and is deliberately unforgiving about the difference between *reading* a target
@@ -196,7 +196,7 @@ _COMPARISON = re.compile(
     r"(?P<op>>=|<=|≥|≤|>|<)\s*(?P<value>-?\d[\d\s  ]*(?:[.,]\d+)?)\s*(?P<unit>%|pts?|j|jours?|€|k€|m€|k|M€)?",
     re.IGNORECASE,
 )
-#: A bare target: "28,9 %". Only trusted in a column that is *called* a target — a number
+#: A bare target: "12 %". Only trusted in a column that is *called* a target — a number
 #: sitting in a definition is as likely to be last year's, a threshold, or a footnote.
 _BARE = re.compile(
     r"(?P<value>-?\d[\d\s  ]*(?:[.,]\d+)?)\s*(?P<unit>%|pts?|€|k€|m€|k|M€)?"
@@ -326,7 +326,7 @@ class Entry:
         """Is the target a quantity of money or of people, rather than a level?
 
         The distinction decides whether a reading can be measured against it at all. A
-        rate, a score or a ranking is the same number in July as in March — 5.3% is 5.3%.
+        rate, a score or a ranking is the same number in July as in March — a share is a share.
         An amount is a year's worth: a net-sales floor stated in millions is what the
         Maison intends to sell over twelve months, and one month of sales set against it
         reads as a miss of 94%, every month, until the year ends.
