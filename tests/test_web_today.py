@@ -1002,3 +1002,16 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
     assert "Prévision supply de juillet 2026" in today
     assert "La prévision supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
+
+
+def test_partners_by_name_and_the_grey_and_bulk_live_on_analyses(client):
+    analyses = page_text(client.get("/analyses"))
+
+    assert "Les partenaires, par leur nom" in analyses
+    assert "Le plan n'a pas de ligne par partenaire" in analyses
+    assert "Orbis Market" in analyses and "E-retailers" in analyses
+    assert "Le gris et le vrac" in analyses and "Trois sources, jamais additionnées" in analyses
+    assert "FLAG_BULK 2 à 5" in analyses
+
+    body = client.get("/freshness", headers={"Accept": "application/json"}).json()
+    assert "partners" in body

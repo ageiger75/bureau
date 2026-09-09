@@ -12,7 +12,7 @@
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
                                      reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
-                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit, --clients celle des clients
+                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit, --clients celle des clients, --partners celle des partenaires
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans ce que le plan ne couvre pas (--goals : le
@@ -67,6 +67,8 @@
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois : service, précision et biais de prévision, prévision de demande
+    python -m app.cli partenaires    le sell-in par partenaire nommé (Amazon, Sephora…) : exercice à date, trois mois, plan du canal [--refresh]
+    python -m app.cli gris           le gris et le vrac : d'où il vient, comment il évolue, en face du budget des flux à nettoyer
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -1641,6 +1643,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
     if "--clients" in tuple(argv):
         source.client_cache_forget()
         print("Lecture des clients oubliée. Le reste reste en cache.")
+        return 0
+    if "--partners" in tuple(argv):
+        source.partner_cache_forget()
+        print("Lecture par partenaire oubliée. Le reste reste en cache.")
         return 0
     if "--month" in tuple(argv):
         source.month_cache_forget()
@@ -4161,6 +4167,69 @@ def cmd_remplissage(argv: List[str]) -> int:
     return 0
 
 
+def cmd_partenaires(argv: List[str]) -> int:
+    """Les partenaires de sell-in par leur nom, tels que la page Analyses les rend.
+    `--refresh` relit l'entrepôt en attendant."""
+    from .perf.source import current_source
+    from .routes.today import _accounts
+
+    source = current_source()
+    refresh = "--refresh" in argv
+    dataset = None
+    try:
+        dataset = source.dataset(refresh=False, wait_for_warehouse=False)
+    except Exception:  # noqa: BLE001 — la lecture principale peut manquer, pas le bloc
+        dataset = None
+    review = _accounts(source, dataset, refresh)
+    if not review.usable:
+        print((review.note or "le sell-in par partenaire n'est pas lu")[0].upper()
+              + (review.note or "le sell-in par partenaire n'est pas lu")[1:] + ".")
+        return 0
+    print("Sell-in facturé, %s. %s." % (review.window_label, review.plan_note[0].upper() + review.plan_note[1:]))
+    print(review.headline[0].upper() + review.headline[1:] + ".")
+    for item in review.shown:
+        print("  %-26s %-20s %10s  %8s  3 mois %8s  part %5s  %-26s %s" % (
+            item.name[:26] + ("" if item.named else " *"), item.channel_label[:20], item.ytd_label,
+            item.growth_ytd_label, item.growth_recent_label, item.share_label, item.word,
+            item.channel_plan_label))
+    if review.rest:
+        from .perf.analytics import format_eur
+
+        print("  %d autres partenaires : %s" % (len(review.rest), format_eur(review.rest_total)))
+    if review.question:
+        print(review.question)
+    if review.unnamed_note:
+        print("* " + review.unnamed_note[0].upper() + review.unnamed_note[1:] + ".", file=sys.stderr)
+    return 0
+
+
+def cmd_gris(argv: List[str]) -> int:
+    """Le gris et le vrac : est-on en ligne, d'où ça vient, comment ça évolue."""
+    from .perf import ebitda as ebitda_module
+    from .perf.source import current_source
+    from .routes.today import _grey
+
+    plan = ebitda_module.current() if settings.has_ebitda_file else None
+    review = _grey(current_source(), plan)
+    if not review.usable:
+        print((review.note or "les deux bases ne sont pas lues").capitalize() + ".")
+        return 0
+    print("%s ; %s." % (review.headline[0].upper() + review.headline[1:], review.origin_sentence))
+    print(review.plan_sentence[0].upper() + review.plan_sentence[1:] + ".")
+    for item in review.shown:
+        print("  %-24s %10s  part %5s  %8s  3 mois %8s  %s" % (
+            item.scope[:24], item.bulk_label, item.share_label, item.growth_label,
+            item.growth_recent_label, item.word))
+    if review.series:
+        from .perf.analytics import format_eur
+
+        print("  Groupe, mois par mois : " + " · ".join(
+            "%s %s" % (month, format_eur(value)) for month, value, _before in review.series))
+    if review.question:
+        print(review.question)
+    return 0
+
+
 def cmd_engagements(argv: List[str]) -> int:
     """Les engagements pris dans le cockpit : qui, à quoi, pour quand, et où ils en sont."""
     from .db import SessionFactory
@@ -4782,6 +4851,10 @@ def main(argv: List[str]) -> int:
         return cmd_whitespaces(argv[1:])
     if command == "engagements":
         return cmd_engagements(argv[1:])
+    if command == "partenaires":
+        return cmd_partenaires(argv[1:])
+    if command == "gris":
+        return cmd_gris(argv[1:])
     if command == "remplissage":
         return cmd_remplissage(argv[1:])
     if command == "supply":

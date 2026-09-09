@@ -442,6 +442,18 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Les partenaires par leur nom, et le gris et le vrac, le 9 septembre 2026.** Deux blocs
+sur Analyses. `#partenaires` (`app/perf/accounts.py`, requête `PARTNER_SELL_IN` sur les
+factures par centre de profit, cache propre `warehouse-partners.json`, `manage.py
+partenaires`) : le sell-in facturé par partenaire — nommé par `var/partners.csv`, sinon le
+libellé du centre de profit, jamais un nom deviné — sur l'exercice à date et trois mois
+contre l'an dernier, la part du canal, l'écart au plan du canal de la lecture principale.
+Le plan n'a pas de ligne par partenaire et le bloc le dit. `#gris` (`app/perf/grey.py`,
+`manage.py gris`) : le vrac tel que l'entrepôt le marque, marché par marché, exercice à
+date et trois mois contre l'an dernier, six mois du groupe, et en face le budget des flux à
+nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
+reste à `reconcile`.
+
 **Le rapport supply, le 9 septembre 2026.** Le rapport mensuel de la supply chain commerciale
 — service en boutique, sell-in livré en entier, précision et biais de prévision par marché,
 prévision de demande de l'exercice — lu dans `var/supply.csv` (`docs/supply.example.csv`,

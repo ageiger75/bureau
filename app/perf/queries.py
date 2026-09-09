@@ -1608,6 +1608,39 @@ where ly."window" = 'ly' and ty.client_skey is null
 group by ly.scope, pr.through, ly.last_channel
 """
 
+
+#: Le sell-in facturé par partenaire nommé, au mois, depuis avril de l'exercice précédent :
+#: Amazon, Sephora, JD, Tmall — pas « e-retailers ». Une ligne par
+#: `period · code · label · channel · iso2` :
+#:
+#:     period      text     -- 'YYYY-MM', le mois de facturation
+#:     code        text     -- PROFIT_CENTER_GROUP_ID, la clé sous laquelle var/partners.csv nomme
+#:     label       text     -- PROFIT_CENTER_GROUP_DESC, le libellé de l'entrepôt, à défaut de nom
+#:     channel     text     -- PROFIT_CENTER_GROUP_CHANNEL, le code du canal (WEBP, DPT, TRA…)
+#:     iso2        text     -- le pays de facturation, jamais un marché : Amazon y est luxembourgeois
+#:     net_eur     number   -- le net au taux fixe, comme SELL_IN_DAILY
+#:
+#: Le nom commercial n'est pas dans l'entrepôt : il vient de var/partners.csv, écrit à la
+#: main (`profit_centre → partner`). Ce que le fichier ne nomme pas garde le libellé du
+#: centre de profit, jamais un nom deviné. Le plan n'a pas de ligne par partenaire : le
+#: partenaire se lit contre l'an dernier et contre le plan de son canal, et le bloc le dit.
+#: La fenêtre ouvre en avril de l'exercice précédent pour que l'exercice à date ait son an
+#: dernier mois par mois, comme `PRODUCT_SALES`.
+PARTNER_SELL_IN = """
+select
+    to_char(date_trunc('month', i.billing_date), 'YYYY-MM')  as period,
+    i.profit_center_group_id                                as code,
+    max(i.profit_center_group_desc)                         as label,
+    i.profit_center_group_channel                           as channel,
+    i.country                                               as iso2,
+    round(sum(i.net_invoice_amount_eur_annual), 2)          as net_eur
+from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+where i.brand_caption = 'L''OCCITANE'
+  and i.billing_date >= add_months(date_trunc('year', dateadd(month, -3, current_date)), -9)
+  and i.billing_date <= dateadd(day, -1, current_date)
+group by 1, 2, 4, 5
+"""
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1622,6 +1655,7 @@ ALL = {
     "SELL_IN_DAILY": SELL_IN_DAILY,
     "PRODUCT_SALES": PRODUCT_SALES,
     "CLIENT_FLOW": CLIENT_FLOW,
+    "PARTNER_SELL_IN": PARTNER_SELL_IN,
 }
 
 

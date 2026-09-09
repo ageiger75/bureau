@@ -6,7 +6,7 @@
 {# Ce qui est vrai et n'est pas pour le lundi. L'écran du jour tient en cinq blocs ;
    tout ce qui explique, classe, propose ou vérifie vit ici, avec le même contexte. #}
 
-<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}">
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}" data-partners-at="{{ partners_at }}">
   <p class="cockpit-eyebrow">Analyses · {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}</p>
   <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, les clients, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
 </section>
@@ -419,6 +419,41 @@
 </section>
 {% endif %}
 
+{# ------------------------------------------------------------------ partenaires #}
+
+<section class="panel" id="partenaires">
+  <h2>Les partenaires, par leur nom</h2>
+  {% if accounts and accounts.usable %}
+    <p class="lede">Sell-in facturé, {{ accounts.window_label }}. {{ accounts.plan_note | ucfirst }}.</p>
+    <p class="product-headline">{{ accounts.headline | ucfirst }}.</p>
+    <table class="month-table product-table">
+      <thead><tr><th>Partenaire</th><th>Canal</th><th>Exercice à date</th><th>vs l'an dernier</th><th>3 derniers mois vs l'an dernier</th><th>Part du canal</th><th></th><th>Le canal et son plan</th></tr></thead>
+      <tbody>
+        {% for item in accounts.shown %}
+          <tr>
+            <td>{{ item.name }}{% if not item.named %} <span class="cockpit-caveat">(libellé de l'entrepôt)</span>{% endif %}</td>
+            <td>{{ item.channel_label }}</td>
+            <td class="num">{{ item.ytd_label }}</td>
+            <td class="num {{ 'is-en-retard' if item.growth_ytd is not none and item.growth_ytd < -0.05 else ('is-en-avance' if item.growth_ytd is not none and item.growth_ytd > 0.05 else '') }}">{{ item.growth_ytd_label }}</td>
+            <td class="num {{ 'is-en-retard' if item.growth_recent is not none and item.growth_recent < -0.05 else ('is-en-avance' if item.growth_recent is not none and item.growth_recent > 0.05 else '') }}">{{ item.growth_recent_label }}</td>
+            <td class="num">{{ item.share_label }}</td>
+            <td>{{ item.word }}</td>
+            <td>{{ item.channel_plan_label }}</td>
+          </tr>
+        {% endfor %}
+        {% if accounts.rest %}
+          <tr class="month-rest" title="{{ accounts.rest | map(attribute='name') | join(', ') }}"><td>{{ accounts.rest | length }} autres partenaires</td><td></td><td class="num">{{ accounts.rest_total | eur }}</td><td></td><td></td><td></td><td></td><td></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% if accounts.question %}<p class="ask">{{ accounts.question }}</p>{% endif %}
+    {% if accounts.unnamed_note %}<p class="cockpit-caveat">{{ accounts.unnamed_note | ucfirst }}.</p>{% endif %}
+    <p class="cockpit-caveat">Le pays d'un partenaire est son pays de facturation, pas un marché ; un partenaire facturé de plusieurs pays est lu en une ligne.</p>
+  {% else %}
+    <p class="empty">{{ (accounts.note if accounts and accounts.note else "le sell-in par partenaire n'est pas encore lu") | ucfirst }}.</p>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ remplissage #}
 
 <section class="panel" id="remplissage">
@@ -694,6 +729,48 @@
 {# ------------------------------------------------------------ données #}
 
 <section class="panel panel-quiet"><h2>La donnée à vérifier</h2><p class="lede">Trois lectures qui ne sont pas des faits de commerce : un second chiffre qui change le verdict, une note qui affirme quelque chose de vérifiable, des flux qui ne remontent pas.</p></section>
+
+{# ------------------------------------------------------------------ gris et vrac #}
+
+<section class="panel" id="gris">
+  <h2>Le gris et le vrac</h2>
+  {% if grey and grey.usable %}
+    <p class="lede">Le vrac tel que l'entrepôt le marque, marché par marché, {{ grey.window_label }} ; en face, ce que le budget nomme lui-même comme flux à nettoyer. Trois sources, jamais additionnées.</p>
+    <p class="product-headline">{{ grey.headline | ucfirst }} ; {{ grey.origin_sentence }}.</p>
+    <p>{{ grey.plan_sentence | ucfirst }}.</p>
+    <table class="month-table product-table">
+      <thead><tr><th>Marché</th><th>Vrac à date</th><th>Part du marché</th><th>vs l'an dernier</th><th>3 derniers mois</th><th></th></tr></thead>
+      <tbody>
+        {% for item in grey.shown %}
+          <tr>
+            <td>{{ item.scope }}</td>
+            <td class="num">{{ item.bulk_label }}</td>
+            <td class="num">{{ item.share_label }}</td>
+            <td class="num {{ 'is-en-avance' if item.growth is not none and item.growth > 0.1 else ('is-en-retard' if item.growth is not none and item.growth < -0.1 else '') }}">{{ item.growth_label }}</td>
+            <td class="num">{{ item.growth_recent_label }}</td>
+            <td>{{ item.word }}</td>
+          </tr>
+        {% endfor %}
+        {% if grey.rest_total > 0 %}
+          <tr class="month-rest"><td>Autres marchés</td><td class="num">{{ grey.rest_total | eur }}</td><td></td><td></td><td></td><td></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% if grey.series %}
+      <table class="month-table mix-table">
+        <thead><tr><th>Groupe, mois par mois</th>{% for month, _v, _b in grey.series %}<th>{{ month }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          <tr><td>Vrac</td>{% for _m, value, _b in grey.series %}<td class="num">{{ value | eur }}</td>{% endfor %}</tr>
+          <tr><td>Un an plus tôt</td>{% for _m, _v, before in grey.series %}<td class="num">{{ before | eur if before is not none else "n/d" }}</td>{% endfor %}</tr>
+        </tbody>
+      </table>
+    {% endif %}
+    {% if grey.question %}<p class="ask">{{ grey.question }}</p>{% endif %}
+    <p class="cockpit-caveat">Le vrac lu est la différence entre les ventes et les ventes hors vrac de chaque relevé, définition de l'entrepôt (FLAG_BULK 2 à 5). Le daigou et un groupe facturé plutôt que vendu n'y sont pas marqués : la feuille grise de la Finance, au trimestre, se rapproche par la commande reconcile.</p>
+  {% else %}
+    <p class="empty">{{ (grey.note if grey and grey.note else "les deux bases ne sont pas lues") | ucfirst }}.</p>
+  {% endif %}
+</section>
 
 {# ------------------------------------------- where a second base changes the verdict #}
 

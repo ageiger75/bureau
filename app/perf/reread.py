@@ -44,7 +44,7 @@ def reread_all() -> None:
     n'est devant."""
     current = source.current_source()
     current.dataset(refresh=True, wait_for_warehouse=True)
-    for name in ("client_kpis", "product_rows", "client_rows"):
+    for name in ("client_kpis", "product_rows", "client_rows", "partner_rows"):
         reader = getattr(current, name, None)
         if reader is None:
             continue

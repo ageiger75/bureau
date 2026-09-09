@@ -5,7 +5,8 @@ Application privée, locale, sur données fictives. Sponsor : Adrien Geiger.
 Un seul produit : le **CEO Performance Cockpit**, sur `/`. L'écran du lundi en cinq blocs —
 le verdict, la semaine, trois conversations, les zones rouges, ce qui a changé — et une page
 « Analyses » pour tout ce qui explique, classe, propose ou vérifie — dont ce qui marche par
-produit : catégories, gammes, références, sur l'exercice à date. Le prototype précédent,
+produit : catégories, gammes, références, sur l'exercice à date, les partenaires de
+sell-in par leur nom, le gris et le vrac. Le prototype précédent,
 Decision Room, a été retiré le 7 septembre 2026 ; son histoire est dans `PIVOT.md` et le
 registre des sujets, seule pièce conservée, dans `app/domain/issues.py`.
 

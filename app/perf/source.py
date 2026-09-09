@@ -245,6 +245,13 @@ def client_cache_forget() -> None:
         pass
 
 
+def partner_cache_forget() -> None:
+    try:
+        _cache_path(QUERY_CACHES["partners"][0]).unlink()
+    except OSError:
+        pass
+
+
 def _query_fingerprint(sql: str) -> str:
     """L'empreinte de la requête qui a produit une lecture. Quand la requête change — une
     fenêtre, une colonne — la lecture d'hier n'est plus la même lecture, et le cache le
@@ -261,6 +268,7 @@ def _query_fingerprint(sql: str) -> str:
 QUERY_CACHES = {
     "products": (PRODUCT_CACHE_FILE, "PRODUCT_SALES"),
     "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
+    "partners": ("warehouse-partners.json", "PARTNER_SELL_IN"),
 }
 
 def read_client_flow(run=None) -> List[dict]:
@@ -303,6 +311,7 @@ QUERY_READERS = {
 QUERY_MAX_AGE = {
     "products": HISTORY_CACHE_SECONDS,
     "clients": 7 * 24 * 3600,
+    "partners": HISTORY_CACHE_SECONDS,
 }
 
 
@@ -355,6 +364,10 @@ def product_stamp() -> str:
 
 def client_stamp() -> str:
     return query_stamp("clients")
+
+
+def partner_stamp() -> str:
+    return query_stamp("partners")
 
 
 #: Une lecture en arrière-plan à la fois par requête : la relecture du démarrage l'écrit
@@ -766,6 +779,11 @@ class MockSource:
 
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.client_rows()
+
+    partner_note = ""
+
+    def partner_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.partner_rows()
 
     def sell_in_series(self):
         """(exercice à date, exercice clos) : les lignes de sell-in inventées."""
@@ -1181,7 +1199,8 @@ class SnowflakeSource:
         from . import queries
 
         query_name = QUERY_CACHES[name][1]
-        note_field = "%s_note" % ("product" if name == "products" else "client")
+        note_field = "%s_note" % {"products": "product", "clients": "client",
+                                  "partners": "partner"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1210,6 +1229,10 @@ class SnowflakeSource:
     def product_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le sell-out par produit, à trois niveaux, de la dernière lecture — ou rien."""
         return self._query_rows("products", wait_for_warehouse, "par produit")
+
+    def partner_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le sell-in facturé par partenaire nommé, au mois, de la dernière lecture — ou rien."""
+        return self._query_rows("partners", wait_for_warehouse, "par partenaire")
 
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Les clients — le pont et le flux — de la dernière lecture, ou rien."""

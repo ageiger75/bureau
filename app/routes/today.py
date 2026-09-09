@@ -361,6 +361,33 @@ def _product_rows(source):
     return reader(wait_for_warehouse=False) if reader is not None else []
 
 
+def _accounts(source, dataset=None, refresh: bool = False):
+    """Les partenaires de sell-in par leur nom, sur la dernière lecture partenaires : jamais
+    une requête sous un lecteur. Les noms viennent du fichier, l'écart au plan du canal de
+    la lecture principale."""
+    from ..config import settings
+    from ..perf import accounts as accounts_module
+    from ..perf import partners as partners_module
+
+    reader = getattr(source, "partner_rows", None)
+    rows = reader(wait_for_warehouse=refresh) if reader is not None else []
+    note = getattr(source, "partner_note", "") or ""
+    names = accounts_module.names_from(partners_module.current()) if settings.has_partners_file else {}
+    gaps = {}
+    for row in getattr(dataset, "rows", None) or []:
+        if getattr(row, "is_sell_in", False) and getattr(row, "gap_year_to_date", None) is not None:
+            code = str(getattr(row, "channel", "") or "").lower()
+            gaps[code] = gaps.get(code, 0.0) + float(row.gap_year_to_date)
+    return accounts_module.build(rows, names=names, channel_gaps=gaps, note=note)
+
+
+def _grey(source, plan=None):
+    """Le gris et le vrac, sur les relevés KPI déjà tenus et le budget EBITDA : jamais une requête."""
+    from ..perf import grey as grey_module
+
+    return grey_module.build(getattr(source, "kpi_rows", list)(), plan=plan)
+
+
 def _filling(source):
     """L'indice de remplissage du sell-in, sur les caches déjà tenus : jamais une requête."""
     from ..perf import filling as filling_module
@@ -489,7 +516,8 @@ def freshness():
     # recharge à chacune des deux, sinon le panneau KPI restait « pas encore lu » jusqu'à
     # ce que quelqu'un pense à recharger — ce qui est exactement la consigne à ne pas donner.
     return {"as_of": source.last_read(), "kpis": source.kpi_stamp(),
-            "products": source.product_stamp(), "clients": source.client_stamp()}
+            "products": source.product_stamp(), "clients": source.client_stamp(),
+            "partners": source.partner_stamp()}
 
 
 @router.get("/")
@@ -555,7 +583,7 @@ def _screen(request: Request, session: Session):
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
-    from ..perf.source import NotReadYet, client_stamp, kpi_stamp, product_stamp
+    from ..perf.source import NotReadYet, client_stamp, kpi_stamp, partner_stamp, product_stamp
 
     pending = []
     try:
@@ -593,6 +621,8 @@ def _screen(request: Request, session: Session):
     products = _products(source, refresh)
     clients = _clients(source, refresh)
     filling = _filling(source)
+    accounts = _accounts(source, dataset, refresh)
+    grey = _grey(source, getattr(ebitda, "plan", None))
     from ..perf import supply as supply_module
 
     supply = supply_module.current()
@@ -776,6 +806,8 @@ def _screen(request: Request, session: Session):
             # enough to answer it wrongly — a sixth of Hong Kong moves in orders, not in
             # shoppers. Where the two bases agree, nothing appears.
             "bulk_findings": bulk_findings,
+            "accounts": accounts,
+            "grey": grey,
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
             "plans_above": plans_above,
@@ -791,6 +823,7 @@ def _screen(request: Request, session: Session):
             "kpis_at": kpi_stamp(),
             "products_at": product_stamp(),
             "clients_at": client_stamp(),
+            "partners_at": partner_stamp(),
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,

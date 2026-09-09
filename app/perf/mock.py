@@ -831,6 +831,33 @@ def daily_sales() -> List[dict]:
     return rows
 
 
+#: Des partenaires inventés, sous des codes inventés : le nom vient d'un fichier hors dépôt
+#: chez le vrai lecteur, ici il est joué par le libellé. Deux e-retailers, un grand
+#: magasin, un opérateur de voyage — dix-huit mois, pour que l'exercice à date ait son an
+#: dernier en face.
+PARTNER_SHAPES = {
+    # code, libellé, canal, pays de facturation, base mensuelle, croissance annuelle
+    "PC_WEB_A": ("ORBIS MARKET", "WEBP", "LU", 420_000.0, 0.14),
+    "PC_WEB_B": ("NORDIC WEB", "WEBP", "SE", 160_000.0, -0.09),
+    "PC_DPT_A": ("GRAND BAZAR", "DPT", "FR", 230_000.0, 0.02),
+    "PC_TRA_A": ("SOLSTICE DUTY FREE", "TRA", "HK", 310_000.0, -0.21),
+}
+
+
+def partner_rows() -> List[dict]:
+    """Le sell-in facturé par partenaire, au mois, inventé."""
+    rows = []
+    for code, (label, channel, iso2, base, yearly) in PARTNER_SHAPES.items():
+        for back in range(17, -1, -1):
+            index = 2026 * 12 + 7 - back
+            period = "%04d-%02d" % (index // 12, index % 12 + 1)
+            seasonal = 1.0 + 0.25 * ((index % 12) in (9, 10))
+            value = base * seasonal * (1.0 + yearly) ** ((17 - back) / 12.0)
+            rows.append({"period": period, "code": code, "label": label, "channel": channel,
+                         "iso2": iso2, "net_eur": round(value, 2)})
+    return rows
+
+
 def sell_in_daily() -> List[dict]:
     """Le sell-in facturé au jour, inventé : trois pays, deux canaux, les jours ouvrés depuis
     le 1er du mois jusqu'à hier, et le même mois un an plus tôt en entier."""
@@ -957,16 +984,16 @@ def kpi_rows() -> List[dict]:
         "China": (6_300_000.0, 0.012),
     }
     for scope, (base, yearly) in shapes.items():
-        for back in range(15, -1, -1):
+        for back in range(17, -1, -1):
             index = 2026 * 12 + 7 - back
             period = "%04d-%02d" % (index // 12, index % 12 + 1)
             seasonal = 1.0 + 0.08 * ((index % 12) in (10, 11))
-            value = base * seasonal * (1.0 + yearly) ** ((15 - back) / 12.0)
+            value = base * seasonal * (1.0 + yearly) ** ((17 - back) / 12.0)
             rows.append({"scope": scope, "kpi_key": "same_store_sales", "period": period,
                          "value": round(value)})
             # Toutes les ventes, et les mêmes sans le vrac : un huitième de vrac en Chine,
             # presque rien ailleurs — de quoi lire les deux bases.
-            bulk_share = 0.12 if scope == "China" else 0.01
+            bulk_share = {"China": 0.12, "LOEP": 0.035}.get(scope, 0.01)
             whole = value * 1.6
             rows.append({"scope": scope, "kpi_key": "net_sales", "period": period,
                          "value": round(whole)})
