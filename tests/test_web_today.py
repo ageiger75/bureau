@@ -912,3 +912,20 @@ def test_what_works_by_product_lives_on_the_analyses_page_in_three_levels(client
     assert "hors vrac et hors gratuits" in page
     # Jamais sur l'écran du jour : c'est une analyse, pas une décision de lundi.
     assert "Ce qui marche, par produit" not in page_text(client.get("/"))
+
+
+def test_each_perimeter_page_reads_what_works_by_product_on_its_own_markets(client, monkeypatch):
+    """Le marketing global lit le groupe sur Analyses ; la région lit ses catégories et ses
+    gammes sur sa page, la somme de ses marchés, et sait que les références sont au groupe."""
+    from app.perf import page as page_module
+
+    # Sans annuaire, la suite ne connaît aucun périmètre : un périmètre inventé, sur un
+    # marché que la lecture produit inventée porte.
+    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    page = page_text(client.get("/perimetre/nord"))
+
+    assert "Ce qui marche, par produit" in page
+    assert "Catégories ·" in page and "Gammes ·" in page
+    assert "Références ·" not in page
+    assert "les références ne sont lues qu'au niveau du groupe" in page.lower()

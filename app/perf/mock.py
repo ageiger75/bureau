@@ -886,7 +886,8 @@ PRODUCT_STOPPED_AFTER = "2025-12"
 PRODUCT_HEROES = ("Sable d'Or crème mains", "Rosée de Roche sérum")
 #: Trois marchés portent les catégories et les gammes ; les références ne sont lues qu'au
 #: niveau du groupe, comme dans l'entrepôt.
-PRODUCT_MARKETS = {"Japan": (0.21, -0.05), "Brazil": (0.06, 0.08), "China": (0.26, 0.02)}
+PRODUCT_MARKETS = {"Japan": (0.21, -0.05), "Brazil": (0.06, 0.08), "China": (0.26, 0.02),
+                   "France": (0.12, 0.01)}
 
 
 def product_rows() -> List[dict]:

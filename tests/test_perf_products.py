@@ -172,3 +172,25 @@ def test_noise_launches_and_stops_are_counted_but_not_named_and_a_full_concentra
     assert len(level.stopped) == 1 and level.stopped_shown == []
     assert "arrêtée" not in level.sentence and "sans an dernier" not in level.sentence
     assert "portent" not in level.sentence
+
+
+def test_a_perimeter_reads_the_sum_of_its_markets_without_the_references():
+    """La région parle de ses catégories et de ses gammes : la somme de ses marchés, mois
+    par mois. Les références restent au groupe, et la lecture le dit."""
+    rows = (_rows("category", "Corps", _year(100.0, 110.0), scope="Northland")
+            + _rows("category", "Corps", _year(50.0, 40.0), scope="Eastland")
+            + _rows("category", "Corps", _year(500.0, 900.0), scope="Elsewhere")
+            + _rows("range", "Sable d'Or", _year(30.0, 33.0), scope="Northland", hero=1)
+            + _rows("product", "Sable d'Or crème mains", _year(30.0, 33.0)))
+    review = P.for_markets(rows, ["Northland", "Eastland"], "Nord")
+
+    assert review.scope == "Nord"
+    assert [level.level for level in review.levels] == ["category", "range"]
+    corps = review.level("category").lines[0]
+    assert corps.sales == 5 * 150.0 and corps.last_year == 5 * 150.0
+    assert review.level("range").lines[0].hero
+    assert any("catégories et les gammes de Northland, Eastland" in reason
+               for reason in review.absent)
+
+    nothing = P.for_markets(rows, ["Nowhere"], "Vide")
+    assert not nothing.usable

@@ -115,7 +115,8 @@ class Page:
                  land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
-                 retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = ()) -> None:
+                 retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = (),
+                 products=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -147,6 +148,9 @@ class Page:
         #: la même préparation que l'écran du jour, filtrée sur ses marchés.
         self.talks = list(talks)
         self.watch_lines = list(watch_lines)
+        #: Ce qui marche par produit sur ce périmètre — catégories et gammes, la somme de
+        #: ses marchés — ou None sans lecture produit.
+        self.products = products
         #: La contribution réalisée à date de ce périmètre, au compte de gestion — ou None.
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
@@ -179,7 +183,7 @@ def _in(markets: Sequence[str], scope_text: str) -> bool:
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
-          invoiced=None, gifting=None, retail=None, prepared=None) -> Page:
+          invoiced=None, gifting=None, retail=None, prepared=None, products=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -223,7 +227,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
                  retail=stores, retail_years=retail.years if retail is not None else "",
-                 talks=talks, watch_lines=watch_lines)
+                 talks=talks, watch_lines=watch_lines, products=products)
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

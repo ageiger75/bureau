@@ -222,6 +222,11 @@
 </section>
 {% endif %}
 
+<section class="panel" id="produits">
+  <h2>Ce qui marche, par produit</h2>
+  {% with products = page.products %}{% include "partials/_products.html" %}{% endwith %}
+</section>
+
 {% if page.retail %}
 <section class="panel">
   <h2>L'euro suivant en boutique</h2>

@@ -318,6 +318,11 @@ def _perimeter_inputs(session):
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
         "weekly": weekly, "invoiced": invoiced, "gifting": gifting,
         "retail": _retail_margin(), "prepared": prepared,
+        # La lecture produit, telle qu'elle est sur le disque : les pages par périmètre en
+        # font la somme de leurs marchés. Jamais une requête sous un lecteur.
+        "product_rows": (getattr(source, "product_rows", None) or (lambda **kw: []))(
+            wait_for_warehouse=False),
+        "product_note": getattr(source, "product_note", "") or "",
     }
 
 
@@ -404,6 +409,10 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     if found is None:
         raise HTTPException(status_code=404, detail="périmètre inconnu : %s" % name)
     label, item = found
+    from ..perf import products as products_module
+
+    products = products_module.for_markets(inputs["product_rows"], item["markets"], label,
+                                           note=inputs["product_note"])
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
@@ -411,7 +420,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
-                              retail=inputs["retail"], prepared=inputs["prepared"])
+                              retail=inputs["retail"], prepared=inputs["prepared"],
+                              products=products)
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })

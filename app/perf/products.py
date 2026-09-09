@@ -303,6 +303,38 @@ class Review:
                 "ou la place en rayon ?")
 
 
+def aggregate(rows: Iterable[dict], markets: Sequence[str], scope: str) -> List[dict]:
+    """Les lignes d'un périmètre : la somme, mois par mois, des catégories et des gammes de
+    ses marchés. Les références ne sont lues qu'au groupe, donc elles n'y sont pas."""
+    wanted = set(markets)
+    summed: Dict[tuple, float] = {}
+    heroes: Dict[tuple, bool] = {}
+    for row in rows:
+        if str(row.get("scope") or "") not in wanted:
+            continue
+        level = str(row.get("level") or "").strip().lower()
+        if level == "product" or level not in LEVELS:
+            continue
+        key = (level, str(row.get("name") or "").strip(), str(row.get("period") or "")[:7])
+        summed[key] = summed.get(key, 0.0) + _number(row.get("net_sales"))
+        if str(row.get("is_hero") or "").strip().lower() in ("1", "true", "yes", "oui"):
+            heroes[key] = True
+    return [{"scope": scope, "level": level, "name": name, "period": period,
+             "net_sales": value, "is_hero": 1 if heroes.get((level, name, period)) else 0}
+            for (level, name, period), value in summed.items()]
+
+
+def for_markets(rows: Iterable[dict], markets: Sequence[str], scope: str, note: str = "") -> Review:
+    """La lecture d'un périmètre, sur la somme de ses marchés."""
+    rows = list(rows or [])
+    review = build(aggregate(rows, markets, scope), scope, note=note)
+    if review.usable:
+        review.absent = [reason for reason in review.absent if "niveau du groupe" not in reason]
+        review.absent.append("les références ne sont lues qu'au niveau du groupe ; ici, les "
+                             "catégories et les gammes de %s" % ", ".join(markets))
+    return review
+
+
 def scopes(rows: Iterable[dict]) -> List[str]:
     """Les périmètres lus, le groupe d'abord."""
     found = sorted({str(row.get("scope") or "") for row in rows} - {""})

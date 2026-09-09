@@ -442,6 +442,13 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Les produits par périmètre, le 9 septembre 2026.** « Au global pour parler avec le
+marketing global, à l'échelle région pour parler avec la région. » Le même bloc « Ce qui
+marche, par produit » (`templates/partials/_products.html`) sert Analyses au groupe et chaque
+page de périmètre sur la somme de ses marchés (`products.for_markets`) : catégories et
+gammes, les références restant au groupe, et la page le dit. `manage.py products --scope`
+accepte un pays ou un périmètre.
+
 **La relecture automatique, le 9 septembre 2026.** Le serveur ne relisait l'entrepôt qu'au
 démarrage ; laissé ouvert, il servait des chiffres de plusieurs jours. `app/perf/reread.py` :
 un fil relit tout (jeu de données et historique, KPI, produits, l'ordre de `?refresh=1`)

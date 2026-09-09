@@ -62,7 +62,7 @@
     python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
     python -m app.cli zones          les zones rouges nommées par le lecteur, chacune avec son chiffre
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
-    python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS, --refresh)
+    python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh)
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4148,7 +4148,22 @@ def cmd_products(argv: List[str]) -> int:
     if "--scope" in argv:
         at = argv.index("--scope")
         scope = argv[at + 1] if at + 1 < len(argv) else ""
-    review = _products(current_source(), refresh="--refresh" in argv, scope=scope)
+    source = current_source()
+    review = _products(source, refresh="--refresh" in argv, scope=scope)
+    if scope and not review.usable and scope not in products_module.scopes(source.product_rows()):
+        # Un périmètre plutôt qu'un marché : la somme de ses marchés.
+        from .config import settings
+        from .perf import owners
+        from .perf import page as page_module
+        from .routes.today import _month_review
+
+        directory = owners.current() if settings.has_owners_file else None
+        known = page_module.perimeters(directory, _month_review(source))
+        item = known.get(scope) or next((item for name, item in known.items()
+                                         if page_module.slug(name) == page_module.slug(scope)), None)
+        if item is not None:
+            review = products_module.for_markets(source.product_rows(), item["markets"], scope,
+                                                 note=getattr(source, "product_note", ""))
     if review.usable:
         print(review.basis[0].upper() + review.basis[1:] + ".")
         print(review.headline)
