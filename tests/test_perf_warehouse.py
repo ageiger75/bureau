@@ -93,8 +93,6 @@ def test_only_the_written_queries_report_as_written():
         "MARKET_INDEX",
         "COMMITMENTS",
         "FORECAST_HISTORY",
-        # Attend les colonnes du client sur le fait de sell-out, confirmées par l'agent entrepôt.
-        "CLIENT_FLOW",
     }
 
 

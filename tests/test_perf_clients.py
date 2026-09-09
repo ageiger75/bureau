@@ -81,3 +81,32 @@ def test_the_invented_rows_read_as_a_whole_block():
     review = C.build(mock.client_rows())
     assert review.usable and review.flow and review.lost is not None
     assert review.headline and review.read and review.question
+
+
+def test_a_flow_that_does_not_bridge_to_the_actives_is_said_and_unknown_dates_are_a_segment():
+    """Les clients acquis entre les deux fenêtres n'avaient pas de segment, et le contrôle
+    passait en silence : quand les segments ne font pas les actifs, la lecture le dit. Un
+    client sans date de première transaction connue est compté à part, jamais « réactivé »."""
+    rows = [row for row in _rows() if not (row["window"] == "ty" and row["segment"] == "arc")]
+    rows.append(_row("LOEP", "ty", "unknown", 5, 6, 6 * 70.0))
+    rows.append(_row("LOEP", "ty", "arc", 110, 176, 13_420.0))
+    review = C.build(rows)
+    assert [item.name for item in review.flow] == ["retained", "reactivated", "new", "unknown"]
+    assert review.part("unknown").word.startswith("sans date")
+    assert not any("ne fait pas le pont" in reason for reason in review.absent)
+
+    short = [row for row in _rows() if row["segment"] != "new"]
+    assert any("ne fait pas le pont" in reason for reason in C.build(short).absent)
+
+
+def test_the_client_query_is_written_on_the_confirmed_columns():
+    from app.perf import queries
+
+    sql = queries.CLIENT_FLOW.lower()
+    for word in ("client_skey", "flag_walkin", "client_first_purchase_date", "transaction_till",
+                 "'1900-01-01'", "'retained'", "'reactivated'", "'new'", "'unknown'", "'lost'",
+                 "'walkin'", "'arc'"):
+        assert word in sql, word
+    # Nouveau = première transaction après la fin de l'an dernier, pas « dans l'exercice » :
+    # sinon les clients acquis entre les deux fenêtres n'ont pas de segment.
+    assert "first_date > pr.ly_to" in sql

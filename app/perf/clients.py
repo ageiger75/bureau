@@ -40,9 +40,14 @@ SEGMENT_WORDS = {
     "retained": "retenus",
     "reactivated": "réactivés",
     "new": "nouveaux",
+    "unknown": "sans date de première transaction connue",
     "lost": "perdus",
 }
-FLOW = ("retained", "reactivated", "new")
+FLOW = ("retained", "reactivated", "new", "unknown")
+
+#: Au-delà, le flux ne fait plus le pont — retenus, réactivés, nouveaux et sans date
+#: contre les enregistrés actifs — et la lecture le dit.
+FLOW_AGREES = 0.005
 
 #: Sous cet écart de panier, les fidèles ne s'érodent pas : c'est du bruit de mix.
 ATV_NOTICED = 0.02
@@ -343,6 +348,12 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
             if lost_piece is not None and lost_piece.usable else None)
     if not flow:
         absent.append("le flux — retenus, réactivés, nouveaux — n'est pas dans la lecture")
+    elif arc_now is not None and arc_now.clients > 0:
+        summed = sum(item.segment.clients for item in flow)
+        if abs(summed - arc_now.clients) > FLOW_AGREES * arc_now.clients:
+            absent.append("le flux ne fait pas le pont : %s clients dans les segments contre "
+                          "%s enregistrés actifs — une lecture à vérifier avant de lire les parts"
+                          % (_count(summed), _count(arc_now.clients)))
     if base is None:
         absent.append("l'an dernier n'est pas dans la lecture : le pont n'a pas de croissance")
     return Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,

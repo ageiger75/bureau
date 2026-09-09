@@ -1430,11 +1430,140 @@ group by product_id, month
 #: - `lost` : dans 'ty', les clients de la base 'ly' sans transaction dans 'ty' ; leurs
 #:   `sales` et `transactions` sont ceux de 'ly', ce qui a été perdu.
 #:
+#: - `unknown` : actifs dans 'ty', absents de 'ly', sans date de première transaction
+#:   connue — la dimension porte une date sentinelle sur plus d'un tiers des clients, et
+#:   un tel client tomberait mécaniquement en « réactivé » puisque la sentinelle est
+#:   « avant l'an dernier ». Il est compté à part plutôt que mal rangé.
+#:
 #: La fenêtre 'ly' ne porte que `arc` et `walkin` : c'est la base, et le pont de l'an
-#: dernier. Les colonnes du client sur le fait de sell-out — la clé client, le drapeau
-#: « enregistré », la première transaction — sont à confirmer par l'agent entrepôt avant
-#: d'écrire la requête ici : vide tant qu'elle ne l'est pas, et l'écran le dit.
-CLIENT_FLOW = ""
+#: dernier. Colonnes confirmées par l'agent entrepôt le 9 septembre 2026 sur un pays :
+#: la clé client `CLIENT_SKEY` sur le fait ; un ticket sans client n'a ni clé nulle ni
+#: valeur d'attente unique, il porte la clé d'un pseudo-client que la dimension marque
+#: `FLAG_WALKIN` — une liste de clés en dur serait fausse au premier marché suivant ; la
+#: clé de ticket est le quadruplet magasin, date, caisse, numéro ; la première
+#: transaction est `CLIENT_FIRST_PURCHASE_DATE`, avec ses variantes site et boutique, la
+#: sentinelle étant le premier janvier 1900. Le contrôle interne validé : `arc + walkin`
+#: égale la base au centime ; `retained + reactivated + new` n'égalait pas `arc` parce que
+#: les clients acquis entre les deux fenêtres n'avaient pas de segment — d'où `new` défini
+#: comme « première transaction après la fin de 'ly' », et non « dans 'ty' ».
+#:
+#: Les `grouping sets` portent sur le client, jamais sur le résultat : un client retenu
+#: au groupe peut être nouveau dans un pays, et sommer les pays donnerait un autre
+#: chiffre que le groupe. Un pays a pris une vingtaine de secondes ; le groupe entier se
+#: lit par le cockpit, derrière l'écran, jamais par un agent.
+CLIENT_FLOW = """
+with period as (
+    select
+        last_month,
+        to_char(last_month, 'YYYY-MM')                                     as through,
+        last_day(last_month)                                               as ty_to,
+        date_from_parts(iff(month(last_month) >= 4, year(last_month),
+                            year(last_month) - 1), 4, 1)                   as ty_from,
+        add_months(date_from_parts(iff(month(last_month) >= 4, year(last_month),
+                                       year(last_month) - 1), 4, 1), -12)  as ly_from,
+        last_day(add_months(last_month, -12))                              as ly_to
+    from (
+        select date_trunc('month', add_months(anchor, -1)) as last_month
+        from (
+            -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
+            select max(max_sales_date) as anchor
+            from semantic_view(
+                dwh.semantic_layer.v_sl_ai_sellout_analysis
+                metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+                where f_sellout_sales_details.transaction_date
+                      >= dateadd(month, -3, current_date)
+            )
+        )
+    )
+),
+base as (
+    select
+        s.store_country,
+        f.client_skey,
+        coalesce(c.flag_walkin, 0)                                   as flag_walkin,
+        -- La première transaction connue, la sentinelle écartée sur chacune des trois
+        -- dates ; null quand aucune n'est connue.
+        nullif(least(
+            coalesce(nullif(c.client_first_purchase_date,        '1900-01-01'), '9999-12-31'),
+            coalesce(nullif(c.client_first_purchase_date_ecom,   '1900-01-01'), '9999-12-31'),
+            coalesce(nullif(c.client_first_purchase_date_retail, '1900-01-01'), '9999-12-31')
+        ), '9999-12-31')                                             as first_date,
+        f.store_skey || '|' || f.transaction_date || '|' || f.transaction_till
+            || '|' || f.transaction_number                           as ticket,
+        iff(f.transaction_date >= pr.ty_from, 'ty', 'ly')            as "window",
+        f.net_sales_eur
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores  s on s.store_skey  = f.store_skey
+    join dwh.semantic_layer.v_sl_ai_d_clients c on c.client_skey = f.client_skey
+    cross join period pr
+    where f.flag_turnover = 1
+      and s.store_brand = 'L''OCCITANE'
+      and coalesce(f.flag_bulk, 0) not in (2, 3, 4, 5)
+      and f.transaction_date >= dateadd(month, -26, current_date)
+      and (f.transaction_date between pr.ly_from and pr.ly_to
+           or f.transaction_date between pr.ty_from and pr.ty_to)
+),
+-- Un client, une fenêtre, un périmètre : le pays, et le groupe par le roll-up — un client
+-- actif dans deux pays compte une fois au groupe.
+scoped as (
+    select
+        iff(grouping(store_country) = 1, 'LOEP',
+            coalesce(store_country, '(sans pays)'))    as scope,
+        "window",
+        client_skey,
+        max(flag_walkin)                               as flag_walkin,
+        min(first_date)                                as first_date,
+        count(distinct ticket)                         as transactions,
+        sum(net_sales_eur)                             as sales
+    from base
+    group by grouping sets ((store_country, "window", client_skey), ("window", client_skey))
+),
+registered as (
+    select * from scoped where flag_walkin = 0
+),
+classified as (
+    select
+        ty.scope,
+        ty.client_skey,
+        ty.transactions,
+        ty.sales,
+        case
+            when ly.client_skey is not null        then 'retained'
+            when ty.first_date is null             then 'unknown'
+            when ty.first_date > pr.ly_to          then 'new'
+            else                                        'reactivated'
+        end                                            as segment
+    from registered ty
+    left join registered ly
+      on ly.scope = ty.scope and ly."window" = 'ly' and ly.client_skey = ty.client_skey
+    cross join period pr
+    where ty."window" = 'ty'
+)
+select scope, 'ty' as "window", pr.through, segment,
+       count(*) as clients, sum(transactions) as transactions, sum(sales) as sales
+from classified cross join period pr
+group by scope, pr.through, segment
+union all
+select scope, "window", pr.through, 'arc',
+       count(*), sum(transactions), sum(sales)
+from registered cross join period pr
+group by scope, "window", pr.through
+union all
+select scope, "window", pr.through, 'walkin',
+       sum(transactions), sum(transactions), sum(sales)
+from scoped cross join period pr
+where flag_walkin = 1
+group by scope, "window", pr.through
+union all
+select ly.scope, 'ty', pr.through, 'lost',
+       count(*), sum(ly.transactions), sum(ly.sales)
+from registered ly
+left join registered ty
+  on ty.scope = ly.scope and ty."window" = 'ty' and ty.client_skey = ly.client_skey
+cross join period pr
+where ly."window" = 'ly' and ty.client_skey is null
+group by ly.scope, pr.through
+"""
 
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
