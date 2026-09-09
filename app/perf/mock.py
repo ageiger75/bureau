@@ -1023,6 +1023,21 @@ def _client_rows() -> List[dict]:
                          "transactions": round(new * 0.9 * part * 1.15),
                          "sales": round(new * 0.9 * part * 1.15 * atv_ly * 0.8), "channel": channel})
         row("ty", "lost", lost, atv_ly * 0.9, per=1.2)
+        # Les perdus et la base par canal du dernier ticket, sur les deux exercices : la
+        # boutique perd un peu plus que le site, et un peu plus que l'an dernier.
+        for channel, part, base_part, rate_twist in (("MALL STORE", 0.80, 0.78, 1.02),
+                                                     ("E-COMMERCE", 0.20, 0.22, 0.95)):
+            for window, base_window, scale in (("ty", "ly", 1.0), ("ly", "ly2", 0.96)):
+                base_clients = round(arc_ly * (0.96 if base_window == "ly2" else 1.0) * base_part)
+                lost_clients = round(lost * scale * part * rate_twist)
+                rows.append({"scope": scope, "window": base_window, "through": CLIENT_THROUGH,
+                             "segment": "arc", "clients": base_clients,
+                             "transactions": round(base_clients * 1.6),
+                             "sales": round(base_clients * 1.6 * atv_ly), "channel": channel})
+                rows.append({"scope": scope, "window": window, "through": CLIENT_THROUGH,
+                             "segment": "lost", "clients": lost_clients,
+                             "transactions": round(lost_clients * 1.2),
+                             "sales": round(lost_clients * 1.2 * atv_ly * 0.9), "channel": channel})
         row("ty", "walkin", walkin_ty, atv_ly * 0.72, per=1.0)
         # Le pont de l'exercice : la somme des trois segments actifs.
         active = [r for r in rows if r["scope"] == scope and r["window"] == "ty"

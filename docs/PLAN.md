@@ -442,6 +442,12 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Le canal des perdus, le 9 septembre 2026.** D'où partent les perdus : le sous-canal de
+leur dernier ticket de l'an dernier (`max_by`), et la base de l'an dernier découpée de même,
+pour que chaque canal dise ce qu'il a perdu de ses propres clients, contre l'an dernier au
+même mois. Même mécanisme que les nouveaux : lignes découpées à colonne `channel`, total
+intact au-dessus.
+
 **Le canal des nouveaux, le 9 septembre 2026.** D'où entrent les nouveaux clients : le
 sous-canal du premier ticket de la fenêtre (`min_by` dans la même agrégation, sans lecture
 de plus), replié en boutique, site, place de marché, avec la même part l'an dernier. Les

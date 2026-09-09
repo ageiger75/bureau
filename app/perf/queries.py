@@ -1420,7 +1420,8 @@ group by product_id, month
 #:     transactions  number  -- tickets
 #:     sales         number  -- NET_SALES_EUR, FLAG_TURNOVER = 1, hors vrac
 #:     channel       text    -- vide sur les totaux ; sur `new`, le sous-canal du premier
-#:                              ticket de la fenêtre (STORE_SUB_CHANNEL), la ligne découpée
+#:                              ticket de la fenêtre (STORE_SUB_CHANNEL) ; sur `lost` et sur
+#:                              `arc` de la base, celui du dernier ticket — la ligne découpée
 #:
 #: Segments, sur le sell-out en propre (boutiques et site) :
 #:
@@ -1524,8 +1525,10 @@ scoped as (
         client_skey,
         max(flag_walkin)                               as flag_walkin,
         min(first_date)                                as first_date,
-        -- Le canal du premier ticket de la fenêtre : d'où le client est entré.
+        -- Le canal du premier ticket de la fenêtre : d'où le client est entré. Et celui
+        -- du dernier : d'où il est parti, quand il ne revient pas.
         min_by(sub_channel, transaction_date)          as entry_channel,
+        max_by(sub_channel, transaction_date)          as last_channel,
         count(distinct ticket)                         as transactions,
         sum(net_sales_eur)                             as sales
     from base
@@ -1571,6 +1574,14 @@ select scope, "window", pr.through, 'arc',
 from registered cross join period pr
 group by scope, "window", pr.through
 union all
+-- La base de l'an dernier, par canal du dernier ticket : le dénominateur de la part
+-- perdue par canal. La ligne découpée, le total reste au-dessus.
+select scope, 'ly', pr.through, 'arc',
+       count(*), sum(transactions), sum(sales), coalesce(last_channel, '(sans canal)')
+from registered cross join period pr
+where "window" = 'ly'
+group by scope, pr.through, last_channel
+union all
 select scope, "window", pr.through, 'walkin',
        sum(transactions), sum(transactions), sum(sales), null
 from scoped cross join period pr
@@ -1585,6 +1596,16 @@ left join registered ty
 cross join period pr
 where ly."window" = 'ly' and ty.client_skey is null
 group by ly.scope, pr.through
+union all
+-- Les perdus, par canal de leur dernier ticket : d'où ils sont partis.
+select ly.scope, 'ty', pr.through, 'lost',
+       count(*), sum(ly.transactions), sum(ly.sales), coalesce(ly.last_channel, '(sans canal)')
+from registered ly
+left join registered ty
+  on ty.scope = ly.scope and ty."window" = 'ty' and ty.client_skey = ly.client_skey
+cross join period pr
+where ly."window" = 'ly' and ty.client_skey is null
+group by ly.scope, pr.through, ly.last_channel
 """
 
 ALL = {

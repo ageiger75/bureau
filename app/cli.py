@@ -4229,6 +4229,8 @@ def cmd_clients(argv: List[str]) -> int:
             print(review.read[0].upper() + review.read[1:] + ".")
         if review.entries_sentence:
             print(review.entries_sentence[0].upper() + review.entries_sentence[1:] + ".")
+        if review.exits_sentence:
+            print(review.exits_sentence[0].upper() + review.exits_sentence[1:] + ".")
         print(review.question)
     elif not review.absent:
         print("Aucune lecture clients sur cette lecture.")

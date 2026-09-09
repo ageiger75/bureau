@@ -226,16 +226,40 @@ class Flow:
 
 
 class Entry:
-    """D'où entrent les nouveaux : une famille de canal, sa part des nouveaux, son panier,
-    et la même part l'an dernier."""
+    """Une famille de canal d'un segment : sa part du segment, son panier, la même part l'an
+    dernier — et, quand une base est connue, le taux : ce que ce canal a perdu de ses
+    propres clients."""
 
-    __slots__ = ("family", "segment", "of", "before")
+    __slots__ = ("family", "segment", "of", "before", "base")
 
-    def __init__(self, family: str, segment: Segment, of: float, before: Optional["Entry"] = None) -> None:
+    def __init__(self, family: str, segment: Segment, of: float, before: Optional["Entry"] = None,
+                 base: Optional[Segment] = None) -> None:
         self.family = family
         self.segment = segment
         self.of = of
         self.before = before
+        self.base = base
+
+    @property
+    def rate(self) -> Optional[float]:
+        if self.base is None or self.base.clients <= 0:
+            return None
+        return self.segment.clients / self.base.clients
+
+    rate_label = property(lambda self: "—" if self.rate is None else "%.0f %%" % (self.rate * 100))
+
+    @property
+    def before_rate_label(self) -> str:
+        if self.before is None or self.before.rate is None:
+            return "—"
+        return "%.0f %%" % (self.before.rate * 100)
+
+    @property
+    def rate_change_label(self) -> str:
+        if self.before is None or self.before.rate is None or self.rate is None:
+            return "—"
+        change = (self.rate - self.before.rate) * 100
+        return "%+.0f pt%s" % (change, "s" if abs(round(change)) >= 2 else "")
 
     @property
     def share(self) -> Optional[float]:
@@ -266,7 +290,7 @@ class Review:
     def __init__(self, scope: str = GROUP, through: str = "", bridge: Sequence[Pair] = (),
                  flow: Sequence[Flow] = (), lost: Optional[Flow] = None,
                  absent: Sequence[str] = (), approximate: bool = False,
-                 entries: Sequence[Entry] = ()) -> None:
+                 entries: Sequence[Entry] = (), exits: Sequence[Entry] = ()) -> None:
         self.scope = scope
         self.through = through
         self.bridge = list(bridge)
@@ -275,6 +299,8 @@ class Review:
         self.absent = list(absent)
         #: D'où entrent les nouveaux, la famille la plus large d'abord.
         self.entries = list(entries)
+        #: D'où partent les perdus, avec ce que chaque canal a perdu de ses propres clients.
+        self.exits = list(exits)
         #: Une somme de marchés : un client actif dans deux pays y compte deux fois.
         self.approximate = approximate
 
@@ -405,6 +431,30 @@ class Review:
         return "les nouveaux entrent par : " + " · ".join(parts)
 
     @property
+    def exits_sentence(self) -> str:
+        """« La boutique a perdu 73 % de ses clients de l'an dernier (71 % l'an dernier au
+        même mois, +2 pts), le site 66 % (64 %) ; 84 % des perdus venaient de la boutique »."""
+        if not self.exits:
+            return ""
+        rates = []
+        for entry in self.exits:
+            if entry.rate is None:
+                continue
+            text = "%s %s de ses clients de l'an dernier" % (
+                "la boutique" if entry.family == "boutique" else
+                "le site" if entry.family == "site" else entry.family, entry.rate_label)
+            if entry.before is not None and entry.before.rate is not None:
+                text += " (%s l'an dernier au même mois, %s)" % (entry.before_rate_label,
+                                                                 entry.rate_change_label)
+            rates.append(text)
+        head = "a perdu : " + " · ".join(rates) if rates else ""
+        biggest = self.exits[0]
+        tail = "%s des perdus partaient de %s" % (
+            biggest.share_label, "la boutique" if biggest.family == "boutique" else
+            "le site" if biggest.family == "site" else biggest.family)
+        return " ; ".join(part for part in (head, tail) if part)
+
+    @property
     def question(self) -> str:
         retained = self.part("retained")
         lost = self.lost
@@ -442,13 +492,17 @@ def _read(rows: Iterable[dict], scopes_wanted: Sequence[str]) -> Dict[tuple, Seg
     return found
 
 
-def _entries(found: Dict[tuple, Segment], window: str) -> List[Entry]:
-    """D'où entrent les nouveaux d'une fenêtre, la famille la plus large d'abord."""
-    total = found.get((window, "new"))
+def _entries(found: Dict[tuple, Segment], window: str, segment_name: str = "new",
+             base_window: str = "") -> List[Entry]:
+    """Les familles de canal d'un segment d'une fenêtre, la plus large d'abord ; avec la
+    base du canal — les enregistrés de la fenêtre d'avant, par canal — quand on la nomme."""
+    total = found.get((window, segment_name))
     of = total.clients if total is not None else 0.0
-    items = [Entry(family, piece, of) for (w, segment, family), piece in
+    items = [Entry(family, piece, of,
+                   base=found.get((base_window, "arc", family)) if base_window else None)
+             for (w, segment, family), piece in
              ((key, piece) for key, piece in found.items() if len(key) == 3)
-             if w == window and segment == "new" and piece.usable]
+             if w == window and segment == segment_name and piece.usable]
     items.sort(key=lambda entry: -entry.segment.clients)
     return items
 
@@ -524,8 +578,13 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
     earlier_entries = {entry.family: entry for entry in _entries(found, "ly")}
     for entry in entries:
         entry.before = earlier_entries.get(entry.family)
+    exits = _entries(found, "ty", "lost", base_window="ly")
+    earlier_exits = {entry.family: entry for entry in _entries(found, "ly", "lost", base_window="ly2")}
+    for entry in exits:
+        entry.before = earlier_exits.get(entry.family)
     review = Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,
-                    approximate=bool(markets) and len(scopes_wanted) > 1, entries=entries)
+                    approximate=bool(markets) and len(scopes_wanted) > 1, entries=entries,
+                    exits=exits)
     if review.flow_noise:
         review.absent.append(review.flow_noise)
     if 0 < review.window_months < 12 and lost is not None:

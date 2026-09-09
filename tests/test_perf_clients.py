@@ -219,3 +219,43 @@ def test_the_client_query_splits_the_new_by_their_entry_channel():
     sql = queries.CLIENT_FLOW.lower()
     assert "min_by(sub_channel, transaction_date)" in sql
     assert "store_sub_channel" in sql and "coalesce(entry_channel, '(sans canal)')" in sql
+
+
+def test_the_lost_clients_say_where_they_left_from_and_what_each_channel_lost():
+    """D'où partent les perdus : le canal de leur dernier ticket, et ce que ce canal a perdu
+    de ses propres clients de l'an dernier, contre l'an dernier au même mois."""
+    rows = _rows(retained_atv=84.0)
+    rows += [
+        dict(_row("LOEP", "ly", "arc", 70, 110, 8_800.0), channel="MALL STORE"),
+        dict(_row("LOEP", "ly", "arc", 30, 50, 4_000.0), channel="E-COMMERCE"),
+        dict(_row("LOEP", "ty", "lost", 30, 38, 3_000.0), channel="MALL STORE"),
+        dict(_row("LOEP", "ty", "lost", 10, 12, 1_000.0), channel="E-COMMERCE"),
+        _row("LOEP", "ly2", "arc", 90, 140, 11_000.0),
+        _row("LOEP", "ly", "lost", 30, 40, 2_500.0),
+        dict(_row("LOEP", "ly2", "arc", 60, 90, 7_000.0), channel="STREET STORE"),
+        dict(_row("LOEP", "ly2", "arc", 30, 50, 4_000.0), channel="E-COMMERCE"),
+        dict(_row("LOEP", "ly", "lost", 24, 30, 2_000.0), channel="MALL STORE"),
+        dict(_row("LOEP", "ly", "lost", 6, 10, 500.0), channel="E-COMMERCE"),
+    ]
+    review = C.build(rows)
+
+    assert review.lost.clients_label == "40"                     # le total n'a pas bougé
+    assert review.pair("arc").before.clients == 100              # ni la base
+    assert [entry.family for entry in review.exits] == ["boutique", "site"]
+    boutique, site = review.exits
+    assert boutique.share_label == "75 %" and boutique.rate_label == "43 %"
+    assert boutique.before_rate_label == "40 %" and boutique.rate_change_label == "+3 pts"
+    assert site.rate_label == "33 %" and site.before_rate_label == "20 %"
+    assert review.exits_sentence.startswith(
+        "a perdu : la boutique 43 % de ses clients de l'an dernier (40 % l'an dernier au même mois, +3 pts)")
+    assert review.exits_sentence.endswith("75 % des perdus partaient de la boutique")
+    assert C.build(_rows()).exits_sentence == ""
+
+
+def test_the_client_query_splits_the_lost_and_the_base_by_their_last_channel():
+    from app.perf import queries
+
+    sql = queries.CLIENT_FLOW.lower()
+    assert "max_by(sub_channel, transaction_date)" in sql
+    assert sql.count("coalesce(ly.last_channel, '(sans canal)')") == 1
+    assert sql.count("coalesce(last_channel, '(sans canal)')") == 1
