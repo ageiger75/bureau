@@ -1079,7 +1079,7 @@ def explained_pairs(period: str = "") -> set:
     """Market and channel pairs whose divergence a note already accounts for.
 
     A boundary written down is not a plan to renegotiate. The American wholesale line
-    carries a note saying the accounts file Sephora on the other side of it; without this,
+    carries a note saying the accounts file the enseigne on the other side of it; without this,
     the same fact comes back a second time as "the plan asks for +525%" and sends someone
     to argue with a plan that is not wrong.
     """

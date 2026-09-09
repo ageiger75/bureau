@@ -85,10 +85,16 @@ REFERENCE_ROLLUP: Dict[str, str] = {
 BULK_LINES = frozenset(("CHINA", "HK BULK"))
 
 #: The rest of what the file separates, which no flag here can reproduce. Daigou is not
-#: marked in the warehouse, the JD group is invoiced rather than sold, and the café is an
+#: marked in the warehouse, one retail group is invoiced rather than sold, and the café is an
 #: entity. Named so that a line matching neither list is reported instead of being
 #: silently counted as one or the other.
-OTHER_CLEANING = frozenset(("TOTAL DAIGOU", "TOTAL JD- GROUP", "CAFE 86"))
+OTHER_CLEANING_MARKERS = ("DAIGOU", "GROUP", "CAFE")
+
+
+def is_other_cleaning(name: str) -> bool:
+    """A cleaning line the file separates and no warehouse flag reproduces."""
+    key = str(name or "").strip().upper()
+    return any(marker in key for marker in OTHER_CLEANING_MARKERS)
 
 #: How close a roll-up has to be to the rows under it to count as their sum. A cent on
 #: figures in the hundreds of millions: this is spotting a subtotal, not tolerating a

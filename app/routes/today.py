@@ -766,7 +766,7 @@ def _screen(request: Request, session: Session):
             "stores": stores,
             "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
-            # has to guess whether "E-retailers" means Tmall or Amazon cannot judge the
+            # has to guess whether "E-retailers" means a marketplace or an e-retailer cannot judge the
             # number under it — and the guess is usually wrong, since the platform most
             # people picture sits under a third name again.
             "channels_shown": _channels_shown(dataset),

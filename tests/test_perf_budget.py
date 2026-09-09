@@ -1164,7 +1164,7 @@ def test_hospitality_is_a_third_block_not_a_corner_of_sell_in():
     assert perimeter_of("COPG - Corporate Gifts") == "b2b"
     assert perimeter_of("DIS - Distributors") == "sell-in"
     assert perimeter_of("RET - Retail") == "own"
-    # QVC is genuinely sell-in and already covered: a TV channel buys to resell.
+    # A TV channel is genuinely sell-in and already covered: it buys to resell.
     assert perimeter_of("TVC - TV Channels") == "sell-in"
 
 

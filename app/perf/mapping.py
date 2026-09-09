@@ -215,13 +215,14 @@ CHANNEL_MEANING = {
     "ecommerce": "Notre propre site — brand.com. Le seul canal dont tout l'entonnoir est à "
                  "nous : visites, conversion, panier.",
     "retail": "Nos propres boutiques. Vendu quand le client paie.",
-    "marketplace": "Notre propre boutique, sur la plateforme d'un autre — le flagship Tmall "
+    "marketplace": "Notre propre boutique, sur la place de marché d'un autre — le flagship "
                    "que la Maison opère. Vendu au client, mais la plateforme tient le trafic : "
-                   "pas d'entonnoir à nous derrière le chiffre. En Chine, Tmall est la seule "
-                   "plateforme de ce côté de la facture.",
-    "webp": "Des partenaires qui achètent notre stock et le revendent en ligne — Amazon à "
-            "l'Ouest, JD, Douyin ou VIP en Chine. Facturé à l'expédition : ce qui atteint "
-            "ensuite un client n'y est pas. Pas Tmall, que nous opérons nous-mêmes.",
+                   "pas d'entonnoir à nous derrière le chiffre. En Chine, la place de marché "
+                   "que nous opérons est la seule plateforme de ce côté de la facture.",
+    "webp": "Des partenaires qui achètent notre stock et le revendent en ligne — un e-retailer "
+            "mondial à l'Ouest, les plateformes d'achat-revente en Chine. Facturé à "
+            "l'expédition : ce qui atteint ensuite un client n'y est pas. Pas la place de "
+            "marché que nous opérons nous-mêmes.",
     "tra": "Des opérateurs de travel retail qui achètent pour revendre : aéroports, ferries, "
            "boutiques frontalières.",
     "dis": "Des distributeurs qui achètent la gamme pour un territoire et la revendent.",

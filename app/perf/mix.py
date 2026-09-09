@@ -82,7 +82,7 @@ ALIASES: Dict[str, Tuple[str, ...]] = {
     "own site": ("ecommerce",),
     "marketplace": ("marketplace",),
     "marketplaces": ("marketplace",),
-    "tmall": ("marketplace",),
+    "flagship": ("marketplace",),
     "e-retailers": ("webp",),
     "e-retailer": ("webp",),
     "web partners": ("webp",),

@@ -48,7 +48,8 @@ SELL_OUT = "sell_out"
 BASES = (SELL_IN, SELL_OUT)
 
 #: Ce que dit la colonne pays. La distinction n'est pas cosmétique : côté sell-in, la
-#: dimension donne le pays d'immatriculation du client, et Amazon y est luxembourgeois.
+#: dimension donne le pays d'immatriculation du client, et un e-retailer mondial y est
+#: domicilié dans un seul petit pays d'Europe.
 #: Un écran qui traiterait cette colonne comme un marché rangerait des flux mondiaux sous
 #: le pays d'une entité de facturation.
 BILLING = "facturation"

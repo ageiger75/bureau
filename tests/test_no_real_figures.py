@@ -23,7 +23,8 @@ ROOT = Path(__file__).resolve().parent.parent
 #: Les fichiers versionnés qui portent du texte écrit par nous.
 SOURCES = sorted(
     path
-    for pattern in ("app/**/*.py", "app/**/*.html", "tests/**/*.py", "*.py", "*.md", "docs/**/*.md")
+    for pattern in ("app/**/*.py", "app/**/*.html", "app/**/*.js", "tests/**/*.py", "*.py", "*.md",
+                    "docs/**/*.md", "docs/**/*.csv")
     for path in ROOT.glob(pattern)
     if "__pycache__" not in path.parts and path.name != Path(__file__).name
 )
@@ -46,6 +47,15 @@ UNIT_EUR = re.compile(r"\d+[.,]\d{2} ?€")
 #: a servi d'exemple. Les tests gardent le droit à leurs fixtures inventées.
 DECIMAL_PCT = re.compile(r"\d+[.,]\d+ ?%(?!%)")
 
+#: Les partenaires de la maison, par leur nom. Qui nous achète et d'où est une
+#: information ; le nom vit dans var/partners.csv et n'entre pas dans le dépôt. Décision du
+#: CEO du 9 septembre 2026 : « go noms ».
+PARTNER = re.compile(
+    r"amazon|sephora|tmall|\bjd\b|jd\.com|jd-|douyin|macy|\bqvc\b|rakuten|\blotte\b|shopee|"
+    r"lazada|\bulta\b|anthropologie|heinemann|\bdfs\b|corte ingl|jatco|shilla|fasola",
+    re.IGNORECASE,
+)
+
 #: Ce que le formatage légitime produit, et qui n'est donc pas un montant écrit en dur.
 ALLOWED = (
     "%.1f M€", "%.3f M€", "%.2f %%", "%9s", "k€\"", "M€\"",
@@ -61,7 +71,7 @@ def _offending(path: Path):
             continue
         in_app = "app" in path.relative_to(ROOT).parts
         if (MONEY.search(line) or ENTITY.search(line) or UNIT_EUR.search(line)
-                or (in_app and DECIMAL_PCT.search(line))):
+                or PARTNER.search(line) or (in_app and DECIMAL_PCT.search(line))):
             found.append("%s:%d %s" % (path.relative_to(ROOT), number, line.strip()[:90]))
     return found
 

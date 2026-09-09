@@ -208,7 +208,7 @@ from __future__ import annotations
 #: - `order_tracking_lost` — orders were recorded last year and none now. Taiwan stopped on
 #:   2025-07-09, Hong Kong on 2025-07-28.
 #: - `no_analytics_site` — no host in the governed dimension at all. China's brand.com feed
-#:   ended 2024-06-22 and its current business runs on Tmall, JD and Douyin, none of which
+#:   ended 2024-06-22 and its current business runs on local platforms, none of which
 #:   report to Google Analytics; Mexico ended 2023-07-28, Vietnam 2023-10-31, and Luxembourg
 #:   never had a site. All four still sell, so they keep their euros and lose only the
 #:   decomposition.
@@ -1610,14 +1610,14 @@ group by ly.scope, pr.through, ly.last_channel
 
 
 #: Le sell-in facturé par partenaire nommé, au mois, depuis avril de l'exercice précédent :
-#: Amazon, Sephora, JD, Tmall — pas « e-retailers ». Une ligne par
+#: l'e-retailer, l'enseigne, l'opérateur de voyage par leur nom — pas « e-retailers ». Une ligne par
 #: `period · code · label · channel · iso2` :
 #:
 #:     period      text     -- 'YYYY-MM', le mois de facturation
 #:     code        text     -- PROFIT_CENTER_GROUP_ID, la clé sous laquelle var/partners.csv nomme
 #:     label       text     -- PROFIT_CENTER_GROUP_DESC, le libellé de l'entrepôt, à défaut de nom
 #:     channel     text     -- PROFIT_CENTER_GROUP_CHANNEL, le code du canal (WEBP, DPT, TRA…)
-#:     iso2        text     -- le pays de facturation, jamais un marché : Amazon y est luxembourgeois
+#:     iso2        text     -- le pays de facturation, jamais un marché : un e-retailer mondial y a un seul pays
 #:     net_eur     number   -- le net au taux fixe, comme SELL_IN_DAILY
 #:
 #: Le nom commercial n'est pas dans l'entrepôt : il vient de var/partners.csv, écrit à la

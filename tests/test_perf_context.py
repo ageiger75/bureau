@@ -543,7 +543,7 @@ def test_a_reclassification_is_not_a_statement_about_trading():
         market="United States",
         channel="webp",
         notes=[context.Note("United States", "webp", "2025-09", context.RECLASSIFIED,
-                            "Sephora.com is filed under chains in the accounts.", "CEO")],
+                            "The enseigne's site is filed under chains in the accounts.", "CEO")],
     )
 
     fire = analytics.routed_elsewhere(dataset_of(reclassified))[0]
@@ -560,7 +560,7 @@ def test_the_question_points_at_the_neighbouring_plan():
         market="United States",
         channel="webp",
         notes=[context.Note("United States", "webp", "", context.RECLASSIFIED,
-                            "Sephora.com is filed under chains.", "CEO")],
+                            "The enseigne's site is filed under chains.", "CEO")],
     )
 
     assert "segment voisin" in analytics.routed_elsewhere(dataset_of(reclassified))[0].question
@@ -603,7 +603,7 @@ def test_a_segment_scoped_note_is_written_that_way(notes_at):
     from app.cli import cmd_note
 
     cmd_note([
-        "United States", "Sephora.com is filed under chains.",
+        "United States", "The enseigne's site is filed under chains.",
         "--kind", "reclassified", "--channel", "WEBP - Web Partners",
     ])
 
@@ -617,7 +617,7 @@ def test_a_segment_scoped_note_stays_on_its_segment(notes_at):
     from app.cli import cmd_note
 
     cmd_note([
-        "United States", "Sephora.com is filed under chains.",
+        "United States", "The enseigne's site is filed under chains.",
         "--kind", "reclassified", "--channel", "WEBP",
     ])
 
@@ -702,7 +702,7 @@ def _noted(label, channel, actual, budget, market="United States"):
 
 
 def test_a_reclassified_pair_that_cancels_confirms_the_note():
-    """The American case: the accounts file Sephora under Web Partners, the plan under
+    """The American case: the accounts file the enseigne under Web Partners, the plan under
     chain wholesale. What one channel gains the other loses, to the euro, and the market
     total is untouched."""
     dataset = Dataset(
@@ -963,7 +963,7 @@ def test_a_roll_up_in_the_plan_is_not_a_market_to_challenge():
 
 
 def test_a_boundary_is_not_tested_on_a_month_where_nothing_crossed():
-    """Sephora ships in waves: the American boundary moved in four months of the last two
+    """The enseigne ships in waves: the American boundary moved in four months of the last two
     years and in none of the others. On July, both channels are simply below plan for
     ordinary reasons — so the halves do not cancel, of course they do not, and the check
     was reporting that a correct note might name the wrong side. Accusing a right note of

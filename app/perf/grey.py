@@ -7,7 +7,7 @@ côte sans les additionner.
 et le cockpit tient déjà, marché par marché et mois par mois, les ventes avec et sans. La
 différence est le vrac lu : d'où il vient (les marchés qui le portent), comment il évolue
 (l'exercice à date contre l'an dernier, les trois derniers mois contre les mêmes), et ce
-qu'il pèse dans chaque marché. Ce que l'entrepôt ne marque pas — le daigou, le groupe JD
+qu'il pèse dans chaque marché. Ce que l'entrepôt ne marque pas — le daigou, un groupe
 facturé plutôt que vendu — n'y est pas, et le bloc le dit.
 
 **Le budget** nomme lui-même des flux à nettoyer, avec leurs ventes et leur EBITDA sur
@@ -16,7 +16,7 @@ que le vrac de l'entrepôt : « en ligne avec le plan » se lit donc en ordre de
 le prorata des mois écoulés contre le vrac lu — jamais au million près.
 
 **La Finance** clôt un trimestre avec sa feuille grise (vrac Chine, vrac Hong Kong, daigou,
-groupe JD) ; elle se rapproche en ligne de commande, `manage.py reconcile`, contre le
+un groupe facturé) ; elle se rapproche en ligne de commande, `manage.py reconcile`, contre le
 classeur déposé. Elle n'est pas relue ici : un classeur de la Finance n'a pas de chemin fixe.
 """
 

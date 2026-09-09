@@ -726,7 +726,7 @@ def incidents(found: Sequence[Suspect]) -> List[Incident]:
 
 #: How far a reclassified pair may fail to cancel and still be read as one boundary
 #: moving. Not zero: the noted channels carry real trading alongside the reclassified
-#: revenue — the American Web Partners line holds Amazon as well as Sephora — so an exact
+#: revenue — the American Web Partners line holds an e-retailer as well as an enseigne — so an exact
 #: offset would only ever appear if nothing else in either channel had moved.
 OFFSET_TOLERANCE = 0.25
 
@@ -767,8 +767,8 @@ class ReclassificationCheck:
         """Did anything actually move across the boundary this month?
 
         A boundary shift makes one channel gain and its neighbour lose. Two losses mean
-        nothing crossed — the revenue that gets misfiled simply did not ship. Sephora, the
-        case this was built for, ships in waves: the American boundary moved in four
+        nothing crossed — the revenue that gets misfiled simply did not ship. The enseigne
+        this was built for ships in waves: the American boundary moved in four
         months of the last two years and in none of the others.
 
         Without this the check confronts a claim on a month where the claim says nothing,

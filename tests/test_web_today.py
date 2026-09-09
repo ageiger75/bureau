@@ -563,7 +563,7 @@ def test_the_screen_says_what_each_channel_actually_is(client):
 
     # Only the channels actually on the screen: a glossary of everything the taxonomy
     # knows would be a page of definitions for figures nobody is looking at.
-    assert "Tmall or JD flagship" not in page   # no marketplace line in this dataset
+    assert "marketplace flagship" not in page   # no marketplace line in this dataset
 
 
 # ------------------------------------------- the second base, where it changes the verdict
@@ -874,7 +874,7 @@ def test_the_red_zones_are_a_fixed_block_with_one_line_each(client):
 
     (TEST_DIR / "red_zones.csv").write_text(
         "zone,scope,measure,target,note\nJapon,Japan,samestore,≥ 0 %,redressement\n"
-        "Sephora US,United States,profit_centre:SEPH,,montée en charge\n", encoding="utf-8")
+        "Enseigne US,United States,profit_centre:ENSEIGNE,,montée en charge\n", encoding="utf-8")
     try:
         page = page_text(client.get("/"))
     finally:

@@ -145,7 +145,7 @@ def market_of(country: str, segment: str = "") -> str:
 
 
 #: Three ways revenue reaches the Maison, not two. The binary split — ours or resold —
-#: broke on the first real question: a Tmall flagship operated by the Maison sells to the
+#: broke on the first real question: a marketplace flagship operated by the Maison sells to the
 #: end customer, so it is sell-out, but it happens on a platform that is not our site and
 #: has no funnel we can read. Collapsing that into either bucket loses something true.
 

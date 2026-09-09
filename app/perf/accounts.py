@@ -1,6 +1,7 @@
 """Les partenaires de sell-in par leur nom — pas « e-retailers ».
 
-« E-retailers » est un canal ; Amazon, Sephora, JD et Tmall sont des interlocuteurs. La
+« E-retailers » est un canal ; un e-retailer, une enseigne, un opérateur de voyage sont des
+interlocuteurs. La
 conversation se tient avec un nom, et le nom n'est pas dans l'entrepôt : il vit dans
 `var/partners.csv`, écrit à la main sous le code du centre de profit. Ce que le fichier
 ne nomme pas garde le libellé du centre de profit, jamais un nom deviné — deux lignes sans
@@ -10,7 +11,7 @@ un total faux.
 Trois règles, toutes venues de la lecture réelle.
 
 **Le plan n'a pas de ligne par partenaire.** Il planifie un marché et un canal, et un
-partenaire s'étale sur plusieurs marchés. La question « Amazon est-il en ligne avec le
+partenaire s'étale sur plusieurs marchés. La question « tel partenaire est-il en ligne avec le
 plan ? » n'a donc pas de réponse directe, et ce module ne l'invente pas : un partenaire se
 lit contre l'an dernier — exercice à date, puis trois derniers mois — et contre le plan de
 **son canal**, qui lui existe. Le bloc le dit en toutes lettres.
@@ -20,8 +21,9 @@ glisse d'un mois fait un mois à moins vingt et le suivant à plus vingt. D'où 
 fenêtres : l'exercice à date lisse, les trois derniers mois alertent, et le mot ne se
 prononce que sur les deux à la fois.
 
-**Le pays est le pays de facturation.** Amazon est luxembourgeois et Sephora est facturée
-de Hong Kong ; ce n'est pas un marché et il ne s'affiche pas comme tel.
+**Le pays est le pays de facturation.** Un e-retailer mondial est facturé d'un seul petit
+pays d'Europe, une enseigne d'un hub d'Asie ; ce n'est pas un marché et il ne s'affiche
+pas comme tel.
 """
 
 from __future__ import annotations

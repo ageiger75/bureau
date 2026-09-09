@@ -560,13 +560,13 @@ pleine) ; cette semaine (sell-out, sell-in, ce qui arrive) ; trois conversations
 au niveau du **marché** — somme des canaux budgétés, et non plus le premier canal venu avec
 son montant — et ouvrant sur l'exercice à date ; les zones rouges (`var/red_zones.csv`,
 `app/perf/redzones.py`, `manage.py zones` : Japon, Travel Retail, Chine retail, Brésil,
-Sephora US, décision du CEO, le Brésil remplaçant le Moyen-Orient), au plus cinq, chacune
+l'enseigne US, décision du CEO, le Brésil remplaçant le Moyen-Orient), au plus cinq, chacune
 avec la mesure que le cockpit sait tenir, « à brancher » sinon ; ce qui a changé depuis lundi
 dernier (`app/perf/changes.py`), lu dans le registre et les engagements. Tout ce qui
 explique, classe, propose ou vérifie vit sur `/analyses` avec le même contexte : où pousser
 et ses leviers, les plans, les opportunités, ce qui marche, le mix, la part loyer, les KPI,
 la donnée à vérifier, la méthode. Les « conversations de la semaine » de l'analytique ont
-disparu : le registre fait foi. Reste à brancher : le centre de profit Sephora en sell-in, et
+disparu : le registre fait foi. Reste à brancher : le centre de profit de l'enseigne en sell-in, et
 le same-store sales hors cleaning, qui demande une clé que l'entrepôt n'écrit pas encore.
 
 **L'euro suivant en boutique, le 7 septembre 2026.** L'agent entrepôt a régressé la

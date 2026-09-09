@@ -67,7 +67,7 @@
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois : service, précision et biais de prévision, prévision de demande
-    python -m app.cli partenaires    le sell-in par partenaire nommé (Amazon, Sephora…) : exercice à date, trois mois, plan du canal [--refresh]
+    python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
     python -m app.cli gris           le gris et le vrac : d'où il vient, comment il évolue, en face du budget des flux à nettoyer
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
@@ -513,7 +513,7 @@ def cmd_note(argv: List[str]) -> int:
 
         manage.py note "Brazil" "Les taxes ont changé en juin, le budget est antérieur."
         manage.py note "Japan" "Fermeture d'un magasin phare." --kind one_off --since 2026-07
-        manage.py note "United States" "Sephora.com est classé ailleurs." \\
+        manage.py note "United States" "Le site de l'enseigne est classé ailleurs." \\
             --kind reclassified --channel "WEBP - Web Partners"
         manage.py note --list
         manage.py note --forget 2
@@ -988,7 +988,7 @@ def cmd_compare(argv: List[str]) -> int:
     else:
         # Un contrôle, pas un rapprochement. Retirer le bulk de notre côté et le comparer
         # au total hors cleaning du fichier serait asymétrique : ce total a aussi perdu le
-        # daigou, le groupe JD et le café, et rien ici ne sait les retirer. La soustraction
+        # daigou, un groupe facturé plutôt que vendu et le café, et rien ici ne sait les retirer. La soustraction
         # partielle rapprochait les deux chiffres sans qu'aucun euro n'ait été expliqué —
         # exactement le genre de résultat flatteur qu'on croit sur parole.
         stated, unknown = _stated_bulk(ref.cleaning)
@@ -1151,7 +1151,7 @@ def _stated_bulk(cleaning) -> Tuple[float, List[str]]:
         key = str(name or "").strip().upper()
         if key in reference_module.BULK_LINES:
             total += amount
-        elif key not in reference_module.OTHER_CLEANING:
+        elif not reference_module.is_other_cleaning(key):
             unknown.append(str(name or "").strip())
     return total, unknown
 

@@ -89,7 +89,7 @@ def test_the_mainland_bulk_line_is_named_and_not_matched_on_the_word_bulk():
 
     total, unknown = _stated_bulk([
         ("CHINA", 2_000_000.0), ("HK BULK", 1_260_000.0),
-        ("TOTAL DAIGOU", 2_179_000.0), ("TOTAL JD- Group", 515_000.0),
+        ("TOTAL DAIGOU", 2_179_000.0), ("TOTAL RETAIL GROUP", 515_000.0),
         ("CAFE 86", 737_000.0),
     ])
 
