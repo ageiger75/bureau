@@ -1320,7 +1320,8 @@ group by 1, 2, 3, 4
 #: catégorie qui pèse moins d'un pour cent n'atteint jamais les cinq lignes de l'écran.
 #: Filtrer aussi la marque produit serait une décision, pas une correction.
 #:
-#: Mesuré à la validation : treize mois en moins d'une minute, quelques gigaoctets — la
+#: Mesuré à la validation : treize mois en moins d'une minute, quelques gigaoctets ; la
+#: fenêtre de l'exercice en compte jusqu'à vingt-quatre, pour le double au plus — la
 #: lecture se relance donc par le cockpit lui-même (`manage.py products --refresh`,
 #: `?refresh=1`), jamais par un agent. `query_history` rend zéro octet scanné pour cette
 #: requête parce que le fait est lu par un accès Search Optimization qu'elle n'attribue
@@ -1329,9 +1330,17 @@ group by 1, 2, 3, 4
 PRODUCT_SALES = """
 with period as (
     select
-        date_trunc('month', add_months(anchor, -1))  as last_month,
-        date_trunc('month', add_months(anchor, -13)) as first_month
+        last_month,
+        -- L'exercice à date et le même exercice à date un an plus tôt. Treize mois
+        -- glissants laissaient l'exercice sans an dernier avant le mois courant : il
+        -- ouvre en avril, la fenêtre ouvre en avril de l'année précédente — entre treize
+        -- et vingt-quatre mois, jamais plus.
+        add_months(date_from_parts(
+            iff(month(last_month) >= 4, year(last_month), year(last_month) - 1), 4, 1),
+            -12)                                     as first_month
     from (
+        select date_trunc('month', add_months(anchor, -1)) as last_month
+        from (
         -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
         select max(max_sales_date) as anchor
         from semantic_view(
@@ -1340,7 +1349,7 @@ with period as (
             where f_sellout_sales_details.transaction_date
                   >= dateadd(month, -3, current_date)
         )
-    )
+    ))
 ),
 base as (
     select
@@ -1360,7 +1369,7 @@ base as (
       and s.store_brand = 'L''OCCITANE'
       -- Bulk excluded exactly as the view's own `BULK_SALES` fact defines it.
       and coalesce(f.flag_bulk, 0) not in (2, 3, 4, 5)
-      and f.transaction_date >= dateadd(month, -15, current_date)
+      and f.transaction_date >= dateadd(month, -26, current_date)
       and date_trunc('month', f.transaction_date)
           between pr.first_month and pr.last_month
 )

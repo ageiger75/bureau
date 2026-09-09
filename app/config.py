@@ -209,6 +209,9 @@ class Settings:
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
     #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
     snowflake_connection: str = ""
+    #: Au-delà de cet âge, le serveur relit l'entrepôt de lui-même, derrière l'écran.
+    #: Zéro désactive : la relecture ne se fait alors qu'au démarrage et sur `?refresh=1`.
+    reread_hours: float = 6.0
 
     @property
     def is_local(self) -> bool:
@@ -517,7 +520,20 @@ def load_settings() -> Settings:
         markets_file=_env("CEOOS_MARKETS_FILE") or DEFAULT_MARKETS_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         snowflake_connection=snowflake_connection,
+        reread_hours=_hours(_env("CEOOS_REREAD_HOURS"), 6.0),
     )
+
+
+def _hours(text: str, default: float) -> float:
+    if not text:
+        return default
+    try:
+        value = float(text.replace(",", "."))
+    except ValueError:
+        raise ConfigError("CEOOS_REREAD_HOURS doit être un nombre d'heures, 0 pour désactiver.")
+    if value < 0:
+        raise ConfigError("CEOOS_REREAD_HOURS ne peut pas être négatif.")
+    return value
 
 
 settings = load_settings()

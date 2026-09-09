@@ -61,19 +61,25 @@ def test_a_launch_and_a_stop_are_named_apart_never_ranked_as_growth():
     assert [line.name for line in level.growing] == ["Sable d'Or crème mains"]
     assert level.growing[0].hero
     assert level.launched[0].growth is None and level.launched[0].growth_label == "n/d"
-    assert "1 lancée sur l'exercice" in level.sentence
+    assert "1 sans an dernier" in level.sentence
     assert "1 arrêtée" in level.sentence
 
 
-def test_a_reference_sold_before_the_year_but_not_in_it_last_year_is_not_a_launch():
-    """Une référence saisonnière qui n'a rien vendu sur ces mois l'an dernier mais
-    existait avant n'est pas un lancement : elle est établie, avec un an dernier à zéro."""
+def test_a_line_without_last_year_on_these_months_is_named_apart_not_ranked():
+    """Saisonnière ou neuve, une référence sans an dernier sur ces mois n'a pas de
+    croissance : elle est nommée à part, jamais en tête de « ce qui pousse »."""
     values = _year(0.0, 30.0)
     values["2025-01"] = 40.0
     level = P.build(_rows("product", "Écorce Noire bougie", values)).level("product")
 
-    assert level.launched == []
-    assert level.lines[0].launched is False and level.lines[0].growth is None
+    assert [line.name for line in level.launched] == ["Écorce Noire bougie"]
+    assert level.growing == [] and level.lines[0].growth is None
+    assert "1 sans an dernier" in level.sentence
+
+
+def test_a_label_read_through_the_wrong_encoding_is_mended():
+    assert P._mended("COFFRET MÃ©TAL") == "COFFRET MéTAL"
+    assert P._mended("CRÈME MAINS") == "CRÈME MAINS"
 
 
 def test_months_without_last_year_are_left_out_and_said():

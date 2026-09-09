@@ -34,6 +34,11 @@ async def lifespan(_: FastAPI):
     décisions, il faudra passer à Alembic (voir README, « Vers PostgreSQL »).
     """
     create_all()
+    # La relecture automatique de l'entrepôt, derrière l'écran, quand la lecture a passé
+    # l'âge. Ne fait rien sur les données de démonstration.
+    from .perf import reread
+
+    reread.start()
     yield
 
 

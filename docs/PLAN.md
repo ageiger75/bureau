@@ -442,6 +442,16 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**La relecture automatique, le 9 septembre 2026.** Le serveur ne relisait l'entrepôt qu'au
+démarrage ; laissé ouvert, il servait des chiffres de plusieurs jours. `app/perf/reread.py` :
+un fil relit tout (jeu de données et historique, KPI, produits, l'ordre de `?refresh=1`)
+quand la lecture principale a passé l'âge, six heures par défaut (`CEOOS_REREAD_HOURS`, 0
+désactive), jamais sous un lecteur ; la page guette les trois horodatages et se recharge.
+La lecture produit part aussi d'elle-même en arrière-plan à la première ouverture qui ne la
+trouve pas. Fenêtre de `PRODUCT_SALES` élargie à l'exercice à date et son an dernier (avril
+de l'année précédente), sinon l'exercice n'était comparé que sur le mois courant ; une ligne
+sans an dernier sur ces mois est nommée à part, jamais classée en croissance.
+
 **Les produits, le 7 septembre 2026.** « On vend des produits, des catégories : j'ai
 besoin de savoir ce qui marche. » `app/perf/products.py`, `manage.py products`, bloc « Ce
 qui marche, par produit » sur Analyses : trois niveaux — catégorie, gamme, référence — sur

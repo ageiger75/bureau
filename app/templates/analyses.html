@@ -427,7 +427,7 @@
       {% endif %}
       {% if level.launched or level.stopped %}
         <p class="cockpit-caveat">
-          {% if level.launched %}Lancé sur l'exercice : {% for line in level.launched[:5] %}{{ line.name }} {{ line.sales | eur }}{% if not loop.last %} · {% endif %}{% endfor %}{% if level.launched | length > 5 %} · et {{ level.launched | length - 5 }} de plus{% endif %}.{% endif %}
+          {% if level.launched %}Sans an dernier sur ces mois, lancé ou saisonnier : {% for line in level.launched[:5] %}{{ line.name }} {{ line.sales | eur }}{% if not loop.last %} · {% endif %}{% endfor %}{% if level.launched | length > 5 %} · et {{ level.launched | length - 5 }} de plus{% endif %}.{% endif %}
           {% if level.stopped %}Arrêté : {% for line in level.stopped[:5] %}{{ line.name }} ({{ line.last_year | eur }} l'an dernier){% if not loop.last %} · {% endif %}{% endfor %}{% if level.stopped | length > 5 %} · et {{ level.stopped | length - 5 }} de plus{% endif %}.{% endif %}
         </p>
       {% endif %}

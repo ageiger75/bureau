@@ -908,7 +908,7 @@ def test_what_works_by_product_lives_on_the_analyses_page_in_three_levels(client
     for word in ("Catégories ·", "Gammes ·", "Références ·"):
         assert word in page
     assert "Ce qui pousse" in page and "Ce qui recule" in page
-    assert "Lancé sur l'exercice" in page and "Arrêté :" in page
+    assert "Sans an dernier sur ces mois" in page and "Arrêté :" in page
     assert "hors vrac et hors gratuits" in page
     # Jamais sur l'écran du jour : c'est une analyse, pas une décision de lundi.
     assert "Ce qui marche, par produit" not in page_text(client.get("/"))

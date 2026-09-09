@@ -242,6 +242,14 @@ def _write_product_cache(rows) -> None:
     _write_disk_cache(rows, time.time(), read_at(), PRODUCT_CACHE_FILE)
 
 
+def reading_age() -> Optional[float]:
+    """L'âge, en secondes, de la lecture principale sur le disque ; None avant la première."""
+    try:
+        return max(0.0, time.time() - _cache_path(CACHE_FILE).stat().st_mtime)
+    except OSError:
+        return None
+
+
 def product_stamp() -> str:
     """Quand la lecture produit en cache a été écrite, ou vide avant la première. Le mtime
     du fichier, comme pour les KPI : la page l'interroge toutes les cinq secondes."""

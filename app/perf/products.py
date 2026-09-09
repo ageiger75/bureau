@@ -78,6 +78,17 @@ def _number(value) -> float:
         return 0.0
 
 
+def _mended(name: str) -> str:
+    """Un libellé lu en latin-1 puis rendu en UTF-8 porte des « Ã© » à la place des
+    accents ; c'est le référentiel qui le porte, et l'écran n'a pas à le répéter."""
+    if "Ã" not in name and "Â" not in name:
+        return name
+    try:
+        return name.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return name
+
+
 def month_fr(period: str) -> str:
     try:
         return "%s %s" % (MONTHS_FR[int(period[5:7]) - 1], period[:4])
@@ -115,7 +126,7 @@ class Line:
         self.month_last_year = month_last_year
         #: La part des ventes du niveau sur l'exercice à date ; posée par le niveau.
         self.share = 0.0
-        #: Pas d'an dernier du tout : lancée sur l'exercice. Ou l'inverse : arrêtée.
+        #: Rien sur ces mois l'an dernier : lancée, ou saisonnière. Ou l'inverse : arrêtée.
         self.launched = launched
         self.stopped = stopped
 
@@ -229,9 +240,8 @@ class Level:
                 len(falling), self.words if len(falling) > 1 else self.word,
                 "nt" if len(falling) > 1 else "", format_eur(lost)))
         if self.launched:
-            parts.append("%d lancée%s sur l'exercice, %s" % (
-                len(self.launched), "s" if len(self.launched) > 1 else "",
-                format_eur(sum(line.sales for line in self.launched))))
+            parts.append("%d sans an dernier, %s" % (
+                len(self.launched), format_eur(sum(line.sales for line in self.launched))))
         if self.stopped:
             parts.append("%d arrêtée%s, %s l'an dernier" % (
                 len(self.stopped), "s" if len(self.stopped) > 1 else "",
@@ -302,7 +312,7 @@ def _read(rows: Iterable[dict], scope: str) -> Dict[str, Dict[str, dict]]:
         period = str(row.get("period") or "")[:7]
         if len(period) != 7:
             continue
-        name = str(row.get("name") or "").strip() or "(sans nom)"
+        name = _mended(str(row.get("name") or "").strip()) or "(sans nom)"
         if name.upper().startswith(PLACEHOLDER_PREFIXES):
             continue
         entry = read.setdefault(level, {}).setdefault(name, {"periods": {}, "hero": False})
@@ -350,12 +360,14 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "") -> Review:
             last_year = sum(series.get(period, 0.0) for period in before)
             if sales <= 0 and last_year <= 0:
                 continue
-            ever_before = any(period < opens and value > 0 for period, value in series.items())
+            # Sans an dernier sur ces mois, une croissance n'existe pas : la ligne est
+            # nommée à part, qu'elle soit neuve ou saisonnière, jamais classée en tête de
+            # « ce qui pousse » avec un pourcentage infini.
             lines.append(Line(level, name, sales, last_year,
                               series.get(anchor, 0.0), series.get(_shift(anchor, -12), 0.0),
                               hero=entry["hero"],
-                              launched=last_year <= 0 and not ever_before and sales > 0,
-                              stopped=sales <= 0 and last_year > 0))
+                              launched=last_year <= 0 < sales,
+                              stopped=sales <= 0 < last_year))
         if lines:
             levels.append(Level(level, lines))
     totals = [level.total for level in levels if level.total > 0]
