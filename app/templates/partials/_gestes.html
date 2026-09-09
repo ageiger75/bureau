@@ -1,0 +1,68 @@
+{# Les gestes qui ferment la boucle, sous une conversation : prendre un engagement après
+   l'appel, porter la lecture. Deux formulaires courts, préremplis avec ce que la
+   conversation sait déjà — le marché, le sujet, l'interlocuteur. #}
+{% macro pledge(issue, market, who, due) %}
+  <details class="subject-actions">
+    <summary>Engager</summary>
+    <form method="post" action="/engagements">
+      <p class="form-lede">Ce qui a été dit à l'appel, tenu jusqu'à sa date. Le lundi suivant le relit ici.</p>
+      <input type="hidden" name="market" value="{{ market }}">
+      <input type="hidden" name="issue" value="{{ issue.issue_id }}">
+      <label>Qui s'engage
+        <input type="text" name="owner_name" required autocomplete="off" maxlength="200" value="{{ who }}">
+      </label>
+      <label>À quoi
+        <textarea name="action" required rows="2"></textarea>
+      </label>
+      <label>Pour quand
+        <input type="date" name="due_date" value="{{ due }}">
+      </label>
+      <label>Ce qu'on en attend (facultatif)
+        <input type="text" name="expected_impact" autocomplete="off" maxlength="200" placeholder="un montant, un taux, un fait">
+      </label>
+      <button type="submit">Prendre l'engagement</button>
+    </form>
+  </details>
+{% endmacro %}
+
+{% macro reading(issue) %}
+  <details class="subject-actions">
+    <summary>Porter la lecture</summary>
+    <form method="post" action="/issues/{{ issue.issue_id }}/read">
+      <p class="form-lede">Ce que l'appel a conclu, en une phrase. Elle s'empile sur la précédente sans l'effacer.</p>
+      <label>La conclusion
+        <textarea name="conclusion" required rows="2"></textarea>
+      </label>
+      {% if issue.readings %}
+      <label>Pourquoi elle change la précédente
+        <input type="text" name="because" required autocomplete="off" maxlength="200">
+      </label>
+      {% endif %}
+      <button type="submit">Porter</button>
+    </form>
+  </details>
+{% endmacro %}
+
+{% macro live(pledge) %}
+  <details class="subject-actions">
+    <summary>Mettre à jour</summary>
+    <form method="post" action="/engagements/{{ pledge.reference }}/update">
+      <label>Statut
+        <select name="status">
+          <option value="">— inchangé —</option>
+          <option value="in_progress">en cours</option>
+          <option value="blocked">bloqué</option>
+          <option value="done">fait</option>
+          <option value="cancelled">abandonné</option>
+        </select>
+      </label>
+      <label>Ce qu'on observe (exigé quand c'est fait)
+        <textarea name="actual_impact" rows="2"></textarea>
+      </label>
+      <label>Nouvelle échéance (un report compte)
+        <input type="date" name="due_date">
+      </label>
+      <button type="submit">Enregistrer</button>
+    </form>
+  </details>
+{% endmacro %}

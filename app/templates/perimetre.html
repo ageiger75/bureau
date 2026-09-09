@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ page.name }} — CEO Performance{% endblock %}
 {% block content %}
+{% from "partials/_gestes.html" import pledge, reading %}
 <section class="panel" id="perimetre">
   <p class="cockpit-eyebrow"><a href="/perimetres">Périmètres</a> · {{ page.markets | length }} marché{{ '' if page.markets | length == 1 else 's' }}</p>
   <h2>{{ page.name }}{% if page.lead %} · {{ page.lead }}{% endif %}</h2>
@@ -153,6 +154,10 @@
             <dt>La question</dt><dd class="talk-question">{{ talk.question | ucfirst }}</dd>
             {% if talk.arbitrate_hint %}<dt>Le geste</dt><dd>{{ talk.arbitrate_hint }}</dd>{% endif %}
           </dl>
+          <div class="talk-gestures">
+            {{ pledge(talk.issue, talk.market, talk.who, due_default) }}
+            {{ reading(talk.issue) }}
+          </div>
         </li>
       {% endfor %}
     </ol>

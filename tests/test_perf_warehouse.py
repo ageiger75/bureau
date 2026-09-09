@@ -410,8 +410,9 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
 
     assert response.status_code == 200
     assert "Japan" in analyses.text
-    # And says so, rather than showing an empty board that reads as "nothing outstanding".
-    assert "Source pas encore connectée" in response.text
+    # Les engagements sont la mémoire du cockpit, jamais une source à connecter : vide, le
+    # tableau dit qu'aucun n'a été pris — et où le premier se prend.
+    assert "Aucun engagement pris encore" in response.text
 
 
 # ------------------------------------------------------------- not querying every time

@@ -283,10 +283,7 @@ def _perimeter_inputs(session):
     fires = analytics.fires(dataset, limit=None)
     from ..perf import conversation as conversation_module
 
-    try:
-        commitments = source.commitments()
-    except NotImplementedError:
-        commitments = []
+    commitments = _all_commitments(source, session)
     try:
         kpis = source.client_kpis(wait_for_warehouse=False)
     except Exception:  # noqa: BLE001 — sans KPI, la ligne « déjà engagé » est plus courte
@@ -344,6 +341,18 @@ def _white_spaces(dataset, month):
     placed, _leads = month_module.place_markets(markets, org, directory)
     sales = stores_module.current_sales() if settings.has_store_sales_file else None
     return whitespace_module.build(dataset, placed, sales)
+
+
+def _all_commitments(source, session):
+    """Les engagements pris dans le cockpit, puis ceux d'une source qui en porterait."""
+    from ..perf import pledges as pledges_module
+
+    taken = pledges_module.load(session)
+    try:
+        taken += list(source.commitments())
+    except NotImplementedError:
+        pass
+    return taken
 
 
 def _product_rows(source):
@@ -447,8 +456,11 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               retail=inputs["retail"], prepared=inputs["prepared"],
                               products=products, elsewhere=inputs["elsewhere"],
                               clients=clients)
+    from ..perf import pledges as pledges_module
+
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
+        "due_default": pledges_module.default_due(),
     })
 
 
@@ -528,11 +540,9 @@ def _screen(request: Request, session: Session):
     # page down. What it must not do is render an empty board: "no overdue commitments"
     # and "not connected to commitments" look the same and mean opposite things.
     unavailable = []
-    try:
-        commitments = board(source.commitments())
-    except NotImplementedError:
-        commitments = board([])
-        unavailable.append("commitments")
+    # Les engagements sont ceux que le lecteur a pris dans le cockpit — sa mémoire, jamais
+    # une source à connecter — plus ceux d'une source qui en aurait, en démonstration.
+    commitments = board(_all_commitments(source, session))
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
@@ -724,6 +734,7 @@ def _screen(request: Request, session: Session):
             "people": analytics.people_to_push([issue.fires[0] for issue in issues]),
             "wins": analytics.wins(dataset),
             "commitments": commitments,
+            "due_default": __import__("app.perf.pledges", fromlist=["default_due"]).default_due(),
             # One list, one line per KPI. Off target, overdue, or both — the card carries
             # whichever apply, instead of the KPI appearing here for one and again below
             # for the other, as if it were two problems.

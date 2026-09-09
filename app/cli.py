@@ -64,6 +64,7 @@
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
+    python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4113,6 +4114,32 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_engagements(argv: List[str]) -> int:
+    """Les engagements pris dans le cockpit : qui, à quoi, pour quand, et où ils en sont."""
+    from .db import SessionFactory
+    from .perf import pledges as pledges_module
+
+    session = SessionFactory()
+    try:
+        taken = pledges_module.load(session)
+    finally:
+        session.close()
+    if not taken:
+        print("Aucun engagement pris encore. Le premier se prend sous une conversation, après l'appel.")
+        return 0
+    for item in taken:
+        late = item.days_left
+        when = ("pour le %s" % item.due_date) if item.due_date else "sans échéance"
+        if item.is_live and late is not None and late < 0:
+            when += " (en retard de %d jours)" % -late
+        print("  %-8s %-10s %-18s %s — %s, %s%s" % (
+            item.reference, item.status_word, item.market[:18], item.action, item.owner_name or "sans owner",
+            when, " · attendu %s" % item.expected_impact if item.expected_impact else ""))
+        if item.actual_impact:
+            print("  %-8s %-10s %-18s observé : %s" % ("", "", "", item.actual_impact))
+    return 0
+
+
 def cmd_whitespaces(argv: List[str]) -> int:
     """Les trois formes internes de white space, telles que la page Analyses les rend."""
     from .perf.source import current_source
@@ -4706,6 +4733,8 @@ def main(argv: List[str]) -> int:
         return cmd_zones(argv[1:])
     if command == "whitespaces":
         return cmd_whitespaces(argv[1:])
+    if command == "engagements":
+        return cmd_engagements(argv[1:])
     if command == "products":
         return cmd_products(argv[1:])
     if command == "clients":

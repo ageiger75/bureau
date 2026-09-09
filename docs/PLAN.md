@@ -442,6 +442,16 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Chantier A, fermer la boucle, le 9 septembre 2026.** Les engagements se prennent dans le
+cockpit, sous chaque conversation, après l'appel : qui, à quoi, pour quand, ce qu'on en
+attend (`app/models.Pledge`, `app/perf/pledges.py`, `routes/pledges.py`, `manage.py
+engagements`). Ils vivent — en cours, bloqué, fait avec le résultat observé, report compté —
+et le lundi les relit dans la conversation, dans le tableau des engagements et dans « ce qui a
+changé ». La lecture après l'appel se porte au même endroit, et s'empile. Le tableau n'est
+plus « une source à connecter » : c'est la mémoire du lecteur. L'écran du jour s'allège :
+trois lignes de « ce qui a changé » et le sell-in par périmètre, le détail et le sell-in par
+canal descendent sur Analyses.
+
 **Feuille de route, le 9 septembre 2026.** Relecture des quatre pages contre les besoins du
 lecteur, écarts classés et cinq chantiers : `docs/ROADMAP-2026-09-09.md`.
 

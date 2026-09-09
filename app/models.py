@@ -138,6 +138,40 @@ class IssueEvidence(Base):
         return "<IssueEvidence %s/%s %s>" % (self.kind, self.scope, self.seen_at)
 
 
+class Pledge(Base):
+    """Un engagement pris après un appel : l'action, qui, pour quand, sur quel marché.
+
+    La boucle du cockpit est « écart → conversation → engagement → résultat ». Sans cette
+    table, le lundi suivant recalcule tout comme si rien n'avait été dit. Texte libre pour
+    l'owner, comme sur les sujets : une clé vers un compte suggérerait une notification,
+    et rien ici n'envoie quoi que ce soit.
+    """
+
+    __tablename__ = "pledges"
+
+    id: Mapped[str] = _id_column()
+    #: ENG-001, ENG-002… jamais réattribué.
+    reference: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    market: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    #: Le sujet du registre qui a fait naître l'engagement, quand il y en a un.
+    issue_ref: Mapped[str] = mapped_column(String(20), nullable=False, default="")
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    due_date: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    expected_impact: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    actual_impact: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="open")
+    is_critical: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Chaque report d'échéance compte : le second est le signal, pas le premier.
+    postponements: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[str] = mapped_column(String(32), nullable=False, default=now_iso)
+    updated_at: Mapped[str] = mapped_column(String(32), nullable=False, default=now_iso)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return "<Pledge %s %s>" % (self.reference, self.action[:40])
+
+
 class IssueReading(Base):
     """Une conclusion portée sur un sujet, et ce qui l'a fait changer.
 

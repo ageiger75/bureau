@@ -398,6 +398,41 @@
   {% include "partials/_products.html" %}
 </section>
 
+{# ------------------------------------------------------------------ sell-in par canal #}
+
+{% if invoiced and invoiced.usable %}
+<section class="panel" id="sell-in-canaux">
+  <h2>{{ invoiced.title }}, par canal</h2>
+  <p class="lede">{{ invoiced.sentence }}. {{ invoiced.note }}</p>
+  <table class="month-table mix-table">
+    <thead><tr><th>Canal</th><th>Facturé à date</th><th>vs l'an dernier à jours ouvrés égaux</th><th>à dates égales</th></tr></thead>
+    <tbody>
+    {% for line in invoiced.shown_channels %}
+      <tr><td>{{ line.name }}</td><td class="num">{{ line.current | eur }}</td><td class="num {{ 'is-en-retard' if line.growth is not none and line.growth < -0.02 else ('is-en-avance' if line.growth is not none and line.growth > 0.02 else '') }}">{{ line.growth_label }}</td><td class="num">{{ line.same_dates_label }}</td></tr>
+    {% endfor %}
+    {% if invoiced.rest_channels %}
+      <tr class="month-rest" title="{{ invoiced.rest_channels | map(attribute='name') | join(', ') }}"><td>{{ invoiced.rest_channels | length }} autres canaux</td><td class="num">{{ invoiced.rest_channels | sum(attribute='current') | eur }}</td><td class="num"></td><td class="num"></td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+  {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ changements #}
+
+<section class="panel" id="changements">
+  <h2>Ce qui a changé depuis lundi dernier, en entier</h2>
+  <p class="lede">{{ changes.sentence | ucfirst }}.</p>
+  {% if not changes.is_quiet %}
+    <ol class="watch-list">
+      {% for item in changes.items %}
+        <li class="watch"><p class="watch-line"><span class="badge">{{ item.kind }}</span> <span class="subject-ref">{{ item.when }}</span> {{ item.text }}</p></li>
+      {% endfor %}
+    </ol>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ clients #}
 
 <section class="panel" id="clients">

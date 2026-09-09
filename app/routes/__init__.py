@@ -1,11 +1,12 @@
 """Routeurs HTTP. Aucun ne contient de règle métier : ils lisent, appellent le domaine,
 écrivent, puis redirigent."""
 
-from . import issues, system, today
+from . import issues, pledges, system, today
 
 ROUTERS = (
     today.router,
     issues.router,
+    pledges.router,
     system.router,
 )
 

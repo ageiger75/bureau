@@ -2,6 +2,7 @@
 {% block title %}Aujourd'hui — CEO Performance{% endblock %}
 
 {% block content %}
+{% from "partials/_gestes.html" import pledge, reading, live %}
 
 {# The brief's wireframe uses emoji section markers. §28 asks for very limited visual
    noise and no "AI" gimmicks, so the hierarchy is carried by typography instead. #}
@@ -278,18 +279,7 @@
      l'an dernier. Factures contre factures, jamais contre le plan. #}
   {% if invoiced and invoiced.usable %}
     <h2>{{ invoiced.title }}</h2>
-    <p class="lede">{{ invoiced.sentence }}. {{ invoiced.note }}</p>
-    <table class="month-table mix-table">
-      <thead><tr><th>Canal</th><th>Facturé à date</th><th>vs l'an dernier à jours ouvrés égaux</th><th>à dates égales</th></tr></thead>
-      <tbody>
-      {% for line in invoiced.shown_channels %}
-        <tr><td>{{ line.name }}</td><td class="num">{{ line.current | eur }}</td><td class="num {{ 'is-en-retard' if line.growth is not none and line.growth < -0.02 else ('is-en-avance' if line.growth is not none and line.growth > 0.02 else '') }}">{{ line.growth_label }}</td><td class="num">{{ line.same_dates_label }}</td></tr>
-      {% endfor %}
-      {% if invoiced.rest_channels %}
-        <tr class="month-rest" title="{{ invoiced.rest_channels | map(attribute='name') | join(', ') }}"><td>{{ invoiced.rest_channels | length }} autres canaux</td><td class="num">{{ invoiced.rest_channels | sum(attribute='current') | eur }}</td><td class="num"></td><td class="num"></td></tr>
-      {% endif %}
-      </tbody>
-    </table>
+    <p class="lede">{{ invoiced.sentence }}. {{ invoiced.note }} <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>
     {% if invoiced.perimeters %}
     <table class="month-table mix-table">
       <thead><tr><th>Périmètre</th><th>Facturé à date</th><th>vs l'an dernier à jours ouvrés égaux</th><th>à dates égales</th></tr></thead>
@@ -424,7 +414,11 @@
               {% if talk.arbitrate_hint %}<dt>Le geste</dt><dd>{{ talk.arbitrate_hint }}</dd>{% endif %}
             </dl>
             <p class="subject-why">Retenu pour : {{ talk.retained_for }}</p>
-            {{ arbitrate(talk.issue) }}
+            <div class="talk-gestures">
+              {{ pledge(talk.issue, talk.market, talk.who, due_default) }}
+              {{ reading(talk.issue) }}
+              {{ arbitrate(talk.issue) }}
+            </div>
           </li>
         {% endfor %}
       </ol>
@@ -492,23 +486,24 @@
   <h2>Ce qui a changé depuis lundi dernier</h2>
   <p class="lede">{{ changes.sentence | ucfirst }}.</p>
   {% if not changes.is_quiet %}
+    {# Trois lignes ici, le lundi ne lit pas une liste ; le détail vit sur Analyses. #}
     <ol class="watch-list">
-      {% for item in changes.shown %}
+      {% for item in changes.shown[:3] %}
         <li class="watch"><p class="watch-line"><span class="badge">{{ item.kind }}</span> <span class="subject-ref">{{ item.when }}</span> {{ item.text }}</p></li>
       {% endfor %}
     </ol>
-    {% if changes.hidden %}<p class="cockpit-caveat">et {{ changes.hidden }} autre{{ '' if changes.hidden == 1 else 's' }}, au registre.</p>{% endif %}
+    {% if changes.items | length > 3 %}<p class="cockpit-caveat">et {{ changes.items | length - 3 }} autre{{ '' if changes.items | length == 4 else 's' }} — <a href="/analyses#changements">le détail sur Analyses</a>.</p>{% endif %}
   {% endif %}
 </section>
 
 {# ------------------------------------------------------------------ commitments #}
 
-<section class="panel">
+<section class="panel" id="engagements">
   <h2>Engagements</h2>
-  {% if "commitments" in unavailable %}
+  {% if not commitments.items %}
   <p class="empty">
-    Source pas encore connectée. Un tableau vide se lirait « rien en cours », soit l'inverse de
-    ce qu'il voudrait dire.
+    Aucun engagement pris encore. Le premier se prend sous une conversation, après l'appel :
+    qui, à quoi, pour quand. Le lundi suivant le relit ici.
   </p>
   {% else %}
   <p class="commitment-counts">
@@ -538,6 +533,21 @@
       <li><span class="tag tag-good">A marché</span> {{ item.action }} — attendu {{ item.expected_impact }}, observé {{ item.actual_impact }}</li>
     {% endfor %}
   </ul>
+
+  {# Les engagements vivants, un par ligne : qui, à quoi, pour quand, sur quel marché — et
+     le geste qui les fait vivre. Ceux du cockpit portent une référence ; ceux d'une source
+     de démonstration, non, et ne se mettent pas à jour ici. #}
+  <ol class="watch-list">
+    {% for item in commitments.items if item.status in ("open", "in_progress", "blocked") %}
+      <li class="watch">
+        <p class="watch-line">
+          {% if item.reference is defined %}<span class="subject-ref">{{ item.reference }}</span>{% endif %}
+          <strong>{{ item.market }}</strong> · {{ item.action }} — {{ item.owner_name }}{% if item.due_date %}, pour le {{ item.due_date }}{% endif %}{% if item.expected_impact %} · attendu {{ item.expected_impact }}{% endif %}{% if item.status != "open" %} · {{ item.status_word if item.status_word is defined else item.status }}{% endif %}
+        </p>
+        {% if item.reference is defined %}{{ live(item) }}{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
   {% endif %}
 </section>
 

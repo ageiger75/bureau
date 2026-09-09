@@ -414,6 +414,58 @@ def parse_review(form: Mapping[str, Any]) -> FormResult:
     }
     return result
 
+# ------------------------------------------------------------------------ engagements
+
+
+def parse_pledge(form: Mapping[str, Any]) -> FormResult:
+    """Un engagement pris après un appel : l'action, qui, pour quand, ce qu'on en attend."""
+    result = FormResult()
+    action = _text(form, "action")
+    _require(result, "action", action, "L'engagement ne peut pas être vide : que fait-on ?")
+    owner = _line(form, "owner_name", LINE_MAX)
+    _require(result, "owner_name", owner, "Un engagement sans personne n'engage personne.")
+    result.values = {
+        "action": action,
+        "owner_name": owner,
+        "market": _line(form, "market", LINE_MAX),
+        "issue": _line(form, "issue", 20),
+        "due_date": _optional_date(result, form, "due_date", "Échéance"),
+        "expected_impact": _line(form, "expected_impact", LINE_MAX),
+        "is_critical": _checkbox(form, "is_critical"),
+    }
+    return result
+
+
+def parse_pledge_update(form: Mapping[str, Any]) -> FormResult:
+    """Faire vivre un engagement : statut, résultat observé, nouvelle échéance."""
+    from .perf import pledges
+
+    result = FormResult()
+    result.values = {
+        "status": _enum(result, form, "status", list(pledges.STATUSES) + [""], "", "statut"),
+        "actual_impact": _text(form, "actual_impact"),
+        "due_date": _optional_date(result, form, "due_date", "Échéance"),
+        "notes": _text(form, "notes"),
+    }
+    if result.values["status"] == pledges.DONE and not result.values["actual_impact"].strip():
+        result.errors["actual_impact"] = ("Fait, mais qu'a-t-on observé ? Un engagement fait "
+                                          "sans résultat ne dit pas s'il a marché.")
+    return result
+
+
+def parse_reading(form: Mapping[str, Any]) -> FormResult:
+    """Une conclusion portée sur un sujet après l'appel, et pourquoi elle change."""
+    result = FormResult()
+    conclusion = _text(form, "conclusion")
+    _require(result, "conclusion", conclusion, "La lecture ne peut pas être vide.")
+    result.values = {
+        "conclusion": conclusion,
+        "because": _text(form, "because"),
+        "at": _optional_date(result, form, "at", "Date"),
+    }
+    return result
+
+
 # ------------------------------------------------------------------ sujets de management
 
 
