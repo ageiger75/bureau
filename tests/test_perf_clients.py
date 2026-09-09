@@ -129,7 +129,7 @@ def test_a_noise_segment_leaves_the_table_and_a_short_window_is_said():
 def test_the_lost_share_compares_to_last_year_at_the_same_month():
     """72 % de la base perdue n'est un chiffre que contre l'an dernier au même mois : la
     troisième fenêtre le donne, et la phrase le porte en points."""
-    rows = _rows()
+    rows = _rows(retained_atv=84.0)     # les fidèles tiennent : la question porte sur les perdus
     rows += [
         _row("LOEP", "ly2", "arc", 90, 140, 11_000.0),
         _row("LOEP", "ly", "retained", 60, 100, 8_500.0),
@@ -144,7 +144,7 @@ def test_the_lost_share_compares_to_last_year_at_the_same_month():
     assert "(33 % l'an dernier au même mois, +7 pts : une perte acquise, au-delà de la saison)" in review.read
     assert review.question.startswith("La base perd plus que la saison")
 
-    same = C.build(_rows() + [_row("LOEP", "ly2", "arc", 100, 150, 12_000.0),
+    same = C.build(_rows(retained_atv=84.0) + [_row("LOEP", "ly2", "arc", 100, 150, 12_000.0),
                               _row("LOEP", "ly", "lost", 41, 50, 3_000.0)])
     assert "la saison, pas une dégradation" in same.read
     assert same.question.startswith("La part perdue est celle de l'an dernier")
