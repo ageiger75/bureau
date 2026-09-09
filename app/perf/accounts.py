@@ -26,6 +26,7 @@ de Hong Kong ; ce n'est pas un marché et il ne s'affiche pas comme tel.
 
 from __future__ import annotations
 
+import datetime
 from typing import Dict, List, Optional, Sequence
 
 from .analytics import format_eur, format_pct
@@ -254,21 +255,27 @@ def _name_of(code: str, label: str, names: Dict[str, str]) -> (str, bool):
 
 
 def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
-          channel_gaps: Optional[Dict[str, float]] = None, note: str = "") -> Review:
+          channel_gaps: Optional[Dict[str, float]] = None, note: str = "",
+          today: Optional[datetime.date] = None) -> Review:
     """Les partenaires, sur les lignes de `PARTNER_SELL_IN` et les noms du fichier.
 
     `channel_gaps` : le code de canal (minuscule) → l'écart au plan de l'exercice à date,
     tel que la lecture principale le tient ; absent, le bloc dit que le plan du canal n'est
     pas lu plutôt que de se taire.
+
+    Le mois en cours est écarté : la lecture court jusqu'à hier, et un mois à moitié
+    facturé posé contre le même mois entier l'an dernier a fait lire trois partenaires à
+    moins quarante pour cent qui ne reculaient pas.
     """
     names = {str(k).strip().upper(): v for k, v in (names or {}).items()}
     channel_gaps = {str(k).strip().lower(): v for k, v in (channel_gaps or {}).items()}
+    current_month = (today or datetime.date.today()).strftime("%Y-%m")
     by_code: Dict[str, Partner] = {}
     periods = set()
     for row in rows:
         period = str(row.get("period") or "").strip()[:7]
         code = str(row.get("code") or "").strip()
-        if not period or not code:
+        if not period or not code or period >= current_month:
             continue
         value = _number(row.get("net_eur"))
         if value is None:

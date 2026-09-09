@@ -46,6 +46,15 @@ def test_a_partner_reads_against_last_year_on_both_windows_and_against_its_chann
     assert "Nordic Web" in review.unnamed_note
 
 
+def test_the_month_still_being_invoiced_is_left_out():
+    import datetime
+
+    months = _flat(100.0)
+    months["2026-09"] = 30.0
+    review = A.build(_rows("PC_A", "X", "WEBP", months), today=datetime.date(2026, 9, 9))
+    assert review.through == "2026-08" and review.shown[0].word == "en ligne avec l'an dernier"
+
+
 def test_a_partner_without_last_year_says_so_instead_of_a_growth():
     rows = _rows("PC_C", "GRAND BAZAR", "DPT", {"2026-06": 10.0, "2026-07": 10.0, "2026-08": 10.0})
     review = A.build(rows)

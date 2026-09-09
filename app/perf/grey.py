@@ -55,7 +55,11 @@ class Market:
     __slots__ = ("scope", "bulk", "bulk_ly", "sales", "recent", "recent_ly", "months")
 
     def __init__(self, scope: str) -> None:
-        self.scope = scope
+        from .budget import normalise_market
+
+        #: Le nom tel que le cockpit l'écrit partout : l'entrepôt écrit les pays en
+        #: capitales, et « CHINA » à l'écran est un code, pas un marché.
+        self.scope = scope if scope.upper() == GROUP else normalise_market(scope)
         self.bulk = 0.0
         self.bulk_ly: Optional[float] = None
         self.sales = 0.0

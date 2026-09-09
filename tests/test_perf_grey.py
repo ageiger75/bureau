@@ -41,6 +41,7 @@ def test_the_bulk_is_read_per_market_with_its_origin_and_its_growth():
     review = G.build(rows)
 
     assert review.usable and review.start == "2026-04" and review.through == "2026-08"
+    assert G.build(_rows("LOEP", 1.0, 0.1) + _rows("HONG KONG", 1.0, 0.1)).shown[0].scope == "Hong Kong"
     assert review.group.bulk == 300.0 and review.group.bulk_ly == 250.0
     assert review.group.word == "monte" and "le vrac lu monte" in review.headline
     assert [item.scope for item in review.shown] == ["Northland", "Eastland"]

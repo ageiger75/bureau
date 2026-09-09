@@ -374,7 +374,7 @@ def _accounts(source, dataset=None, refresh: bool = False):
     note = getattr(source, "partner_note", "") or ""
     names = accounts_module.names_from(partners_module.current()) if settings.has_partners_file else {}
     gaps = {}
-    for row in getattr(dataset, "rows", None) or []:
+    for row in getattr(dataset, "units", None) or []:
         if getattr(row, "is_sell_in", False) and getattr(row, "gap_year_to_date", None) is not None:
             code = str(getattr(row, "channel", "") or "").lower()
             gaps[code] = gaps.get(code, 0.0) + float(row.gap_year_to_date)
