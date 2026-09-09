@@ -26,7 +26,7 @@
       <h3 class="subject-heading">D'où viennent les clients, et ce que chacun vaut</h3>
       <table class="month-table product-table">
         <thead>
-          <tr><th></th><th>Clients</th><th>Part</th><th>Panier</th><th>vs la base de l'an dernier</th><th>Ventes</th></tr>
+          <tr><th></th><th>Clients</th><th>Part</th><th>L'an dernier au même mois</th><th>Panier</th><th>vs la base de l'an dernier</th><th>Ventes</th></tr>
         </thead>
         <tbody>
           {% if clients.lost %}
@@ -34,6 +34,7 @@
               <td>{{ clients.lost.word | ucfirst }}</td>
               <td class="num">{{ clients.lost.clients_label }}</td>
               <td class="num">{{ clients.lost.share_label }}</td>
+              <td class="num">{{ clients.lost.before_share_label }}{% if clients.lost.share_change is not none %} · {{ clients.lost.share_change_label }}{% endif %}</td>
               <td class="num">{{ clients.lost.atv_label }}</td>
               <td class="num">{{ clients.lost.atv_vs_base_label }}</td>
               <td class="num">{{ clients.lost.sales_label }} l'an dernier</td>
@@ -44,6 +45,7 @@
               <td>{{ part.word | ucfirst }}</td>
               <td class="num">{{ part.clients_label }}</td>
               <td class="num">{{ part.share_label }}</td>
+              <td class="num">{{ part.before_share_label }}{% if part.share_change is not none %} · {{ part.share_change_label }}{% endif %}</td>
               <td class="num">{{ part.atv_label }}</td>
               <td class="num">{{ part.atv_vs_base_label }}</td>
               <td class="num">{{ part.sales_label }}</td>

@@ -1000,6 +1000,14 @@ def _client_rows() -> List[dict]:
             rows.append({"scope": scope, "window": window, "through": CLIENT_THROUGH,
                          "segment": segment, "clients": clients,
                          "transactions": round(transactions), "sales": round(transactions * atv)})
+        # L'exercice d'avant, pour que la part perdue de l'an dernier se lise : une base
+        # un peu plus petite, un flux un peu moins érodé.
+        row("ly2", "arc", round(arc_ly * 0.96), atv_ly * 0.97)
+        row("ly2", "walkin", round(walkin_ly * 1.03), atv_ly * 0.68, per=1.0)
+        row("ly", "retained", round(arc_ly * 0.96 * 0.64), atv_ly * 1.02, per=1.9)
+        row("ly", "reactivated", round(arc_ly * 0.10), atv_ly * 0.94, per=1.3)
+        row("ly", "lost", round(arc_ly * 0.96 * 0.36), atv_ly * 0.9, per=1.2)
+        row("ly", "new", arc_ly - round(arc_ly * 0.96 * 0.64) - round(arc_ly * 0.10), atv_ly * 0.8, per=1.15)
         row("ly", "arc", arc_ly, atv_ly)
         row("ly", "walkin", walkin_ly, atv_ly * 0.7, per=1.0)
         row("ty", "retained", retained, atv_ret, per=1.9)

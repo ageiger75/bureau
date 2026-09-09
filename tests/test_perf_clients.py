@@ -124,3 +124,36 @@ def test_a_noise_segment_leaves_the_table_and_a_short_window_is_said():
     assert review.part("unknown").atv_label == "—" and review.part("unknown").atv_vs_base_label == "n/d"
     assert any("hors tableau" in reason for reason in review.absent)
     assert any("les fenêtres font 5 mois" in reason for reason in review.absent)
+
+
+def test_the_lost_share_compares_to_last_year_at_the_same_month():
+    """72 % de la base perdue n'est un chiffre que contre l'an dernier au même mois : la
+    troisième fenêtre le donne, et la phrase le porte en points."""
+    rows = _rows()
+    rows += [
+        _row("LOEP", "ly2", "arc", 90, 140, 11_000.0),
+        _row("LOEP", "ly", "retained", 60, 100, 8_500.0),
+        _row("LOEP", "ly", "lost", 30, 40, 2_500.0),
+        _row("LOEP", "ly", "new", 30, 45, 2_600.0),
+        _row("LOEP", "ly", "reactivated", 10, 15, 1_700.0),
+    ]
+    review = C.build(rows)
+
+    assert review.lost.share_label == "40 % de la base"
+    assert review.lost.before_share_label == "33 %" and review.lost.share_change_label == "+7 pts"
+    assert "(33 % l'an dernier au même mois, +7 pts)" in review.read
+    assert review.part("new").before_share_label == "30 %"
+    assert not any("l'exercice d'avant n'est pas" in reason for reason in review.absent)
+
+    without = C.build(_rows())
+    assert without.lost.before is None and without.lost.before_share_label == "—"
+    assert any("l'exercice d'avant n'est pas dans la lecture" in reason for reason in without.absent)
+
+
+def test_the_client_query_carries_three_windows_and_classifies_last_year_too():
+    from app.perf import queries
+
+    sql = queries.CLIENT_FLOW.lower()
+    assert "'ly2'" in sql and "ly2_from" in sql and "ly2_to" in sql
+    assert '''cur."window" in ('ty', 'ly')''' in sql
+    assert "dateadd(month, -38, current_date)" in sql

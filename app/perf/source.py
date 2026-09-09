@@ -263,12 +263,21 @@ QUERY_CACHES = {
     "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
 }
 
+#: L'âge au-delà duquel une lecture se refait. Les produits bougent au mois et se relisent
+#: au jour ; les clients sur trois exercices sont la lecture la plus lourde du cockpit, et
+#: un mois clos n'arrive qu'une fois par mois : une semaine, donc au plus une semaine
+#: après la clôture. Le reste du temps, la lecture est la même lecture.
+QUERY_MAX_AGE = {
+    "products": HISTORY_CACHE_SECONDS,
+    "clients": 7 * 24 * 3600,
+}
+
 
 def _read_query_cache(name: str, any_age: bool = False):
     from . import queries
 
     file_name, query_name = QUERY_CACHES[name]
-    max_age = float("inf") if any_age else HISTORY_CACHE_SECONDS
+    max_age = float("inf") if any_age else QUERY_MAX_AGE.get(name, HISTORY_CACHE_SECONDS)
     stored = _read_disk_cache(file_name, max_age=max_age,
                               fingerprint=_query_fingerprint(queries.ALL.get(query_name, "")))
     return None if stored is None else stored[0]

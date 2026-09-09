@@ -4221,9 +4221,9 @@ def cmd_clients(argv: List[str]) -> int:
                 pair.atv_growth_label, pair.sales_label, pair.sales_growth_label))
         print("")
         for part in ([review.lost] if review.lost else []) + review.flow_shown:
-            print("  %-24s %8s %-16s panier %6s %8s   %10s" % (
-                part.word, part.clients_label, part.share_label, part.atv_label,
-                part.atv_vs_base_label, part.sales_label))
+            print("  %-24s %8s %-16s l'an dernier %5s %8s   panier %6s %8s   %10s" % (
+                part.word, part.clients_label, part.share_label, part.before_share_label,
+                part.share_change_label, part.atv_label, part.atv_vs_base_label, part.sales_label))
         if review.read:
             print("")
             print(review.read[0].upper() + review.read[1:] + ".")

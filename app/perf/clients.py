@@ -158,15 +158,36 @@ class Pair:
 
 class Flow:
     """Un segment du flux : sa part de la base ou de l'exercice, son panier contre celui de
-    la base de l'an dernier."""
+    la base de l'an dernier — et la même part l'an dernier au même mois, quand la lecture
+    la porte."""
 
-    __slots__ = ("segment", "base", "of", "base_atv")
+    __slots__ = ("segment", "base", "of", "base_atv", "before")
 
-    def __init__(self, segment: Segment, base: float, of: str, base_atv: Optional[float]) -> None:
+    def __init__(self, segment: Segment, base: float, of: str, base_atv: Optional[float],
+                 before: Optional["Flow"] = None) -> None:
         self.segment = segment
         self.base = base
         self.of = of
         self.base_atv = base_atv
+        self.before = before
+
+    @property
+    def before_share_label(self) -> str:
+        if self.before is None or self.before.share is None:
+            return "—"
+        return "%.0f %%" % (self.before.share * 100)
+
+    @property
+    def share_change(self) -> Optional[float]:
+        """En points, contre l'an dernier au même mois."""
+        if self.before is None or self.before.share is None or self.share is None:
+            return None
+        return (self.share - self.before.share) * 100
+
+    @property
+    def share_change_label(self) -> str:
+        change = self.share_change
+        return "—" if change is None else "%+.0f pt%s" % (change, "s" if abs(change) >= 2 else "")
 
     name = property(lambda self: self.segment.name)
     word = property(lambda self: self.segment.word)
@@ -289,7 +310,11 @@ class Review:
         lost = self.lost
         parts = []
         if lost is not None and lost.share is not None:
-            parts.append("la base de l'an dernier a perdu %.0f %% de ses clients" % (lost.share * 100))
+            text = "la base de l'an dernier a perdu %.0f %% de ses clients" % (lost.share * 100)
+            if lost.before is not None and lost.before.share is not None:
+                text += " (%s l'an dernier au même mois, %s)" % (lost.before_share_label,
+                                                                 lost.share_change_label)
+            parts.append(text)
         if retained is not None and retained.atv_vs_base is not None:
             if retained.atv_vs_base <= -ATV_NOTICED:
                 parts.append("les retenus achètent moins cher qu'elle (%s de panier) : l'érosion de "
@@ -325,7 +350,7 @@ def _read(rows: Iterable[dict], scopes_wanted: Sequence[str]) -> Dict[tuple, Seg
             continue
         window = str(row.get("window") or "").strip().lower()
         segment = str(row.get("segment") or "").strip().lower()
-        if window not in ("ty", "ly") or segment not in SEGMENT_WORDS:
+        if window not in ("ty", "ly", "ly2") or segment not in SEGMENT_WORDS:
             continue
         piece = Segment(segment, _number(row.get("clients")), _number(row.get("transactions")),
                         _number(row.get("sales")))
@@ -358,19 +383,35 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
         if now is not None and now.usable:
             bridge.append(Pair(now, found.get(("ly", name))))
     base = found.get(("ly", "arc"))
-    base_clients = base.clients if base is not None else 0.0
     base_atv = base.atv if base is not None else None
     arc_now = found.get(("ty", "arc"))
-    active = arc_now.clients if arc_now is not None else 0.0
+
+    def flows(window: str, previous: str):
+        """Le flux d'une fenêtre, classé contre la précédente : ty contre ly, ly contre ly2."""
+        before = found.get((previous, "arc"))
+        base_clients = before.clients if before is not None else 0.0
+        atv = before.atv if before is not None else None
+        now = found.get((window, "arc"))
+        active = now.clients if now is not None else 0.0
+        items = {}
+        for name in FLOW + ("lost",):
+            piece = found.get((window, name))
+            if piece is not None and piece.usable:
+                on_base = name in ("retained", "lost")
+                items[name] = Flow(piece, base_clients if on_base else active,
+                                   "de la base" if on_base else "des actifs", atv)
+        return items
+
+    earlier = flows("ly", "ly2")
+    current = flows("ty", "ly")
     flow = []
     for name in FLOW:
-        piece = found.get(("ty", name))
-        if piece is not None and piece.usable:
-            flow.append(Flow(piece, base_clients if name == "retained" else active,
-                             "de la base" if name == "retained" else "des actifs", base_atv))
-    lost_piece = found.get(("ty", "lost"))
-    lost = (Flow(lost_piece, base_clients, "de la base", base_atv)
-            if lost_piece is not None and lost_piece.usable else None)
+        if name in current:
+            current[name].before = earlier.get(name)
+            flow.append(current[name])
+    lost = current.get("lost")
+    if lost is not None:
+        lost.before = earlier.get("lost")
     if not flow:
         absent.append("le flux — retenus, réactivés, nouveaux — n'est pas dans la lecture")
     elif arc_now is not None and arc_now.clients > 0:
@@ -381,16 +422,20 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
                           % (_count(summed), _count(arc_now.clients)))
     if base is None:
         absent.append("l'an dernier n'est pas dans la lecture : le pont n'a pas de croissance")
+    elif lost is not None and lost.before is None:
+        absent.append("l'exercice d'avant n'est pas dans la lecture : la part perdue ne se "
+                      "compare pas encore à l'an dernier au même mois")
     review = Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,
                     approximate=bool(markets) and len(scopes_wanted) > 1)
     if review.flow_noise:
         review.absent.append(review.flow_noise)
     if 0 < review.window_months < 12 and lost is not None:
         # Sur cinq mois, un client qui achète deux fois l'an a une chance sur deux de
-        # n'être pas encore revenu : la part perdue se lit vraiment en fin d'exercice.
+        # n'être pas encore revenu : la part perdue se lit contre l'an dernier au même
+        # mois, et vraiment en fin d'exercice.
         review.absent.append("les fenêtres font %d mois : la part perdue est celle qui n'est pas "
-                             "encore revenue, pas une perte acquise — elle se lit vraiment en fin "
-                             "d'exercice, et se compare d'un exercice à l'autre au même mois"
+                             "encore revenue, pas une perte acquise — elle se lit contre l'an "
+                             "dernier au même mois, et vraiment en fin d'exercice"
                              % review.window_months)
     return review
 
