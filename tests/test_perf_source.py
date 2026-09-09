@@ -220,8 +220,12 @@ def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
     monkeypatch.setattr(source_module, "_read_product_cache",
                         lambda any_age=False: caches["any" if any_age else "fresh"])
 
+    started = []
+    monkeypatch.setattr(source_module, "read_products_behind", lambda: started.append(True) or True)
     assert source.product_rows() == []
     assert "pas encore été lus" in source.product_note and calls == []
+    # Jamais sous le lecteur, mais lancée derrière lui : la page se recharge quand elle atterrit.
+    assert started == [True]
 
     caches["any"] = [("yesterday",)]
     assert source.product_rows() == [("yesterday",)]
@@ -229,3 +233,33 @@ def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
 
     assert source.product_rows(wait_for_warehouse=True) == [("fresh",)]
     assert calls == ["PRODUCT_SALES"] and written == [[("fresh",)]]
+
+
+def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(monkeypatch):
+    """Une lecture à la fois, une seule par vie du serveur, et le cache écrit à la fin :
+    la page, qui guette l'horodatage du fichier, se recharge d'elle-même."""
+    import threading
+
+    from app.perf import queries, source as source_module, warehouse
+
+    monkeypatch.setattr(source_module, "_reading_products_behind", False)
+    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
+    monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label="": [("fresh",)])
+    written = []
+    monkeypatch.setattr(source_module, "_write_product_cache", lambda rows: written.append(rows))
+    ran = []
+
+    class Immediate:
+        def __init__(self, target=None, name="", daemon=False):
+            self.target = target
+
+        def start(self):
+            ran.append(True)
+            self.target()
+
+    monkeypatch.setattr(threading, "Thread", Immediate)
+
+    assert source_module.read_products_behind() is True
+    assert written == [[("fresh",)]] and ran == [True]
+    assert source_module.read_products_behind() is False
+    assert ran == [True]

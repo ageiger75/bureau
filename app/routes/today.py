@@ -432,7 +432,8 @@ def freshness():
     # pose d'abord les chiffres du haut, puis, minutes plus tard, les KPI. La page se
     # recharge à chacune des deux, sinon le panneau KPI restait « pas encore lu » jusqu'à
     # ce que quelqu'un pense à recharger — ce qui est exactement la consigne à ne pas donner.
-    return {"as_of": source.last_read(), "kpis": source.kpi_stamp()}
+    return {"as_of": source.last_read(), "kpis": source.kpi_stamp(),
+            "products": source.product_stamp()}
 
 
 @router.get("/")
@@ -500,7 +501,7 @@ def _screen(request: Request, session: Session):
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
-    from ..perf.source import NotReadYet, kpi_stamp
+    from ..perf.source import NotReadYet, kpi_stamp, product_stamp
 
     pending = []
     try:
@@ -724,6 +725,7 @@ def _screen(request: Request, session: Session):
             "unavailable": unavailable,
             "pending": pending,
             "kpis_at": kpi_stamp(),
+            "products_at": product_stamp(),
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,

@@ -796,6 +796,10 @@ def test_the_page_watches_for_the_kpi_reading_as_well(client):
 
     assert "data-kpis-at=" in page
     assert "kpis" in client.get("/freshness").json()
+    # Et la lecture produit, qui atterrit une minute après la première ouverture.
+    assert "data-products-at=" in page
+    assert "data-products-at=" in page_text(client.get("/analyses"))
+    assert "products" in client.get("/freshness").json()
 
 
 def test_a_kpi_reading_not_yet_made_is_said_as_such_and_not_as_a_missing_source(
