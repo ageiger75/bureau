@@ -163,7 +163,7 @@
             {% if scope.month.usable and scope.month.early %}
               <td class="absent">{{ scope.month.label }}</td>
             {% elif scope.month.usable %}
-              <td class="cell-verdict"><span class="chip is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</span>{% if scope.month.narrow %} <span class="cell-gap {{ 'is-en-retard' if scope.month.direction == 'en retard' else ('is-en-avance' if scope.month.direction == 'en avance' else '') }}" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</span>{% else %} <span class="cell-gap muted" title="{{ scope.month.gap_label }} · {{ scope.month.coverage_label }} du plan du mois">fourchette large</span>{% endif %}</td>
+              <td class="cell-verdict"><span class="chip is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</span>{% if scope.month.narrow %} <span class="cell-gap {{ 'is-en-retard' if scope.month.direction == 'en retard' else ('is-en-avance' if scope.month.direction == 'en avance' else '') }}" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</span>{% else %} <span class="cell-gap muted" title="fourchette large · {{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</span>{% endif %}</td>
             {% else %}
               <td class="absent">{{ scope.month.absent }}</td>
             {% endif %}
@@ -313,14 +313,14 @@
 <section class="panel" id="sell-in">
   {% if invoiced and invoiced.usable %}
     <h2>{{ invoiced.title }}</h2>
-    <p class="panel-figure"><span class="figure-value">{{ invoiced.group.current | eur }}</span><span class="figure-delta {{ 'is-en-retard' if invoiced.group.growth is not none and invoiced.group.growth < -0.02 else ('is-en-avance' if invoiced.group.growth is not none and invoiced.group.growth > 0.02 else '') }}">{{ invoiced.group.growth_label }} <small>vs l'an dernier, jours ouvrés égaux</small></span>{% if invoiced.group.growth_same_dates is not none %}<span class="figure-delta">{{ invoiced.group.same_dates_label }} <small>à dates égales</small></span>{% endif %}</p>
+    <p class="panel-figure"><span class="figure-value">{{ invoiced.group.current | eur }}</span><span class="figure-delta {{ 'is-en-retard' if invoiced.group.growth is not none and invoiced.group.growth < -0.02 else ('is-en-avance' if invoiced.group.growth is not none and 0.02 < invoiced.group.growth <= 1.0 else '') }}">{{ invoiced.group.growth_label }} <small>vs l'an dernier, jours ouvrés égaux</small></span>{% if invoiced.group.growth_same_dates is not none %}<span class="figure-delta">{{ invoiced.group.same_dates_label }} <small>à dates égales</small></span>{% endif %}</p>
     <p class="panel-hint">{{ invoiced.short_note }} <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>
     {% if invoiced.perimeters %}
     <table class="table-clean">
       <thead><tr><th>Périmètre</th><th class="num">Facturé à date</th><th class="num">vs l'an dernier</th><th class="num">à dates égales</th></tr></thead>
       <tbody>
       {% for line in invoiced.perimeters %}
-        <tr><td>{{ line.name }}</td><td class="num">{{ line.current | eur }}</td><td class="num {{ 'is-en-retard' if line.growth is not none and line.growth < -0.02 else ('is-en-avance' if line.growth is not none and line.growth > 0.02 else '') }}">{{ line.growth_label }}</td><td class="num">{{ line.same_dates_label }}</td></tr>
+        <tr><td>{{ line.name }}</td><td class="num">{{ line.current | eur }}</td><td class="num {{ 'is-en-retard' if line.growth is not none and line.growth < -0.02 else ('is-en-avance' if line.growth is not none and 0.02 < line.growth <= 1.0 else '') }}"{% if line.growth is not none and line.growth > 1.0 %} title="plus du double : quelques jours de facturation, pas une tendance"{% endif %}>{{ line.growth_label }}</td><td class="num">{{ line.same_dates_label }}</td></tr>
       {% endfor %}
       {% if invoiced.loose %}
         <tr><td>{{ invoiced.loose.name }}</td><td class="num">{{ invoiced.loose.current | eur }}</td><td class="num">{{ invoiced.loose.growth_label }}</td><td class="num">{{ invoiced.loose.same_dates_label }}</td></tr>

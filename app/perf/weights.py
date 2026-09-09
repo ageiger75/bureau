@@ -18,6 +18,8 @@ Two properties make this file worth having rather than hard-coding the same numb
 
 from __future__ import annotations
 
+from . import memo
+
 import csv
 import io
 import os
@@ -120,6 +122,7 @@ class Weights:
         )
 
 
+@memo.by_file
 def load(path: str) -> Weights:
     """Read the file, checking every rule it was written under."""
     if not os.path.exists(path):

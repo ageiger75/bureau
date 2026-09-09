@@ -40,6 +40,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from . import sentinels
+from . import memo
 
 #: Les deux bases, jamais additionnées — la règle vaut ici comme partout ailleurs.
 SELL_IN = "sell_in"
@@ -434,6 +435,7 @@ def _split_columns(header: Sequence[str]):
     return sorted(signals), extras
 
 
+@memo.by_file
 def load(path: str) -> "Distribution":
     """Lire la source, en découvrant ses signaux plutôt qu'en les supposant.
 

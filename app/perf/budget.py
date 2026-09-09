@@ -18,6 +18,7 @@ import re
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .xlsx import Workbook, WorkbookError
+from . import memo
 
 #: The normalised sheet. The other sheets are pivots built from it.
 SHEET = "DATA BASE"
@@ -381,6 +382,7 @@ class Budget:
         return sum(l.last_year or 0.0 for l in self.lines if l.period == period)
 
 
+@memo.by_file
 def load(path) -> Budget:
     """Read the planning workbook. Raises rather than returning an empty budget.
 

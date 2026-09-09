@@ -10,6 +10,8 @@ arithmetic on the Investigate screen.
 
 from __future__ import annotations
 
+import logging
+
 from typing import Dict, List, Sequence
 
 from fastapi import APIRouter, Depends, Request
@@ -23,6 +25,8 @@ from ..perf import week as week_of
 from ..perf.commitments import board
 from ..perf.source import current_source
 from ..web import render
+
+LOG = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -370,6 +374,18 @@ def _product_rows(source):
     return reader(wait_for_warehouse=False) if reader is not None else []
 
 
+def _guard(label: str, call, fallback):
+    """Un bloc qui tombe ne fait pas tomber la page : l'erreur va au journal du serveur,
+    le bloc dit qu'il est en erreur, le reste de l'écran se lit. Un onglet en « internal
+    error » pour une ligne de partenaire mal formée, c'est l'écran entier perdu pour un
+    bloc que le lundi n'aurait peut-être pas lu."""
+    try:
+        return call()
+    except Exception as exc:  # noqa: BLE001 — c'est exactement le filet
+        LOG.exception("bloc %s en erreur : %s", label, exc)
+        return fallback(exc)
+
+
 def _accounts(source, dataset=None, refresh: bool = False):
     """Les partenaires de sell-in par leur nom, sur la dernière lecture partenaires : jamais
     une requête sous un lecteur. Les noms viennent du fichier, l'écart au plan du canal de
@@ -642,18 +658,27 @@ def _screen(request: Request, session: Session):
     from ..perf import samestore as samestore_module
 
     kpi_rows = getattr(source, "kpi_rows", list)()
-    samestore = samestore_module.build(kpi_rows)
-    products = _products(source, refresh)
-    clients = _clients(source, refresh)
-    filling = _filling(source)
-    accounts = _accounts(source, dataset, refresh)
-    grey = _grey(source, getattr(ebitda, "plan", None))
+    from ..perf import accounts as accounts_module
+    from ..perf import grey as grey_module
     from ..perf import supply as supply_module
+    from ..perf import supplychain as supplychain_module
 
-    supply = supply_module.current()
-    supplychain = _supplychain(source, refresh)
-    redzones = _red_zones(kpi_rows, pnl, invoiced, track)
-    whitespaces = _white_spaces(dataset, month)
+    def _broken(name):
+        return lambda exc: "bloc %s en erreur : %s" % (name, exc)
+
+    samestore = _guard("same-store", lambda: samestore_module.build(kpi_rows), lambda exc: None)
+    products = _guard("produits", lambda: _products(source, refresh), lambda exc: None)
+    clients = _guard("clients", lambda: _clients(source, refresh), lambda exc: None)
+    filling = _guard("remplissage", lambda: _filling(source), lambda exc: None)
+    accounts = _guard("partenaires", lambda: _accounts(source, dataset, refresh),
+                      lambda exc: accounts_module.Review([], note=_broken("partenaires")(exc)))
+    grey = _guard("gris", lambda: _grey(source, getattr(ebitda, "plan", None)),
+                  lambda exc: grey_module.Review(None, [], note=_broken("gris")(exc)))
+    supply = _guard("supply", supply_module.current, lambda exc: None)
+    supplychain = _guard("supply entrepôt", lambda: _supplychain(source, refresh),
+                         lambda exc: supplychain_module.Review(None, None, None, [_broken("supply")(exc)]))
+    redzones = _guard("zones rouges", lambda: _red_zones(kpi_rows, pnl, invoiced, track), lambda exc: None)
+    whitespaces = _guard("espaces blancs", lambda: _white_spaces(dataset, month), lambda exc: None)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
     # a déjà lu. Après la semaine et le sell-in, parce qu'elles s'en servent.
     month_groups = {group.name: group for group in month.groups}

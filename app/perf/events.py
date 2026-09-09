@@ -36,6 +36,8 @@ information ; lui coller le premier événement du calendrier n'en serait pas un
 
 from __future__ import annotations
 
+from . import memo
+
 import calendar as calendar_module
 import csv
 import datetime
@@ -443,6 +445,7 @@ def _column(header: Sequence[str], names: Sequence[str]) -> Optional[str]:
     return None
 
 
+@memo.by_file
 def load(path: str) -> "Calendar":
     """Lire le calendrier. Un fichier absent rend une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

@@ -54,6 +54,8 @@ appellent des recherches différentes.
 
 from __future__ import annotations
 
+from . import memo
+
 import csv
 import io
 import os
@@ -426,6 +428,7 @@ def _number(raw: str) -> Optional[float]:
     return value / 100.0 if value > 1.0 else value
 
 
+@memo.by_file
 def load(path: str) -> "Phasing":
     """Lire la forme des mois. Un fichier absent rend une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

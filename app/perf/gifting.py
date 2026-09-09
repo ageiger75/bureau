@@ -23,6 +23,7 @@ import os
 from typing import Dict, List, Optional, Sequence
 
 from .budget import normalise_market
+from . import memo
 
 REQUIRED = ("event", "market", "start", "end")
 
@@ -147,6 +148,7 @@ class Calendar:
         return [event for event in later if event.start == first]
 
 
+@memo.by_file
 def load(path: str) -> Calendar:
     if not path or not os.path.exists(path):
         return Calendar([], [], path)

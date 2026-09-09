@@ -28,6 +28,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from .budget import normalise_market
+from . import memo
 from .xlsx import Workbook, read_sheet
 
 #: The sheets carrying one row per country × channel. `Data Periodic` is the month;
@@ -570,6 +571,7 @@ def _period_for(path: str, found: str, layout: str, rows: Sequence):
     return None, None
 
 
+@memo.by_file
 def load(path: str, sheet: str = MONTH_SHEET, brand: str = BRAND) -> Actuals:
     """Read one sheet of the published file, in whichever layout the workbook uses.
 

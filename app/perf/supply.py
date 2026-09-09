@@ -27,6 +27,7 @@ import os
 from typing import Dict, List, Optional, Sequence
 
 from .products import _key, month_fr
+from . import memo
 
 REQUIRED = ("month", "scope")
 COLUMNS = ("month", "scope", "osa", "in_full", "forecast_accuracy", "bias", "forecast_growth", "note")
@@ -187,6 +188,7 @@ class Review:
         return " · ".join(parts)
 
 
+@memo.by_file
 def load(path: str) -> Review:
     """Lire le fichier. Absent : une lecture vide, pas une erreur. Le dernier mois compte."""
     if not path or not os.path.exists(path):

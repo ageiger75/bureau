@@ -38,6 +38,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .mapping import CHANNEL_NAMES
+from . import memo
 
 #: Les deux genres de ligne que le fichier porte.
 CHANNEL = "channel"
@@ -231,6 +232,7 @@ class Contribution:
         return seen
 
 
+@memo.by_file
 def load(path: str) -> Contribution:
     """Lire le fichier. Absent : une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

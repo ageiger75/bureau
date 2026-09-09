@@ -26,6 +26,7 @@ import os
 from typing import Dict, List, Optional, Sequence
 
 from .analytics import format_eur
+from . import memo
 from .budget import normalise_market
 
 #: Les colonnes sans lesquelles le fichier ne se lit pas. Le reste est optionnel et vide
@@ -261,6 +262,7 @@ class Retail:
         return self.world.years if self.world is not None else ""
 
 
+@memo.by_file
 def load(path: str) -> Retail:
     """Lire le fichier. Absent : une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

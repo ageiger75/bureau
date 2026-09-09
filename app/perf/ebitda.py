@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .xlsx import Workbook, WorkbookError
+from . import memo
 
 MILLIONS = 1_000_000.0
 
@@ -321,6 +322,7 @@ def _read_cop(rows: Sequence[Sequence[object]], plan: Plan) -> None:
         plan.regions.append(step)
 
 
+@memo.by_file
 def load(path) -> Plan:
     plan = Plan(str(path))
     try:

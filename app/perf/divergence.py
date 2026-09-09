@@ -54,6 +54,7 @@ import os
 from typing import Dict, List, Optional
 
 from .budget import normalise_market
+from . import memo
 
 #: Grades, from the reader's point of view rather than the statistician's: each one names
 #: what the screen is allowed to do, not how wide a distribution is.
@@ -213,6 +214,7 @@ def _number(text: str) -> Optional[float]:
         return None
 
 
+@memo.by_file
 def load(path: str) -> Divergence:
     """Read the measurements, checking every rule they were written under.
 

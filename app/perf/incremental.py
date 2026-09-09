@@ -26,6 +26,7 @@ import os
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .mapping import CHANNEL_NAMES
+from . import memo
 
 #: Le seul statut qui fasse d'une ligne un taux. Le reste est nommé, jamais appliqué.
 MEASURED = "mesure"
@@ -179,6 +180,7 @@ class Incremental:
         return max((rate.snapshot for rate in self.rates if rate.snapshot), default="")
 
 
+@memo.by_file
 def load(path: str) -> Incremental:
     """Lire le fichier. Absent : une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

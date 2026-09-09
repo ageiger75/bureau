@@ -19,6 +19,8 @@ than measurement, so they live in a local file that git ignores.
 
 from __future__ import annotations
 
+from . import memo
+
 from typing import Dict, List, Optional, Sequence
 
 #: The plan and the actual are not measured on the same basis. A tax change, a transfer
@@ -214,6 +216,7 @@ _loaded: Optional[Context] = None
 _stamp: Optional[float] = None
 
 
+@memo.by_file
 def load(path) -> Context:
     """Read the context file: market, channel, since, kind, note, source.
 

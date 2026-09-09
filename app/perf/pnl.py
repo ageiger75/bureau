@@ -22,6 +22,8 @@ tôt — et l'écran le dit avec la période couverte.
 
 from __future__ import annotations
 
+from . import memo
+
 import csv
 import io
 import os
@@ -264,6 +266,7 @@ def _read_line(record: Dict[str, str]) -> Line:
     )
 
 
+@memo.by_file
 def load(path: str) -> Statement:
     """Lire le fichier et ne garder que le dernier instantané du dernier exercice de change."""
     statement = Statement(str(path))

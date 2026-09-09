@@ -16,6 +16,7 @@ import logging
 import time
 
 from ..config import settings
+from . import memo
 from ..util import now_iso
 from . import mock
 from .kpi import Kpi
@@ -139,6 +140,19 @@ def kpi_cache_forget() -> None:
         pass
 
 
+@memo.by_file
+def _parsed_cache(path):
+    """Le fichier de cache lu et parsé, une fois par version du fichier : les caches font
+    des mégaoctets, et chaque page les reparsait tous."""
+    import json
+
+    try:
+        with path.open(encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+
 def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None,
                      fingerprint: Optional[str] = None):
     """The last warehouse read, if it is still young enough to use.
@@ -150,18 +164,17 @@ def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None,
     `CACHE_SECONDS` at import and go on using that value after the constant changed, which
     is exactly the kind of quietly-wrong that a cache should never be allowed.
     """
-    import json
-
     if max_age is None:
         max_age = CACHE_SECONDS
     path = _cache_path(name)
+    stored = _parsed_cache(path)
+    if stored is None:
+        return None
     try:
-        with path.open(encoding="utf-8") as handle:
-            stored = json.load(handle)
         stamp = float(stored["stamp"])
         rows = stored["rows"]
         read_at_text = str(stored["read_at"])
-    except (OSError, ValueError, KeyError, TypeError):
+    except (ValueError, KeyError, TypeError):
         return None
     if not isinstance(rows, list) or not rows:
         return None

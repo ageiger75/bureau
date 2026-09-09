@@ -28,6 +28,7 @@ import os
 from typing import Dict, List, Optional, Sequence
 
 from . import actuals as actuals_module
+from . import memo
 from .xlsx import Workbook, read_sheet
 
 REQUIRED = ("store_code", "market", "var_rent_percent")
@@ -161,6 +162,7 @@ class Register:
         return self.by_code.get(_code(code))
 
 
+@memo.by_file
 def load(path: str) -> Register:
     """Lire le référentiel. Absent : une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):
@@ -237,6 +239,7 @@ class Sales:
         return bool(self.stores)
 
 
+@memo.by_file
 def load_sales(path: str, month: bool = True, brand: str = actuals_module.BRAND) -> Sales:
     """La feuille par boutique de l'extraction de la CFO, à taux constant, en euros."""
     wanted = SHEET_MONTH if month else SHEET_YTD

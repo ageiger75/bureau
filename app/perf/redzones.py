@@ -29,6 +29,7 @@ import os
 from typing import Dict, List, Optional, Sequence
 
 from .analytics import format_eur
+from . import memo
 from .budget import normalise_market
 
 REQUIRED = ("zone", "scope", "measure")
@@ -106,6 +107,7 @@ class Board:
         return self.zones[:MOST]
 
 
+@memo.by_file
 def load(path: str) -> Board:
     """Lire le fichier. Absent : une lecture vide, pas une erreur."""
     if not path or not os.path.exists(path):

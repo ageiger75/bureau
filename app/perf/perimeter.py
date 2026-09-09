@@ -32,6 +32,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence
 
 from .budget import normalise_market
+from . import memo
 from .xlsx import Workbook
 
 #: Ce que la source appelle un rattachement. Le premier est celui qui répond au CEO.
@@ -134,6 +135,7 @@ class Org:
         return [name for name in self.perimeters() if name not in leads]
 
 
+@memo.by_file
 def load(path: str) -> "Org":
     """Lire la source, en tenant le rôle pour vrai et l'intitulé pour un libellé."""
     # La feuille est prise telle qu'elle vient plutôt que nommée : cette source est un

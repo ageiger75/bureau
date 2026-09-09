@@ -454,6 +454,15 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**Les onglets qui mettaient mille ans, le 9 septembre 2026.** Chaque page relisait et
+reparsait tous les classeurs (plan, EBITDA, réalisés, magasins, phasage…) et tous les caches
+JSON de l'entrepôt à chaque requête. `app/perf/memo.py` : une mémoire par fichier, clé
+chemin + date + taille, sur chaque lecteur `load(path)` et sur le parse des caches ; un
+fichier redéposé est relu, un fichier inchangé ne l'est plus. Et `_guard` dans la route :
+un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journal du serveur
+et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
+pour un bloc.
+
 **L'écran du jour, troisième passe, le 9 septembre 2026.** Sur l'analyse d'expert cockpit :
 le verdict en mots au-dessus du chiffre (pastille, atterrissage, qui décroche) ; une barre de
 navigation collante avec les comptes ; six tuiles de même hauteur, le dernier mois clos en

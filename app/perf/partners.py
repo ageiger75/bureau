@@ -37,6 +37,8 @@ Comme le plan, l'annuaire et les mesures de divergence, la source vit hors du dÃ
 
 from __future__ import annotations
 
+from . import memo
+
 import csv
 import io
 import os
@@ -274,6 +276,7 @@ def _number(text: str) -> Optional[float]:
         return None
 
 
+@memo.by_file
 def load(path: str) -> "Partners":
     """Lire la source, en refusant tout ce qui rendrait un total silencieusement faux.
 
