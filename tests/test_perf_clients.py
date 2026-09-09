@@ -110,3 +110,17 @@ def test_the_client_query_is_written_on_the_confirmed_columns():
     # Nouveau = première transaction après la fin de l'an dernier, pas « dans l'exercice » :
     # sinon les clients acquis entre les deux fenêtres n'ont pas de segment.
     assert "first_date > pr.ly_to" in sql
+
+
+def test_a_noise_segment_leaves_the_table_and_a_short_window_is_said():
+    """Quelques clients sans date à panier négatif ne prennent pas une ligne ; et sur cinq
+    mois, la part perdue est celle qui n'est pas encore revenue, ce que la lecture dit."""
+    rows = [row for row in _rows() if not (row["window"] == "ty" and row["segment"] == "arc")]
+    rows.append(_row("LOEP", "ty", "unknown", 0.4, 1, -3.0))
+    rows.append(_row("LOEP", "ty", "arc", 105.4, 171, 12_997.0))
+    review = C.build(rows)
+
+    assert [item.name for item in review.flow_shown] == ["retained", "reactivated", "new"]
+    assert review.part("unknown").atv_label == "—" and review.part("unknown").atv_vs_base_label == "n/d"
+    assert any("hors tableau" in reason for reason in review.absent)
+    assert any("les fenêtres font 5 mois" in reason for reason in review.absent)

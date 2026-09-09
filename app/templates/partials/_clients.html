@@ -39,7 +39,7 @@
               <td class="num">{{ clients.lost.sales_label }} l'an dernier</td>
             </tr>
           {% endif %}
-          {% for part in clients.flow %}
+          {% for part in clients.flow_shown %}
             <tr>
               <td>{{ part.word | ucfirst }}</td>
               <td class="num">{{ part.clients_label }}</td>

@@ -4220,7 +4220,7 @@ def cmd_clients(argv: List[str]) -> int:
                 pair.word, pair.clients_label, pair.clients_growth_label, pair.atv_label,
                 pair.atv_growth_label, pair.sales_label, pair.sales_growth_label))
         print("")
-        for part in ([review.lost] if review.lost else []) + review.flow:
+        for part in ([review.lost] if review.lost else []) + review.flow_shown:
             print("  %-24s %8s %-16s panier %6s %8s   %10s" % (
                 part.word, part.clients_label, part.share_label, part.atv_label,
                 part.atv_vs_base_label, part.sales_label))

@@ -45,6 +45,11 @@ SEGMENT_WORDS = {
 }
 FLOW = ("retained", "reactivated", "new", "unknown")
 
+#: Sous cette part des actifs, un segment se compte dans une note et ne prend pas une
+#: ligne du tableau : quelques milliers de clients sans date, à panier négatif, font une
+#: ligne qui trouble plus qu'elle ne dit.
+LEAST_SHARE = 0.005
+
 #: Au-delà, le flux ne fait plus le pont — retenus, réactivés, nouveaux et sans date
 #: contre les enregistrés actifs — et la lecture le dit.
 FLOW_AGREES = 0.005
@@ -109,7 +114,7 @@ def _count(value: float) -> str:
 
 
 def _atv(value: Optional[float]) -> str:
-    return "—" if value is None else "%.0f €" % value
+    return "—" if value is None or value <= 0 else "%.0f €" % value
 
 
 class Pair:
@@ -179,7 +184,7 @@ class Flow:
 
     @property
     def atv_vs_base(self) -> Optional[float]:
-        if self.base_atv is None or self.segment.atv is None:
+        if self.base_atv is None or self.segment.atv is None or self.segment.atv <= 0:
             return None
         return self.segment.atv / self.base_atv - 1.0
 
@@ -210,6 +215,26 @@ class Review:
 
     def part(self, name: str) -> Optional[Flow]:
         return next((item for item in self.flow if item.name == name), None)
+
+    @property
+    def flow_shown(self) -> List[Flow]:
+        """Les segments qui pèsent ; les autres se comptent dans `flow_noise`."""
+        return [item for item in self.flow if item.share is None or item.share >= LEAST_SHARE]
+
+    @property
+    def flow_noise(self) -> str:
+        small = [item for item in self.flow if item.share is not None and item.share < LEAST_SHARE]
+        if not small:
+            return ""
+        return "hors tableau, sous la part de bruit : " + ", ".join(
+            "%s %s (%s)" % (item.clients_label, item.word, item.sales_label) for item in small)
+
+    @property
+    def window_months(self) -> int:
+        if not self.through:
+            return 0
+        year, month = int(self.through[:4]), int(self.through[5:7])
+        return month - FISCAL_OPENS + 1 if month >= FISCAL_OPENS else month + 12 - FISCAL_OPENS + 1
 
     @property
     def months(self) -> str:
@@ -356,8 +381,18 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
                           % (_count(summed), _count(arc_now.clients)))
     if base is None:
         absent.append("l'an dernier n'est pas dans la lecture : le pont n'a pas de croissance")
-    return Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,
-                  approximate=bool(markets) and len(scopes_wanted) > 1)
+    review = Review(scope, _through(rows, scopes_wanted), bridge, flow, lost, absent,
+                    approximate=bool(markets) and len(scopes_wanted) > 1)
+    if review.flow_noise:
+        review.absent.append(review.flow_noise)
+    if 0 < review.window_months < 12 and lost is not None:
+        # Sur cinq mois, un client qui achète deux fois l'an a une chance sur deux de
+        # n'être pas encore revenu : la part perdue se lit vraiment en fin d'exercice.
+        review.absent.append("les fenêtres font %d mois : la part perdue est celle qui n'est pas "
+                             "encore revenue, pas une perte acquise — elle se lit vraiment en fin "
+                             "d'exercice, et se compare d'un exercice à l'autre au même mois"
+                             % review.window_months)
+    return review
 
 
 def for_markets(rows: Iterable[dict], markets: Sequence[str], scope: str, note: str = "") -> Review:
