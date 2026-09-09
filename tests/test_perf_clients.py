@@ -247,7 +247,7 @@ def test_the_lost_clients_say_where_they_left_from_and_what_each_channel_lost():
     assert boutique.before_rate_label == "40 %" and boutique.rate_change_label == "+3 pts"
     assert site.rate_label == "33 %" and site.before_rate_label == "20 %"
     assert review.exits_sentence.startswith(
-        "a perdu : la boutique 43 % de ses clients de l'an dernier (40 % l'an dernier au même mois, +3 pts)")
+        "chaque canal a perdu : la boutique 43 % de ses clients de l'an dernier (40 % l'an dernier au même mois, +3 pts)")
     assert review.exits_sentence.endswith("75 % des perdus partaient de la boutique")
     assert C.build(_rows()).exits_sentence == ""
 

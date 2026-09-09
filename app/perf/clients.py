@@ -432,8 +432,9 @@ class Review:
 
     @property
     def exits_sentence(self) -> str:
-        """« La boutique a perdu 73 % de ses clients de l'an dernier (71 % l'an dernier au
-        même mois, +2 pts), le site 66 % (64 %) ; 84 % des perdus venaient de la boutique »."""
+        """« Chaque canal a perdu : la boutique 73 % de ses clients de l'an dernier (71 % l'an
+        dernier au même mois, +2 pts) · le site 66 % … ; 84 % des perdus partaient de la
+        boutique »."""
         if not self.exits:
             return ""
         rates = []
@@ -447,7 +448,7 @@ class Review:
                 text += " (%s l'an dernier au même mois, %s)" % (entry.before_rate_label,
                                                                  entry.rate_change_label)
             rates.append(text)
-        head = "a perdu : " + " · ".join(rates) if rates else ""
+        head = "chaque canal a perdu : " + " · ".join(rates) if rates else ""
         biggest = self.exits[0]
         tail = "%s des perdus partaient de %s" % (
             biggest.share_label, "la boutique" if biggest.family == "boutique" else
