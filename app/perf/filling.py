@@ -155,59 +155,106 @@ class Review:
                 "avant les retours.")
 
 
-def series(current: Iterable[dict], closed: Iterable[dict]) -> Tuple[Dict[Tuple[str, str], float],
-                                                                    Dict[Tuple[str, str], float]]:
-    """(canal, mois) → facturé, pour l'exercice à date et l'exercice clos ; et l'an dernier
-    des mois de l'exercice à date, tels que la consolidation les publie en face."""
-    sold: Dict[Tuple[str, str], float] = {}
-    before: Dict[Tuple[str, str], float] = {}
+def _months_of(period: str) -> List[str]:
+    """« 2026-05 » → un mois ; « 2026-04..2026-06 » → les trois. La consolidation rend un
+    intervalle quand un instantané manque et que deux mois ne se séparent pas ; on ne les
+    sépare pas non plus, on les compte ensemble, pour le nombre de mois qu'ils couvrent."""
+    text = (period or "").strip()
+    if ".." in text:
+        first, last = text.split("..", 1)
+        first, last = first.strip(), last.strip()
+        if len(first) != 7 or len(last) != 7:
+            return []
+        months = []
+        current = first
+        while current <= last and len(months) < 24:
+            months.append(current)
+            current = _shift(current, 1)
+        return months
+    return [text] if len(text) == 7 else []
+
+
+class Entry:
+    __slots__ = ("code", "months", "value", "last_year")
+
+    def __init__(self, code: str, months: Sequence[str], value: float,
+                 last_year: Optional[float]) -> None:
+        self.code = code
+        self.months = tuple(months)
+        self.value = value
+        self.last_year = last_year
+
+
+def entries(current: Iterable[dict], closed: Iterable[dict]) -> List[Entry]:
+    """Les lignes de sell-in par canal, un mois ou un intervalle chacune, l'exercice à
+    date d'abord (avec l'an dernier en face) puis l'exercice clos pour les mois qu'il
+    ne couvre pas."""
+    found: List[Entry] = []
+    covered = set()
     for row in current or []:
         segment = str(row.get("segment") or "").strip()
-        period = str(row.get("period") or "").strip()
-        if not segment or len(period) != 7:
+        months = _months_of(str(row.get("period") or ""))
+        now = _number(row.get("sales_actual"))
+        if not segment or not months or now is None:
             continue
         code = channel_of(segment)
-        now, last = _number(row.get("sales_actual")), _number(row.get("sales_last_year"))
-        if now is not None:
-            sold[(code, period)] = sold.get((code, period), 0.0) + now
-        if last is not None:
-            before[(code, period)] = before.get((code, period), 0.0) + last
+        found.append(Entry(code, months, now, _number(row.get("sales_last_year"))))
+        covered.update((code, month) for month in months)
     for row in closed or []:
         segment = str(row.get("segment") or "").strip()
-        period = str(row.get("period") or "").strip()
+        months = _months_of(str(row.get("period") or ""))
         value = _number(row.get("value"))
-        if not segment or len(period) != 7 or value is None:
+        if not segment or not months or value is None:
             continue
         code = channel_of(segment)
-        if (code, period) not in sold:
-            sold[(code, period)] = sold.get((code, period), 0.0) + value
-    return sold, before
+        if any((code, month) in covered for month in months):
+            continue
+        found.append(Entry(code, months, value, None))
+    return found
+
+
+def _window(items: Sequence[Entry], months: Sequence[str]):
+    """Les lignes dont un mois tombe dans la fenêtre, et les mois qu'elles couvrent en
+    tout — un intervalle qui déborde étend la fenêtre plutôt que d'être coupé."""
+    wanted = set(months)
+    inside = [item for item in items if any(month in wanted for month in item.months)]
+    covered = sorted({month for item in inside for month in item.months})
+    return inside, covered
 
 
 def build(current: Iterable[dict], closed: Iterable[dict], only: Sequence[str] = ()) -> Review:
     """L'indice par canal de sell-in, sur les caches que le cockpit tient déjà."""
-    sold, before = series(list(current or []), list(closed or []))
-    if not sold:
+    found = entries(list(current or []), list(closed or []))
+    if not found:
         return Review(absent=["le sell-in de l'exercice à date n'est pas lu : rien à comparer"])
-    codes = sorted({code for code, _ in sold})
+    own = ("ecommerce", "retail", "marketplace", "spa", "cafe", "direct selling")
+    codes = sorted({item.code for item in found if item.code not in own})
     if only:
         codes = [code for code in codes if code in only]
-    anchor = max(period for _, period in sold)
+    anchor = max(month for item in found for month in item.months)
     recent_months = [_shift(anchor, -offset) for offset in range(RECENT - 1, -1, -1)]
     trailing_months = [_shift(anchor, -offset) for offset in range(TRAILING - 1, -1, -1)]
-    channels = []
+    channels: List[Channel] = []
     absent: List[str] = []
+    months_shown: List[str] = recent_months
     for code in codes:
-        if code in ("ecommerce", "retail", "marketplace", "spa", "cafe", "direct selling"):
-            continue
-        recent = sum(sold.get((code, month), 0.0) for month in recent_months)
-        present = [month for month in trailing_months if (code, month) in sold]
-        trailing = (sum(sold[(code, month)] for month in present) / len(present)) if present else None
-        last = [before[(code, month)] for month in recent_months if (code, month) in before]
-        last_year = sum(last) if len(last) == len(recent_months) else None
-        channels.append(Channel(code, recent, recent_months, trailing, last_year))
-        if len(present) < TRAILING:
+        mine = [item for item in found if item.code == code]
+        recent_items, recent_covered = _window(mine, recent_months)
+        recent = sum(item.value for item in recent_items)
+        last_year = (sum(item.last_year for item in recent_items)
+                     if recent_items and all(item.last_year is not None for item in recent_items)
+                     else None)
+        trailing_items, trailing_covered = _window(mine, trailing_months)
+        trailing = (sum(item.value for item in trailing_items) / len(trailing_covered)
+                    if trailing_covered else None)
+        channels.append(Channel(code, recent, recent_covered or recent_months, trailing, last_year))
+        if len(recent_covered) > RECENT:
+            absent.append("%s : les trois derniers mois se lisent sur %d, un intervalle de la "
+                          "consolidation ne se coupe pas" % (CHANNEL_NAMES.get(code, code), len(recent_covered)))
+        if len(trailing_covered) < TRAILING:
             absent.append("%s : le rythme est lu sur %d mois, pas %d" % (
-                CHANNEL_NAMES.get(code, code), len(present), TRAILING))
+                CHANNEL_NAMES.get(code, code), len(trailing_covered), TRAILING))
+        if len(recent_covered) > len(months_shown):
+            months_shown = recent_covered
     channels.sort(key=lambda channel: -channel.recent)
-    return Review(channels, recent_months, absent)
+    return Review(channels, months_shown, absent)

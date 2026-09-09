@@ -59,3 +59,26 @@ def test_the_invented_series_show_one_channel_filling():
     current, closed = mock.sell_in_series()
     review = F.build(current, closed)
     assert [channel.label for channel in review.filling] == ["Travel Retail"]
+
+
+def test_an_interval_of_the_consolidation_is_counted_whole_never_cut():
+    """La consolidation rend « 2026-05..2026-06 » quand un instantané manque : deux mois en
+    une ligne. Sautée, la ligne creusait le rythme et laissait l'an dernier sans réponse ;
+    comptée entière, elle étend la fenêtre et le dit."""
+    rows = [{"entity": "ENT_1", "segment": "TRA - Travel Retail", "period": "2026-04",
+             "sales_actual": 100.0, "sales_last_year": 100.0},
+            {"entity": "ENT_1", "segment": "TRA - Travel Retail", "period": "2026-05..2026-06",
+             "sales_actual": 300.0, "sales_last_year": 200.0},
+            {"entity": "ENT_1", "segment": "TRA - Travel Retail", "period": "2026-07",
+             "sales_actual": 150.0, "sales_last_year": 100.0}]
+    closed = [{"entity": "ENT_1", "segment": "TRA - Travel Retail", "period": "2025-10..2026-03",
+               "value": 600.0}]
+    review = F.build(rows, closed)
+
+    travel = review.channels[0]
+    assert travel.recent_months == ["2026-05", "2026-06", "2026-07"]
+    assert travel.recent == 450.0 and travel.last_year == 300.0
+    # Le rythme : dix mois couverts sur douze — six clos en un intervalle et quatre de l'exercice.
+    assert round(travel.trailing_monthly, 2) == round((600.0 + 100.0 + 300.0 + 150.0) / 10, 2)
+    assert any("le rythme est lu sur 10 mois" in reason for reason in review.absent)
+    assert F._months_of("2026-11..2027-01") == ["2026-11", "2026-12", "2027-01"]
