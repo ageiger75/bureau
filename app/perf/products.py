@@ -233,12 +233,11 @@ class Level:
             parts.append("%d %s portent %.0f %% de ce qui pousse" % (
                 len(growing), self.words if len(growing) > 1 else self.word,
                 self.concentration * 100))
-        falling = self.falling
-        if falling:
-            lost = sum(line.delta for line in self.lines if line.delta < 0 and not line.stopped)
-            parts.append("%d %s recule%s, %s en tout" % (
-                len(falling), self.words if len(falling) > 1 else self.word,
-                "nt" if len(falling) > 1 else "", format_eur(lost)))
+        below = [line for line in self.lines if line.delta < 0 and not line.stopped]
+        if below:
+            parts.append("%s de recul sur %d %s" % (
+                format_eur(sum(line.delta for line in below)), len(below),
+                self.words if len(below) > 1 else self.word))
         if self.launched:
             parts.append("%d sans an dernier, %s" % (
                 len(self.launched), format_eur(sum(line.sales for line in self.launched))))

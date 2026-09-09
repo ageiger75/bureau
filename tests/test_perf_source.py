@@ -263,3 +263,19 @@ def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(mo
     assert written == [[("fresh",)]] and ran == [True]
     assert source_module.read_products_behind() is False
     assert ran == [True]
+
+
+def test_a_product_cache_written_by_another_query_is_not_this_reading(tmp_path, monkeypatch):
+    """La fenêtre de la requête a changé un soir ; le lendemain, le cache de la veille était
+    encore « du jour » et servait l'ancienne fenêtre en disant rien de neuf. L'empreinte
+    de la requête voyage avec la lecture, et une autre requête ne la trouve pas."""
+    from app.perf import queries, source as source_module
+
+    monkeypatch.setattr(source_module, "_cache_path", lambda name=source_module.CACHE_FILE: tmp_path / name)
+    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
+    source_module._write_product_cache([{"scope": "LOEP"}])
+    assert source_module._read_product_cache() == [{"scope": "LOEP"}]
+
+    monkeypatch.setattr(queries, "PRODUCT_SALES", "select 2")
+    assert source_module._read_product_cache() is None
+    assert source_module._read_product_cache(any_age=True) is None

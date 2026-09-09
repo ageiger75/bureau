@@ -139,7 +139,8 @@ def kpi_cache_forget() -> None:
         pass
 
 
-def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None):
+def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None,
+                     fingerprint: Optional[str] = None):
     """The last warehouse read, if it is still young enough to use.
 
     Anything unreadable is treated as absent rather than raised: a cache that can break a
@@ -166,11 +167,15 @@ def _read_disk_cache(name: str = CACHE_FILE, max_age: Optional[float] = None):
         return None
     if time.time() - stamp >= max_age:
         return None
+    # Une lecture faite par une autre requête n'est pas cette lecture : la fenêtre ou une
+    # colonne a changé, et servir l'ancienne dirait « rien de neuf » sur un chiffre faux.
+    if fingerprint is not None and str(stored.get("fingerprint", "")) != fingerprint:
+        return None
     return rows, stamp, read_at_text
 
 
 def _write_disk_cache(
-    rows, stamp: float, read_at_text: str, name: str = CACHE_FILE
+    rows, stamp: float, read_at_text: str, name: str = CACHE_FILE, fingerprint: str = ""
 ) -> None:
     import json
 
@@ -181,7 +186,8 @@ def _write_disk_cache(
             # `default=str` because a warehouse hands back dates and decimals; every
             # consumer of these rows parses numbers from text already.
             json.dump(
-                {"stamp": stamp, "read_at": read_at_text, "rows": rows},
+                {"stamp": stamp, "read_at": read_at_text, "rows": rows,
+                 "fingerprint": fingerprint},
                 handle,
                 default=str,
             )
@@ -232,14 +238,29 @@ def product_cache_forget() -> None:
         pass
 
 
+def _query_fingerprint(sql: str) -> str:
+    """L'empreinte de la requête qui a produit une lecture. Quand la requête change — une
+    fenêtre, une colonne — la lecture d'hier n'est plus la même lecture, et le cache le
+    sait sans qu'on ait à penser à l'oublier."""
+    import hashlib
+
+    return hashlib.sha1(" ".join(sql.split()).encode("utf-8")).hexdigest()[:16]
+
+
 def _read_product_cache(any_age: bool = False):
+    from . import queries
+
     max_age = float("inf") if any_age else HISTORY_CACHE_SECONDS
-    stored = _read_disk_cache(PRODUCT_CACHE_FILE, max_age=max_age)
+    stored = _read_disk_cache(PRODUCT_CACHE_FILE, max_age=max_age,
+                              fingerprint=_query_fingerprint(queries.PRODUCT_SALES))
     return None if stored is None else stored[0]
 
 
 def _write_product_cache(rows) -> None:
-    _write_disk_cache(rows, time.time(), read_at(), PRODUCT_CACHE_FILE)
+    from . import queries
+
+    _write_disk_cache(rows, time.time(), read_at(), PRODUCT_CACHE_FILE,
+                      fingerprint=_query_fingerprint(queries.PRODUCT_SALES))
 
 
 def reading_age() -> Optional[float]:
