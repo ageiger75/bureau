@@ -34,6 +34,14 @@ MOST = 8
 #: Les mois de la série du groupe.
 SERIES = 12
 
+#: Le livré sur commandé se lit un mois en arrière : une commande à livrer en août est
+#: encore en cours le 9 septembre, et le dernier mois lit à vingt-cinq points sous le
+#: précédent tant qu'il n'a pas fini de se livrer. Un mois de règlement, dit à l'écran.
+FILL_SETTLING_MONTHS = 1
+
+#: Ce que la vue écrit quand une ligne de commande n'a pas de canal.
+NO_CHANNEL = ("N/A", "", "(SANS CANAL)")
+
 
 def _number(value) -> Optional[float]:
     if value is None or value == "":
@@ -73,6 +81,13 @@ class Ratio:
 
 class Service(Ratio):
     """Une unité : demande en rupture sur demande."""
+
+    @property
+    def unit_label(self) -> str:
+        """L'entrepôt écrit les unités en capitales ; l'écran les écrit comme partout."""
+        from .budget import normalise_market
+
+        return normalise_market(self.name)
 
     @property
     def osa(self) -> Optional[float]:
@@ -143,6 +158,8 @@ class Fill(Ratio):
     def channel_label(self) -> str:
         from .mapping import CHANNEL_NAMES
 
+        if self.name.strip().upper() in NO_CHANNEL:
+            return "sans canal"
         return CHANNEL_NAMES.get(self.name.lower(), self.name)
 
 
@@ -201,7 +218,7 @@ class Review:
         text = "service en boutique %s, lu par l'entrepôt : %s" % (block.of_month, block.group.label)
         below = [line for line in block.lines if line.below]
         if below:
-            text += " ; sous la cible : %s" % ", ".join("%s %s" % (line.name, line.label) for line in below)
+            text += " ; sous la cible : %s" % ", ".join("%s %s" % (line.unit_label, line.label) for line in below)
         else:
             text += " ; toutes les unités au-dessus de la cible"
         return text
@@ -228,7 +245,8 @@ class Review:
         block = self.fill
         if block is None or not block.usable:
             return ""
-        text = ("sell-in livré sur commandé %s, en valeur, toutes marques : %s, dont %s livré en entier"
+        text = ("sell-in livré sur commandé %s (un mois de règlement), en valeur, toutes marques : "
+                "%s, dont %s livré en entier"
                 % (block.of_month, block.group.label, _pct(block.group.complete)))
         low = sorted((line for line in block.lines if line.fill is not None), key=lambda line: line.fill or 0.0)
         if low:
@@ -261,8 +279,12 @@ class Review:
         return found
 
 
-def _latest(rows: Sequence[dict]) -> str:
-    return max((str(row.get("period") or "")[:7] for row in rows), default="")
+def _latest(rows: Sequence[dict], back: int = 0) -> str:
+    """Le dernier mois lu — ou, `back` mois en arrière, un mois qui a fini de se régler."""
+    periods = sorted(set(str(row.get("period") or "")[:7] for row in rows if row.get("period")))
+    if not periods:
+        return ""
+    return periods[max(0, len(periods) - 1 - back)]
 
 
 def _group_series(rows, key, num_field, den_field, transform) -> List[Tuple[str, Optional[float]]]:
@@ -277,10 +299,10 @@ def _group_series(rows, key, num_field, den_field, transform) -> List[Tuple[str,
 
 
 def _block(kind, rows, key_field, num_field, den_field, cls, transform, extra_field=None,
-           sort_key=None, note: str = "") -> Optional[Block]:
+           sort_key=None, note: str = "", back: int = 0) -> Optional[Block]:
     if not rows:
         return None
-    month = _latest(rows)
+    month = _latest(rows, back)
     group = cls("LOEP")
     lines: Dict[str, Ratio] = {}
     for row in rows:
@@ -310,5 +332,6 @@ def build(osa_rows: Sequence[dict] = (), forecast_rows: Sequence[dict] = (), ord
                   sort_key=lambda line: -abs((line.bias or 0.0) * line.den))
     fill = _block("fill", order_rows, "channel", "delivered_eur", "ordered_eur", Fill,
                   lambda rate: rate, extra_field="complete_eur",
-                  sort_key=lambda line: -line.den)
+                  sort_key=lambda line: -line.den, back=FILL_SETTLING_MONTHS,
+                  note="lu un mois en arrière : le dernier mois est encore en cours de livraison")
     return Review(service, bias, fill, [note for note in notes if note])

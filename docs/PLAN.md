@@ -454,6 +454,11 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**Décision du CEO, le 9 septembre 2026 : pas de « question produit » choisie par la
+machine.** Le cockpit pose les faits ; ce qui est important se décide avec le contexte que
+le CEO a et que l'écran n'a pas. Aucune sélection automatique du « plus gros fait » ne
+sera construite.
+
 **Ce que l'entrepôt voit de la supply, le 9 septembre 2026.** Trois lectures à cache
 propre, relues chaque semaine, écrites par l'agent entrepôt sur métadonnées et vérifiées
 sur un mois : le service en boutique par unité (`OSA_MONTHLY`, un mois par requête, hors
