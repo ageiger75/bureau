@@ -88,3 +88,29 @@ def test_the_list_is_capped_and_the_rest_counted():
     changes = C.build(register, today=TODAY)
 
     assert len(changes.shown) == C.Changes.MOST and changes.hidden == 4
+
+
+def test_a_pledge_taken_or_kept_this_week_is_what_changed():
+    """Un engagement pris lundi est la nouvelle de la semaine, avant même son échéance ;
+    un engagement fait, avec son résultat, aussi. Les engagements d'une source sans dates
+    ne sont lus qu'à leur échéance, comme avant."""
+    import datetime
+    from types import SimpleNamespace
+
+    today = datetime.date(2026, 9, 9)
+    taken = SimpleNamespace(reference="ENG-001", action="Relancer le plan", owner_name="Une dirigeante",
+                            market="Northland", due_date="2026-10-12", status="open",
+                            created_at="2026-09-08T10:00:00", updated_at="2026-09-08T10:00:00",
+                            actual_impact="")
+    kept = SimpleNamespace(reference="ENG-002", action="Tenir la promotion", owner_name="Quelqu'un",
+                           market="Eastland", due_date="2026-09-01", status="done",
+                           created_at="2026-08-01T10:00:00", updated_at="2026-09-07T10:00:00",
+                           actual_impact="La promotion a tenu")
+    old = SimpleNamespace(reference="ENG-003", action="Ancien", owner_name="", market="", due_date="2099-01-01",
+                          status="open", created_at="2026-01-01", updated_at="2026-01-01", actual_impact="")
+    changes = C.build(SimpleNamespace(issues=[]), [taken, kept, old], today)
+
+    assert [item.kind for item in changes.items] == ["engagement pris", "engagement fait"]
+    assert changes.sentence.startswith("1 engagement pris, 1 engagement fait")
+    assert "pour le 2026-10-12" in changes.items[0].text
+    assert changes.items[1].text.endswith("La promotion a tenu")

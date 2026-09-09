@@ -52,7 +52,8 @@ class Changes:
                  opened: Sequence[Change] = (), closed: Sequence[Change] = (),
                  read: Sequence[Change] = (), arbitrated: Sequence[Change] = (),
                  due: Sequence[Change] = (), overdue: Sequence[Change] = (),
-                 absent: Sequence[str] = ()) -> None:
+                 absent: Sequence[str] = (), taken: Sequence[Change] = (),
+                 kept: Sequence[Change] = ()) -> None:
         self.since = since
         self.today = today
         self.opened = list(opened)
@@ -62,10 +63,14 @@ class Changes:
         self.due = list(due)
         self.overdue = list(overdue)
         self.absent = list(absent)
+        #: Les engagements pris dans la semaine, et ceux faits avec leur résultat.
+        self.taken = list(taken)
+        self.kept = list(kept)
 
     @property
     def items(self) -> List[Change]:
-        return self.opened + self.closed + self.read + self.arbitrated + self.overdue + self.due
+        return (self.taken + self.kept + self.opened + self.closed + self.read + self.arbitrated
+                + self.overdue + self.due)
 
     #: Au-delà, la liste se compte : le jour où le registre est né, tout est « ouvert ».
     MOST = 10
@@ -86,6 +91,11 @@ class Changes:
     def sentence(self) -> str:
         """Le compte, en une phrase : « 2 sujets ouverts, 1 clos, 3 lectures portées »."""
         parts = []
+        if self.taken:
+            parts.append("%d engagement%s pris" % (len(self.taken), "s" if len(self.taken) > 1 else ""))
+        if self.kept:
+            parts.append("%d engagement%s fait%s" % (len(self.kept), "s" if len(self.kept) > 1 else "",
+                                                     "s" if len(self.kept) > 1 else ""))
         if self.opened:
             parts.append("%d sujet%s ouvert%s" % (len(self.opened), "s" if len(self.opened) > 1 else "",
                                                  "s" if len(self.opened) > 1 else ""))
@@ -136,9 +146,22 @@ def build(register, commitments: Sequence = (), today: Optional[datetime.date] =
                 text += " (réexamen le %s)" % arbitration.review_on
             arbitrated.append(Change("arbitrage", str(arbitration.at)[:10], text, issue.issue_id))
 
-    due, overdue = [], []
+    due, overdue, taken, kept = [], [], [], []
     horizon = today + datetime.timedelta(days=DUE_WITHIN)
     for item in commitments or ():
+        # Les engagements du cockpit portent leurs dates ; pris ou faits dans la semaine,
+        # ils sont ce qui a changé, avant même d'arriver à échéance.
+        reference = getattr(item, "reference", "") or ""
+        created = str(getattr(item, "created_at", "") or "")[:10]
+        updated = str(getattr(item, "updated_at", "") or "")[:10]
+        who = getattr(item, "owner_name", "") or "sans owner"
+        if reference and created and created >= since_text:
+            taken.append(Change("engagement pris", created, "%s — %s, %s%s" % (
+                item.action, who, getattr(item, "market", "") or "",
+                ", pour le %s" % item.due_date if getattr(item, "due_date", None) else ""), reference))
+        if reference and getattr(item, "status", "") == "done" and updated and updated >= since_text:
+            kept.append(Change("engagement fait", updated, "%s — %s : %s" % (
+                item.action, who, getattr(item, "actual_impact", "") or "sans résultat écrit"), reference))
         if getattr(item, "status", "") not in LIVE:
             continue
         when = _day(getattr(item, "due_date", None))
@@ -150,4 +173,4 @@ def build(register, commitments: Sequence = (), today: Optional[datetime.date] =
             overdue.append(Change("en retard", when.isoformat(), label))
         elif when <= horizon:
             due.append(Change("échéance", when.isoformat(), label))
-    return Changes(since, today, opened, closed, read, arbitrated, due, overdue)
+    return Changes(since, today, opened, closed, read, arbitrated, due, overdue, taken=taken, kept=kept)
