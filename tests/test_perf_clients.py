@@ -259,3 +259,11 @@ def test_the_client_query_splits_the_lost_and_the_base_by_their_last_channel():
     assert "max_by(sub_channel, transaction_date)" in sql
     assert sql.count("coalesce(ly.last_channel, '(sans canal)')") == 1
     assert sql.count("coalesce(last_channel, '(sans canal)')") == 1
+
+
+def test_the_day_card_says_the_base_the_lost_share_and_the_new_in_one_line():
+    review = C.build(_rows(retained_atv=84.0) + [_row("LOEP", "ly2", "arc", 100, 150, 12_000.0),
+                                                 _row("LOEP", "ly", "lost", 41, 50, 3_000.0)])
+    assert review.word == "+5.0 %" and not review.falling
+    assert review.card.startswith("base perdue 40 % (41 % l'an dernier, la saison) · nouveaux 33 % des actifs, à -25.0 % de panier")
+    assert review.card.endswith("retenus à +5.0 % de panier")

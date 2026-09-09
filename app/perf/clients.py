@@ -380,6 +380,43 @@ class Review:
         return text
 
     @property
+    def word(self) -> str:
+        """Le mot de la carte : la base enregistrée contre l'an dernier, en clients."""
+        arc = self.pair("arc")
+        return arc.clients_growth_label if arc is not None else "—"
+
+    @property
+    def falling(self) -> bool:
+        arc = self.pair("arc")
+        return arc is not None and arc.clients_growth is not None and arc.clients_growth < 0
+
+    @property
+    def card(self) -> str:
+        """Une ligne pour l'écran du jour : la part perdue contre l'an dernier, les
+        nouveaux, le panier — le reste vit sur Analyses."""
+        parts = []
+        lost = self.lost
+        if lost is not None and lost.share is not None:
+            text = "base perdue %.0f %%" % (lost.share * 100)
+            change = lost.share_change
+            if change is not None:
+                text += " (%s l'an dernier, %s)" % (
+                    lost.before_share_label,
+                    "la saison" if abs(change) < LOST_NOTICED else
+                    "une perte acquise" if change > 0 else "mieux que l'an dernier")
+            parts.append(text)
+        new = self.part("new")
+        if new is not None and new.share is not None:
+            text = "nouveaux %.0f %% des actifs" % (new.share * 100)
+            if new.atv_vs_base is not None:
+                text += ", à %s de panier" % new.atv_vs_base_label
+            parts.append(text)
+        retained = self.part("retained")
+        if retained is not None and retained.atv_vs_base is not None:
+            parts.append("retenus à %s de panier" % retained.atv_vs_base_label)
+        return " · ".join(parts)
+
+    @property
     def read(self) -> str:
         """Où la valeur s'érode — chez les fidèles ou dans le recrutement — dit par les
         paniers contre celui de la base de l'an dernier, pas par un avis."""

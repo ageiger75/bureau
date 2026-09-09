@@ -978,3 +978,11 @@ def test_the_filling_index_lives_on_analyses_and_names_itself_an_index(client):
     assert "un indice, pas une mesure" in page
     assert "aucun sell-through" in page
     assert "Le sell-in devant la vente" not in page_text(client.get("/"))
+
+
+def test_the_day_screen_carries_a_clients_card_beside_same_store(client):
+    page = page_text(client.get("/"))
+    head = page.split("Qu'est-ce que je décide")[0]
+
+    assert "Clients" in head and "clients enregistrés" in head
+    assert "base perdue" in head and "le flux sur Analyses" in head

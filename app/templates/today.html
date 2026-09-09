@@ -86,6 +86,19 @@
           <p class="verdict-basis">pas de lecture des magasins comparables : la relecture des KPI l'apporte</p>
         {% endif %}
       </div>
+      <div class="verdict">
+        {# Les clients, en une carte : la base enregistrée contre l'an dernier, le pont, la
+           part perdue et les nouveaux. Le flux entier vit sur Analyses. #}
+        <p class="verdict-title">Clients</p>
+        {% if clients and clients.usable %}
+          <p class="verdict-word {{ 'is-en-retard' if clients.falling else 'is-en-avance' }}">{{ clients.word }}</p>
+          <p class="verdict-figures">{{ clients.headline }}</p>
+          <p class="verdict-basis">{{ clients.card }} · <a href="/analyses#clients">le flux sur Analyses</a></p>
+        {% else %}
+          <p class="verdict-word is-absent">—</p>
+          <p class="verdict-basis">{% if clients and clients.absent %}{{ clients.absent[0] }}{% else %}pas de lecture des clients encore{% endif %}</p>
+        {% endif %}
+      </div>
   </div>
   {% if track and track.usable %}
     {% if track.perimeters %}
