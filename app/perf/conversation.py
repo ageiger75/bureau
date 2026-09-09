@@ -131,15 +131,19 @@ def _listed(parts: Sequence[str]) -> str:
     return ", ".join(parts[:-1]) + " et " + parts[-1]
 
 
+#: Combien de gammes se nomment dans chaque sens sur la ligne « sur quoi ».
+RANGES_NAMED = 3
+
+
 class Conversation:
     """Un sujet porté, et de quoi en parler : les faits en quatre lignes, une question."""
 
     __slots__ = ("row", "units", "series", "months", "week", "month", "fire", "commitment",
-                 "signals", "coming")
+                 "signals", "coming", "ranges")
 
     def __init__(self, row, units: Sequence = (), series: Sequence[float] = (),
                  months: int = 0, week=None, month=None, fire=None, commitment=None,
-                 signals: Sequence = (), coming: Sequence = ()) -> None:
+                 signals: Sequence = (), coming: Sequence = (), ranges=None) -> None:
         self.row = row
         #: Les canaux budgétés du marché, tels que l'écran les lit ce mois-ci.
         self.units = list(units)
@@ -152,6 +156,8 @@ class Conversation:
         self.commitment = commitment
         self.signals = list(signals)
         self.coming = list(coming)
+        #: La lecture produit de ce marché — ses gammes — quand elle existe.
+        self.ranges = ranges
 
     @property
     def issue(self):
@@ -218,6 +224,30 @@ class Conversation:
     @property
     def direction(self) -> str:
         return _direction(self.series)
+
+    @property
+    def on_ranges(self) -> str:
+        """« Sur quoi » : les gammes de ce marché qui reculent le plus sur le dernier mois
+        lu, en euros, et celles qui poussent, pour que l'appel parte du produit et non du
+        seul total. Vide sans lecture produit."""
+        level = self.ranges.level("range") if self.ranges is not None else None
+        if level is None:
+            return ""
+        lines = [line for line in level.lines if line.month_last_year > 0 or line.month_sales > 0]
+        falling = sorted([line for line in lines if line.month_delta < 0],
+                         key=lambda line: line.month_delta)[:RANGES_NAMED]
+        growing = sorted([line for line in lines if line.month_delta > 0],
+                         key=lambda line: -line.month_delta)[:RANGES_NAMED]
+        parts = []
+        if falling:
+            parts.append("reculent en %s : %s" % (month_fr(self.ranges.period), ", ".join(
+                "%s %s (%s)" % (line.name, line.month_label, format_eur(line.month_delta))
+                for line in falling)))
+        if growing:
+            parts.append("poussent : %s" % ", ".join(
+                "%s %s (+%s)" % (line.name, line.month_label, format_eur(line.month_delta))
+                for line in growing))
+        return " ; ".join(parts)
 
     @property
     def trend(self) -> str:
@@ -446,8 +476,19 @@ def _coming_for(gifting, market: str) -> List:
             if getattr(event, "market", "") == market]
 
 
+def _ranges_for(product_rows, market: str):
+    """La lecture produit d'un marché, ou None sans lignes : jamais une requête."""
+    if not product_rows or not market:
+        return None
+    from . import products as products_module
+
+    review = products_module.build(product_rows, market)
+    return review if review.usable else None
+
+
 def build(week, dataset=None, fires: Sequence = (), weekly=None, month=None,
-          commitments: Sequence = (), kpis: Sequence = (), gifting=None) -> Prepared:
+          commitments: Sequence = (), kpis: Sequence = (), gifting=None,
+          product_rows: Sequence = ()) -> Prepared:
     """Préparer les sujets portés, à partir de ce que l'écran a déjà lu.
 
     Tout est optionnel sauf la semaine du moteur : une source absente laisse sa ligne
@@ -463,6 +504,7 @@ def build(week, dataset=None, fires: Sequence = (), weekly=None, month=None,
             week=_week_line(weekly, market), month=_month_line(month, market),
             fire=_fire_for(fires, market), commitment=_commitment_for(commitments, market),
             signals=_signals_for(kpis, market), coming=_coming_for(gifting, market),
+            ranges=_ranges_for(product_rows, market),
         ))
     watch = []
     for row in getattr(week, "watch", ()) or ():

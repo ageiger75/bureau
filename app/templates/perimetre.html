@@ -100,6 +100,23 @@
 </section>
 {% endif %}
 
+{% if page.elsewhere %}
+{# Un sell-in qui chute de moitié sans phrase à côté se lit comme un effondrement. Quand la
+   cause est une frontière ou un arrêt voulu, elle se dit ici, juste sous le sell-in. #}
+<section class="panel">
+  <h2>Pas une conversation commerciale</h2>
+  <ul class="routed-list">
+    {% for fire in page.elsewhere %}
+      <li class="routed">
+        <p class="routed-head"><span class="routed-name">{{ fire.unit.label }}</span> <span class="routed-amount">{{ fire.gap | eur }} contre le plan</span> <span class="badge badge-class">{{ fire.routed.class_label }}</span></p>
+        <p class="routed-why">{{ fire.routed.reason | ucfirst }}.{% if fire.boundary_standing %} {{ fire.boundary_standing }}{% endif %}</p>
+        <p class="routed-who">{{ fire.routed.move_label }}{% if fire.routed.destination %} · {{ fire.routed.destination }}{% endif %}</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
 {% if page.gifting %}
 <section class="panel">
   <h2>Ce qui arrive</h2>
@@ -127,6 +144,7 @@
           <dl class="talk-lines">
             {% if talk.stake %}<dt>L'écart</dt><dd>{{ talk.stake | ucfirst }}.</dd>{% endif %}
             {% if talk.trend %}<dt>La tendance</dt><dd>{{ talk.trend | ucfirst }}.</dd>{% endif %}
+            {% if talk.on_ranges %}<dt>Sur quoi</dt><dd>{{ talk.on_ranges | ucfirst }}.</dd>{% endif %}
             {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
             <dt>La dernière lecture</dt>
             <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">aucune conclusion portée encore — la première s'écrit après l'appel</span>{% endif %}</dd>

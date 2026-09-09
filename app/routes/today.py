@@ -295,6 +295,7 @@ def _perimeter_inputs(session):
     prepared = conversation_module.build(
         week, dataset=dataset, fires=fires, weekly=weekly, month=month,
         commitments=commitments, kpis=kpis, gifting=gifting,
+        product_rows=_product_rows(source),
     )
     from ..perf import incremental as incremental_module
 
@@ -318,6 +319,7 @@ def _perimeter_inputs(session):
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
         "weekly": weekly, "invoiced": invoiced, "gifting": gifting,
         "retail": _retail_margin(), "prepared": prepared,
+        "elsewhere": analytics.routed_elsewhere(dataset),
         # La lecture produit, telle qu'elle est sur le disque : les pages par périmètre en
         # font la somme de leurs marchés. Jamais une requête sous un lecteur.
         "product_rows": (getattr(source, "product_rows", None) or (lambda **kw: []))(
@@ -342,6 +344,12 @@ def _white_spaces(dataset, month):
     placed, _leads = month_module.place_markets(markets, org, directory)
     sales = stores_module.current_sales() if settings.has_store_sales_file else None
     return whitespace_module.build(dataset, placed, sales)
+
+
+def _product_rows(source):
+    """La lecture produit sur le disque, quel que soit son âge, ou rien : jamais une requête."""
+    reader = getattr(source, "product_rows", None)
+    return reader(wait_for_warehouse=False) if reader is not None else []
 
 
 def _products(source, refresh: bool = False, scope: str = ""):
@@ -425,7 +433,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
                               retail=inputs["retail"], prepared=inputs["prepared"],
-                              products=products)
+                              products=products, elsewhere=inputs["elsewhere"])
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
     })
@@ -622,6 +630,7 @@ def _screen(request: Request, session: Session):
     prepared = conversation_module.build(
         week, dataset=dataset, fires=analytics.fires(dataset, limit=None), weekly=weekly,
         month=month, commitments=commitments.items, kpis=kpis, gifting=gifting,
+        product_rows=_product_rows(source),
     )
     # La transaction se referme ici et pas dans le module de lecture : la politique de
     # validation appartient à la surface, pas au domaine. Sans ce commit, la session ouverte

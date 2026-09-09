@@ -149,6 +149,10 @@ class Line:
         return _growth(self.sales, self.last_year)
 
     @property
+    def month_delta(self) -> float:
+        return self.month_sales - self.month_last_year
+
+    @property
     def month_growth(self) -> Optional[float]:
         return _growth(self.month_sales, self.month_last_year)
 

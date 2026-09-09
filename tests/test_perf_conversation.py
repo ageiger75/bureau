@@ -207,3 +207,23 @@ def test_a_known_and_wanted_cause_is_pointed_to_arbitration_not_to_a_call():
     other = SimpleNamespace(unit=SimpleNamespace(market="Northland"), gap=-100.0, diagnosis="",
                             question="", routed=SimpleNamespace(move=routing.CHALLENGE))
     assert C.build(_week([_issue()]), fires=[other]).conversations[0].arbitrate_hint == ""
+
+
+def test_the_conversation_says_on_which_ranges_the_month_moved():
+    """« Sur quoi » : les gammes du marché qui reculent le plus sur le dernier mois lu, en
+    euros, et celles qui poussent — pour que l'appel parte du produit, pas du seul total.
+    Sans lecture produit, la ligne n'existe pas."""
+    rows = []
+    for name, before, now in (("Sable d'Or", 100.0, 60.0), ("Miel des Cimes", 80.0, 70.0),
+                              ("Rosée de Roche", 50.0, 90.0)):
+        for month in range(4, 9):
+            rows.append({"scope": "NORTHLAND", "level": "range", "name": name,
+                         "period": "2025-%02d" % month, "net_sales": before})
+            rows.append({"scope": "NORTHLAND", "level": "range", "name": name,
+                         "period": "2026-%02d" % month, "net_sales": now})
+    talk = C.build(_week([_issue()]), product_rows=rows).conversations[0]
+
+    assert talk.on_ranges.startswith("reculent en août 2026 : Sable d'Or -40.0 % (-40 €), "
+                                     "Miel des Cimes -12.5 % (-10 €)")
+    assert "poussent : Rosée de Roche +80.0 % (+40 €)" in talk.on_ranges
+    assert C.build(_week([_issue()])).conversations[0].on_ranges == ""

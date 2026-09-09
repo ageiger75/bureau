@@ -929,3 +929,26 @@ def test_each_perimeter_page_reads_what_works_by_product_on_its_own_markets(clie
     assert "Catégories ·" in page and "Gammes ·" in page
     assert "Références ·" not in page
     assert "les références ne sont lues qu'au niveau du groupe" in page.lower()
+
+
+def test_a_region_page_carries_its_routed_subjects_beside_the_sell_in(client, monkeypatch):
+    """Un sell-in qui chute sans phrase à côté se lit comme un effondrement. Les écarts du
+    périmètre qui ne sont pas une conversation commerciale — frontière, définition, arrêt
+    voulu — se disent sur sa page, au même endroit que sur Analyses."""
+    from types import SimpleNamespace
+
+    from app.perf import analytics, page as page_module
+
+    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    routed = SimpleNamespace(class_label="Comptabilité", reason="une frontière, pas un résultat",
+                             move_label="Aucune action du CEO", destination="Consolidation")
+    fire = SimpleNamespace(unit=SimpleNamespace(market="Japan", label="Japan E-retailers"),
+                           gap=-1000.0, routed=routed, boundary_standing="", question="")
+    other = SimpleNamespace(unit=SimpleNamespace(market="Elsewhere", label="Elsewhere Retail"),
+                            gap=-500.0, routed=routed, boundary_standing="", question="")
+    monkeypatch.setattr(analytics, "routed_elsewhere", lambda dataset: [fire, other])
+    page = page_text(client.get("/perimetre/nord"))
+
+    assert "Pas une conversation commerciale" in page
+    assert "Japan E-retailers" in page and "Elsewhere Retail" not in page
