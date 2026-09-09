@@ -156,7 +156,7 @@
             /* Dit avant de recharger : une page qui se remplace sans prévenir pendant
                qu'on la lit est déroutante, même quand elle a raison de le faire. */
             if (line) {
-              line.textContent = "Chiffres plus récents disponibles — rechargement…";
+              line.insertAdjacentText("beforeend", " · chiffres plus récents disponibles, rechargement…");
             }
             window.setTimeout(function () { window.location.reload(); }, 1200);
           }

@@ -1056,3 +1056,58 @@ details.notes li { margin-bottom: 6px; max-width: 100ch; }
 }
 .cockpit .commitment-signals li { display: block; line-height: 1.6; }
 .cockpit .commitment-signals .tag { margin-right: 6px; }
+
+
+/* ---------------------------------------------------------------- passe 3 */
+
+/* le verdict en mots, au-dessus du chiffre */
+.verdict-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 16px; line-height: 1.45; }
+.verdict-text { max-width: 90ch; }
+.chip-big { font-size: 14px; padding: 5px 12px; }
+
+/* la barre de navigation, collante */
+.jump {
+  position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; flex-wrap: wrap;
+  margin: 0 -8px 18px; padding: 8px; background: var(--paper); border-bottom: 1px solid var(--rule-soft);
+}
+.jump a { font-size: 12.5px; color: var(--ink-soft); padding: 4px 10px; border-radius: 999px; border: 1px solid transparent; }
+.jump a:hover { border-color: var(--rule); background: var(--white); text-decoration: none; color: var(--ink); }
+.jump-count { display: inline-block; margin-left: 4px; font-size: 11px; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+
+/* six tuiles, une rangée, même hauteur */
+.kpi-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: stretch; }
+@media (min-width: 1180px) { .kpi-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.kpi-card { min-height: 158px; display: flex; flex-direction: column; }
+.kpi-note { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: auto; padding-top: 6px; }
+.kpi-value.kpi-word { font-size: 22px; }
+.kpi-value.is-indécis, .kpi-value.is-trop-tôt { color: var(--warn); }
+.kpi-value.is-en-ligne { color: var(--ink); }
+
+/* la table des périmètres : une ligne par périmètre */
+.perimeter-table .cell-name { white-space: nowrap; }
+.perimeter-table .cell-name small { display: inline; margin-left: 6px; }
+.cell-verdict { white-space: nowrap; }
+.cell-gap { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: 6px; }
+.cell-gap.muted { color: var(--ink-faint); font-weight: 400; font-size: 12.5px; }
+
+/* la surveillance en table */
+.watch-table td { vertical-align: middle; }
+.watch-table .cell-action .subject-actions { margin: 0; }
+.watch-table .cell-action summary { font-size: 12.5px; }
+
+/* les gestes : un groupe de boutons, toujours au même endroit */
+.cockpit .talk-gestures { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 4px; }
+.cockpit .talk-gestures .subject-actions { flex: 0 0 auto; margin: 0; }
+.cockpit .talk-gestures .subject-actions[open] { flex: 1 1 100%; }
+.cockpit .talk-gestures .subject-actions > summary {
+  display: inline-block; font: inherit; font-size: 13px; line-height: 1.2; padding: 6px 12px;
+  border-radius: var(--radius); border: 1px solid var(--rule); background: var(--white); color: var(--ink);
+  cursor: pointer; list-style: none;
+}
+.cockpit .talk-gestures .subject-actions > summary::-webkit-details-marker { display: none; }
+.cockpit .talk-gestures .subject-actions > summary:hover { border-color: var(--ink-faint); }
+.cockpit .talk-gestures .subject-actions:first-child > summary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.cockpit .talk-gestures .subject-actions[open] > summary { margin-bottom: 8px; }
+
+/* le même motif d'en-tête partout */
+.panel-figure .figure-value + .figure-delta { margin-right: 6px; }

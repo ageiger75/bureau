@@ -5,6 +5,8 @@ Module séparé de `main.py` pour que les routeurs puissent l'importer sans cycl
 
 from __future__ import annotations
 
+import re
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import Request
@@ -73,6 +75,29 @@ def ucfirst(text) -> str:
 
 
 templates.env.filters["ucfirst"] = ucfirst
+
+
+_FR_UNIT = re.compile(r"(?<![\w.])(-?\+?)(\d{1,3}(?:\d{3})*)(?:\.(\d+))?(?=\s?(?:M€|k€|€|%|pt\b)| à [+-]?\d)")
+
+
+def fr_numbers(html) -> str:
+    """Les nombres à la française sur l'écran du jour : la virgule décimale et l'espace fine des milliers.
+
+    Appliqué au rendu, pas aux modules : le formatage commun reste unique et testé, et
+    seul l'écran lu par un lecteur français change de convention. Ne touche qu'un nombre
+    suivi d'une unité (ou d'une borne de fourchette) : une date, une version, une référence
+    « 11.11 » restent telles quelles."""
+    text = "" if html is None else str(html)
+
+    def swap(match):
+        sign, whole, decimals = match.group(1), match.group(2), match.group(3)
+        grouped = whole if len(whole) <= 3 else "{:,}".format(int(whole)).replace(",", "\u202f")
+        return sign + grouped + ("," + decimals if decimals else "")
+
+    return _FR_UNIT.sub(swap, text)
+
+
+templates.env.filters["fr"] = fr_numbers
 
 templates.env.globals.update(
     {

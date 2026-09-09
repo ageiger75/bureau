@@ -43,7 +43,7 @@ def test_why_it_is_underperforming(client):
 def test_how_much_money_is_involved(client):
     page = page_text(client.get("/"))
 
-    assert "-1.2 M€" in page
+    assert "-1,2 M€" in page
 
 
 def test_where_the_upside_is(client):
@@ -999,7 +999,7 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
 
     today = page_text(client.get("/"))
     analyses = page_text(client.get("/analyses"))
-    assert "prévision supply : l'exercice à +2.7 %" in today
+    assert "prévision supply : l'exercice à +2,7 %" in today
     assert "La prévision supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
     # Ce que l'entrepôt voit, à côté : ses trois mesures nommées comme les siennes.

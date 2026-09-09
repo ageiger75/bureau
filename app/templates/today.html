@@ -2,6 +2,7 @@
 {% block title %}Aujourd'hui — CEO Performance{% endblock %}
 
 {% block content %}
+{% filter fr %}
 {% from "partials/_gestes.html" import pledge, reading, live %}
 
 {# L'écran du lundi. Une hiérarchie en trois niveaux et pas plus : le chiffre de tête,
@@ -18,9 +19,35 @@
     <p class="cockpit-caveat">{{ dataset.published_note }}</p>
   {% endif %}
 
+  {% set year_behind = [] %}{% set year_ahead = [] %}
+  {% if track and track.usable %}{% for scope in track.perimeters if scope.name != 'Sans périmètre' and scope.year.usable %}{% if scope.year.direction == 'en retard' %}{% set _ = year_behind.append(scope.name) %}{% elif scope.year.direction == 'en avance' %}{% set _ = year_ahead.append(scope.name) %}{% endif %}{% endfor %}{% endif %}
+
+  {# ---------------------------------------------------------------- le verdict, en mots #}
+  {% if track and track.usable and track.group.year.usable %}
+    <p class="verdict-line">
+      <span class="chip chip-big is-{{ track.group.year.label | replace(' ', '-') }}">{{ track.group.year.label }}</span>
+      <span class="verdict-text">
+        {% if landing and landing.usable %}L'exercice atterrit {% if landing.weighted_usable %}entre {{ landing.low | eur }} et {{ landing.high | eur }}{% else %}à {{ landing.at_pace | eur }}{% endif %} pour un plan de {{ landing.full_plan | eur }}.{% else %}Exercice à date {{ track.group.year.gap_label }} contre l'attendu.{% endif %}
+        {% if year_behind %}Décroche{{ 'nt' if year_behind | length > 1 else '' }} : {{ year_behind | join(', ') }}.{% endif %}
+        {% if year_ahead %}En avance : {{ year_ahead | join(', ') }}.{% endif %}
+      </span>
+    </p>
+  {% endif %}
+
+  <nav class="jump" aria-label="Sections">
+    <a href="#verdict">Verdict</a>
+    <a href="#semaine">Semaine</a>
+    <a href="#sell-in">Sell-in</a>
+    <a href="#temps-forts">Temps forts{% if gifting and gifting.usable %} <span class="jump-count">{{ gifting.count }}</span>{% endif %}</a>
+    <a href="#decider">Décider{% if prepared %} <span class="jump-count">{{ prepared.conversations | length }} · {{ prepared.watch | length }}</span>{% endif %}</a>
+    <a href="#zones-rouges">Zones rouges{% if redzones and redzones.usable %} <span class="jump-count">{{ redzones.readings | length }}</span>{% endif %}</a>
+    <a href="#changements">Changé</a>
+    <a href="#engagements">Engagements{% if commitments.items %} <span class="jump-count">{{ commitments.open_count }}</span>{% endif %}</a>
+  </nav>
+
   {# ---------------------------------------------------------------- le chiffre #}
   {% if landing and landing.usable %}
-    <div class="hero">
+    <div class="hero" id="verdict">
       <p class="hero-label">Atterrissage de l'exercice, ventes nettes</p>
       <p class="hero-value">{% if landing.weighted_usable %}{{ landing.low | eur }} <span class="hero-to">à</span> {{ landing.high | eur }}{% else %}{{ landing.at_pace | eur }}{% endif %}</p>
       <ul class="hero-facts">
@@ -57,9 +84,12 @@
         {% if track.group.month.usable and track.group.month.early %}
           <p class="kpi-top"><span class="chip is-trop-tôt">{{ track.group.month.label }}</span></p>
           <p class="kpi-note">{{ track.month_sentence }}</p>
+        {% elif track.group.month.usable and not track.group.month.narrow %}
+          <p class="kpi-top"><span class="kpi-value kpi-word is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</span></p>
+          <p class="kpi-line">{{ track.group.month.actual | eur }} vendus · attendu {{ track.group.month.low | eur }} à {{ track.group.month.high | eur }} ({{ track.group.month.gap_label }})</p>
         {% elif track.group.month.usable %}
           <p class="kpi-top"><span class="chip is-{{ track.group.month.label | replace(' ', '-') }}">{{ track.group.month.label }}</span><span class="kpi-value {{ 'is-en-retard' if track.group.month.label == 'en retard' else ('is-en-avance' if track.group.month.label == 'en avance' else '') }}">{{ track.group.month.gap_label }}</span></p>
-          <p class="kpi-line">{{ track.group.month.actual | eur }} vendus · attendu {% if track.group.month.narrow %}{{ track.group.month.middle | eur }}{% else %}{{ track.group.month.low | eur }} à {{ track.group.month.high | eur }}{% endif %}</p>
+          <p class="kpi-line">{{ track.group.month.actual | eur }} vendus · attendu {{ track.group.month.middle | eur }}</p>
           <p class="kpi-note">{{ track.month_sentence }}{% if track.month_without %} · {{ track.month_without }}{% endif %}</p>
         {% else %}
           <p class="kpi-top"><span class="kpi-value is-absent">—</span></p>
@@ -100,6 +130,12 @@
           <p class="kpi-note">{% if clients and clients.absent %}{{ clients.absent[0] }}{% else %}pas de lecture des clients encore{% endif %}</p>
         {% endif %}
       </div>
+      <div class="kpi-card">
+        <p class="kpi-label">Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %}</p>
+        <p class="kpi-top"><span class="kpi-value {{ 'is-en-retard' if header.vs_budget.gap < 0 else 'is-en-avance' }}">{{ header.vs_budget.pct | pct }}</span></p>
+        <p class="kpi-line">{{ header.actual | eur }} vendus · {{ header.vs_last_year.pct | pct }} contre l'an dernier</p>
+        <p class="kpi-note">contre le plan, {% if header.published %}consolidation{% else %}entrepôt{% endif %}{% if header.forecast %} · prévision de la période {{ header.forecast | eur }}{% endif %}{% if supply and supply.forecast_short %} · {{ supply.forecast_short }}{% endif %}</p>
+      </div>
   </div>
 
   {# ---------------------------------------------------------------- par périmètre #}
@@ -107,31 +143,29 @@
     {% if track.perimeters %}
       <table class="table-clean perimeter-table">
         <thead>
-          <tr><th>Périmètre</th><th>Exercice à date</th><th class="num">Écart</th><th class="num">Atterrissage à ce rythme</th>{% if pnl and pnl.usable %}<th class="num">Contribution vs budget</th>{% endif %}<th>Mois à date</th><th class="num">Écart</th></tr>
+          <tr><th>Périmètre</th><th>Exercice à date</th><th class="num">Atterrissage à ce rythme</th>{% if pnl and pnl.usable %}<th class="num">Contribution vs budget</th>{% endif %}<th>Mois à date</th></tr>
         </thead>
         <tbody>
         {% for scope in track.perimeters %}
           {% set land = landings.get(scope.name) %}
           <tr>
-            <td class="cell-name">{% if scope.name != 'Sans périmètre' %}<a href="/perimetre/{{ scope.name | slug }}">{{ scope.name }}</a>{% else %}{{ scope.name }}{% endif %}{% if scope.lead %}<small>{{ scope.lead }}</small>{% endif %}</td>
+            <td class="cell-name">{% if scope.name != 'Sans périmètre' %}<a href="/perimetre/{{ scope.name | slug }}">{{ scope.name }}</a>{% else %}{{ scope.name }}{% endif %}{% if scope.lead %} <small>{{ scope.lead }}</small>{% endif %}</td>
             {% if scope.year.usable %}
-              <td><span class="chip is-{{ scope.year.label | replace(' ', '-') }}">{{ scope.year.label }}</span></td>
-              <td class="num {{ 'is-en-retard' if scope.year.label == 'en retard' else ('is-en-avance' if scope.year.label == 'en avance' else '') }}">{{ scope.year.gap_label }}</td>
+              <td class="cell-verdict"><span class="chip is-{{ scope.year.label | replace(' ', '-') }}">{{ scope.year.label }}</span>{% if scope.year.narrow %} <span class="cell-gap {{ 'is-en-retard' if scope.year.direction == 'en retard' else ('is-en-avance' if scope.year.direction == 'en avance' else '') }}">{{ scope.year.gap_label }}</span>{% else %} <span class="cell-gap muted" title="attendu entre {{ scope.year.low | eur }} et {{ scope.year.high | eur }}">{{ scope.year.gap_label }}</span>{% endif %}</td>
             {% else %}
-              <td class="absent" colspan="2">{{ scope.year.absent }}</td>
+              <td class="absent">{{ scope.year.absent }}</td>
             {% endif %}
-            <td class="num">{% if land and land.usable %}{{ land.at_pace | eur }} <small class="{{ 'is-en-retard' if land.gap_at_pace < 0 else '' }}">{{ land.gap_at_pace | eur }}</small>{% else %}—{% endif %}</td>
+            <td class="num {{ 'is-en-retard' if land and land.usable and land.gap_at_pace < 0 else '' }}"{% if land and land.usable %} title="{{ land.at_pace | eur }} à ce rythme, plan {{ land.full_plan | eur }}"{% endif %}>{% if land and land.usable %}{{ land.gap_at_pace | eur }}{% else %}—{% endif %}</td>
             {% if pnl and pnl.usable %}
               {% set done = pnl.for_name(scope.name) %}
               <td class="num{% if done and done.gap < 0 %} is-en-retard{% endif %}"{% if done %} title="{{ done.contribution | eur }} de contribution ({{ done.rate_label }}) · ventes {{ done.sales | eur }}, {{ done.sales_index_label }} du budget phasé · contribution au budget {{ done.budget_contribution | eur }} ({{ done.budget_rate_label }})"{% endif %}>{% if done %}{{ done.gap | eur }}{% else %}—{% endif %}</td>
             {% endif %}
             {% if scope.month.usable and scope.month.early %}
-              <td class="absent" colspan="2">{{ scope.month.label }}</td>
+              <td class="absent">{{ scope.month.label }}</td>
             {% elif scope.month.usable %}
-              <td><span class="chip is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</span></td>
-              <td class="num {{ 'is-en-retard' if scope.month.label == 'en retard' else ('is-en-avance' if scope.month.label == 'en avance' else '') }}" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</td>
+              <td class="cell-verdict"><span class="chip is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</span>{% if scope.month.narrow %} <span class="cell-gap {{ 'is-en-retard' if scope.month.direction == 'en retard' else ('is-en-avance' if scope.month.direction == 'en avance' else '') }}" title="{{ scope.month.coverage_label }} du plan du mois">{{ scope.month.gap_label }}</span>{% else %} <span class="cell-gap muted" title="{{ scope.month.gap_label }} · {{ scope.month.coverage_label }} du plan du mois">fourchette large</span>{% endif %}</td>
             {% else %}
-              <td class="absent" colspan="2">{{ scope.month.absent }}</td>
+              <td class="absent">{{ scope.month.absent }}</td>
             {% endif %}
           </tr>
         {% endfor %}
@@ -178,13 +212,6 @@
   {% elif track %}
     <p class="empty">{% for reason in track.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
   {% endif %}
-
-  {# Le dernier mois clos, en une ligne ; tout ce qui explique est plié dans les notes. #}
-  <p class="closing-line">
-    <strong>Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %}</strong> ·
-    {{ header.actual | eur }} vendus · <span class="{{ 'is-en-retard' if header.vs_budget.gap < 0 else 'is-en-avance' }}">{{ header.vs_budget.pct | pct }}</span> contre le plan · {{ header.vs_last_year.pct | pct }} contre l'an dernier
-    {% if header.forecast %} · prévision de la période {{ header.forecast | eur }}{% endif %}{% if supply and supply.forecast_short %} · {{ supply.forecast_short }}{% endif %}
-  </p>
 
   <details class="notes">
     <summary>Notes de lecture</summary>
@@ -315,7 +342,8 @@
 <section class="panel cockpit" id="temps-forts">
   <h2>{{ gifting.title if gifting else "Ce qui arrive" }}</h2>
   {% if gifting and gifting.usable %}
-    <p class="panel-hint">{{ gifting.count }} temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, pesé{{ '' if gifting.count == 1 else 's' }} sur l'an dernier.{% if gifting.unmeasured_note %} {{ gifting.unmeasured_note | ucfirst }}.{% endif %}</p>
+    <p class="panel-figure"><span class="figure-value">{{ gifting.count }}</span><span class="figure-delta"><small>temps fort{{ '' if gifting.count == 1 else 's' }} dans les six semaines, pesé{{ '' if gifting.count == 1 else 's' }} sur l'an dernier</small></span></p>
+    {% if gifting.unmeasured_note %}<p class="panel-hint">{{ gifting.unmeasured_note | ucfirst }}.</p>{% endif %}
     <ul class="event-list">
     {% for group in gifting.groups + ([gifting.loose] if gifting.loose else []) %}
       {% for event in group.shown %}
@@ -340,8 +368,8 @@
 
 <section class="panel cockpit" id="decider">
   <h2>Qu'est-ce que je décide cette semaine</h2>
+  <p class="panel-figure"><span class="figure-value">{{ prepared.conversations | length if prepared else 0 }}</span><span class="figure-delta"><small>à porter</small></span><span class="figure-value">{{ prepared.watch | length if prepared else 0 }}</span><span class="figure-delta"><small>sous surveillance</small></span></p>
   <p class="panel-hint">
-    Trois sujets à porter, cinq sous surveillance.
     {% if not week.weights_read %}Classé sur le plus gros écart au plan.{% endif %}
     {% if week_sources.missing %}Non ouvert à cette lecture : {{ week_sources.missing | join(', ') }} — pas « rien à signaler », « je n'ai pas regardé ».{% endif %}
   </p>
@@ -433,18 +461,23 @@
 
     {% if prepared.watch %}
       <h3 class="subject-heading">Sous surveillance</h3>
-      <ol class="watch-list">
+      <table class="table-clean watch-table">
+        <thead><tr><th>Marché</th><th class="num">Exercice</th><th class="num">Ce mois</th><th>Sous le plan</th><th>Sens</th><th>Qui</th><th>Quand</th><th></th></tr></thead>
+        <tbody>
         {% for item in prepared.watch %}
-          <li class="watch">
-            <p class="watch-line">
-              <strong>{{ item.issue.scopes[0] if item.issue.scopes else item.issue.title }}</strong>
-              <span class="subject-ref">{{ item.issue.issue_id }}</span>
-              · {{ item.line }}
-            </p>
-            {{ arbitrate(item.issue) }}
-          </li>
+          <tr>
+            <td class="cell-name"><strong>{{ item.issue.scopes[0] if item.issue.scopes else item.issue.title }}</strong> <small>{{ item.issue.issue_id }}</small></td>
+            <td class="num {{ 'is-en-retard' if item.year_gap is not none and item.year_gap < 0 else '' }}">{{ item.year_label }}</td>
+            <td class="num {{ 'is-en-retard' if item.gap is not none and item.gap < 0 else '' }}">{{ item.gap_label }}</td>
+            <td>{{ item.months_label }}</td>
+            <td>{% if item.direction %}<span class="chip {{ 'is-en-retard' if item.direction == 'se creuse' else ('is-en-avance' if item.direction == 'se referme' else '') }}">{{ item.direction }}</span>{% else %}—{% endif %}</td>
+            <td>{{ item.who }}</td>
+            <td><small>{{ item.when_label }}</small></td>
+            <td class="cell-action">{{ arbitrate(item.issue) }}</td>
+          </tr>
         {% endfor %}
-      </ol>
+        </tbody>
+      </table>
     {% endif %}
   {% endif %}
 
@@ -461,6 +494,8 @@
 <section class="panel cockpit" id="zones-rouges">
   <h2>Les zones rouges</h2>
   {% if redzones and redzones.usable %}
+    {% set zones_behind = redzones.readings | selectattr('direction', 'equalto', 'en retard') | list %}
+    <p class="panel-figure"><span class="figure-value">{{ redzones.readings | length }}</span><span class="figure-delta"><small>fronts nommés</small></span><span class="figure-value {{ 'is-en-retard' if zones_behind else '' }}">{{ zones_behind | length }}</span><span class="figure-delta"><small>en retard</small></span></p>
     <ul class="zone-list">
       {% for item in redzones.readings %}
         <li class="zone">
@@ -481,7 +516,7 @@
 <div class="two-col cockpit">
 <section class="panel" id="changements">
   <h2>Ce qui a changé depuis lundi dernier</h2>
-  <p class="panel-hint">{{ changes.sentence | ucfirst }}.</p>
+  <p class="panel-figure"><span class="figure-value">{{ changes.items | length }}</span><span class="figure-delta"><small>{{ changes.sentence }}</small></span></p>
   {% if not changes.is_quiet %}
     <ol class="watch-list">
       {% for item in changes.shown[:3] %}
@@ -546,5 +581,5 @@
 </div>
 
 <p class="mock-note">{{ source.caveat }}</p>
-
+{% endfilter %}
 {% endblock %}

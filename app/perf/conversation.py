@@ -379,6 +379,34 @@ class Watch:
         return self.row.issue
 
     @property
+    def year_label(self) -> str:
+        return format_eur(self.year_gap) if self.year_gap is not None else "—"
+
+    @property
+    def gap_label(self) -> str:
+        return format_eur(self.gap) if self.gap is not None else "—"
+
+    @property
+    def months_label(self) -> str:
+        if self.months:
+            return "%d mois" % self.months
+        if self.issue.evidence and self.issue.evidence[-1].statement:
+            return self.issue.evidence[-1].statement
+        return "—"
+
+    @property
+    def who(self) -> str:
+        return self.issue.accountable or "personne n'en répond"
+
+    @property
+    def when_label(self) -> str:
+        if self.next_on:
+            return "réexamen le %s" % date_fr(self.next_on)
+        if self.issue.last_seen:
+            return "vu %s" % month_fr(self.issue.last_seen[:7])
+        return ""
+
+    @property
     def line(self) -> str:
         parts = []
         if self.year_gap is not None:
