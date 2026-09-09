@@ -141,7 +141,13 @@ def test_the_lost_share_compares_to_last_year_at_the_same_month():
 
     assert review.lost.share_label == "40 % de la base"
     assert review.lost.before_share_label == "33 %" and review.lost.share_change_label == "+7 pts"
-    assert "(33 % l'an dernier au même mois, +7 pts)" in review.read
+    assert "(33 % l'an dernier au même mois, +7 pts : une perte acquise, au-delà de la saison)" in review.read
+    assert review.question.startswith("La base perd plus que la saison")
+
+    same = C.build(_rows() + [_row("LOEP", "ly2", "arc", 100, 150, 12_000.0),
+                              _row("LOEP", "ly", "lost", 41, 50, 3_000.0)])
+    assert "la saison, pas une dégradation" in same.read
+    assert same.question.startswith("La part perdue est celle de l'an dernier")
     assert review.part("new").before_share_label == "30 %"
     assert not any("l'exercice d'avant n'est pas" in reason for reason in review.absent)
 

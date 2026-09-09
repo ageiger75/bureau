@@ -50,6 +50,9 @@ FLOW = ("retained", "reactivated", "new", "unknown")
 #: ligne qui trouble plus qu'elle ne dit.
 LEAST_SHARE = 0.005
 
+#: En deçà, la part perdue est celle de l'an dernier : la saison, pas une dégradation.
+LOST_NOTICED = 2.0
+
 #: Au-delà, le flux ne fait plus le pont — retenus, réactivés, nouveaux et sans date
 #: contre les enregistrés actifs — et la lecture le dit.
 FLOW_AGREES = 0.005
@@ -311,9 +314,16 @@ class Review:
         parts = []
         if lost is not None and lost.share is not None:
             text = "la base de l'an dernier a perdu %.0f %% de ses clients" % (lost.share * 100)
-            if lost.before is not None and lost.before.share is not None:
-                text += " (%s l'an dernier au même mois, %s)" % (lost.before_share_label,
-                                                                 lost.share_change_label)
+            change = lost.share_change
+            if change is not None:
+                text += " (%s l'an dernier au même mois, %s" % (lost.before_share_label,
+                                                                lost.share_change_label)
+                if abs(change) < LOST_NOTICED:
+                    text += " : la saison, pas une dégradation)"
+                elif change > 0:
+                    text += " : une perte acquise, au-delà de la saison)"
+                else:
+                    text += " : la base tient mieux que l'an dernier)"
             parts.append(text)
         if retained is not None and retained.atv_vs_base is not None:
             if retained.atv_vs_base <= -ATV_NOTICED:
@@ -334,9 +344,17 @@ class Review:
     @property
     def question(self) -> str:
         retained = self.part("retained")
+        lost = self.lost
         if retained is not None and retained.atv_vs_base is not None and retained.atv_vs_base <= -ATV_NOTICED:
             return ("Les fidèles achètent moins cher : le mix, la promotion, ou la fréquence ? "
                     "Et que fait-on des clients perdus avant qu'ils ne le soient tout à fait ?")
+        if lost is not None and lost.share_change is not None and lost.share_change >= LOST_NOTICED:
+            return ("La base perd plus que la saison : qui part, de quel canal, et que fait-on "
+                    "des clients perdus avant qu'ils ne le soient tout à fait ?")
+        if lost is not None and lost.share_change is not None:
+            return ("La part perdue est celle de l'an dernier ; la base recule pourtant en nombre : "
+                    "le recrutement compense-t-il en valeur, pas seulement en nombre, et d'où "
+                    "viennent les nouveaux ?")
         return ("Le recrutement compense-t-il la base en valeur, pas seulement en nombre ? "
                 "Et que fait-on des clients perdus avant qu'ils ne le soient tout à fait ?")
 
