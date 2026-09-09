@@ -194,7 +194,10 @@ def test_a_driver_that_overshoots_the_gap_is_phrased_in_euros_not_percent():
 
     diagnosis = analytics.fires(dataset_of(offset))[0].diagnosis
 
-    assert "%" not in diagnosis
+    # La part n'est pas dite en pour cent ; le niveau du taux de conversion, lui, l'est —
+    # c'est son unité, et l'écart n'est lisible qu'avec ses deux niveaux.
+    assert "% de" not in diagnosis and "à lui seul" in diagnosis
+    assert "contre" in diagnosis
     assert "compensent" in diagnosis
 
 

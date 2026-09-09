@@ -563,9 +563,9 @@ input:focus, textarea:focus, select:focus {
 .fire-diagnosis { font-size: 16px; margin: 10px 0 14px; max-width: 60ch; }
 
 /* Drivers as a compact table: label, movement, euros. Numbers, not a chart. */
-.evidence { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; max-width: 30rem; }
+.evidence { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 2px; max-width: 40rem; }
 .evidence li {
-  display: grid; grid-template-columns: 1fr auto auto; gap: 16px;
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px;
   padding: 4px 0; border-bottom: 1px solid var(--rule-soft);
   font-variant-numeric: tabular-nums; font-size: 14px;
 }
@@ -670,7 +670,7 @@ input:focus, textarea:focus, select:focus {
   .cockpit-total { font-size: 40px; }
   .cockpit-variances { gap: 20px; }
   .fire { padding-left: 30px; }
-  .evidence li { grid-template-columns: 1fr auto auto; gap: 10px; font-size: 13px; }
+  .evidence li { grid-template-columns: 1fr auto auto auto; gap: 10px; font-size: 13px; }
 }
 
 /* ------------------------------------------------------- customer KPIs */
@@ -1111,3 +1111,6 @@ details.notes li { margin-bottom: 6px; max-width: 100ch; }
 
 /* le même motif d'en-tête partout */
 .panel-figure .figure-value + .figure-delta { margin-right: 6px; }
+
+.evidence-level { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.evidence-level small { color: var(--ink-faint); }

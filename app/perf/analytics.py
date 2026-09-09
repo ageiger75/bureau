@@ -86,6 +86,35 @@ class Contribution:
             return None
         return (self.actual - self.base) / self.base
 
+    @property
+    def level_label(self) -> str:
+        """Le niveau du levier cette année, dans son unité : des euros, un taux, un volume."""
+        return _level(self.label, self.actual)
+
+    @property
+    def base_label(self) -> str:
+        """Le même levier à la base — l'an dernier, ou le plan quand c'est lui."""
+        return _level(self.label, self.base)
+
+    @property
+    def levels(self) -> str:
+        """« 53 € contre 36 € » : l'écart n'est lisible qu'avec ses deux niveaux."""
+        return "%s contre %s" % (self.level_label, self.base_label)
+
+
+def _level(label: str, value: float) -> str:
+    """Un niveau de levier écrit dans son unité : euros pour un panier ou un prix, pour
+    cent pour un taux, un nombre pour un volume, deux décimales pour des unités par ticket."""
+    from .model import MONEY_DRIVERS
+
+    if label in MONEY_DRIVERS:
+        return "%.0f €" % value if abs(value) >= 10 else "%.2f €" % value
+    if label in RATE_DRIVERS:
+        return "%.2f %%" % (value * 100) if abs(value) < 0.1 else "%.1f %%" % (value * 100)
+    if label == "UPT":
+        return "%.2f" % value
+    return _num(value)
+
 
 def contributions(actual: Drivers, base: Drivers) -> List[Contribution]:
     """Split a sales gap across its drivers, exactly.
@@ -1080,18 +1109,20 @@ class Fire:
             # The driver cost more than the total movement because another one offset it.
             # Saying "291% of the gap" would be arithmetically right and useless.
             impact = self.main_driver.impact
-            return "Le levier %s fait %s%s à lui seul%s ; les autres vont dans l'autre sens et compensent en partie." % (
+            return "Le levier %s fait %s%s à lui seul%s (%s) ; les autres vont dans l'autre sens et compensent en partie." % (
                 _driver_word(self.main_driver.label),
                 "+" if impact > 0 else "",
                 _eur(impact),
                 self.measured_against,
+                self.main_driver.levels,
             )
         # Phrased so the sentence works for every driver label, singular or plural:
         # "Sessions accounts for" and "Conversion account for" are both wrong.
-        return "Environ %s de %s vient %s." % (
+        return "Environ %s de %s vient %s (%s)." % (
             _share(share),
             self.measured_what,
             _of_driver(self.main_driver.label),
+            self.main_driver.levels,
         )
 
     # The decomposition is not always measured against the plan, so the sentence cannot

@@ -101,6 +101,7 @@
           {% for item in fire.contributions %}
             <li>
               <span class="evidence-label">{{ item.label }}</span>
+              <span class="evidence-level">{{ item.level_label }} <small>contre {{ item.base_label }}</small></span>
               <span class="evidence-delta {{ 'is-down' if item.impact < 0 else 'is-up' }}">
                 {{ item.delta_pct | pct }}
               </span>
