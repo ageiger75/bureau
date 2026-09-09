@@ -109,7 +109,7 @@ def test_the_client_query_is_written_on_the_confirmed_columns():
         assert word in sql, word
     # Nouveau = première transaction après la fin de l'an dernier, pas « dans l'exercice » :
     # sinon les clients acquis entre les deux fenêtres n'ont pas de segment.
-    assert "first_date > pr.ly_to" in sql
+    assert "first_date > iff(cur.\"window\" = 'ty', pr.ly_to, pr.ly2_to)" in sql
 
 
 def test_a_noise_segment_leaves_the_table_and_a_short_window_is_said():
