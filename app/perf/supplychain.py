@@ -85,9 +85,7 @@ class Service(Ratio):
     @property
     def unit_label(self) -> str:
         """L'entrepôt écrit les unités en capitales ; l'écran les écrit comme partout."""
-        from .budget import normalise_market
-
-        return normalise_market(self.name)
+        return market_label(self.name)
 
     @property
     def osa(self) -> Optional[float]:
@@ -102,8 +100,25 @@ class Service(Ratio):
         return _pct(self.osa)
 
 
+def market_label(name: str) -> str:
+    """L'entrepôt écrit les zones en capitales ; l'écran les écrit comme partout, sans
+    casser un sigle : « LOI TR » devient le nom que le cockpit lui donne, « HK OTHERS »
+    devient « HK Others », « CWE » reste « CWE »."""
+    from .budget import MARKET_ALIASES
+
+    raw = (name or "").strip()
+    if raw in MARKET_ALIASES:
+        return MARKET_ALIASES[raw]
+    return " ".join(word if (word.isupper() and len(word) <= 3) else word.title()
+                    for word in raw.split())
+
+
 class Bias(Ratio):
     """Un marché : prévision (num) et réel (den)."""
+
+    @property
+    def market_label(self) -> str:
+        return market_label(self.name)
 
     @property
     def bias(self) -> Optional[float]:
@@ -235,9 +250,10 @@ class Review:
         under = [line for line in block.lines if line.under]
         if over:
             text += " ; vendent au-dessus de leur prévision : %s" % ", ".join(
-                "%s %s" % (line.name, line.label) for line in over[:4])
+                "%s %s" % (line.market_label, line.label) for line in over[:4])
         if under:
-            text += " ; en dessous : %s" % ", ".join("%s %s" % (line.name, line.label) for line in under[:4])
+            text += " ; en dessous : %s" % ", ".join(
+                "%s %s" % (line.market_label, line.label) for line in under[:4])
         return text
 
     @property

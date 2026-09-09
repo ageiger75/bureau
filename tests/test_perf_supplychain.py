@@ -54,6 +54,11 @@ def test_the_forecast_market_wears_its_label_when_the_dimension_gives_one():
     assert sorted(line.name for line in review.bias.lines) == ["Northland", "SF-Y"]
 
 
+def test_market_labels_keep_their_acronyms_and_take_the_cockpit_s_names():
+    assert S.market_label("HK OTHERS") == "HK Others" and S.market_label("CWE") == "CWE"
+    assert S.market_label("NORTHLAND") == "Northland" and S.market_label("LOI TR") == "Travel retail international"
+
+
 def test_the_fill_reads_one_month_back_and_names_the_lowest_channel():
     rows = [_order("2026-08", "WEBP", 100.0, 95.0, 80.0), _order("2026-08", "DIS", 100.0, 60.0, 40.0),
             _order("2026-09", "WEBP", 100.0, 20.0, 10.0), _order("2026-09", "N/A", 50.0, 40.0, 30.0)]

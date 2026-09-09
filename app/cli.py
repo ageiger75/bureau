@@ -4166,7 +4166,7 @@ def cmd_supply(argv: List[str]) -> int:
     if seen.service and seen.service.usable:
         print("  Service par unité : " + " · ".join("%s %s" % (l.unit_label, l.label) for l in seen.service.shown))
     if seen.bias and seen.bias.usable:
-        print("  Biais par marché : " + " · ".join("%s %s" % (l.name, l.label) for l in seen.bias.shown))
+        print("  Biais par marché : " + " · ".join("%s %s" % (l.market_label, l.label) for l in seen.bias.shown))
     if seen.fill and seen.fill.usable:
         print("  Livré par canal : " + " · ".join("%s %s" % (l.channel_label, l.label) for l in seen.fill.shown))
     for note in seen.notes:
