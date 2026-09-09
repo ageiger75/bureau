@@ -6,7 +6,7 @@
 {# Ce qui est vrai et n'est pas pour le lundi. L'écran du jour tient en cinq blocs ;
    tout ce qui explique, classe, propose ou vérifie vit ici, avec le même contexte. #}
 
-<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}" data-partners-at="{{ partners_at }}">
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}" data-partners-at="{{ partners_at }}" data-supplychain-at="{{ supplychain_at }}">
   <p class="cockpit-eyebrow">Analyses · {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}</p>
   <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, les clients, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
 </section>
@@ -505,6 +505,43 @@
     <p class="empty">Rapport supply non déposé : quelques lignes par mois dans var/supply.csv, voir docs/supply.example.csv.</p>
   {% endif %}
   {% if supply %}{% for fault in supply.faults %}<p class="cockpit-caveat">supply : {{ fault }}</p>{% endfor %}{% endif %}
+
+  {# Ce que l'entrepôt voit, à côté de ce que le mail dit : trois mesures du cockpit,
+     nommées comme telles, jamais fondues avec celles de la supply. #}
+  <h3 class="subject-heading">Ce que l'entrepôt voit de la supply</h3>
+  {% if supplychain and supplychain.usable %}
+    {% set against = supplychain.against(supply) if supply and supply.usable else [] %}
+    {% if against %}<ul class="talk-lines">{% for line in against %}<li>{{ line | ucfirst }}.</li>{% endfor %}</ul>{% endif %}
+    {% if supplychain.service_sentence %}<p class="routed-why">{{ supplychain.service_sentence | ucfirst }}.</p>{% endif %}
+    {% if supplychain.bias_sentence %}<p class="routed-why">{{ supplychain.bias_sentence | ucfirst }}.</p>{% endif %}
+    {% if supplychain.fill_sentence %}<p class="routed-why">{{ supplychain.fill_sentence | ucfirst }}.</p>{% endif %}
+    <div class="supply-tables">
+      {% if supplychain.service and supplychain.service.usable %}
+      <table class="month-table product-table">
+        <thead><tr><th>Service en boutique, {{ supplychain.service.month_label }}</th><th>OSA</th></tr></thead>
+        <tbody>{% for line in supplychain.service.shown %}<tr><td>{{ line.name }}</td><td class="num {{ 'is-en-retard' if line.below else '' }}">{{ line.label }}</td></tr>{% endfor %}
+        {% if supplychain.service.rest %}<tr class="month-rest"><td>{{ supplychain.service.rest }} autres unités</td><td></td></tr>{% endif %}</tbody>
+      </table>
+      {% endif %}
+      {% if supplychain.bias and supplychain.bias.usable %}
+      <table class="month-table product-table">
+        <thead><tr><th>Biais de prévision, {{ supplychain.bias.month_label }}</th><th>Biais</th><th>Précision</th><th></th></tr></thead>
+        <tbody>{% for line in supplychain.bias.shown %}<tr><td>{{ line.name }}</td><td class="num">{{ line.label }}</td><td class="num">{{ '%.1f %%' | format(line.accuracy * 100) if line.accuracy is not none else '—' }}</td><td>{{ line.word }}</td></tr>{% endfor %}
+        {% if supplychain.bias.rest %}<tr class="month-rest"><td>{{ supplychain.bias.rest }} autres marchés</td><td></td><td></td><td></td></tr>{% endif %}</tbody>
+      </table>
+      {% endif %}
+      {% if supplychain.fill and supplychain.fill.usable %}
+      <table class="month-table product-table">
+        <thead><tr><th>Livré sur commandé, {{ supplychain.fill.month_label }}</th><th>Livré</th><th>En entier</th></tr></thead>
+        <tbody>{% for line in supplychain.fill.shown %}<tr><td>{{ line.channel_label }}</td><td class="num {{ 'is-en-retard' if line.below else '' }}">{{ line.label }}</td><td class="num">{{ '%.1f %%' | format(line.complete * 100) if line.complete is not none else '—' }}</td></tr>{% endfor %}
+        {% if supplychain.fill.rest %}<tr class="month-rest"><td>{{ supplychain.fill.rest }} autres canaux</td><td></td><td></td></tr>{% endif %}</tbody>
+      </table>
+      {% endif %}
+    </div>
+    <p class="cockpit-caveat">Mesures du cockpit, pas celles de la supply : le service hors en-transit et toutes marques, définition de l'entrepôt ; le biais à M-3 en valeur par marché de prévision, prévision moins réel sur réel ; le livré sur commandé en valeur, toutes marques, lignes rejetées exclues. Un écart avec le mail est une question, pas une correction.</p>
+  {% else %}
+    <p class="empty">{{ (supplychain.notes | join(" ; ") if supplychain and supplychain.notes else "les lectures supply de l'entrepôt n'ont pas encore eu lieu") | ucfirst }}.</p>
+  {% endif %}
 </section>
 
 {# ------------------------------------------------------------------ changements #}

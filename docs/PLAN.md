@@ -454,6 +454,16 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**Ce que l'entrepôt voit de la supply, le 9 septembre 2026.** Trois lectures à cache
+propre, relues chaque semaine, écrites par l'agent entrepôt sur métadonnées et vérifiées
+sur un mois : le service en boutique par unité (`OSA_MONTHLY`, un mois par requête, hors
+en-transit, toutes marques, pas de pays tant que la jointure n'est pas vérifiée), le biais
+de prévision à M-3 par marché en valeur (`FORECAST_BIAS`, signe du rapport), le sell-in
+livré sur commandé par canal (`ORDER_FILL`, toutes marques). `app/perf/supplychain.py`
+les pose à côté du mail (`supply.py`) sous le bloc du remplissage, en points d'écart sur le
+même mois, comme des mesures du cockpit — jamais celles de la supply, jamais fondues.
+`manage.py supply [--refresh]`, `refresh --supply`.
+
 **Le rapport supply, le 9 septembre 2026.** Le rapport mensuel de la supply chain commerciale
 — service en boutique, sell-in livré en entier, précision et biais de prévision par marché,
 prévision de demande de l'exercice — lu dans `var/supply.csv` (`docs/supply.example.csv`,

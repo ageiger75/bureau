@@ -381,6 +381,21 @@ def _accounts(source, dataset=None, refresh: bool = False):
     return accounts_module.build(rows, names=names, channel_gaps=gaps, note=note)
 
 
+def _supplychain(source, refresh: bool = False):
+    """Ce que l'entrepôt voit de la supply, sur les trois dernières lectures : jamais une
+    requête sous un lecteur."""
+    from ..perf import supplychain as supplychain_module
+
+    rows = {}
+    notes = []
+    for name, note_field in (("osa_rows", "osa_note"), ("forecast_rows", "forecast_note"),
+                             ("order_rows", "order_note")):
+        reader = getattr(source, name, None)
+        rows[name] = reader(wait_for_warehouse=refresh) if reader is not None else []
+        notes.append(getattr(source, note_field, "") or "")
+    return supplychain_module.build(rows["osa_rows"], rows["forecast_rows"], rows["order_rows"], notes)
+
+
 def _grey(source, plan=None):
     """Le gris et le vrac, sur les relevés KPI déjà tenus et le budget EBITDA : jamais une requête."""
     from ..perf import grey as grey_module
@@ -517,7 +532,7 @@ def freshness():
     # ce que quelqu'un pense à recharger — ce qui est exactement la consigne à ne pas donner.
     return {"as_of": source.last_read(), "kpis": source.kpi_stamp(),
             "products": source.product_stamp(), "clients": source.client_stamp(),
-            "partners": source.partner_stamp()}
+            "partners": source.partner_stamp(), "supplychain": source.supplychain_stamp()}
 
 
 @router.get("/")
@@ -583,7 +598,8 @@ def _screen(request: Request, session: Session):
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
-    from ..perf.source import NotReadYet, client_stamp, kpi_stamp, partner_stamp, product_stamp
+    from ..perf.source import (NotReadYet, client_stamp, kpi_stamp, partner_stamp, product_stamp,
+                               supplychain_stamp)
 
     pending = []
     try:
@@ -626,6 +642,7 @@ def _screen(request: Request, session: Session):
     from ..perf import supply as supply_module
 
     supply = supply_module.current()
+    supplychain = _supplychain(source, refresh)
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
     whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
@@ -754,6 +771,7 @@ def _screen(request: Request, session: Session):
             "clients": clients,
             "filling": filling,
             "supply": supply,
+            "supplychain": supplychain,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,
@@ -824,6 +842,7 @@ def _screen(request: Request, session: Session):
             "products_at": product_stamp(),
             "clients_at": client_stamp(),
             "partners_at": partner_stamp(),
+            "supplychain_at": supplychain_stamp(),
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,

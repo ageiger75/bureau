@@ -252,6 +252,14 @@ def partner_cache_forget() -> None:
         pass
 
 
+def supplychain_cache_forget() -> None:
+    for name in ("osa", "forecast", "orders"):
+        try:
+            _cache_path(QUERY_CACHES[name][0]).unlink()
+        except OSError:
+            pass
+
+
 def _query_fingerprint(sql: str) -> str:
     """L'empreinte de la requête qui a produit une lecture. Quand la requête change — une
     fenêtre, une colonne — la lecture d'hier n'est plus la même lecture, et le cache le
@@ -269,7 +277,44 @@ QUERY_CACHES = {
     "products": (PRODUCT_CACHE_FILE, "PRODUCT_SALES"),
     "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
     "partners": ("warehouse-partners.json", "PARTNER_SELL_IN"),
+    "osa": ("warehouse-osa.json", "OSA_MONTHLY"),
+    "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
+    "orders": ("warehouse-orders.json", "ORDER_FILL"),
 }
+
+
+def supply_months(today=None) -> List[str]:
+    """Les mois de la fenêtre supply : d'avril de l'exercice précédent au dernier mois clos."""
+    import datetime
+
+    today = today or datetime.date.today()
+    anchor = today.replace(day=1)
+    # Le même calcul que la fenêtre SQL : l'exercice ouvre en avril.
+    fiscal_year = today.year if today.month >= 4 else today.year - 1
+    first = datetime.date(fiscal_year - 1, 4, 1)
+    months = []
+    while first < anchor:
+        months.append(first.strftime("%Y-%m"))
+        first = (first.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    return months
+
+
+def read_osa(run=None) -> List[dict]:
+    """Le service en boutique, un mois à la fois : le fait est au jour × site × produit ×
+    vendeur, et seize mois d'un coup passent le plafond de l'entrepôt."""
+    import datetime
+
+    from . import queries, warehouse
+
+    run = run or (lambda sql, label: warehouse.rows(sql, label=label))
+    template = queries.ALL["OSA_MONTHLY"]
+    rows: List[dict] = []
+    for period in supply_months():
+        start = datetime.date(int(period[:4]), int(period[5:7]), 1)
+        end = (start.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+        sql = template.replace("__FROM__", start.isoformat()).replace("__TO__", end.isoformat())
+        rows.extend(run(sql, "OSA_MONTHLY %s" % period))
+    return rows
 
 def read_client_flow(run=None) -> List[dict]:
     """La lecture clients sur trois fenêtres, en deux requêtes de deux fenêtres.
@@ -301,6 +346,7 @@ def read_client_flow(run=None) -> List[dict]:
 #: Les lectures qui ne sont pas une requête mais plusieurs : `nom → lecteur`.
 QUERY_READERS = {
     "clients": read_client_flow,
+    "osa": read_osa,
 }
 
 
@@ -312,6 +358,10 @@ QUERY_MAX_AGE = {
     "products": HISTORY_CACHE_SECONDS,
     "clients": 7 * 24 * 3600,
     "partners": HISTORY_CACHE_SECONDS,
+    # Des lectures au mois clos : une semaine, comme les clients.
+    "osa": 7 * 24 * 3600,
+    "forecast": 7 * 24 * 3600,
+    "orders": 7 * 24 * 3600,
 }
 
 
@@ -368,6 +418,11 @@ def client_stamp() -> str:
 
 def partner_stamp() -> str:
     return query_stamp("partners")
+
+
+def supplychain_stamp() -> str:
+    """Les trois lectures supply en un horodatage : la page se recharge quand l'une atterrit."""
+    return "|".join(query_stamp(name) for name in ("osa", "forecast", "orders"))
 
 
 #: Une lecture en arrière-plan à la fois par requête : la relecture du démarrage l'écrit
@@ -785,6 +840,17 @@ class MockSource:
     def partner_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.partner_rows()
 
+    osa_note = forecast_note = order_note = ""
+
+    def osa_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.osa_rows()
+
+    def forecast_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.forecast_rows()
+
+    def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.order_rows()
+
     def sell_in_series(self):
         """(exercice à date, exercice clos) : les lignes de sell-in inventées."""
         return mock.sell_in_series()
@@ -1200,7 +1266,8 @@ class SnowflakeSource:
 
         query_name = QUERY_CACHES[name][1]
         note_field = "%s_note" % {"products": "product", "clients": "client",
-                                  "partners": "partner"}[name]
+                                  "partners": "partner", "osa": "osa",
+                                  "forecast": "forecast", "orders": "order"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1233,6 +1300,18 @@ class SnowflakeSource:
     def partner_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le sell-in facturé par partenaire nommé, au mois, de la dernière lecture — ou rien."""
         return self._query_rows("partners", wait_for_warehouse, "par partenaire")
+
+    def osa_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le service en boutique par mois et par unité, de la dernière lecture — ou rien."""
+        return self._query_rows("osa", wait_for_warehouse, "du service en boutique")
+
+    def forecast_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """La prévision à M-3 contre le réel, par mois et par marché — ou rien."""
+        return self._query_rows("forecast", wait_for_warehouse, "de la prévision")
+
+    def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le sell-in livré sur commandé, par mois et par canal — ou rien."""
+        return self._query_rows("orders", wait_for_warehouse, "des commandes sell-in")
 
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Les clients — le pont et le flux — de la dernière lecture, ou rien."""

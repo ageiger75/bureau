@@ -1641,6 +1641,100 @@ where i.brand_caption = 'L''OCCITANE'
 group by 1, 2, 4, 5
 """
 
+
+#: La fenêtre des trois lectures supply : d'avril de l'exercice précédent au dernier mois
+#: clos, exclu le mois en cours.
+_SUPPLY_FROM = "add_months(date_trunc('year', dateadd(month, -3, current_date)), -9)"
+_SUPPLY_TO = "date_trunc('month', current_date)"
+
+#: Le service en boutique tel que l'entrepôt le tient : la valeur de la demande en rupture
+#: sur la valeur de la demande, par mois et par unité — jamais une moyenne de taux. Une
+#: ligne par `period · unit` : `rupture_eur`, `demand_eur`, `lines`. Le cockpit fait
+#: `1 - rupture / demand`.
+#:
+#: Écrit par l'agent entrepôt le 9 septembre 2026 et vérifié sur un mois ; quatre pièges :
+#: `FLAG_OSA_WITHOUT_IN_TRANSIT = 1` marque la RUPTURE, d'où la soustraction ; quatre
+#: drapeaux coexistent (avec et sans en-transit, deux « plus ») sans définition arrêtée, et
+#: celui-ci est le plus proche de ce que la supply publie ; le fait ne porte AUCUNE marque,
+#: la lecture est toutes marques ; le pays n'est pas sur le fait, seulement l'unité, et la
+#: jointure vers un pays logistique n'a pas été vérifiée — elle n'est pas ici tant qu'elle
+#: ne l'est pas. Le fait est au jour × site × produit × vendeur : un mois à la fois,
+#: `__FROM__` et `__TO__` posés par `source.read_osa`, sinon la lecture passe le plafond.
+OSA_MONTHLY = """
+select
+    to_char(date_trunc('month', f.snapshot_date), 'YYYY-MM')          as period,
+    f.business_unit                                                   as unit,
+    round(sum(iff(lp.flag_osa_without_in_transit = 1,
+                  f.awd_adjusted_irpp_amount_eur, 0)), 2)             as rupture_eur,
+    round(sum(f.awd_adjusted_irpp_amount_eur), 2)                     as demand_eur,
+    count(*)                                                          as lines
+from dwh.semantic_layer.v_sl_f_grp_inventory_osa f
+join dwh.semantic_layer.v_sl_f_grp_inventory_osa_last_product lp
+  on lp.f_grp_inventory_osa_skey = f.f_grp_inventory_osa_last_product_fkey
+where f.snapshot_date >= date '__FROM__'
+  and f.snapshot_date <  date '__TO__'
+group by 1, 2
+"""
+
+#: La prévision de demande à M-3 contre le réel, par mois et par marché de prévision, en
+#: valeur, marque L'Occitane : `period · market · forecast_eur · actual_eur`. Le cockpit
+#: fait le biais `(forecast - actual) / actual` — négatif, les ventes sont au-dessus de la
+#: prévision, la convention du rapport — et la précision `1 - |forecast - actual| / actual`,
+#: toujours sur des sommes. Écrit par l'agent entrepôt le 9 septembre 2026.
+#:
+#: Réserve à garder écrite : sur le mois vérifié, ce calcul trouve la prévision AU-DESSUS
+#: du réel quand le rapport de la supply dit l'inverse, et la précision dépend entièrement
+#: de la maille (du simple au triple selon qu'on la calcule par produit ou par marché).
+#: C'est donc la mesure du cockpit, nommée comme telle, jamais celle de la supply. Le
+#: périmètre « STD » du rapport n'est pas identifié.
+FORECAST_BIAS = """
+with f as (
+    select forecast_month_date as month_date, forecast_area_id as market,
+           sum(forecast_amount_lrpp_eur) as forecast_eur
+    from dwh.semantic_layer.v_sl_f_sales_forecast
+    where forecast_month_date >= %(from)s and forecast_month_date < %(to)s
+      and forecast_lag = -3 and brand_id = 'OC'
+    group by 1, 2
+),
+a as (
+    select actual_sales_month_date as month_date, forecast_area_id as market,
+           sum(actual_amount_lrpp_eur) as actual_eur
+    from dwh.semantic_layer.v_sl_f_actual_sales_forecast
+    where actual_sales_month_date >= %(from)s and actual_sales_month_date < %(to)s
+      and brand_id = 'OC'
+    group by 1, 2
+)
+select to_char(coalesce(f.month_date, a.month_date), 'YYYY-MM')  as period,
+       coalesce(f.market, a.market)                              as market,
+       round(coalesce(f.forecast_eur, 0), 2)                     as forecast_eur,
+       round(coalesce(a.actual_eur, 0), 2)                       as actual_eur
+from f full outer join a on f.month_date = a.month_date and f.market = a.market
+""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
+
+#: Le sell-in livré sur commandé, en valeur, par mois de livraison demandée et par canal de
+#: centre de profit : `period · channel · ordered_eur · delivered_eur · complete_eur ·
+#: lines`. Le cockpit fait `delivered / ordered` et la part des lignes livrées en entier.
+#: Écrit par l'agent entrepôt le 9 septembre 2026.
+#:
+#: Ce n'est PAS le « livré en entier » de la supply : sur le mois vérifié, cette mesure
+#: rend dix points de moins que le rapport, et de moitié à presque tout selon le canal ;
+#: le rapport porte sur un carnet retraité qu'on ne sait pas reproduire. La vue n'expose
+#: aucune marque, la lecture est toutes marques ; les colonnes livrées sont reconstruites
+#: par la vue (« proxy ») ; les lignes rejetées sont exclues ; la date est la livraison
+#: demandée, et une autre date donnerait une autre valeur.
+ORDER_FILL = """
+select to_char(date_trunc('month', requested_delivery_date), 'YYYY-MM')     as period,
+       coalesce(nullif(trim(profit_center_group_channel), ''), 'N/A')       as channel,
+       round(sum(net_value_eur_annual), 2)                                  as ordered_eur,
+       round(sum(delivered_net_value_eur_annual_proxy), 2)                  as delivered_eur,
+       round(sum(iff(is_fully_delivered, net_value_eur_annual, 0)), 2)      as complete_eur,
+       count(*)                                                             as lines
+from dwh.semantic_layer.v_sl_f_sellin_order_item
+where requested_delivery_date >= %(from)s and requested_delivery_date < %(to)s
+  and not is_rejected
+group by 1, 2
+""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1656,6 +1750,9 @@ ALL = {
     "PRODUCT_SALES": PRODUCT_SALES,
     "CLIENT_FLOW": CLIENT_FLOW,
     "PARTNER_SELL_IN": PARTNER_SELL_IN,
+    "OSA_MONTHLY": OSA_MONTHLY,
+    "FORECAST_BIAS": FORECAST_BIAS,
+    "ORDER_FILL": ORDER_FILL,
 }
 
 

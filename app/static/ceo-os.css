@@ -899,3 +899,7 @@ input:focus, textarea:focus, select:focus {
 .pnl-detail { margin: 6px 0 10px; }
 .pnl-detail summary { cursor: pointer; color: var(--ink-soft); font-size: 13.5px; }
 .is-indécis { color: var(--ink-faint); }
+
+/* Les trois tables de la supply vue par l'entrepôt, côte à côte quand la place le permet. */
+.supply-tables { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+.supply-tables .month-table { flex: 1 1 18rem; }

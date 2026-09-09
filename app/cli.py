@@ -12,7 +12,7 @@
                                      reconcile CANDIDAT.csv [--perimeter sell-in]
                                      reconcile --from-warehouse lance la requête versionnée
     python -m app.cli refresh        oublie la lecture en cache : la prochaine ira à l'entrepôt
-                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit, --clients celle des clients, --partners celle des partenaires
+                                     --kpi n'oublie que les relevés KPI, --products la lecture par produit, --clients celle des clients, --partners celle des partenaires, --supply celles de la supply
     python -m app.cli history        les vingt-quatre mois derrière le mois affiché
                                      --market NOM pour dérouler un marché mois par mois
                                      --plans ce que le plan ne couvre pas (--goals : le
@@ -66,7 +66,7 @@
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
-    python -m app.cli supply         le rapport supply du mois : service, précision et biais de prévision, prévision de demande
+    python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
     python -m app.cli gris           le gris et le vrac : d'où il vient, comment il évolue, en face du budget des flux à nettoyer
                                      --unmatched : les codes que le référentiel ignore
@@ -1647,6 +1647,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
     if "--partners" in tuple(argv):
         source.partner_cache_forget()
         print("Lecture par partenaire oubliée. Le reste reste en cache.")
+        return 0
+    if "--supply" in tuple(argv):
+        source.supplychain_cache_forget()
+        print("Lectures supply de l'entrepôt oubliées. Le reste reste en cache.")
         return 0
     if "--month" in tuple(argv):
         source.month_cache_forget()
@@ -4123,26 +4127,50 @@ def cmd_mix(argv: List[str]) -> int:
 
 
 def cmd_supply(argv: List[str]) -> int:
-    """Le rapport supply du mois, tel que la page Analyses le rend."""
+    """Le rapport supply du mois et ce que l'entrepôt en voit, tels que la page Analyses
+    les rend. `--refresh` relit l'entrepôt en attendant."""
     from .config import settings
     from .perf import supply as supply_module
+    from .perf.source import current_source
+    from .routes.today import _supplychain
 
     review = supply_module.current()
     if not review.usable:
         print("Rapport supply non déposé : %s — voir docs/supply.example.csv" % settings.supply_path)
         for fault in review.faults:
             print("supply : " + fault, file=sys.stderr)
-        return 2
-    print("Rapport supply de %s" % review.month_label)
-    for sentence in (review.forecast_sentence, review.service_sentence, review.bias_sentence):
+    else:
+        print("Rapport supply de %s" % review.month_label)
+        for sentence in (review.forecast_sentence, review.service_sentence, review.bias_sentence):
+            if sentence:
+                print("  " + sentence[0].upper() + sentence[1:] + ".")
+        for line in review.markets:
+            print("  %-28s boutique %7s  sell-in %7s  précision %7s  biais %s%s" % (
+                line.scope[:28], line.osa_label, line.in_full_label, line.accuracy_label, line.bias_label,
+                "  · " + line.note if line.note else ""))
+        for fault in review.faults:
+            print("supply : " + fault, file=sys.stderr)
+
+    seen = _supplychain(current_source(), "--refresh" in argv)
+    print("")
+    print("Ce que l'entrepôt voit")
+    if not seen.usable:
+        for note in seen.notes or ["les lectures supply de l'entrepôt n'ont pas encore eu lieu"]:
+            print("  " + note[0].upper() + note[1:] + ".")
+        return 0
+    for line in seen.against(review) if review.usable else []:
+        print("  " + line[0].upper() + line[1:] + ".")
+    for sentence in (seen.service_sentence, seen.bias_sentence, seen.fill_sentence):
         if sentence:
             print("  " + sentence[0].upper() + sentence[1:] + ".")
-    for line in review.markets:
-        print("  %-28s boutique %7s  sell-in %7s  précision %7s  biais %s%s" % (
-            line.scope[:28], line.osa_label, line.in_full_label, line.accuracy_label, line.bias_label,
-            "  · " + line.note if line.note else ""))
-    for fault in review.faults:
-        print("supply : " + fault, file=sys.stderr)
+    if seen.service and seen.service.usable:
+        print("  Service par unité : " + " · ".join("%s %s" % (l.name, l.label) for l in seen.service.shown))
+    if seen.bias and seen.bias.usable:
+        print("  Biais par marché : " + " · ".join("%s %s" % (l.name, l.label) for l in seen.bias.shown))
+    if seen.fill and seen.fill.usable:
+        print("  Livré par canal : " + " · ".join("%s %s" % (l.channel_label, l.label) for l in seen.fill.shown))
+    for note in seen.notes:
+        print("  " + note[0].upper() + note[1:] + ".", file=sys.stderr)
     return 0
 
 

@@ -858,6 +858,51 @@ def partner_rows() -> List[dict]:
     return rows
 
 
+def _months_back(count: int = 17) -> List[str]:
+    return ["%04d-%02d" % ((2026 * 12 + 7 - back) // 12, (2026 * 12 + 7 - back) % 12 + 1)
+            for back in range(count, -1, -1)]
+
+
+def osa_rows() -> List[dict]:
+    """Le service en boutique inventé : quatre unités, une sous la cible."""
+    rows = []
+    shapes = {"Northland": 0.012, "Eastland": 0.018, "Westland": 0.009, "Southland": 0.11}
+    for index, period in enumerate(_months_back()):
+        for unit, out in shapes.items():
+            demand = 900_000.0 + 40_000.0 * (index % 5)
+            rupture = demand * (out + 0.002 * ((index + len(unit)) % 3))
+            rows.append({"period": period, "unit": unit, "rupture_eur": round(rupture, 2),
+                         "demand_eur": round(demand, 2), "lines": 5000 + 37 * index})
+    return rows
+
+
+def forecast_rows() -> List[dict]:
+    """La prévision à M-3 contre le réel, inventée : un marché sous sa prévision, un au-dessus."""
+    rows = []
+    shapes = {"Northland": 0.08, "Eastland": -0.06, "Westland": 0.01, "Southland": 0.03}
+    for index, period in enumerate(_months_back()):
+        for market, bias in shapes.items():
+            actual = 700_000.0 + 25_000.0 * (index % 4)
+            rows.append({"period": period, "market": market,
+                         "forecast_eur": round(actual * (1 + bias + 0.004 * (index % 3)), 2),
+                         "actual_eur": round(actual, 2)})
+    return rows
+
+
+def order_rows() -> List[dict]:
+    """Le sell-in livré sur commandé, inventé : un canal qui livre mal."""
+    rows = []
+    shapes = {"WEBP": 0.95, "DIS": 0.62, "TRA": 0.88, "WHOCH": 0.91}
+    for index, period in enumerate(_months_back()):
+        for channel, rate in shapes.items():
+            ordered = 500_000.0 + 30_000.0 * (index % 6)
+            delivered = ordered * (rate - 0.01 * (index % 2))
+            rows.append({"period": period, "channel": channel, "ordered_eur": round(ordered, 2),
+                         "delivered_eur": round(delivered, 2),
+                         "complete_eur": round(delivered * 0.8, 2), "lines": 800 + 11 * index})
+    return rows
+
+
 def sell_in_daily() -> List[dict]:
     """Le sell-in facturé au jour, inventé : trois pays, deux canaux, les jours ouvrés depuis
     le 1er du mois jusqu'à hier, et le même mois un an plus tôt en entier."""

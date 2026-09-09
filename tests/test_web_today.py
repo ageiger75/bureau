@@ -1002,6 +1002,12 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
     assert "Prévision supply de juillet 2026" in today
     assert "La prévision supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
+    # Ce que l'entrepôt voit, à côté : ses trois mesures nommées comme les siennes.
+    assert "Ce que l'entrepôt voit de la supply" in analyses
+    assert "lu par l'entrepôt" in analyses and "mesure du cockpit" in analyses
+    assert "Mesures du cockpit, pas celles de la supply" in analyses
+    body = client.get("/freshness", headers={"Accept": "application/json"}).json()
+    assert "supplychain" in body
 
 
 def test_partners_by_name_and_the_grey_and_bulk_live_on_analyses(client):
