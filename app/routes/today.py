@@ -255,13 +255,14 @@ def _landings(track, month):
             budget = None
     period = getattr(track, "period", "") or ""
     closed = getattr(track, "closed_through", "") or ""
+    # Les temps forts pesés, pas le calendrier des fêtes : voir `page.moved_events`.
     calendar = None
-    if settings.has_calendar_file:
-        from ..perf import events as events_module
+    if settings.has_gifting_file:
+        from ..perf import gifting as gifting_module
 
         try:
-            calendar = events_module.current()
-        except Exception:  # noqa: BLE001 — un calendrier illisible ne fait pas tomber l'atterrissage
+            calendar = gifting_module.current()
+        except Exception:  # noqa: BLE001 — un fichier illisible ne fait pas tomber l'atterrissage
             calendar = None
     group = page_module.landing(None, published, budget, period, closed, calendar)
     directory = owners.current() if settings.has_owners_file else None

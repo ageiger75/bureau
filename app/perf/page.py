@@ -186,33 +186,48 @@ def _closed_three(published, markets: Optional[Sequence[str]]):
     return actual, budget, last_year
 
 
+#: Les temps forts nommés à côté de l'atterrissage ; au-delà, on compte.
+MOST_MOVED = 5
+
+
 def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence[str]) -> List[str]:
-    """Les temps forts des mois restants qui ne tombent pas dans le même mois que l'an
-    dernier, une phrase chacun. Rien sans calendrier ; rien quand tout tombe pareil."""
-    if calendar is None or not getattr(calendar, "usable", False) or not remaining:
+    """Les temps forts pesés des mois restants qui ne tombent pas dans le même mois que
+    l'an dernier, une phrase chacun, les plus lourds d'abord. Rien sans le fichier des
+    temps forts ; rien quand tout tombe pareil.
+
+    Le fichier des temps forts, pas le calendrier des fêtes : soixante jours fériés qui
+    glissent d'un mois ne sont pas soixante faits, et Pâques qui change de mois ne pèse
+    rien sur l'atterrissage tant que personne ne l'a pesé. Ici chaque ligne porte la
+    fenêtre de cette année, la fenêtre mesurée l'an dernier et son poids sur le mois.
+    """
+    events = list(getattr(calendar, "events", []) or [])
+    if not events or not remaining:
         return []
-    from . import events as events_module
     from .invoiced import MONTHS_FR
 
+    wanted = {str(m).strip().casefold() for m in markets} if markets is not None else None
     found = []
-    for series in calendar.series.values():
-        if markets is not None and not any(events_module.same_country(series.country, m) for m in markets):
+    for event in events:
+        market = str(getattr(event, "market", "") or "")
+        if wanted is not None and market.strip().casefold() not in wanted:
             continue
-        dated = series.dated
-        for event in dated.values():
-            this_month = str(event.start or "")[:7]
-            if this_month not in remaining:
-                continue
-            before = dated.get(str(int(event.year) - 1)) if str(event.year).isdigit() else None
-            if before is None:
-                continue
-            last_month = str(before.start or "")[:7]
-            if len(last_month) < 7 or last_month[5:7] == this_month[5:7]:
-                continue
-            found.append("%s (%s) : en %s cette année, en %s l'an dernier"
-                         % (series.name, series.country, MONTHS_FR[int(this_month[5:7]) - 1],
-                            MONTHS_FR[int(last_month[5:7]) - 1]))
-    return sorted(found)
+        start = getattr(event, "start", None)
+        this_month = start.strftime("%Y-%m") if hasattr(start, "strftime") else str(start or "")[:7]
+        if this_month not in remaining:
+            continue
+        measured = str(getattr(event, "measured_on", "") or "")[:7]
+        if len(measured) < 7 or measured[5:7] == this_month[5:7]:
+            continue
+        share = getattr(event, "share", None)
+        weight = ", %.0f %% du mois l'an dernier" % (share * 100) if share is not None else ""
+        found.append((-(share or 0.0), "%s (%s) : en %s cette année, en %s l'an dernier%s"
+                      % (event.name, market, MONTHS_FR[int(this_month[5:7]) - 1],
+                         MONTHS_FR[int(measured[5:7]) - 1], weight)))
+    found.sort()
+    lines = [text for _weight, text in found[:MOST_MOVED]]
+    if len(found) > MOST_MOVED:
+        lines.append("et %d autres" % (len(found) - MOST_MOVED))
+    return lines
 
 
 class Page:

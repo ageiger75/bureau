@@ -79,29 +79,28 @@ def test_without_last_year_the_landing_keeps_its_two_hypotheses_and_no_range():
     assert not land.weighted_usable and land.low == land.at_pace == land.high
 
 
-def test_a_moved_event_in_the_remaining_months_is_named_never_weighted():
-    from app.perf import events
+def test_a_moved_weighed_event_in_the_remaining_months_is_named_never_weighted():
+    import datetime
 
     class _Event:
-        def __init__(self, year, start):
-            self.year, self.start = year, start
-
-    class _Series:
-        def __init__(self, name, country, dated):
-            self.name, self.country, self.dated = name, country, dated
+        def __init__(self, name, market, start, measured_on, share):
+            self.name, self.market, self.start, self.measured_on, self.share = name, market, start, measured_on, share
 
     class _Calendar:
-        usable = True
-        series = {
-            "a": _Series("Fête mobile", "Northland", {"2026": _Event("2026", "2026-11-03"), "2025": _Event("2025", "2025-10-28")}),
-            "b": _Series("Fête fixe", "Northland", {"2026": _Event("2026", "2026-12-25"), "2025": _Event("2025", "2025-12-25")}),
-            "c": _Series("Ailleurs", "Southland", {"2026": _Event("2026", "2026-11-03"), "2025": _Event("2025", "2025-10-28")}),
-        }
+        events = [
+            _Event("Fête mobile", "Northland", datetime.date(2026, 11, 3), "2025-10-28..2025-10-30", 0.31),
+            _Event("Fête fixe", "Northland", datetime.date(2026, 12, 25), "2025-12-25..2025-12-26", 0.4),
+            _Event("Ailleurs", "Southland", datetime.date(2026, 11, 3), "2025-10-28..2025-10-30", 0.5),
+            _Event("Petite", "Northland", datetime.date(2026, 10, 3), "2025-09-28..2025-09-30", None),
+        ]
 
-    assert events.month_of("2026-11-03") == "11"
     moved = P.moved_events(_Calendar(), ["Northland"], ["2026-09", "2026-10", "2026-11", "2026-12"])
-    assert moved == ["Fête mobile (Northland) : en novembre cette année, en octobre l'an dernier"]
+    assert moved == ["Fête mobile (Northland) : en novembre cette année, en octobre l'an dernier, 31 % du mois l'an dernier",
+                     "Petite (Northland) : en octobre cette année, en septembre l'an dernier"]
     assert P.moved_events(None, ["Northland"], ["2026-11"]) == []
+    # Le groupe voit tous les marchés ; au-delà de cinq, on compte.
+    everything = P.moved_events(_Calendar(), None, ["2026-10", "2026-11"])
+    assert len(everything) == 3 and everything[0].startswith("Ailleurs")
 
 
 def test_the_landing_is_absent_without_closed_months_or_a_plan():

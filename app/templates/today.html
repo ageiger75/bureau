@@ -29,7 +29,7 @@
       {{ landing.months_left }} mois restent ; le rythme des mois clos est de {{ landing.pace_label }}.
     </p>
     {% if landing.moved_events %}
-      <p class="cockpit-caveat">Temps forts qui changent de mois sur les mois restants, que le poids de l'an dernier ne voit pas : {{ landing.moved_events | join(" · ") }}.</p>
+      <p class="cockpit-caveat">Temps forts pesés qui changent de mois sur les mois restants, que le poids de l'an dernier ne voit pas : {{ landing.moved_events | join(" · ") }}.</p>
     {% endif %}
   {% elif landing %}
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
