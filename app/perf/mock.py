@@ -1026,7 +1026,7 @@ def _client_rows() -> List[dict]:
         row("ty", "walkin", walkin_ty, atv_ly * 0.72, per=1.0)
         # Le pont de l'exercice : la somme des trois segments actifs.
         active = [r for r in rows if r["scope"] == scope and r["window"] == "ty"
-                  and r["segment"] in ("retained", "reactivated", "new")]
+                  and r["segment"] in ("retained", "reactivated", "new") and not r.get("channel")]
         rows.append({"scope": scope, "window": "ty", "through": CLIENT_THROUGH, "segment": "arc",
                      "clients": sum(r["clients"] for r in active),
                      "transactions": sum(r["transactions"] for r in active),

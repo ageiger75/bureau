@@ -200,7 +200,7 @@ class Flow:
     @property
     def share_change_label(self) -> str:
         change = self.share_change
-        return "—" if change is None else "%+.0f pt%s" % (change, "s" if abs(change) >= 2 else "")
+        return "—" if change is None else "%+.0f pt%s" % (change, "s" if abs(round(change)) >= 2 else "")
 
     name = property(lambda self: self.segment.name)
     word = property(lambda self: self.segment.word)
@@ -257,7 +257,7 @@ class Entry:
         if self.before is None or self.before.share is None or self.share is None:
             return "—"
         change = (self.share - self.before.share) * 100
-        return "%+.0f pt%s" % (change, "s" if abs(change) >= 2 else "")
+        return "%+.0f pt%s" % (change, "s" if abs(round(change)) >= 2 else "")
 
 
 class Review:
