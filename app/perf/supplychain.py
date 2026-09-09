@@ -255,27 +255,30 @@ class Review:
 
     def against(self, report) -> List[str]:
         """Le mail et l'entrepôt sur le même mois, en points d'écart — une phrase par ligne
-        où les deux existent, jamais une correction."""
+        où les deux existent, jamais une correction. Le mois du mail est en général un
+        mois derrière la dernière lecture de l'entrepôt : la comparaison se fait sur la
+        série du groupe, au mois du mail, pas sur le dernier mois lu."""
         found = []
         group = getattr(report, "group", None)
         month = getattr(report, "month", "")
         if group is None or not month:
             return found
         pairs = (
-            ("service en boutique", self.service, getattr(group, "osa", None), "osa"),
-            ("biais de prévision", self.bias, getattr(group, "bias", None), "bias"),
-            ("livré en entier", self.fill, getattr(group, "in_full", None), "fill"),
+            ("service en boutique", self.service, getattr(group, "osa", None), True),
+            ("biais de prévision", self.bias, getattr(group, "bias", None), False),
+            ("livré en entier", self.fill, getattr(group, "in_full", None), True),
         )
-        for label, block, reported, attribute in pairs:
-            if block is None or not block.usable or reported is None or block.month != month:
+        for label, block, reported, plain in pairs:
+            if block is None or reported is None:
                 continue
-            ours = getattr(block.group, attribute, None)
+            ours = dict(block.series).get(month)
             if ours is None:
                 continue
             gap = (ours - reported) * 100
+            when = month_fr(month)
             found.append("%s %s : le mail dit %s, l'entrepôt voit %s (%+.1f pt)"
-                         % (label, block.of_month, _pct(reported, attribute == "bias"),
-                            _pct(ours, attribute == "bias"), gap))
+                         % (label, ("d'%s" if when[:1] in "aeiouy" else "de %s") % when,
+                            _pct(reported, not plain), _pct(ours, not plain), gap))
         return found
 
 

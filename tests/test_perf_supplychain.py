@@ -77,6 +77,13 @@ def test_the_mail_and_the_warehouse_meet_on_the_same_month_only():
     assert lines[0].startswith("service en boutique d'août 2026 : le mail dit 98.0 %, l'entrepôt voit 98.0 % (+0.0 pt)")
     assert "livré en entier" in lines[1] and "(-7.0 pt)" in lines[1]
 
+    class Older(Report):
+        month = "2026-07"
+
+    # Le mail est un mois derrière l'entrepôt : la comparaison se fait sur la série, au mois du mail.
+    older = review.against(Older())
+    assert len(older) == 1 and older[0].startswith("biais de prévision de juillet 2026 : le mail dit -2.0 %, l'entrepôt voit +3.0 %")
+
 
 def test_nothing_read_is_a_stated_absence():
     review = S.build(notes=["pas encore lu"])
