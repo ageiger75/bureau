@@ -280,23 +280,36 @@ def product_stamp() -> str:
         return ""
 
 
-#: Une lecture en arrière-plan à la fois, et une seule par vie du serveur : la relecture
-#: du démarrage l'écrit d'ordinaire ; ceci couvre la première ouverture après que la
-#: requête a été ajoutée, sans que personne ait à relancer quoi que ce soit.
-_reading_products_behind = False
+#: Une lecture en arrière-plan à la fois : la relecture du démarrage l'écrit d'ordinaire ;
+#: ceci couvre la première ouverture après que la requête a changé, sans que personne ait
+#: à relancer quoi que ce soit. Un échec est gardé pour que la page le dise, et la lecture
+#: se réessaie après un délai plutôt qu'à chaque ouverture.
+_products_behind = {"started": 0.0, "error": "", "running": False}
+RETRY_BEHIND_SECONDS = 10 * 60
+
+
+def products_behind_note() -> str:
+    """Ce que la page doit dire de la lecture en arrière-plan : rien tant qu'elle court,
+    l'erreur si elle a échoué."""
+    if _products_behind["error"]:
+        return ("la lecture en arrière-plan a échoué (%s) ; nouvel essai dans dix minutes, "
+                "ou tout de suite par « manage.py products --refresh »" % _products_behind["error"])
+    return ""
 
 
 def read_products_behind() -> bool:
-    """Lance la lecture produit dans un fil, une fois, et rend vrai si elle est partie.
+    """Lance la lecture produit dans un fil, et rend vrai si elle est partie.
 
     La règle de toute la maison — jamais une requête sous un lecteur — reste entière :
-    le lecteur reçoit la page tout de suite, le fil écrit le cache une minute plus tard,
-    et la page, qui guette l'horodatage, se recharge d'elle-même.
+    le lecteur reçoit la page tout de suite, le fil écrit le cache quelques minutes plus
+    tard, et la page, qui guette l'horodatage, se recharge d'elle-même.
     """
-    global _reading_products_behind
-    if _reading_products_behind:
+    state = _products_behind
+    if state["running"]:
         return False
-    _reading_products_behind = True
+    if state["error"] and time.time() - state["started"] < RETRY_BEHIND_SECONDS:
+        return False
+    state.update(started=time.time(), error="", running=True)
 
     def work() -> None:
         from . import queries, warehouse
@@ -305,7 +318,10 @@ def read_products_behind() -> bool:
             rows = warehouse.rows(queries.PRODUCT_SALES, label="PRODUCT_SALES")
             _write_product_cache(rows)
         except Exception as exc:  # pragma: no cover — depends on the warehouse
+            state["error"] = str(exc).strip().splitlines()[0][:160] if str(exc).strip() else type(exc).__name__
             LOG.warning("warehouse: product reading behind the screen failed (%s)", exc)
+        finally:
+            state["running"] = False
 
     import threading
 
@@ -1076,9 +1092,10 @@ class SnowflakeSource:
             rows = _read_product_cache(any_age=True)
             if rows is None:
                 read_products_behind()
-                self.product_note = ("les produits n'ont pas encore été lus sur cette machine : "
-                                     "la lecture est partie en arrière-plan, la page se "
-                                     "rechargera d'elle-même dans une minute")
+                self.product_note = products_behind_note() or (
+                    "les produits n'ont pas encore été lus sur cette machine : la lecture "
+                    "est partie en arrière-plan, la page se rechargera d'elle-même dans "
+                    "quelques minutes")
                 return []
             LOG.info("warehouse: product reading from an expired cache rather than making "
                      "the reader wait")

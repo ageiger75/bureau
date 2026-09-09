@@ -242,7 +242,8 @@ def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(mo
 
     from app.perf import queries, source as source_module, warehouse
 
-    monkeypatch.setattr(source_module, "_reading_products_behind", False)
+    monkeypatch.setattr(source_module, "_products_behind",
+                        {"started": 0.0, "error": "", "running": False})
     monkeypatch.setattr(queries, "PRODUCT_SALES", "select 1")
     monkeypatch.setattr(warehouse, "rows", lambda sql, params=None, label="": [("fresh",)])
     written = []
@@ -261,8 +262,18 @@ def test_the_product_reading_behind_the_screen_runs_once_and_writes_the_cache(mo
 
     assert source_module.read_products_behind() is True
     assert written == [[("fresh",)]] and ran == [True]
+    assert source_module.products_behind_note() == ""
+
+    # Un échec est gardé pour la page, et la lecture ne repart pas avant le délai.
+    def broken(sql, params=None, label=""):
+        raise RuntimeError("SQL compilation error: invalid identifier")
+
+    monkeypatch.setattr(warehouse, "rows", broken)
+    assert source_module.read_products_behind() is True
+    assert "invalid identifier" in source_module.products_behind_note()
     assert source_module.read_products_behind() is False
-    assert ran == [True]
+    source_module._products_behind["started"] = 0.0
+    assert source_module.read_products_behind() is True
 
 
 def test_a_product_cache_written_by_another_query_is_not_this_reading(tmp_path, monkeypatch):
