@@ -66,6 +66,7 @@
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
+    python -m app.cli supply         le rapport supply du mois : service, précision et biais de prévision, prévision de demande
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4115,6 +4116,30 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_supply(argv: List[str]) -> int:
+    """Le rapport supply du mois, tel que la page Analyses le rend."""
+    from .config import settings
+    from .perf import supply as supply_module
+
+    review = supply_module.current()
+    if not review.usable:
+        print("Rapport supply non déposé : %s — voir docs/supply.example.csv" % settings.supply_path)
+        for fault in review.faults:
+            print("supply : " + fault, file=sys.stderr)
+        return 2
+    print("Rapport supply de %s" % review.month_label)
+    for sentence in (review.forecast_sentence, review.service_sentence, review.bias_sentence):
+        if sentence:
+            print("  " + sentence[0].upper() + sentence[1:] + ".")
+    for line in review.markets:
+        print("  %-28s boutique %7s  sell-in %7s  précision %7s  biais %s%s" % (
+            line.scope[:28], line.osa_label, line.in_full_label, line.accuracy_label, line.bias_label,
+            "  · " + line.note if line.note else ""))
+    for fault in review.faults:
+        print("supply : " + fault, file=sys.stderr)
+    return 0
+
+
 def cmd_remplissage(argv: List[str]) -> int:
     """L'indice de remplissage du sell-in, canal par canal, tel que la page Analyses le rend."""
     from .perf.source import current_source
@@ -4759,6 +4784,8 @@ def main(argv: List[str]) -> int:
         return cmd_engagements(argv[1:])
     if command == "remplissage":
         return cmd_remplissage(argv[1:])
+    if command == "supply":
+        return cmd_supply(argv[1:])
     if command == "products":
         return cmd_products(argv[1:])
     if command == "clients":

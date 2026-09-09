@@ -157,6 +157,10 @@ DEFAULT_GIFTING_FILE = "var/gifting.csv"
 #: le cockpit sait tenir. Un bloc fixe, pas une découverte du moteur.
 DEFAULT_RED_ZONES_FILE = "var/red_zones.csv"
 
+#: Le rapport supply mensuel — service, précision et biais de prévision, prévision de
+#: demande — en quelques lignes par mois. Voir docs/supply.example.csv.
+DEFAULT_SUPPLY_FILE = "var/supply.csv"
+
 #: La contribution réalisée à date par région, au compte de gestion, contre le budget phasé :
 #: l'EBITDA par BU que la Finance ne produit pas, jusqu'à la contribution avant coûts
 #: internationaux, avec un mois de retard.
@@ -202,6 +206,7 @@ class Settings:
     placements_file: str = DEFAULT_PLACEMENTS_FILE
     gifting_file: str = DEFAULT_GIFTING_FILE
     red_zones_file: str = DEFAULT_RED_ZONES_FILE
+    supply_file: str = DEFAULT_SUPPLY_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
@@ -400,6 +405,15 @@ class Settings:
         return path if path.is_absolute() else ROOT / path
 
     @property
+    def supply_path(self) -> Path:
+        path = Path(self.supply_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_supply_file(self) -> bool:
+        return self.supply_path.exists()
+
+    @property
     def red_zones_path(self) -> Path:
         path = Path(self.red_zones_file)
         return path if path.is_absolute() else ROOT / path
@@ -519,6 +533,7 @@ def load_settings() -> Settings:
         calendar_file=_env("CEOOS_CALENDAR_FILE") or DEFAULT_CALENDAR_FILE,
         markets_file=_env("CEOOS_MARKETS_FILE") or DEFAULT_MARKETS_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
+        supply_file=_env("CEOOS_SUPPLY_FILE") or DEFAULT_SUPPLY_FILE,
         snowflake_connection=snowflake_connection,
         reread_hours=_hours(_env("CEOOS_REREAD_HOURS"), 6.0),
     )

@@ -593,6 +593,9 @@ def _screen(request: Request, session: Session):
     products = _products(source, refresh)
     clients = _clients(source, refresh)
     filling = _filling(source)
+    from ..perf import supply as supply_module
+
+    supply = supply_module.current()
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
     whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
@@ -720,6 +723,7 @@ def _screen(request: Request, session: Session):
             "products": products,
             "clients": clients,
             "filling": filling,
+            "supply": supply,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,

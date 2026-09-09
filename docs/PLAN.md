@@ -442,6 +442,13 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Le rapport supply, le 9 septembre 2026.** Le rapport mensuel de la supply chain commerciale
+— service en boutique, sell-in livré en entier, précision et biais de prévision par marché,
+prévision de demande de l'exercice — lu dans `var/supply.csv` (`docs/supply.example.csv`,
+`app/perf/supply.py`, `manage.py supply`). La prévision remplace « aucune prévision remontée »
+sur l'écran du jour ; le biais par marché s'assied à côté de l'indice de remplissage sur
+Analyses. Le biais suit la convention du rapport : négatif, les ventes dépassent la prévision.
+
 **L'indice de remplissage, le 9 septembre 2026.** Aucun sell-through dans l'entrepôt, dit
 l'agent entrepôt sur métadonnées. `app/perf/filling.py`, bloc « Le sell-in devant la vente »
 sur Analyses, `manage.py remplissage` : chaque canal de sell-in sur trois mois contre son

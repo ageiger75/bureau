@@ -447,6 +447,29 @@
     <p class="empty">Le sell-in de l'exercice à date n'est pas lu : rien à comparer.</p>
   {% endif %}
   {% if filling %}{% for reason in filling.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}
+
+  {# Le rapport supply, à côté de l'indice : la prévision dit ce qu'on attendait, la facture
+     ce qui est parti, et l'écart entre les deux est le stock qu'on ne voit pas. #}
+  <h3 class="subject-heading">La prévision supply{% if supply and supply.usable %} · {{ supply.month_label }}{% endif %}</h3>
+  {% if supply and supply.usable %}
+    {% if supply.forecast_sentence %}<p class="routed-why">{{ supply.forecast_sentence | ucfirst }}.</p>{% endif %}
+    {% if supply.service_sentence %}<p class="routed-why">{{ supply.service_sentence | ucfirst }}.</p>{% endif %}
+    {% if supply.bias_sentence %}<p class="routed-why">{{ supply.bias_sentence | ucfirst }}.</p>{% endif %}
+    {% if supply.markets %}
+    <table class="month-table product-table">
+      <thead><tr><th>Marché</th><th>Service boutique</th><th>Sell-in livré en entier</th><th>Précision</th><th>Biais</th><th>Note</th></tr></thead>
+      <tbody>
+        {% for line in supply.markets %}
+          <tr><td>{{ line.scope }}</td><td class="num">{{ line.osa_label }}</td><td class="num">{{ line.in_full_label }}</td><td class="num">{{ line.accuracy_label }}</td><td class="num">{{ line.bias_label }}</td><td class="absent">{{ line.note }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <p class="cockpit-caveat">Le biais suit la convention du rapport : négatif, les ventes sont au-dessus de la prévision. Lu dans {{ supply.path }}, le dernier mois du fichier.</p>
+  {% else %}
+    <p class="empty">Rapport supply non déposé : quelques lignes par mois dans var/supply.csv, voir docs/supply.example.csv.</p>
+  {% endif %}
+  {% if supply %}{% for fault in supply.faults %}<p class="cockpit-caveat">supply : {{ fault }}</p>{% endfor %}{% endif %}
 </section>
 
 {# ------------------------------------------------------------------ changements #}

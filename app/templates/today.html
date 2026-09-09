@@ -224,7 +224,7 @@
     Dernier mois clos{% if header.published and dataset.published_month %}, {{ dataset.published_month.month_label }}{% endif %} :
     {{ header.actual | eur }} vendus, {{ header.vs_budget.gap | eur }} contre le plan ({{ header.vs_budget.pct | pct }}),
     {{ header.vs_last_year.pct | pct }} contre l'an dernier{% if header.published %}, consolidation{% else %}, entrepôt{% endif %}.
-    {% if header.forecast %}Prévision de la période : {{ header.forecast | eur }}.{% else %}Aucune prévision remontée.{% endif %}
+    {% if header.forecast %}Prévision de la période : {{ header.forecast | eur }}.{% endif %}{% if supply and supply.forecast_sentence %} {{ supply.forecast_sentence | ucfirst }}.{% elif not header.forecast %}Aucune prévision remontée.{% endif %}
     {% if dataset.ytd and dataset.ytd.unbudgeted_actual %}
       {{ dataset.ytd.unbudgeted_actual | eur }} vendus sur {{ dataset.ytd.unbudgeted_lines }} marché-mois sans plan, hors des comparaisons.
     {% endif %}

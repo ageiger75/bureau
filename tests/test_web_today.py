@@ -986,3 +986,19 @@ def test_the_day_screen_carries_a_clients_card_beside_same_store(client):
 
     assert "Clients" in head and "clients enregistrés" in head
     assert "base perdue" in head and "le flux sur Analyses" in head
+
+
+def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, monkeypatch, tmp_path):
+    from app.config import settings
+
+    path = tmp_path / "supply.csv"
+    path.write_text("month,scope,osa,in_full,forecast_accuracy,bias,forecast_growth,note\n"
+                    "2026-07,LOEP,97.6,96.4,58.3,-1.9,2.7,\n"
+                    "2026-07,Northland,,93.9,,-9,,catalogue\n", encoding="utf-8")
+    monkeypatch.setattr(type(settings), "supply_path", property(lambda self: path))
+
+    today = page_text(client.get("/"))
+    analyses = page_text(client.get("/analyses"))
+    assert "Prévision supply de juillet 2026" in today
+    assert "La prévision supply" in analyses and "Northland" in analyses
+    assert "vend au-dessus de la prévision" in analyses
