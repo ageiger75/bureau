@@ -1744,6 +1744,36 @@ where requested_delivery_date >= %(from)s and requested_delivery_date < %(to)s
 group by 1, 2
 """ % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
 
+#: Le vrac de l'entrepôt ligne à ligne : ce que `KPI_READINGS` retire du sell-out pour lire
+#: les ventes hors vrac, rendu ici avec ce qui le porte — le mois, le pays, la valeur du
+#: drapeau, le sous-canal et le code du point de vente, la gamme. `period · market · flag ·
+#: sub_channel · store · range_name · net_eur · lines`. La définition est celle de la vue,
+#: `FLAG_BULK` 2 à 5, et rien d'autre ; les valeurs du drapeau ne sont pas nommées par
+#: l'entrepôt, le cockpit les rend telles quelles. Même fenêtre que les lectures supply :
+#: d'avril de l'exercice précédent au dernier mois clos. Le code du point de vente est un
+#: code : son nom vit dans le référentiel, pas dans le dépôt.
+BULK_DETAIL = """
+select
+    to_char(date_trunc('month', f.transaction_date), 'YYYY-MM')       as period,
+    coalesce(nullif(trim(s.store_country), ''), '(sans pays)')         as market,
+    f.flag_bulk                                                        as flag,
+    coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
+    coalesce(nullif(trim(s.store_code), ''), '(sans code)')            as store,
+    coalesce(nullif(trim(p.product_line), ''), '(sans gamme)')         as range_name,
+    round(sum(f.net_sales_eur), 2)                                     as net_eur,
+    count(*)                                                           as lines
+from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+join dwh.semantic_layer.v_sl_ai_d_stores   s on s.store_skey   = f.store_skey
+join dwh.semantic_layer.v_sl_ai_d_products p on p.product_skey = f.product_skey
+where f.flag_turnover = 1
+  and s.store_brand = 'L''OCCITANE'
+  and f.flag_bulk in (2, 3, 4, 5)
+  and f.transaction_date >= dateadd(month, -26, current_date)
+  and f.transaction_date >= %(from)s
+  and f.transaction_date <  %(to)s
+group by 1, 2, 3, 4, 5, 6
+""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1762,6 +1792,7 @@ ALL = {
     "OSA_MONTHLY": OSA_MONTHLY,
     "FORECAST_BIAS": FORECAST_BIAS,
     "ORDER_FILL": ORDER_FILL,
+    "BULK_DETAIL": BULK_DETAIL,
 }
 
 

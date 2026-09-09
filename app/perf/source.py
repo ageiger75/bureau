@@ -265,6 +265,13 @@ def partner_cache_forget() -> None:
         pass
 
 
+def bulk_cache_forget() -> None:
+    try:
+        _cache_path(QUERY_CACHES["bulk"][0]).unlink()
+    except OSError:
+        pass
+
+
 def supplychain_cache_forget() -> None:
     for name in ("osa", "forecast", "orders"):
         try:
@@ -293,6 +300,7 @@ QUERY_CACHES = {
     "osa": ("warehouse-osa.json", "OSA_MONTHLY"),
     "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
     "orders": ("warehouse-orders.json", "ORDER_FILL"),
+    "bulk": ("warehouse-bulk.json", "BULK_DETAIL"),
 }
 
 
@@ -375,6 +383,8 @@ QUERY_MAX_AGE = {
     "osa": 7 * 24 * 3600,
     "forecast": 7 * 24 * 3600,
     "orders": 7 * 24 * 3600,
+    # Le vrac bouge par commandes, au mois clos : une semaine aussi.
+    "bulk": 7 * 24 * 3600,
 }
 
 
@@ -431,6 +441,10 @@ def client_stamp() -> str:
 
 def partner_stamp() -> str:
     return query_stamp("partners")
+
+
+def bulk_stamp() -> str:
+    return query_stamp("bulk")
 
 
 def supplychain_stamp() -> str:
@@ -864,6 +878,11 @@ class MockSource:
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.order_rows()
 
+    bulk_note = ""
+
+    def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.bulk_rows()
+
     def sell_in_series(self):
         """(exercice à date, exercice clos) : les lignes de sell-in inventées."""
         return mock.sell_in_series()
@@ -1280,7 +1299,8 @@ class SnowflakeSource:
         query_name = QUERY_CACHES[name][1]
         note_field = "%s_note" % {"products": "product", "clients": "client",
                                   "partners": "partner", "osa": "osa",
-                                  "forecast": "forecast", "orders": "order"}[name]
+                                  "forecast": "forecast", "orders": "order",
+                                  "bulk": "bulk"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1325,6 +1345,10 @@ class SnowflakeSource:
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le sell-in livré sur commandé, par mois et par canal — ou rien."""
         return self._query_rows("orders", wait_for_warehouse, "des commandes sell-in")
+
+    def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le vrac ligne à ligne — mois, pays, drapeau, point de vente, gamme — ou rien."""
+        return self._query_rows("bulk", wait_for_warehouse, "du vrac ligne à ligne")
 
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Les clients — le pont et le flux — de la dernière lecture, ou rien."""

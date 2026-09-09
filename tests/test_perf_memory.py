@@ -10,8 +10,11 @@ touché à l'application entre-temps.
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import func, select
 
+from app.db import SessionFactory
 from app.domain import issues as I
+from app.models import IssueEvidence, IssueReading, ManagementIssue
 from app.perf import memory
 
 
@@ -192,3 +195,102 @@ def test_an_amount_that_cannot_be_read_comes_back_absent_and_never_zero(db_sessi
     assert memory._amount("") is None
     assert memory._amount("pas un nombre") is None
     assert memory._amount("0") == 0.0
+
+
+def _count(session, model) -> int:
+    return session.scalar(select(func.count()).select_from(model))
+
+
+def test_an_unchanged_subject_is_not_rewritten(db_session):
+    """L'écran redépose le registre à chaque ouverture. Réécrire des preuves identiques
+    coûtait une suppression et une insertion par ligne à chaque page — et c'est cette
+    réécriture qui, sous deux requêtes concurrentes, doublait le registre."""
+    register = I.Register()
+    issue = register.observe(_seen(at="2026-07-31"))
+    issue.reinterpret("Première lecture", at="2026-07-31")
+    memory.save(db_session, register)
+    db_session.commit()
+    before = sorted(db_session.scalars(select(IssueEvidence.id)).all())
+    before_readings = sorted(db_session.scalars(select(IssueReading.id)).all())
+
+    memory.save(db_session, register)
+    db_session.commit()
+    db_session.expire_all()
+
+    assert sorted(db_session.scalars(select(IssueEvidence.id)).all()) == before
+    assert sorted(db_session.scalars(select(IssueReading.id)).all()) == before_readings
+    again = memory.load(db_session).of(issue.issue_id)
+    assert len(again.evidence) == 1 and again.conclusion == "Première lecture"
+
+
+def test_two_writers_that_overlap_leave_one_copy_and_not_two(db_session):
+    """Le mécanisme exact du registre à cent vingt-huit mille preuves : deux requêtes
+    chargent le même registre, chacune y ajoute la même preuve du jour, chacune écrit.
+    La seconde ne trouve plus les lignes que la première a remplacées ; elle ne doit pas
+    pour autant insérer une seconde copie."""
+    register = I.Register()
+    issue = register.observe(_seen(at="2026-07-31"))
+    issue.reinterpret("Première lecture", at="2026-07-31")
+    memory.save(db_session, register)
+    db_session.commit()
+
+    first, second = SessionFactory(), SessionFactory()
+    try:
+        seen_by_first = memory.load(first)
+        seen_by_second = memory.load(second)
+        for seen in (seen_by_first, seen_by_second):
+            seen.observe(_seen(at="2026-08-31"))
+            seen.of(issue.issue_id).reinterpret("Seconde lecture", at="2026-08-31",
+                                                because="Un mois de plus")
+        memory.save(first, seen_by_first)
+        first.commit()
+        memory.save(second, seen_by_second)
+        second.commit()
+    finally:
+        first.close()
+        second.close()
+
+    db_session.expire_all()
+    assert _count(db_session, IssueEvidence) == 2
+    assert _count(db_session, IssueReading) == 2
+    kept = memory.load(db_session).of(issue.issue_id)
+    assert [item.seen_at for item in kept.evidence] == ["2026-07-31", "2026-08-31"]
+    assert [item.conclusion for item in kept.readings] == ["Première lecture",
+                                                           "Seconde lecture"]
+
+
+def test_a_damaged_register_is_read_once_and_mended(db_session):
+    """Une base déjà abîmée porte des copies. Elles ne doivent ni gonfler la lecture —
+    « dure depuis plusieurs lectures », « et 92 autres » — ni survivre à la lecture."""
+    register = I.Register()
+    issue = register.observe(_seen(at="2026-07-31", statement="Une preuve"))
+    register.attach(issue.issue_id, _seen(scope="Eastland", at="2026-07-31",
+                                          statement="Une autre"))
+    issue.reinterpret("Une lecture", at="2026-07-31")
+    memory.save(db_session, register)
+    db_session.commit()
+    row = db_session.scalar(select(ManagementIssue))
+    for _copy in range(3):
+        for item in list(row.evidence):
+            db_session.add(IssueEvidence(
+                issue_id=row.id, position=item.position, kind=item.kind,
+                scope=item.scope, seen_at=item.seen_at, statement=item.statement,
+                amount=item.amount, basis=item.basis, confidence=item.confidence,
+                measure=item.measure))
+        for item in list(row.readings):
+            db_session.add(IssueReading(issue_id=row.id, position=item.position,
+                                        conclusion=item.conclusion, at=item.at,
+                                        because=item.because))
+    db_session.commit()
+    db_session.expire_all()
+    assert _count(db_session, IssueEvidence) == 8
+
+    read = memory.load(db_session).of(issue.issue_id)
+    db_session.commit()
+
+    assert [item.statement for item in read.evidence] == ["Une preuve", "Une autre"]
+    assert len(read.readings) == 1
+    assert _count(db_session, IssueEvidence) == 2
+    assert _count(db_session, IssueReading) == 1
+    # Une seconde lecture ne trouve plus rien à réparer, et une écriture ne réécrit rien.
+    assert memory.mend(db_session) == 0

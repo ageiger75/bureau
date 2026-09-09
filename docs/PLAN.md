@@ -463,6 +463,35 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
+**Le registre qui doublait, le 9 septembre 2026.** Le journal disait `DELETE statement on
+table 'issue_evidence' expected to delete 128640 row(s); 0 were matched` et « ce qui a
+changé » citait vingt fois la même lecture. La cause : `memory.save` réécrivait les preuves
+et les lectures de chaque sujet à chaque écran, en supprimant les anciennes lignes par
+identifiant ; deux requêtes qui se chevauchaient (la page et sa vérification de fraîcheur,
+un onglet rouvert) écrivaient chacune leur copie, la seconde ne trouvant plus les lignes à
+supprimer et insérant quand même les siennes. Le registre doublait à chaque chevauchement,
+chaque écran le relisait en entier, et c'était une part de « mille ans ». Trois gardes :
+une écriture ne touche pas un sujet dont les preuves sont déjà celles de la base ; quand
+elle le touche, elle efface les lignes du sujet et non des identifiants lus plus tôt (deux
+écritures concurrentes laissent une copie) ; la lecture écarte et efface les copies qu'une
+base abîmée porte encore. Les preuves viennent en deux requêtes au lieu de deux par sujet.
+La base du Mac se répare toute seule à la première ouverture qui suit.
+
+**La supply sur tout le périmètre, le 9 septembre 2026.** Le rapport supply et ce que
+l'entrepôt en voit étaient rendus sous « le sell-in devant la vente » ; la supply couvre le
+sell-out comme le sell-in (le service en boutique en premier). Sa section, `#supply`.
+
+**Le gris ligne à ligne, le 9 septembre 2026.** « D'où ça vient » quand le marché ne suffit
+plus : `BULK_DETAIL` rend le vrac de l'entrepôt (même définition, `FLAG_BULK` 2 à 5) par
+mois, pays, valeur du drapeau, sous-canal et code du point de vente, gamme ; `grey.Detail`
+en fait les comptes qui le portent (combien font 80 %), les types, les gammes, chacun à
+date contre l'an dernier et sur trois mois. Le code du point de vente reste un code — son
+nom vit dans le référentiel, jamais dans le dépôt. Et le dossier : les sujets du registre
+dont le titre, une preuve ou une lecture parle de gris, de vrac, de daigou, une recherche
+sur les mots nommée comme telle. Cache propre, une semaine, `refresh --bulk`. La feuille
+grise de la Finance reste hors écran : un classeur sans chemin fixe se rapproche par
+`reconcile`.
+
 **L'écran du jour, troisième passe, le 9 septembre 2026.** Sur l'analyse d'expert cockpit :
 le verdict en mots au-dessus du chiffre (pastille, atterrissage, qui décroche) ; une barre de
 navigation collante avec les comptes ; six tuiles de même hauteur, le dernier mois clos en

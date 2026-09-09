@@ -903,6 +903,34 @@ def order_rows() -> List[dict]:
     return rows
 
 
+#: Le vrac ligne à ligne, inventé : trois marchés, cinq points de vente, deux valeurs du
+#: drapeau, quelques gammes — concentré comme il l'est, un compte qui monte, un qui s'arrête.
+BULK_SHAPES = (
+    # marché, drapeau, sous-canal, code point de vente, base mensuelle, croissance annuelle
+    ("China", 2, "WHOLESALE", "ST-CN-0410", 260_000.0, 0.35),
+    ("China", 3, "WHOLESALE", "ST-CN-0418", 90_000.0, -0.02),
+    ("Hong Kong", 2, "TRAVEL RETAIL", "ST-HK-0021", 110_000.0, -0.40),
+    ("Japan", 5, "CORPORATE", "ST-JP-0130", 22_000.0, 0.05),
+    ("Brazil", 4, "WHOLESALE", "ST-BR-0007", 15_000.0, 0.12),
+)
+BULK_RANGES = ("Karité", "Amande", "Verveine", "Immortelle")
+
+
+def bulk_rows() -> List[dict]:
+    """Le vrac de l'entrepôt ligne à ligne, inventé."""
+    rows = []
+    for index, period in enumerate(_months_back()):
+        for market, flag, sub_channel, store, base, yearly in BULK_SHAPES:
+            monthly = base * (1.0 + yearly) ** (index / 12.0) * (1.0 + 0.15 * ((index + flag) % 3 == 0))
+            for rank, range_name in enumerate(BULK_RANGES):
+                share = (0.5, 0.25, 0.15, 0.10)[(rank + flag) % 4]
+                rows.append({"period": period, "market": market, "flag": flag,
+                             "sub_channel": sub_channel, "store": store,
+                             "range_name": range_name,
+                             "net_eur": round(monthly * share, 2), "lines": 3 + rank})
+    return rows
+
+
 def sell_in_daily() -> List[dict]:
     """Le sell-in facturé au jour, inventé : trois pays, deux canaux, les jours ouvrés depuis
     le 1er du mois jusqu'à hier, et le même mois un an plus tôt en entier."""

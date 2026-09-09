@@ -15,6 +15,16 @@ l'exercice. C'est la seule ligne de plan qui existe pour ce sujet, et elle est p
 que le vrac de l'entrepôt : « en ligne avec le plan » se lit donc en ordre de grandeur —
 le prorata des mois écoulés contre le vrac lu — jamais au million près.
 
+**L'entrepôt, ligne à ligne.** Le même drapeau, rendu avec ce qui le porte : la valeur du
+drapeau (l'entrepôt ne la nomme pas, le cockpit non plus), le point de vente et son
+sous-canal, la gamme. C'est la réponse à « d'où ça vient » quand « la Chine » ne suffit
+plus : trois comptes font le vrac, ou trente, et ce n'est pas la même conversation.
+
+**Le registre** garde ce que le cockpit a déjà dit du gris : les sujets dont le titre ou
+une preuve parle de gris, de vrac, de daigou, de duty free. Une recherche sur les mots,
+nommée comme telle — le registre n'a pas de clé « gris », et en inventer une ferait
+croire à une détection que personne n'a écrite.
+
 **La Finance** clôt un trimestre avec sa feuille grise (vrac Chine, vrac Hong Kong, daigou,
 un groupe facturé) ; elle se rapproche en ligne de commande, `manage.py reconcile`, contre le
 classeur déposé. Elle n'est pas relue ici : un classeur de la Finance n'a pas de chemin fixe.
@@ -43,10 +53,36 @@ RECENT = 3
 NOTICED = 0.10
 
 
+#: Les comptes nommés ligne à ligne, et les gammes.
+MOST_ACCOUNTS = 8
+MOST_RANGES = 6
+#: La part du vrac lu qu'il faut réunir pour dire « concentré » : le nombre de comptes qui
+#: y suffisent est la phrase.
+CONCENTRATION = 0.80
+
+#: Les mots qui font entrer un sujet du registre dans le dossier gris.
+GREY_WORDS = ("gris", "grey", "vrac", "bulk", "daigou", "duty free", "duty-free",
+              "parallèle", "parallel")
+
+
 def _growth(now: float, before: Optional[float]) -> Optional[float]:
     if before is None or before <= 0:
         return None
     return now / before - 1.0
+
+
+def _word(year: Optional[float], recent: Optional[float]) -> str:
+    if year is None:
+        return "sans an dernier"
+    if year >= NOTICED and (recent is None or recent >= 0):
+        return "monte"
+    if year <= -NOTICED and (recent is None or recent <= 0):
+        return "se tasse"
+    if recent is not None and recent >= NOTICED and year < NOTICED:
+        return "repart"
+    if recent is not None and recent <= -NOTICED and year > -NOTICED:
+        return "s'arrête"
+    return "tient"
 
 
 class Market:
@@ -81,18 +117,7 @@ class Market:
 
     @property
     def word(self) -> str:
-        year, recent = self.growth, self.growth_recent
-        if year is None:
-            return "sans an dernier"
-        if year >= NOTICED and (recent is None or recent >= 0):
-            return "monte"
-        if year <= -NOTICED and (recent is None or recent <= 0):
-            return "se tasse"
-        if recent is not None and recent >= NOTICED and year < NOTICED:
-            return "repart"
-        if recent is not None and recent <= -NOTICED and year > -NOTICED:
-            return "s'arrête"
-        return "tient"
+        return _word(self.growth, self.growth_recent)
 
     @property
     def bulk_label(self) -> str:
@@ -112,10 +137,123 @@ class Market:
         return "n/d" if self.growth_recent is None else format_pct(self.growth_recent)
 
 
+class Line:
+    """Une tranche du vrac ligne à ligne : un type, un compte ou une gamme."""
+
+    __slots__ = ("label", "market", "months", "ytd", "ytd_ly", "recent", "recent_ly", "total")
+
+    def __init__(self, label: str, market: str = "") -> None:
+        self.label = label
+        self.market = market
+        self.months: Dict[str, float] = {}
+        self.ytd = 0.0
+        self.ytd_ly: Optional[float] = None
+        self.recent = 0.0
+        self.recent_ly: Optional[float] = None
+        #: Le vrac lu en entier sur la fenêtre, pour la part.
+        self.total = 0.0
+
+    @property
+    def share(self) -> Optional[float]:
+        return self.ytd / self.total if self.total > 0 else None
+
+    @property
+    def growth(self) -> Optional[float]:
+        return _growth(self.ytd, self.ytd_ly)
+
+    @property
+    def growth_recent(self) -> Optional[float]:
+        return _growth(self.recent, self.recent_ly)
+
+    @property
+    def word(self) -> str:
+        return _word(self.growth, self.growth_recent)
+
+    @property
+    def ytd_label(self) -> str:
+        return format_eur(self.ytd)
+
+    @property
+    def share_label(self) -> str:
+        share = self.share
+        return "—" if share is None else "%d %%" % round(share * 100)
+
+    @property
+    def growth_label(self) -> str:
+        return "n/d" if self.growth is None else format_pct(self.growth)
+
+    @property
+    def growth_recent_label(self) -> str:
+        return "n/d" if self.growth_recent is None else format_pct(self.growth_recent)
+
+
+class Detail:
+    """Le vrac ligne à ligne : par type de drapeau, par compte, par gamme."""
+
+    def __init__(self, kinds: Sequence[Line] = (), accounts: Sequence[Line] = (),
+                 ranges: Sequence[Line] = (), start: str = "", through: str = "",
+                 total: float = 0.0, note: str = "") -> None:
+        self.kinds = list(kinds)
+        self.accounts = list(accounts)
+        self.ranges = list(ranges)
+        self.start = start
+        self.through = through
+        self.total = total
+        self.note = note
+
+    @property
+    def usable(self) -> bool:
+        return self.total > 0 and bool(self.accounts)
+
+    @property
+    def window_label(self) -> str:
+        if not self.start or not self.through:
+            return ""
+        from .accounts import _span
+
+        return "exercice à date, %s" % _span(self.start, self.through)
+
+    @property
+    def concentration(self) -> int:
+        """Combien de comptes suffisent à quatre cinquièmes du vrac lu."""
+        run = 0.0
+        for index, line in enumerate(self.accounts, start=1):
+            run += line.ytd
+            if self.total > 0 and run / self.total >= CONCENTRATION:
+                return index
+        return len(self.accounts)
+
+    @property
+    def headline(self) -> str:
+        if not self.usable:
+            return ""
+        count = self.concentration
+        first = self.accounts[0]
+        text = ("%s de vrac lu ligne à ligne ; %s en %s %d %%" % (
+            format_eur(self.total), "un compte" if count == 1 else "%d comptes" % count,
+            "fait" if count == 1 else "font", round(CONCENTRATION * 100)))
+        text += ", le premier %s (%s) à %s" % (first.label, first.word, first.share_label)
+        if self.kinds:
+            kinds = ", ".join("%s %s" % (line.label, line.share_label) for line in self.kinds)
+            text += " ; par type, %s" % kinds
+        return text
+
+    @property
+    def question(self) -> str:
+        movers = [line for line in self.accounts if line.growth is not None
+                  and abs(line.growth) >= NOTICED]
+        if not movers:
+            return ""
+        top = max(movers, key=lambda line: abs(line.ytd - (line.ytd_ly or 0.0)))
+        return ("%s : %s de vrac à date, %s sur l'an dernier. Qui est ce compte, et "
+                "qu'est-ce qu'on lui vend ?"
+                % (top.label, top.ytd_label, top.growth_label))
+
+
 class Review:
     def __init__(self, group: Optional[Market], markets: Sequence[Market], start: str = "",
                  through: str = "", budget_lines: Sequence = (), budget_total: float = 0.0,
-                 months_elapsed: int = 0, note: str = "") -> None:
+                 months_elapsed: int = 0, note: str = "", detail: Optional[Detail] = None) -> None:
         self.group = group
         self.markets = list(markets)
         self.start = start
@@ -124,6 +262,9 @@ class Review:
         self.budget_total = budget_total
         self.months_elapsed = months_elapsed
         self.note = note
+        self.detail = detail if detail is not None else Detail(note="le vrac ligne à ligne n'est pas lu")
+        #: Ce que le registre dit déjà du gris — posé par la surface, qui tient le registre.
+        self.dossier: List = []
 
     @property
     def usable(self) -> bool:
@@ -254,13 +395,117 @@ def _market(rows, scope: str, ytd_months, recent_months, all_periods) -> Optiona
     return market
 
 
-def build(rows: Sequence, plan=None, note: str = "") -> Review:
-    """La lecture, sur les relevés KPI déjà tenus et le budget EBITDA déjà lu."""
+def _line_key(kind: str, row: dict) -> tuple:
+    if kind == "kind":
+        return ("type %s" % row.get("flag"), "")
+    if kind == "range":
+        return (str(row.get("range_name") or "(sans gamme)"), "")
+    from .budget import normalise_market
+
+    market = normalise_market(str(row.get("market") or "(sans pays)"))
+    return ("%s · %s · %s" % (market, row.get("store") or "(sans code)",
+                              row.get("sub_channel") or "N/A"), market)
+
+
+def _lines(rows: Sequence[dict], kind: str, ytd_months, recent_months, total: float) -> List[Line]:
+    lines: Dict[str, Line] = {}
+    for row in rows:
+        label, market = _line_key(kind, row)
+        line = lines.get(label)
+        if line is None:
+            line = lines[label] = Line(label, market)
+            line.total = total
+        period = str(row.get("period") or "")
+        line.months[period] = line.months.get(period, 0.0) + float(row.get("net_eur") or 0.0)
+    ly = [_shift(m, -12) for m in ytd_months]
+    ly_recent = [_shift(m, -12) for m in recent_months]
+    for line in lines.values():
+        line.ytd = sum(line.months.get(m, 0.0) for m in ytd_months)
+        line.recent = sum(line.months.get(m, 0.0) for m in recent_months)
+        if any(m in line.months for m in ly):
+            line.ytd_ly = sum(line.months.get(m, 0.0) for m in ly)
+        if any(m in line.months for m in ly_recent):
+            line.recent_ly = sum(line.months.get(m, 0.0) for m in ly_recent)
+    kept = [line for line in lines.values() if line.ytd > 0]
+    kept.sort(key=lambda line: -line.ytd)
+    return kept
+
+
+def detail(rows: Sequence[dict], through: str = "", note: str = "") -> Detail:
+    """Le vrac ligne à ligne, sur la dernière lecture de l'entrepôt.
+
+    `through` borne la fenêtre au dernier mois que les relevés KPI tiennent, pour que les
+    deux lectures parlent du même exercice à date ; sans lui, le dernier mois lu.
+    """
+    rows = [row for row in rows if row.get("period")]
+    if not rows:
+        return Detail(note=note or "le vrac ligne à ligne n'est pas encore lu")
+    periods = sorted(set(str(row["period"]) for row in rows))
+    last = periods[-1] if not through else min(periods[-1], through)
+    start = fiscal_start(last)
+    ytd_months = [m for m in _months_between(start, last) if m in periods]
+    if not ytd_months:
+        return Detail(note=note or "le vrac ligne à ligne ne couvre pas l'exercice à date")
+    recent_months = ytd_months[-RECENT:]
+    total = sum(float(row.get("net_eur") or 0.0) for row in rows
+                if str(row["period"]) in ytd_months)
+    return Detail(
+        kinds=_lines(rows, "kind", ytd_months, recent_months, total),
+        accounts=_lines(rows, "account", ytd_months, recent_months, total)[:MOST_ACCOUNTS],
+        ranges=_lines(rows, "range", ytd_months, recent_months, total)[:MOST_RANGES],
+        start=start, through=last, total=total, note=note)
+
+
+class Mention:
+    """Un sujet du registre qui parle du gris, tel que le dossier le cite."""
+
+    __slots__ = ("issue_id", "title", "status", "last_seen", "conclusion")
+
+    def __init__(self, issue) -> None:
+        self.issue_id = issue.issue_id
+        self.title = issue.title
+        self.status = issue.status
+        self.last_seen = getattr(issue, "last_seen", "") or ""
+        self.conclusion = getattr(issue, "conclusion", "") or ""
+
+    @property
+    def status_word(self) -> str:
+        from ..domain import issues as domain
+
+        return {domain.CLOSED: "clos", domain.IN_ATTENTION: "en attention",
+                domain.WATCHED: "en veille"}.get(self.status, "détecté")
+
+
+def mentions_grey(issue) -> bool:
+    texts = [issue.title or ""]
+    texts.extend(getattr(item, "statement", "") or "" for item in getattr(issue, "evidence", []) or [])
+    texts.extend(getattr(item, "conclusion", "") or "" for item in getattr(issue, "readings", []) or [])
+    blob = " ".join(texts).lower()
+    return any(word in blob for word in GREY_WORDS)
+
+
+def dossier(register) -> List[Mention]:
+    """Les sujets du registre qui parlent du gris — ouverts d'abord, puis clos, les plus
+    récents en tête. Une recherche sur les mots : elle trouve ce qui a été écrit, pas ce
+    qui a été mesuré."""
+    from ..domain import issues as domain
+
+    found = [issue for issue in getattr(register, "issues", []) or [] if mentions_grey(issue)]
+    found.sort(key=lambda issue: (issue.status == domain.CLOSED, issue.last_seen), reverse=False)
+    found.sort(key=lambda issue: issue.status == domain.CLOSED)
+    return [Mention(issue) for issue in found]
+
+
+def build(rows: Sequence, plan=None, note: str = "", bulk_rows: Sequence[dict] = (),
+          bulk_note: str = "") -> Review:
+    """La lecture, sur les relevés KPI déjà tenus, le budget EBITDA déjà lu, et la dernière
+    lecture du vrac ligne à ligne."""
     group_readings = kpi_registry.readings_by_key(rows, scope=GROUP)
     periods = sorted(set(r.period for r in group_readings.get(bulk_module.SALES_KEY) or [])
                      & set(r.period for r in group_readings.get(bulk_module.EX_BULK_KEY) or []))
     if not periods:
-        return Review(None, [], note=note or "les deux bases du groupe ne sont pas lues")
+        return Review(None, [], note=note or "les deux bases du groupe ne sont pas lues",
+                      detail=detail(bulk_rows, note=bulk_note))
     through = periods[-1]
     start = fiscal_start(through)
     ytd_months = [m for m in _months_between(start, through) if m in periods]
@@ -279,4 +524,4 @@ def build(rows: Sequence, plan=None, note: str = "") -> Review:
     budget_total = float(getattr(total_line, "sales", 0.0) or 0.0) if total_line else (
         sum(float(getattr(line, "sales", 0.0) or 0.0) for line in budget_lines))
     return Review(group, markets, start, through, budget_lines, budget_total,
-                  len(ytd_months), note)
+                  len(ytd_months), note, detail=detail(bulk_rows, through, bulk_note))

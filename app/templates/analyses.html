@@ -6,7 +6,7 @@
 {# Ce qui est vrai et n'est pas pour le lundi. L'écran du jour tient en cinq blocs ;
    tout ce qui explique, classe, propose ou vérifie vit ici, avec le même contexte. #}
 
-<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}" data-partners-at="{{ partners_at }}" data-supplychain-at="{{ supplychain_at }}">
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-kpis-at="{{ kpis_at }}" data-products-at="{{ products_at }}" data-clients-at="{{ clients_at }}" data-partners-at="{{ partners_at }}" data-supplychain-at="{{ supplychain_at }}" data-bulk-at="{{ bulk_at }}">
   <p class="cockpit-eyebrow">Analyses · {% if track and track.period %}{{ track.year_title }} · {% endif %}lu le {{ dataset.as_of }}</p>
   <p class="lede">Où pousser et pourquoi, les plans à revoir, les opportunités, ce qui marche — par marché et par produit —, les clients, le mix, les KPI suivis, et la donnée à vérifier. Rien ici ne demande une décision ce lundi ; tout y prépare la suivante.</p>
 </section>
@@ -484,9 +484,16 @@
   {% endif %}
   {% if filling %}{% for reason in filling.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}
 
-  {# Le rapport supply, à côté de l'indice : la prévision dit ce qu'on attendait, la facture
-     ce qui est parti, et l'écart entre les deux est le stock qu'on ne voit pas. #}
-  <h3 class="subject-heading">La prévision supply{% if supply and supply.usable %} · {{ supply.month_label }}{% endif %}</h3>
+</section>
+
+{# ------------------------------------------------------------------ supply #}
+
+<section class="panel" id="supply">
+  <h2>La supply, sur tout le périmètre</h2>
+  <p class="lede">Le service en boutique, la prévision et son biais, le livré sur commandé : la supply couvre le sell-out comme le sell-in, et se lit ici pour elle-même. Le rapport du mois d'abord, ce que l'entrepôt en voit ensuite, jamais additionnés.</p>
+  {# Le rapport supply d'abord : ce que la supply dit d'elle-même, sur tout le périmètre —
+     boutiques, e-commerce, partenaires. Puis ce que l'entrepôt en voit, jamais fondu. #}
+  <h3 class="subject-heading">Le rapport supply{% if supply and supply.usable %} · {{ supply.month_label }}{% endif %}</h3>
   {% if supply and supply.usable %}
     {% if supply.forecast_sentence %}<p class="routed-why">{{ supply.forecast_sentence | ucfirst }}.</p>{% endif %}
     {% if supply.service_sentence %}<p class="routed-why">{{ supply.service_sentence | ucfirst }}.</p>{% endif %}
@@ -807,6 +814,57 @@
     <p class="cockpit-caveat">Le vrac lu est la différence entre les ventes et les ventes hors vrac de chaque relevé, définition de l'entrepôt (FLAG_BULK 2 à 5). Le daigou et un groupe facturé plutôt que vendu n'y sont pas marqués : la feuille grise de la Finance, au trimestre, se rapproche par la commande reconcile.</p>
   {% else %}
     <p class="empty">{{ (grey.note if grey and grey.note else "les deux bases ne sont pas lues") | ucfirst }}.</p>
+  {% endif %}
+
+  {# Ligne à ligne : le même drapeau, avec ce qui le porte. La réponse à « d'où ça vient »
+     quand le marché ne suffit plus. #}
+  {% set detail = grey.detail if grey else none %}
+  <h3 class="subject-heading">D'où il vient, ligne à ligne{% if detail and detail.usable %} · {{ detail.window_label }}{% endif %}</h3>
+  {% if detail and detail.usable %}
+    <p class="product-headline">{{ detail.headline | ucfirst }}.</p>
+    <div class="supply-tables">
+      <table class="month-table product-table">
+        <thead><tr><th>Compte (marché · point de vente · sous-canal)</th><th>Vrac à date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th><th></th></tr></thead>
+        <tbody>
+          {% for line in detail.accounts %}
+            <tr><td>{{ line.label }}</td><td class="num">{{ line.ytd_label }}</td><td class="num">{{ line.share_label }}</td><td class="num {{ 'is-en-avance' if line.growth is not none and line.growth > 0.1 else ('is-en-retard' if line.growth is not none and line.growth < -0.1 else '') }}">{{ line.growth_label }}</td><td class="num">{{ line.growth_recent_label }}</td><td>{{ line.word }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <table class="month-table product-table">
+        <thead><tr><th>Type de drapeau</th><th>Vrac à date</th><th>Part</th><th>vs l'an dernier</th><th></th></tr></thead>
+        <tbody>
+          {% for line in detail.kinds %}
+            <tr><td>{{ line.label }}</td><td class="num">{{ line.ytd_label }}</td><td class="num">{{ line.share_label }}</td><td class="num">{{ line.growth_label }}</td><td>{{ line.word }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <table class="month-table product-table">
+        <thead><tr><th>Gamme</th><th>Vrac à date</th><th>Part</th><th>vs l'an dernier</th></tr></thead>
+        <tbody>
+          {% for line in detail.ranges %}
+            <tr><td>{{ line.label }}</td><td class="num">{{ line.ytd_label }}</td><td class="num">{{ line.share_label }}</td><td class="num">{{ line.growth_label }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if detail.question %}<p class="ask">{{ detail.question }}</p>{% endif %}
+    <p class="cockpit-caveat">Le point de vente est un code de l'entrepôt : son nom vit dans le référentiel, pas ici. Les valeurs du drapeau ne sont pas nommées par l'entrepôt, et le cockpit ne les nomme pas à sa place. Lu par la requête BULK_DETAIL, relue au plus une fois par semaine ; manage.py refresh --bulk la relit.</p>
+  {% else %}
+    <p class="empty">{{ (detail.note if detail and detail.note else "le vrac ligne à ligne n'est pas lu") | ucfirst }}.</p>
+  {% endif %}
+
+  {# Le dossier : ce que le registre a déjà dit du gris. #}
+  <h3 class="subject-heading">Ce que le registre en dit</h3>
+  {% if grey and grey.dossier %}
+    <ul class="talk-lines">
+      {% for item in grey.dossier %}
+        <li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.last_seen %}, vu le {{ item.last_seen }}{% endif %}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <p class="cockpit-caveat">Les sujets dont le titre, une preuve ou une lecture parle de gris, de vrac, de daigou ou de duty free. Une recherche sur les mots, pas une détection.</p>
+  {% else %}
+    <p class="empty">Aucun sujet du registre ne parle de gris, de vrac ou de daigou. Une recherche sur les mots, pas une détection : ce qui n'a pas été écrit n'y est pas.</p>
   {% endif %}
 </section>
 

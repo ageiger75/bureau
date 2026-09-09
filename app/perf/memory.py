@@ -18,14 +18,29 @@ c'est le doublon qui revient sans qu'aucun test ne tombe.
 sujets connus par leur référence plutôt que de vider la table : une référence citée dans un
 compte rendu doit désigner le même sujet la semaine suivante, et un identifiant réattribué
 transforme une trace en énigme.
+
+**Ce qui n'a pas changé n'est pas réécrit, et ce qui est réécrit l'est par sujet.** La
+première version réécrivait les preuves et les lectures de chaque sujet à chaque écriture,
+en supprimant les anciennes lignes par leur identifiant. Deux requêtes qui se chevauchent —
+l'écran du jour et sa vérification de fraîcheur, un onglet rouvert avant que le premier ait
+fini — écrivaient donc chacune leur copie : la seconde ne trouvait plus les lignes qu'elle
+voulait supprimer (l'entrepôt de la première les avait déjà remplacées) et insérait quand
+même les siennes. Les preuves doublaient à chaque chevauchement ; en quelques semaines, un
+registre de trois cents lignes en portait cent vingt-huit mille, chaque écran les relisait,
+et « ce qui a changé » citait vingt fois la même lecture. Trois gardes maintenant : une
+écriture ne touche pas un sujet dont les preuves et les lectures sont déjà celles de la
+base ; quand elle le touche, elle supprime les lignes **du sujet** et non des identifiants
+lus plus tôt, de sorte que deux écritures concurrentes laissent une copie et non deux ; et
+la lecture écarte les doublons qu'une base déjà abîmée porterait encore, puis les efface.
 """
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+import threading
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session, selectinload
 
 from ..domain import issues as domain
 from ..models import IssueEvidence, IssueReading, ManagementIssue
@@ -37,6 +52,17 @@ SEPARATOR = "\n"
 #: Ce qui sépare le type du périmètre à l'intérieur d'une clé. Le caractère est choisi pour
 #: n'apparaître dans aucun libellé de marché ni dans aucun code d'entité.
 JOIN = ""
+
+
+#: Une seule écriture du registre à la fois dans un processus. Le serveur sert ses
+#: requêtes depuis un pool de fils, et deux écrans ouverts à une seconde d'écart écrivaient
+#: le même registre en même temps. Le verrou ne protège pas de deux processus ; la
+#: suppression par sujet (voir `save`) s'en charge.
+_WRITE = threading.Lock()
+
+#: Par lots : SQLite borne le nombre de paramètres d'une requête, et une base abîmée peut
+#: avoir des dizaines de milliers de lignes à effacer.
+_BATCH = 500
 
 
 def _pack(covers: Sequence) -> str:
@@ -69,8 +95,40 @@ def _amount(text: str) -> Optional[float]:
         return None
 
 
+def _evidence_key(item) -> tuple:
+    """Ce qui rend deux lignes de preuve identiques : tout ce qu'elles portent.
+
+    Ce n'est **pas** une clé naturelle au sens du domaine — deux mesures du même jour sur
+    le même périmètre restent deux preuves si leur phrase ou leur montant diffère. Seule
+    la ligne recopiée à l'identique est un doublon.
+    """
+    return (item.kind, item.scope, item.seen_at, item.statement, item.amount,
+            item.basis, item.confidence, item.measure)
+
+
+def _reading_key(item) -> tuple:
+    return (item.conclusion, item.at, item.because)
+
+
+def _unique(rows: Iterable, key) -> Tuple[list, list]:
+    """Les lignes sans doublon dans l'ordre lu, et les identifiants des doublons."""
+    kept, seen, extra = [], set(), []
+    for item in rows:
+        mark = key(item)
+        if mark in seen:
+            extra.append(item.id)
+            continue
+        seen.add(mark)
+        kept.append(item)
+    return kept, extra
+
+
 def to_domain(row: "ManagementIssue") -> "domain.Issue":
-    """Une ligne et ses enfants, rendus comme le sujet que le domaine manipule."""
+    """Une ligne et ses enfants, rendus comme le sujet que le domaine manipule.
+
+    Les lignes recopiées à l'identique sont lues une fois. Voir `load` pour ce qu'il
+    advient des copies.
+    """
     issue = domain.Issue(
         issue_id=row.reference,
         title=row.title,
@@ -94,11 +152,11 @@ def to_domain(row: "ManagementIssue") -> "domain.Issue":
             statement=item.statement, amount=_amount(item.amount),
             basis=item.basis, confidence=item.confidence, measure=item.measure,
         )
-        for item in row.evidence
+        for item in _unique(row.evidence, _evidence_key)[0]
     ]
     issue.readings = [
         domain.Reading(conclusion=item.conclusion, at=item.at, because=item.because)
-        for item in row.readings
+        for item in _unique(row.readings, _reading_key)[0]
     ]
     if row.arbitrated_by:
         issue.arbitration = domain.Arbitration(
@@ -114,30 +172,101 @@ def load(session: Session) -> "domain.Register":
     L'ordre compte : `Register` attribue la référence suivante à partir de la plus grande
     déjà émise, et une liste mélangée donnerait le même résultat mais rendrait toute
     lecture d'écran instable d'un chargement à l'autre.
+
+    Les preuves et les lectures viennent avec leurs sujets en deux requêtes, pas en deux
+    par sujet : cent sujets valaient deux cents allers-retours à chaque écran.
+
+    Une base qui porte encore des copies (voir l'en-tête du module) est réparée au
+    passage : les doublons sont écartés de la lecture et effacés, et la transaction que
+    l'appelant referme les emporte. Une lecture qui répare n'est pas une lecture qui
+    décide — rien du domaine n'est écrit ici, seules des lignes identiques à celles
+    qu'on garde disparaissent.
     """
     rows = session.scalars(
-        select(ManagementIssue).order_by(ManagementIssue.reference)
+        select(ManagementIssue)
+        .options(selectinload(ManagementIssue.evidence),
+                 selectinload(ManagementIssue.readings))
+        .order_by(ManagementIssue.reference)
     ).all()
-    return domain.Register([to_domain(row) for row in rows])
+    register = domain.Register([to_domain(row) for row in rows])
+    mend(session, rows)
+    return register
+
+
+def duplicates(rows: Sequence["ManagementIssue"]) -> Tuple[List[str], List[str]]:
+    """Les identifiants des preuves et des lectures recopiées à l'identique."""
+    evidence: List[str] = []
+    readings: List[str] = []
+    for row in rows:
+        evidence.extend(_unique(row.evidence, _evidence_key)[1])
+        readings.extend(_unique(row.readings, _reading_key)[1])
+    return evidence, readings
+
+
+def _erase(session: Session, model, ids: Sequence[str]) -> None:
+    for start in range(0, len(ids), _BATCH):
+        session.execute(
+            delete(model).where(model.id.in_(ids[start:start + _BATCH]))
+            .execution_options(synchronize_session="fetch"))
+
+
+def mend(session: Session, rows: Optional[Sequence["ManagementIssue"]] = None) -> int:
+    """Effacer les copies. Rend le nombre de lignes effacées ; zéro sur une base saine."""
+    if rows is None:
+        rows = session.scalars(
+            select(ManagementIssue)
+            .options(selectinload(ManagementIssue.evidence),
+                     selectinload(ManagementIssue.readings))
+        ).all()
+    evidence, readings = duplicates(rows)
+    if not evidence and not readings:
+        return 0
+    _erase(session, IssueEvidence, evidence)
+    _erase(session, IssueReading, readings)
+    for row in rows:
+        session.expire(row, ["evidence", "readings"])
+    session.flush()
+    return len(evidence) + len(readings)
+
+
+def _wanted_evidence(issue) -> List[tuple]:
+    return [(item.kind, item.scope, item.seen_at, item.statement,
+             "" if item.amount is None else repr(item.amount),
+             item.basis, item.confidence, item.measure)
+            for item in issue.evidence]
+
+
+def _wanted_readings(issue) -> List[tuple]:
+    return [(item.conclusion, item.at, item.because) for item in issue.readings]
 
 
 def save(session: Session, register: "domain.Register") -> int:
     """Écrire le registre. Les sujets connus sont repris, les nouveaux insérés.
 
-    Les preuves et les lectures sont réécrites en entier plutôt que rapprochées une à une.
-    Ce sont des collections en ajout seul, courtes, et toujours lues avec leur sujet : un
-    rapprochement fin coûterait une clé naturelle sur chaque preuve — donc une décision sur
-    ce qui rend deux preuves identiques — pour économiser quelques écritures. La clé
-    naturelle serait le vrai risque : deux mesures du même jour sur le même périmètre
-    existent, et l'une écraserait l'autre.
+    Les preuves et les lectures d'un sujet sont réécrites en entier — mais seulement quand
+    elles diffèrent de ce que la base porte, et en effaçant celles **du sujet** plutôt que
+    des lignes lues plus tôt. Un rapprochement fin coûterait une clé naturelle sur chaque
+    preuve — donc une décision sur ce qui rend deux preuves identiques — pour économiser
+    quelques écritures. La clé naturelle serait le vrai risque : deux mesures du même jour
+    sur le même périmètre existent, et l'une écraserait l'autre.
 
     Rend le nombre de sujets écrits.
     """
+    with _WRITE:
+        return _save(session, register)
+
+
+def _save(session: Session, register: "domain.Register") -> int:
     known: Dict[str, ManagementIssue] = {
         row.reference: row
-        for row in session.scalars(select(ManagementIssue)).all()
+        for row in session.scalars(
+            select(ManagementIssue)
+            .options(selectinload(ManagementIssue.evidence),
+                     selectinload(ManagementIssue.readings))
+        ).all()
     }
 
+    rewrite = []
     for issue in register.issues:
         row = known.get(issue.issue_id)
         if row is None:
@@ -162,20 +291,39 @@ def save(session: Session, register: "domain.Register") -> int:
         row.arbitration_reason = arbitration.reason if arbitration else ""
         row.review_on = arbitration.review_on if arbitration else None
 
-        row.evidence[:] = [
-            IssueEvidence(
-                position=index, kind=item.kind, scope=item.scope, seen_at=item.seen_at,
-                statement=item.statement,
-                amount="" if item.amount is None else repr(item.amount),
-                basis=item.basis, confidence=item.confidence, measure=item.measure,
-            )
-            for index, item in enumerate(issue.evidence)
-        ]
-        row.readings[:] = [
-            IssueReading(position=index, conclusion=item.conclusion, at=item.at,
-                         because=item.because)
-            for index, item in enumerate(issue.readings)
-        ]
+        evidence = _wanted_evidence(issue)
+        readings = _wanted_readings(issue)
+        if [_evidence_key(item) for item in row.evidence] != evidence:
+            rewrite.append((row, IssueEvidence, "evidence", evidence))
+        if [_reading_key(item) for item in row.readings] != readings:
+            rewrite.append((row, IssueReading, "readings", readings))
+
+    # Les sujets neufs reçoivent leur identifiant à cette écriture ; les enfants en ont
+    # besoin, et l'effacement par sujet aussi.
+    session.flush()
+
+    for row, model, name, wanted in rewrite:
+        session.execute(
+            delete(model).where(model.issue_id == row.id)
+            .execution_options(synchronize_session="fetch"))
+        session.expire(row, [name])
+        if model is IssueEvidence:
+            session.add_all([
+                IssueEvidence(
+                    issue_id=row.id, position=index, kind=kind, scope=scope,
+                    seen_at=seen_at, statement=statement, amount=amount, basis=basis,
+                    confidence=confidence, measure=measure)
+                for index, (kind, scope, seen_at, statement, amount, basis, confidence,
+                            measure) in enumerate(wanted)
+            ])
+        else:
+            session.add_all([
+                IssueReading(issue_id=row.id, position=index, conclusion=conclusion,
+                             at=at, because=because)
+                for index, (conclusion, at, because) in enumerate(wanted)
+            ])
 
     session.flush()
+    for row, _model, name, _wanted in rewrite:
+        session.expire(row, [name])
     return len(register.issues)

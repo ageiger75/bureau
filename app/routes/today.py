@@ -421,11 +421,15 @@ def _supplychain(source, refresh: bool = False):
     return supplychain_module.build(rows["osa_rows"], rows["forecast_rows"], rows["order_rows"], notes)
 
 
-def _grey(source, plan=None):
-    """Le gris et le vrac, sur les relevés KPI déjà tenus et le budget EBITDA : jamais une requête."""
+def _grey(source, plan=None, refresh: bool = False):
+    """Le gris et le vrac : les relevés KPI déjà tenus, le budget EBITDA, et la dernière
+    lecture du vrac ligne à ligne — jamais une requête sous un lecteur."""
     from ..perf import grey as grey_module
 
-    return grey_module.build(getattr(source, "kpi_rows", list)(), plan=plan)
+    reader = getattr(source, "bulk_rows", None)
+    rows = reader(wait_for_warehouse=refresh) if reader is not None else []
+    return grey_module.build(getattr(source, "kpi_rows", list)(), plan=plan, bulk_rows=rows,
+                             bulk_note=getattr(source, "bulk_note", "") or "")
 
 
 def _filling(source):
@@ -557,7 +561,8 @@ def freshness():
     # ce que quelqu'un pense à recharger — ce qui est exactement la consigne à ne pas donner.
     return {"as_of": source.last_read(), "kpis": source.kpi_stamp(),
             "products": source.product_stamp(), "clients": source.client_stamp(),
-            "partners": source.partner_stamp(), "supplychain": source.supplychain_stamp()}
+            "partners": source.partner_stamp(), "supplychain": source.supplychain_stamp(),
+            "bulk": source.bulk_stamp()}
 
 
 @router.get("/")
@@ -623,8 +628,8 @@ def _screen(request: Request, session: Session):
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
-    from ..perf.source import (NotReadYet, client_stamp, kpi_stamp, partner_stamp, product_stamp,
-                               supplychain_stamp)
+    from ..perf.source import (NotReadYet, bulk_stamp, client_stamp, kpi_stamp, partner_stamp,
+                               product_stamp, supplychain_stamp)
 
     pending = []
     try:
@@ -672,7 +677,7 @@ def _screen(request: Request, session: Session):
     filling = _guard("remplissage", lambda: _filling(source), lambda exc: None)
     accounts = _guard("partenaires", lambda: _accounts(source, dataset, refresh),
                       lambda exc: accounts_module.Review([], note=_broken("partenaires")(exc)))
-    grey = _guard("gris", lambda: _grey(source, getattr(ebitda, "plan", None)),
+    grey = _guard("gris", lambda: _grey(source, getattr(ebitda, "plan", None), refresh),
                   lambda exc: grey_module.Review(None, [], note=_broken("gris")(exc)))
     supply = _guard("supply", supply_module.current, lambda exc: None)
     supplychain = _guard("supply entrepôt", lambda: _supplychain(source, refresh),
@@ -762,7 +767,12 @@ def _screen(request: Request, session: Session):
     from ..perf import changes as changes_module
     from ..perf import memory as memory_module
 
-    changes = changes_module.build(memory_module.load(session), commitments.items, _date.today())
+    register = memory_module.load(session)
+    changes = changes_module.build(register, commitments.items, _date.today())
+    # Le dossier gris : ce que le registre dit déjà du gris, du vrac, du daigou — une
+    # recherche sur les mots, nommée comme telle, pas une clé de sujet.
+    if grey is not None:
+        grey.dossier = _guard("dossier gris", lambda: grey_module.dossier(register), lambda exc: [])
 
     return dict(
         {
@@ -877,6 +887,7 @@ def _screen(request: Request, session: Session):
             "clients_at": client_stamp(),
             "partners_at": partner_stamp(),
             "supplychain_at": supplychain_stamp(),
+            "bulk_at": bulk_stamp(),
             "unsettled": provenance.unsettled(settled=settled_now(unavailable)),
             "perimeter_note": getattr(source, "perimeter_note", ""),
             "markets_without_own_site": dataset.markets_without_own_site,

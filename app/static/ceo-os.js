@@ -133,6 +133,7 @@
     var clientsShown = header.getAttribute("data-clients-at") || "";
     var partnersShown = header.getAttribute("data-partners-at") || "";
     var supplyShown = header.getAttribute("data-supplychain-at") || "";
+    var bulkShown = header.getAttribute("data-bulk-at") || "";
     if (!shown) {
       return;
     }
@@ -151,7 +152,8 @@
           var clientsLanded = body && typeof body.clients === "string" && body.clients !== clientsShown;
           var partnersLanded = body && typeof body.partners === "string" && body.partners !== partnersShown;
           var supplyLanded = body && typeof body.supplychain === "string" && body.supplychain !== supplyShown;
-          if (body && ((body.as_of && body.as_of !== shown) || kpisLanded || productsLanded || clientsLanded || partnersLanded || supplyLanded)) {
+          var bulkLanded = body && typeof body.bulk === "string" && body.bulk !== bulkShown;
+          if (body && ((body.as_of && body.as_of !== shown) || kpisLanded || productsLanded || clientsLanded || partnersLanded || supplyLanded || bulkLanded)) {
             window.clearInterval(timer);
             /* Dit avant de recharger : une page qui se remplace sans prévenir pendant
                qu'on la lit est déroutante, même quand elle a raison de le faire. */

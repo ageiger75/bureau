@@ -1000,7 +1000,7 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
     today = page_text(client.get("/"))
     analyses = page_text(client.get("/analyses"))
     assert "prévision supply : l'exercice à +2,7 %" in today
-    assert "La prévision supply" in analyses and "Northland" in analyses
+    assert "Le rapport supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
     # Ce que l'entrepôt voit, à côté : ses trois mesures nommées comme les siennes.
     assert "Ce que l'entrepôt voit de la supply" in analyses
@@ -1017,6 +1017,14 @@ def test_partners_by_name_and_the_grey_and_bulk_live_on_analyses(client):
     assert "Le plan n'a pas de ligne par partenaire" in analyses
     assert "Orbis Market" in analyses and "E-retailers" in analyses
     assert "Le gris et le vrac" in analyses and "Trois sources, jamais additionnées" in analyses
+    # Ligne à ligne : les comptes qui portent le vrac, et ce que le registre en dit.
+    assert "D'où il vient, ligne à ligne" in analyses
+    assert "Compte (marché · point de vente · sous-canal)" in analyses
+    assert "de vrac lu ligne à ligne" in analyses and "Type de drapeau" in analyses
+    assert "Ce que le registre en dit" in analyses
+    # La supply couvre tout le périmètre : sa section, pas un appendice du sell-in.
+    assert 'id="supply"' in analyses and "La supply, sur tout le périmètre" in analyses
+    assert "Le rapport supply" in analyses and "Ce que l'entrepôt voit de la supply" in analyses
     assert "FLAG_BULK 2 à 5" in analyses
 
     body = client.get("/freshness", headers={"Accept": "application/json"}).json()

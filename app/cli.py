@@ -68,7 +68,7 @@
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
-    python -m app.cli gris           le gris et le vrac : d'où il vient, comment il évolue, en face du budget des flux à nettoyer
+    python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -1652,6 +1652,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
         source.supplychain_cache_forget()
         print("Lectures supply de l'entrepôt oubliées. Le reste reste en cache.")
         return 0
+    if "--bulk" in tuple(argv):
+        source.bulk_cache_forget()
+        print("Lecture du vrac ligne à ligne oubliée. Le reste reste en cache.")
+        return 0
     if "--month" in tuple(argv):
         source.month_cache_forget()
         print("Lecture du mois en cours oubliée. Le reste reste en cache.")
@@ -2717,7 +2721,9 @@ def cmd_issues(argv: List[str]) -> int:
 
         if changed:
             memory.save(session, register)
-            session.commit()
+        # Validé même sans geste : la lecture a pu réparer une base qui portait des copies
+        # (voir `memory.load`), et un commit sans rien à écrire ne coûte rien.
+        session.commit()
 
         if "--week" in argv:
             _print_week(register, today)
@@ -4232,29 +4238,60 @@ def cmd_partenaires(argv: List[str]) -> int:
 
 
 def cmd_gris(argv: List[str]) -> int:
-    """Le gris et le vrac : est-on en ligne, d'où ça vient, comment ça évolue."""
+    """Le gris et le vrac : est-on en ligne, d'où ça vient — marché par marché, puis ligne à
+    ligne —, comment ça évolue, et ce que le registre en dit. `--refresh` relit l'entrepôt."""
+    from .db import SessionFactory, create_all
     from .perf import ebitda as ebitda_module
+    from .perf import grey as grey_module
+    from .perf import memory
     from .perf.source import current_source
     from .routes.today import _grey
 
     plan = ebitda_module.current() if settings.has_ebitda_file else None
-    review = _grey(current_source(), plan)
+    review = _grey(current_source(), plan, refresh="--refresh" in argv)
+    create_all()
+    with SessionFactory() as session:
+        review.dossier = grey_module.dossier(memory.load(session))
+        session.commit()
     if not review.usable:
         print((review.note or "les deux bases ne sont pas lues").capitalize() + ".")
-        return 0
-    print("%s ; %s." % (review.headline[0].upper() + review.headline[1:], review.origin_sentence))
-    print(review.plan_sentence[0].upper() + review.plan_sentence[1:] + ".")
-    for item in review.shown:
-        print("  %-24s %10s  part %5s  %8s  3 mois %8s  %s" % (
-            item.scope[:24], item.bulk_label, item.share_label, item.growth_label,
-            item.growth_recent_label, item.word))
-    if review.series:
-        from .perf.analytics import format_eur
+    else:
+        print("%s ; %s." % (review.headline[0].upper() + review.headline[1:], review.origin_sentence))
+        print(review.plan_sentence[0].upper() + review.plan_sentence[1:] + ".")
+        for item in review.shown:
+            print("  %-24s %10s  part %5s  %8s  3 mois %8s  %s" % (
+                item.scope[:24], item.bulk_label, item.share_label, item.growth_label,
+                item.growth_recent_label, item.word))
+        if review.series:
+            from .perf.analytics import format_eur
 
-        print("  Groupe, mois par mois : " + " · ".join(
-            "%s %s" % (month, format_eur(value)) for month, value, _before in review.series))
-    if review.question:
-        print(review.question)
+            print("  Groupe, mois par mois : " + " · ".join(
+                "%s %s" % (month, format_eur(value)) for month, value, _before in review.series))
+        if review.question:
+            print(review.question)
+    detail = review.detail
+    print()
+    if detail is None or not detail.usable:
+        print((getattr(detail, "note", "") or "le vrac ligne à ligne n'est pas lu").capitalize() + ".")
+    else:
+        print("Ligne à ligne, %s : %s." % (detail.window_label, detail.headline))
+        for title, lines in (("Par type de drapeau", detail.kinds),
+                             ("Par compte", detail.accounts), ("Par gamme", detail.ranges)):
+            print("  " + title)
+            for line in lines:
+                print("    %-40s %10s  part %5s  %8s  3 mois %8s  %s" % (
+                    line.label[:40], line.ytd_label, line.share_label, line.growth_label,
+                    line.growth_recent_label, line.word))
+        if detail.question:
+            print(detail.question)
+    print()
+    if review.dossier:
+        print("Ce que le registre en dit :")
+        for item in review.dossier:
+            print("  %s · %s · %s%s" % (item.issue_id, item.title, item.status_word,
+                                       " · " + item.conclusion if item.conclusion else ""))
+    else:
+        print("Aucun sujet du registre ne parle de gris, de vrac ou de daigou.")
     return 0
 
 
