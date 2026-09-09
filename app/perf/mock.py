@@ -865,6 +865,9 @@ def month_targets(period: str) -> dict:
 
 
 #: Les produits inventés : six catégories, neuf gammes, deux ou trois références par gamme.
+#: Leur somme mensuelle est calée sur les ventes hors vrac de `kpi_rows`, pour que la
+#: couverture — la lecture produit contre la lecture des KPI — se lise pleine en démo.
+PRODUCT_SCALE = 3.55
 #: Aucun nom réel ; les mots de catégorie sont ceux de n'importe quelle maison de beauté.
 #: Une gamme est lancée sur l'exercice, une autre arrêtée l'hiver dernier.
 PRODUCT_RANGES = (
@@ -907,7 +910,7 @@ def product_rows() -> List[dict]:
                 continue
             if name == PRODUCT_STOPPED and period > PRODUCT_STOPPED_AFTER:
                 continue
-            total = base * seasonal * (1.0 + yearly) ** ((17 - back) / 12.0)
+            total = PRODUCT_SCALE * base * seasonal * (1.0 + yearly) ** ((17 - back) / 12.0)
             weights = [1.0 / (position + 1) for position in range(len(items))]
             for position, item in enumerate(items):
                 label = "%s %s" % (name, item)

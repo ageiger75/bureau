@@ -62,7 +62,7 @@
     python -m app.cli tempsforts     ce qui arrive dans les six semaines, par périmètre, pesé l'an dernier
     python -m app.cli zones          les zones rouges nommées par le lecteur, chacune avec son chiffre
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
-    python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh)
+    python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4188,7 +4188,43 @@ def cmd_products(argv: List[str]) -> int:
         print("Aucune vente par produit lue sur cette lecture.")
     for reason in review.absent:
         print(reason[0].upper() + reason[1:] + ".", file=sys.stderr)
+    if review.usable and "--coverage" in argv:
+        _print_product_coverage(source, review, scope)
     return 0
+
+
+def _print_product_coverage(source, review, scope: str) -> None:
+    """Le dernier mois lu, trois lectures côte à côte par marché : par produit, la lecture
+    des KPI, le sell-out au jour. Là où elles ne s'accordent pas, la lecture produit
+    manque des lignes, et le nombre dit combien."""
+    from .perf import products as products_module
+    from .perf.weekly import normalise_market
+
+    rows = source.product_rows()
+    kpi_rows = getattr(source, "kpi_rows", list)()
+    period = review.period
+    markets = [name for name in products_module.scopes(rows)
+               if name.casefold() != products_module.GROUP.casefold()]
+    if scope and scope.casefold() in [name.casefold() for name in markets]:
+        markets = [scope]
+    try:
+        daily = source.daily_sales()
+    except Exception:  # noqa: BLE001 — sans lecture au jour, deux colonnes suffisent
+        daily = []
+    by_day = {}
+    for row in daily:
+        if str(row.get("transaction_date") or "")[:7] == period:
+            market = normalise_market(str(row.get("market") or "").strip())
+            by_day[market.casefold()] = by_day.get(market.casefold(), 0.0) + products_module._number(
+                row.get("net_sales_eur"))
+    found = products_module.coverage(rows, kpi_rows, [products_module.GROUP] + markets, period)
+    print("")
+    print("Couverture sur %s : par produit · KPI (ventes du mois) · sell-out au jour" % products_module.month_fr(period))
+    for name, by_product, by_kpi, share in found:
+        day = by_day.get(normalise_market(name).casefold())
+        print("  %-22s %10s %10s %5.0f %%  %10s" % (
+            name[:22], products_module.format_eur(by_product), products_module.format_eur(by_kpi),
+            share * 100, products_module.format_eur(day) if day else "—"))
 
 
 def cmd_zones(argv: List[str]) -> int:
