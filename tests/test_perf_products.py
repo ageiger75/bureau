@@ -157,3 +157,18 @@ def test_the_product_query_is_written_on_the_stored_line_never_the_translated_on
     assert "product_line_en" not in sql
     assert "last_product_id" in sql and "store_brand" in sql
     assert "'product'" in sql and "'range'" in sql and "'category'" in sql
+
+
+def test_noise_launches_and_stops_are_counted_but_not_named_and_a_full_concentration_is_silent():
+    """Un arrêt de quelques euros n'est pas un fait de commerce, et « quatre catégories
+    portent cent pour cent de ce qui pousse » quand quatre poussent ne dit rien."""
+    rows = (_rows("category", "Corps", _year(1000.0, 1100.0))
+            + _rows("category", "Visage", _year(1000.0, 1050.0))
+            + _rows("category", "Divers", _year(0.3, 0.0, stopped_after="2025-12"))
+            + _rows("category", "Neuf", _year(0.0, 0.2, launched_from="2026-06")))
+    level = P.build(rows).level("category")
+
+    assert len(level.launched) == 1 and level.launched_shown == []
+    assert len(level.stopped) == 1 and level.stopped_shown == []
+    assert "arrêtée" not in level.sentence and "sans an dernier" not in level.sentence
+    assert "portent" not in level.sentence

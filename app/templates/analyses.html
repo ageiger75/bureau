@@ -425,10 +425,10 @@
         </tbody>
       </table>
       {% endif %}
-      {% if level.launched or level.stopped %}
+      {% if level.launched_shown or level.stopped_shown %}
         <p class="cockpit-caveat">
-          {% if level.launched %}Sans an dernier sur ces mois, lancé ou saisonnier : {% for line in level.launched[:5] %}{{ line.name }} {{ line.sales | eur }}{% if not loop.last %} · {% endif %}{% endfor %}{% if level.launched | length > 5 %} · et {{ level.launched | length - 5 }} de plus{% endif %}.{% endif %}
-          {% if level.stopped %}Arrêté : {% for line in level.stopped[:5] %}{{ line.name }} ({{ line.last_year | eur }} l'an dernier){% if not loop.last %} · {% endif %}{% endfor %}{% if level.stopped | length > 5 %} · et {{ level.stopped | length - 5 }} de plus{% endif %}.{% endif %}
+          {% if level.launched_shown %}Sans an dernier sur ces mois, lancé ou saisonnier : {% for line in level.launched_shown[:5] %}{{ line.name }} {{ line.sales | eur }}{% if not loop.last %} · {% endif %}{% endfor %}{% if level.launched | length > 5 %} · et {{ level.launched | length - 5 }} de plus, plus petits{% endif %}.{% endif %}
+          {% if level.stopped_shown %}Arrêté : {% for line in level.stopped_shown[:5] %}{{ line.name }} ({{ line.last_year | eur }} l'an dernier){% if not loop.last %} · {% endif %}{% endfor %}{% if level.stopped | length > 5 %} · et {{ level.stopped | length - 5 }} de plus, plus petits{% endif %}.{% endif %}
         </p>
       {% endif %}
     {% endfor %}

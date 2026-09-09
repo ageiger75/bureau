@@ -208,6 +208,16 @@ class Level:
                       key=lambda line: -line.last_year)
 
     @property
+    def launched_shown(self) -> List[Line]:
+        """Les lancements qui pèsent : sous la part de bruit, ils se comptent sans se nommer."""
+        return [line for line in self.launched if line.share >= LEAST_SHARE]
+
+    @property
+    def stopped_shown(self) -> List[Line]:
+        return [line for line in self.stopped
+                if self.last_year > 0 and line.last_year / self.last_year >= LEAST_SHARE]
+
+    @property
     def concentration(self) -> Optional[float]:
         """La part de tout ce qui pousse que les cinq premières lignes portent."""
         positive = sum(line.delta for line in self.lines if line.delta > 0 and not line.launched)
@@ -228,8 +238,9 @@ class Level:
         """Ce que le niveau dit en une ligne, sans les nombres du tableau."""
         parts = []
         growing = self.growing
-        if growing and self.concentration is not None and len(growing) < len(
-                [line for line in self.lines if line.delta > 0 and not line.launched]):
+        # « 4 catégories portent 100 % de ce qui pousse » quand quatre poussent : vrai, et
+        # vide. La concentration ne se dit que lorsqu'elle sépare quelque chose.
+        if growing and self.concentration is not None and self.concentration < 0.99:
             parts.append("%d %s portent %.0f %% de ce qui pousse" % (
                 len(growing), self.words if len(growing) > 1 else self.word,
                 self.concentration * 100))
@@ -238,13 +249,15 @@ class Level:
             parts.append("%s de recul sur %d %s" % (
                 format_eur(sum(line.delta for line in below)), len(below),
                 self.words if len(below) > 1 else self.word))
-        if self.launched:
-            parts.append("%d sans an dernier, %s" % (
-                len(self.launched), format_eur(sum(line.sales for line in self.launched))))
-        if self.stopped:
+        # Un lancement ou un arrêt qui, tous ensemble, ne pèsent pas la part de bruit ne
+        # valent pas une phrase : un arrêt de quelques euros n'est pas un fait de commerce.
+        launched = sum(line.sales for line in self.launched)
+        if self.launched and self.total > 0 and launched / self.total >= LEAST_SHARE:
+            parts.append("%d sans an dernier, %s" % (len(self.launched), format_eur(launched)))
+        stopped = sum(line.last_year for line in self.stopped)
+        if self.stopped and self.last_year > 0 and stopped / self.last_year >= LEAST_SHARE:
             parts.append("%d arrêtée%s, %s l'an dernier" % (
-                len(self.stopped), "s" if len(self.stopped) > 1 else "",
-                format_eur(sum(line.last_year for line in self.stopped))))
+                len(self.stopped), "s" if len(self.stopped) > 1 else "", format_eur(stopped)))
         return " · ".join(parts)
 
 
