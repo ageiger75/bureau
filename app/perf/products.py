@@ -90,9 +90,13 @@ def _mended(name: str) -> str:
 
 
 def _key(text) -> str:
-    """L'entrepôt écrit les pays en capitales, l'annuaire et le plan en minuscules
-    accentuées : un marché est le même sous les deux graphies."""
-    return str(text or "").strip().casefold()
+    """L'entrepôt écrit les pays en capitales et en sigles — USA, UK —, l'annuaire et le
+    plan en toutes lettres : un marché est le même sous toutes ces graphies. La table des
+    alias du plan est celle de toute la maison ; une région qui lisait 14 M€ où sa semaine
+    en montrait 45 avait perdu son premier marché sur trois lettres."""
+    from .budget import normalise_market
+
+    return normalise_market(str(text or "").strip()).casefold()
 
 
 def month_fr(period: str) -> str:

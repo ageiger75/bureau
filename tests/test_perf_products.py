@@ -199,13 +199,17 @@ def test_a_perimeter_reads_the_sum_of_its_markets_without_the_references():
 def test_a_market_written_in_capitals_by_the_warehouse_is_the_same_market():
     """L'entrepôt écrit UNITED STATES, l'annuaire United States : une page de périmètre
     qui ne trouvait « aucune vente par produit » les lisait comme deux marchés."""
-    rows = (_rows("category", "Corps", _year(100.0, 110.0), scope="UNITED STATES")
+    rows = (_rows("category", "Corps", _year(100.0, 110.0), scope="USA")
             + _rows("category", "Corps", _year(10.0, 12.0), scope="CANADA"))
 
     assert P.build(rows, "United States").usable
     region = P.for_markets(rows, ["United States", "Canada"], "North America")
     assert region.level("category").lines[0].sales == 5 * 122.0
-    assert P.scopes(rows) == ["CANADA", "UNITED STATES"]
+    assert P.scopes(rows) == ["CANADA", "USA"]
+    # Et la couverture retrouve le sigle sous le nom en toutes lettres.
+    kpi_rows = [{"scope": "USA", "kpi_key": "net_sales", "period": "2026-08", "value": 110.0}]
+    assert [round(share, 2) for _, _, _, share in
+            P.coverage(rows, kpi_rows, ["United States"], "2026-08")] == [1.0]
 
 
 def test_the_reading_says_when_it_covers_only_part_of_a_market_s_sales():
