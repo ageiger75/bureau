@@ -361,6 +361,15 @@ def _product_rows(source):
     return reader(wait_for_warehouse=False) if reader is not None else []
 
 
+def _filling(source):
+    """L'indice de remplissage du sell-in, sur les caches déjà tenus : jamais une requête."""
+    from ..perf import filling as filling_module
+
+    reader = getattr(source, "sell_in_series", None)
+    current, closed = reader() if reader is not None else ([], [])
+    return filling_module.build(current, closed)
+
+
 def _clients(source, refresh: bool = False, scope: str = "", markets=None):
     """La conversation sur les clients, sur la dernière lecture clients : jamais une requête
     sous un lecteur, la requête seulement quand la relecture est demandée."""
@@ -583,6 +592,7 @@ def _screen(request: Request, session: Session):
     samestore = samestore_module.build(kpi_rows)
     products = _products(source, refresh)
     clients = _clients(source, refresh)
+    filling = _filling(source)
     redzones = _red_zones(kpi_rows, pnl, invoiced, track)
     whitespaces = _white_spaces(dataset, month)
     # Les zones rouges : nommées par le lecteur dans son fichier, tenues avec ce que la page
@@ -709,6 +719,7 @@ def _screen(request: Request, session: Session):
             "samestore": samestore,
             "products": products,
             "clients": clients,
+            "filling": filling,
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,

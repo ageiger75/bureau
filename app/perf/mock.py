@@ -1047,3 +1047,29 @@ def _client_rows() -> List[dict]:
                      "transactions": sum(r["transactions"] for r in active),
                      "sales": sum(r["sales"] for r in active)})
     return rows
+
+
+#: Le sell-in inventé, par segment de plan et par mois : l'exercice à date avec l'an dernier
+#: en face, et l'exercice clos. Un canal court devant son rythme, les autres non.
+SELL_IN_SHAPES = {
+    "TRA - Travel Retail": (2_400_000.0, 1.0, 1.7),
+    "WEBP - Web Partners": (1_800_000.0, 1.0, 1.05),
+    "DIS - Distributors": (1_200_000.0, 1.0, 0.95),
+    "WHOCH - Wholesale Chains": (600_000.0, 1.0, 1.1),
+}
+
+
+def sell_in_series():
+    current, closed = [], []
+    for segment, (base, ly_twist, recent_twist) in SELL_IN_SHAPES.items():
+        for back in range(11, -1, -1):
+            index = 2026 * 12 + 2 - back           # avril 2025 à mars 2026
+            period = "%04d-%02d" % (index // 12, index % 12 + 1)
+            closed.append({"entity": "ENT_1", "segment": segment, "period": period,
+                           "value": round(base * (1.15 if (index % 12) in (9, 10) else 1.0))})
+        for month in range(4, 9):                  # avril à août 2026
+            recent = recent_twist if month >= 6 else 1.0
+            current.append({"entity": "ENT_1", "segment": segment, "period": "2026-%02d" % month,
+                            "market": "Group", "sales_actual": round(base * recent),
+                            "sales_last_year": round(base * ly_twist)})
+    return current, closed

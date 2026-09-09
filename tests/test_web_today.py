@@ -969,3 +969,12 @@ def test_the_clients_conversation_lives_on_analyses_and_on_each_region(client, m
     monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
     region = page_text(client.get("/perimetre/nord"))
     assert "Clients × panier = ventes" in region
+
+
+def test_the_filling_index_lives_on_analyses_and_names_itself_an_index(client):
+    page = page_text(client.get("/analyses"))
+
+    assert "Le sell-in devant la vente" in page
+    assert "un indice, pas une mesure" in page
+    assert "aucun sell-through" in page
+    assert "Le sell-in devant la vente" not in page_text(client.get("/"))

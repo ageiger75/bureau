@@ -65,6 +65,7 @@
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
+    python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4114,6 +4115,27 @@ def cmd_mix(argv: List[str]) -> int:
     return 0
 
 
+def cmd_remplissage(argv: List[str]) -> int:
+    """L'indice de remplissage du sell-in, canal par canal, tel que la page Analyses le rend."""
+    from .perf.source import current_source
+    from .routes.today import _filling
+
+    review = _filling(current_source())
+    if not review.usable:
+        print("Le sell-in de l'exercice à date n'est pas lu : rien à comparer.")
+    else:
+        print(review.basis[0].upper() + review.basis[1:] + ".")
+        print(review.sentence[0].upper() + review.sentence[1:] + ".")
+        for channel in review.channels:
+            print("  %-22s %10s  rythme %10s  %8s  %8s  %-10s  %s" % (
+                channel.label[:22], channel.recent_label, channel.trailing_label,
+                channel.vs_trailing_label, channel.vs_last_year_label, channel.word, channel.known))
+        print(review.question)
+    for reason in review.absent:
+        print(reason[0].upper() + reason[1:] + ".", file=sys.stderr)
+    return 0
+
+
 def cmd_engagements(argv: List[str]) -> int:
     """Les engagements pris dans le cockpit : qui, à quoi, pour quand, et où ils en sont."""
     from .db import SessionFactory
@@ -4735,6 +4757,8 @@ def main(argv: List[str]) -> int:
         return cmd_whitespaces(argv[1:])
     if command == "engagements":
         return cmd_engagements(argv[1:])
+    if command == "remplissage":
+        return cmd_remplissage(argv[1:])
     if command == "products":
         return cmd_products(argv[1:])
     if command == "clients":

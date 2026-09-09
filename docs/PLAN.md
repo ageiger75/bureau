@@ -442,6 +442,13 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**L'indice de remplissage, le 9 septembre 2026.** Aucun sell-through dans l'entrepôt, dit
+l'agent entrepôt sur métadonnées. `app/perf/filling.py`, bloc « Le sell-in devant la vente »
+sur Analyses, `manage.py remplissage` : chaque canal de sell-in sur trois mois contre son
+rythme de douze et contre l'an dernier, lu dans les caches déjà tenus, nommé comme un
+indice ; les canaux à sell-through partiel (points de vente partenaires opérés par la
+maison) sont dits tels. Le premier bloc du chantier B.
+
 **Chantier A, fermer la boucle, le 9 septembre 2026.** Les engagements se prennent dans le
 cockpit, sous chaque conversation, après l'appel : qui, à quoi, pour quand, ce qu'on en
 attend (`app/models.Pledge`, `app/perf/pledges.py`, `routes/pledges.py`, `manage.py

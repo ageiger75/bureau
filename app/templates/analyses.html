@@ -419,6 +419,36 @@
 </section>
 {% endif %}
 
+{# ------------------------------------------------------------------ remplissage #}
+
+<section class="panel" id="remplissage">
+  <h2>Le sell-in devant la vente</h2>
+  {% if filling and filling.usable %}
+    <p class="lede">{{ filling.basis | ucfirst }}.</p>
+    <p class="product-headline">{{ filling.sentence | ucfirst }}.</p>
+    <table class="month-table product-table">
+      <thead><tr><th>Canal</th><th>3 derniers mois</th><th>Rythme mensuel 12 mois</th><th>vs le rythme</th><th>vs l'an dernier</th><th></th><th>Sell-through</th></tr></thead>
+      <tbody>
+        {% for channel in filling.channels %}
+          <tr>
+            <td>{{ channel.label }}</td>
+            <td class="num">{{ channel.recent_label }}</td>
+            <td class="num">{{ channel.trailing_label }}</td>
+            <td class="num">{{ channel.vs_trailing_label }}</td>
+            <td class="num">{{ channel.vs_last_year_label }}</td>
+            <td>{% if channel.filling %}<span class="badge badge-class">{{ channel.word }}</span>{% else %}{{ channel.word }}{% endif %}</td>
+            <td class="absent">{{ channel.known }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="ask">{{ filling.question }}</p>
+  {% else %}
+    <p class="empty">Le sell-in de l'exercice à date n'est pas lu : rien à comparer.</p>
+  {% endif %}
+  {% if filling %}{% for reason in filling.absent %}<p class="cockpit-caveat">{{ reason | ucfirst }}.</p>{% endfor %}{% endif %}
+</section>
+
 {# ------------------------------------------------------------------ changements #}
 
 <section class="panel" id="changements">

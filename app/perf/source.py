@@ -767,6 +767,10 @@ class MockSource:
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.client_rows()
 
+    def sell_in_series(self):
+        """(exercice à date, exercice clos) : les lignes de sell-in inventées."""
+        return mock.sell_in_series()
+
     def bulk_findings(self) -> List:
         return mock.bulk_findings()
 
@@ -1210,6 +1214,15 @@ class SnowflakeSource:
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Les clients — le pont et le flux — de la dernière lecture, ou rien."""
         return self._query_rows("clients", wait_for_warehouse, "des clients")
+
+    def sell_in_series(self):
+        """Le sell-in de l'exercice à date et l'exercice clos, tels que les caches les
+        tiennent — jamais une requête : la lecture principale porte déjà les lignes de
+        sell-in de chaque mois, et l'exercice clos a son propre fichier."""
+        stored = _read_disk_cache(max_age=float("inf"))
+        current = [row for row in (stored[0] if stored else []) if row.get("segment")]
+        closed_stored = _read_disk_cache(SELL_IN_HISTORY_CACHE_FILE, max_age=float("inf"))
+        return current, (closed_stored[0] if closed_stored else [])
 
     def month_to_date(self) -> List[dict]:
         """Le mois en cours, marché par marché, jusqu'au dernier jour lu.
