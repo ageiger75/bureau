@@ -454,6 +454,16 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**L'écran du jour, seconde passe, le 9 septembre 2026.** Le CEO : « la lecture de la page
+est vraiment nulle ». Refonte de la hiérarchie en trois niveaux et pas plus : le chiffre de
+tête avec ses faits en dessous (plan, trois écarts, mois restants), cinq cartes de verdict —
+un libellé, une pastille pour le mot, un chiffre, une ligne, une note —, puis les blocs. La
+table des périmètres ramenée à six colonnes, le mois marché par marché plié une fois pour
+tous, l'EBITDA au budget et le poste par poste dans « Notes de lecture ». La semaine et le
+sell-in côte à côte, chacun avec son chiffre et ses deltas. Chaque conversation : titre,
+écart, question en exergue, gestes ; le dossier plié. Les zones rouges en trois colonnes.
+Une seule pastille de statut, partout la même couleur. `today.html`, `ceo-os.css`.
+
 **L'atterrissage pesé, le 9 septembre 2026.** Troisième hypothèse à côté des deux
 autres (`page.Landing`) : à la croissance tenue sur l'an dernier, les mois restants pesant
 ce qu'ils ont pesé — l'an dernier du plan mois par mois, à la croissance mesurée sur les

@@ -765,9 +765,9 @@ def test_the_week_is_on_the_screen_in_full_weeks_never_against_the_plan(client):
     page = page_text(client.get("/"))
 
     assert "Semaine du " in page
-    assert "sur la semaine précédente" in page
-    assert "sur la même semaine l'an dernier" in page
-    assert "vs même semaine l'an dernier" in page
+    assert "vs semaine précédente" in page
+    assert "vs l'an dernier" in page
+    assert "vs précédente" in page
 
 
 def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(client):
@@ -776,7 +776,7 @@ def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(cli
     page = page_text(client.get("/"))
 
     assert "Sell-in facturé du 1er au" in page
-    assert "à jours ouvrés égaux" in page
+    assert "jours ouvrés égaux" in page
     assert "jamais contre le plan" in page
 
 
@@ -834,9 +834,9 @@ def test_the_subjects_to_carry_are_prepared_conversations_not_cards(client, db_s
     page = page_text(client.get("/"))
 
     assert "À faire cette semaine" in page
-    assert "L'écart" in page and "La tendance" in page and "La question" in page
+    assert "sous le plan ce mois" in page and "La tendance" in page and "Le dossier" in page
     assert "La dernière lecture" in page
-    assert "Retenu pour : montant en jeu" in page
+    assert "Retenu pour" in page and "montant en jeu" in page
     assert "Pourquoi : montant en jeu" not in page
     # Le mock porte un engagement en retard sur ce marché : c'est la première question.
     assert "était dû le" in page or "qu'est-ce qui est engagé" in page
@@ -999,7 +999,7 @@ def test_the_supply_forecast_reaches_the_day_and_the_bias_the_analyses(client, m
 
     today = page_text(client.get("/"))
     analyses = page_text(client.get("/analyses"))
-    assert "Prévision supply : l'exercice à +2.7 %" in today
+    assert "prévision supply : l'exercice à +2.7 %" in today
     assert "La prévision supply" in analyses and "Northland" in analyses
     assert "vend au-dessus de la prévision" in analyses
     # Ce que l'entrepôt voit, à côté : ses trois mesures nommées comme les siennes.
