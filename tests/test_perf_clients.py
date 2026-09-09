@@ -109,7 +109,7 @@ def test_the_client_query_is_written_on_the_confirmed_columns():
         assert word in sql, word
     # Nouveau = première transaction après la fin de l'an dernier, pas « dans l'exercice » :
     # sinon les clients acquis entre les deux fenêtres n'ont pas de segment.
-    assert "first_date > iff(cur.\"window\" = 'ty', pr.ly_to, pr.ly2_to)" in sql
+    assert "first_date > pr.ly_to" in sql
 
 
 def test_a_noise_segment_leaves_the_table_and_a_short_window_is_said():
@@ -150,10 +150,33 @@ def test_the_lost_share_compares_to_last_year_at_the_same_month():
     assert any("l'exercice d'avant n'est pas dans la lecture" in reason for reason in without.absent)
 
 
-def test_the_client_query_carries_three_windows_and_classifies_last_year_too():
-    from app.perf import queries
+def test_the_client_query_is_one_template_run_twice_and_shifted_a_window():
+    """Trois fenêtres en une requête passaient le plafond de l'entrepôt. Le même calcul un
+    an plus tôt, décalé d'un cran, donne le flux de l'an dernier ; ce qu'il répète de la
+    première lecture est écarté, sinon la somme compterait double."""
+    from app.perf import queries, source as source_module
 
-    sql = queries.CLIENT_FLOW.lower()
-    assert "'ly2'" in sql and "ly2_from" in sql and "ly2_to" in sql
-    assert '''cur."window" in ('ty', 'ly')''' in sql
-    assert "dateadd(month, -38, current_date)" in sql
+    assert "__SHIFT__" in queries.CLIENT_FLOW and "'ly2'" not in queries.CLIENT_FLOW
+    seen = []
+
+    def run(sql, label):
+        seen.append((label, "add_months(anchor, -1 - 12)" in sql))
+        if label == "CLIENT_FLOW":
+            return [_row("LOEP", "ty", "arc", 105, 170, 13_000.0),
+                    _row("LOEP", "ly", "arc", 100, 160, 12_800.0),
+                    _row("LOEP", "ty", "lost", 40, 50, 4_000.0)]
+        return [_row("LOEP", "ty", "arc", 100, 160, 12_800.0, through="2025-08"),
+                _row("LOEP", "ty", "lost", 30, 40, 2_500.0, through="2025-08"),
+                _row("LOEP", "ty", "retained", 60, 100, 8_500.0, through="2025-08"),
+                _row("LOEP", "ly", "arc", 90, 140, 11_000.0, through="2025-08"),
+                _row("LOEP", "ly", "walkin", 50, 50, 1_000.0, through="2025-08")]
+
+    rows = source_module.read_client_flow(run)
+
+    assert seen == [("CLIENT_FLOW", False), ("CLIENT_FLOW_LY", True)]
+    keys = sorted((row["window"], row["segment"], row["through"]) for row in rows)
+    assert keys == [("ly", "arc", "2026-08"), ("ly", "lost", "2026-08"), ("ly", "retained", "2026-08"),
+                    ("ly2", "arc", "2026-08"), ("ly2", "walkin", "2026-08"),
+                    ("ty", "arc", "2026-08"), ("ty", "lost", "2026-08")]
+    review = C.build(rows)
+    assert review.lost.share_label == "40 % de la base" and review.lost.before_share_label == "33 %"

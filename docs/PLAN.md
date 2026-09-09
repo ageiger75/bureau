@@ -445,7 +445,9 @@ un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 **La part perdue contre l'an dernier, le 9 septembre 2026.** La lecture clients porte
 trois fenêtres : l'exercice à date, le même un an plus tôt, le même deux ans plus tôt ; le
 flux de l'an dernier est classé contre l'exercice d'avant, et chaque part — perdus, retenus,
-réactivés, nouveaux — se lit contre l'an dernier au même mois, en points. Cadence propre :
+réactivés, nouveaux — se lit contre l'an dernier au même mois, en points. Trois fenêtres en
+une requête passaient le plafond de cinq minutes de l'entrepôt : la requête est un gabarit
+à deux fenêtres, lancé deux fois (`__SHIFT__` 0 puis 12) et assemblé par `read_client_flow`. Cadence propre :
 la lecture clients se refait après une semaine (`QUERY_MAX_AGE`), pas six heures.
 
 **Les clients, le 9 septembre 2026.** « Il faut avoir la conversation aussi sur les

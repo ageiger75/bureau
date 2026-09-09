@@ -263,6 +263,39 @@ QUERY_CACHES = {
     "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
 }
 
+def read_client_flow(run=None) -> List[dict]:
+    """La lecture clients sur trois fenêtres, en deux requêtes de deux fenêtres.
+
+    Trois fenêtres en une requête passaient le plafond de cinq minutes de l'entrepôt.
+    Le même calcul un an plus tôt — `__SHIFT__` à 12 — donne le flux de l'an dernier
+    classé contre l'exercice d'avant ; ses fenêtres sont décalées d'un cran (ty → ly,
+    ly → ly2) et datées du mois de la première lecture. Ce que la seconde lecture répète
+    de la première — l'an dernier en base — est écarté, sinon la somme compterait double.
+    """
+    from . import queries, warehouse
+
+    run = run or (lambda sql, label: warehouse.rows(sql, label=label))
+    template = queries.ALL["CLIENT_FLOW"]
+    now = list(run(template.replace("__SHIFT__", "0"), "CLIENT_FLOW"))
+    through = max((str(row.get("through") or "") for row in now), default="")
+    before = run(template.replace("__SHIFT__", "12"), "CLIENT_FLOW_LY")
+    shifted = []
+    for row in before:
+        window = str(row.get("window") or "").strip().lower()
+        segment = str(row.get("segment") or "").strip().lower()
+        if window == "ty" and segment not in ("arc", "walkin"):
+            shifted.append(dict(row, window="ly", through=through))
+        elif window == "ly" and segment in ("arc", "walkin"):
+            shifted.append(dict(row, window="ly2", through=through))
+    return now + shifted
+
+
+#: Les lectures qui ne sont pas une requête mais plusieurs : `nom → lecteur`.
+QUERY_READERS = {
+    "clients": read_client_flow,
+}
+
+
 #: L'âge au-delà duquel une lecture se refait. Les produits bougent au mois et se relisent
 #: au jour ; les clients sur trois exercices sont la lecture la plus lourde du cockpit, et
 #: un mois clos n'arrive qu'une fois par mois : une semaine, donc au plus une semaine
@@ -360,7 +393,8 @@ def read_behind(name: str) -> bool:
         from . import queries, warehouse
 
         try:
-            rows = warehouse.rows(queries.ALL[query_name], label=query_name)
+            reader = QUERY_READERS.get(name)
+            rows = reader() if reader else warehouse.rows(queries.ALL[query_name], label=query_name)
             _write_query_cache(name, rows)
         except Exception as exc:  # pragma: no cover — depends on the warehouse
             state["error"] = str(exc).strip().splitlines()[0][:160] if str(exc).strip() else type(exc).__name__
@@ -1163,7 +1197,8 @@ class SnowflakeSource:
         if rows is None:
             from . import warehouse
 
-            rows = warehouse.rows(queries.ALL[query_name], label=query_name)
+            reader = QUERY_READERS.get(name)
+            rows = reader() if reader else warehouse.rows(queries.ALL[query_name], label=query_name)
             _write_query_cache(name, rows)
         setattr(self, note_field, "")
         return rows

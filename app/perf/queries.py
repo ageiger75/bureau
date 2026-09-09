@@ -1437,7 +1437,9 @@ group by product_id, month
 #:
 #: La fenêtre 'ly' porte les mêmes segments que 'ty', classés contre 'ly2' : la part
 #: perdue de cette année se compare ainsi à celle de l'an dernier au même mois. 'ly2' ne
-#: porte que `arc` et `walkin`, c'est la base d'avant. Colonnes confirmées par l'agent entrepôt le 9 septembre 2026 sur un pays :
+#: porte que `arc` et `walkin`, c'est la base d'avant. Le cockpit obtient cela en lançant
+#: la requête deux fois — `__SHIFT__` à 0 puis à 12 — et en décalant la seconde d'une
+#: fenêtre (`source.read_client_flow`). Colonnes confirmées par l'agent entrepôt le 9 septembre 2026 sur un pays :
 #: la clé client `CLIENT_SKEY` sur le fait ; un ticket sans client n'a ni clé nulle ni
 #: valeur d'attente unique, il porte la clé d'un pseudo-client que la dimension marque
 #: `FLAG_WALKIN` — une liste de clés en dur serait fausse au premier marché suivant ; la
@@ -1458,34 +1460,29 @@ with period as (
         last_month,
         to_char(last_month, 'YYYY-MM')                                     as through,
         last_day(last_month)                                               as ty_to,
-        ty_from,
-        add_months(ty_from, -12)                                           as ly_from,
-        last_day(add_months(last_month, -12))                              as ly_to,
-        add_months(ty_from, -24)                                           as ly2_from,
-        last_day(add_months(last_month, -24))                              as ly2_to
+        date_from_parts(iff(month(last_month) >= 4, year(last_month),
+                            year(last_month) - 1), 4, 1)                   as ty_from,
+        add_months(date_from_parts(iff(month(last_month) >= 4, year(last_month),
+                                       year(last_month) - 1), 4, 1), -12)  as ly_from,
+        last_day(add_months(last_month, -12))                              as ly_to
     from (
-        select
-            last_month,
-            date_from_parts(iff(month(last_month) >= 4, year(last_month),
-                                year(last_month) - 1), 4, 1)               as ty_from
+        -- __SHIFT__ vaut 0 pour l'exercice en cours, 12 pour le même calcul un an plus
+        -- tôt : le cockpit lance les deux et les assemble. Trois fenêtres en une requête
+        -- passaient le plafond de cinq minutes de l'entrepôt ; deux fois deux fenêtres
+        -- tiennent chacune sous la minute et disent la même chose.
+        select date_trunc('month', add_months(anchor, -1 - __SHIFT__)) as last_month
         from (
-            select date_trunc('month', add_months(anchor, -1)) as last_month
-            from (
-                -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
-                select max(max_sales_date) as anchor
-                from semantic_view(
-                    dwh.semantic_layer.v_sl_ai_sellout_analysis
-                    metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
-                    where f_sellout_sales_details.transaction_date
-                          >= dateadd(month, -3, current_date)
-                )
+            -- Bounded: an unbounded `max(date)` on this fact reads 77 GB.
+            select max(max_sales_date) as anchor
+            from semantic_view(
+                dwh.semantic_layer.v_sl_ai_sellout_analysis
+                metrics max(f_sellout_sales_details.transaction_date) as max_sales_date
+                where f_sellout_sales_details.transaction_date
+                      >= dateadd(month, -3, current_date)
             )
         )
     )
 ),
--- Trois fenêtres : l'exercice à date, le même un an plus tôt, le même deux ans plus tôt.
--- La troisième ne sert qu'à une chose : que la part perdue de cette année se compare à
--- celle de l'an dernier au même mois, sans quoi elle n'est qu'un nombre.
 base as (
     select
         s.store_country,
@@ -1500,9 +1497,7 @@ base as (
         ), '9999-12-31')                                             as first_date,
         f.store_skey || '|' || f.transaction_date || '|' || f.transaction_till
             || '|' || f.transaction_number                           as ticket,
-        case when f.transaction_date >= pr.ty_from then 'ty'
-             when f.transaction_date >= pr.ly_from then 'ly'
-             else 'ly2' end                                          as "window",
+        iff(f.transaction_date >= pr.ty_from, 'ty', 'ly')            as "window",
         f.net_sales_eur
     from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
     join dwh.semantic_layer.v_sl_ai_d_stores  s on s.store_skey  = f.store_skey
@@ -1511,9 +1506,8 @@ base as (
     where f.flag_turnover = 1
       and s.store_brand = 'L''OCCITANE'
       and coalesce(f.flag_bulk, 0) not in (2, 3, 4, 5)
-      and f.transaction_date >= dateadd(month, -38, current_date)
-      and (f.transaction_date between pr.ly2_from and pr.ly2_to
-           or f.transaction_date between pr.ly_from and pr.ly_to
+      and f.transaction_date >= dateadd(month, -26 - __SHIFT__, current_date)
+      and (f.transaction_date between pr.ly_from and pr.ly_to
            or f.transaction_date between pr.ty_from and pr.ty_to)
 ),
 -- Un client, une fenêtre, un périmètre : le pays, et le groupe par le roll-up — un client
@@ -1534,31 +1528,28 @@ scoped as (
 registered as (
     select * from scoped where flag_walkin = 0
 ),
--- Chaque fenêtre classée contre la précédente : ty contre ly, ly contre ly2.
 classified as (
     select
-        cur.scope,
-        cur."window",
-        cur.client_skey,
-        cur.transactions,
-        cur.sales,
+        ty.scope,
+        ty.client_skey,
+        ty.transactions,
+        ty.sales,
         case
-            when prev.client_skey is not null                          then 'retained'
-            when cur.first_date is null                                then 'unknown'
-            when cur.first_date > iff(cur."window" = 'ty', pr.ly_to, pr.ly2_to) then 'new'
-            else                                                            'reactivated'
-        end                                                            as segment
-    from registered cur
-    left join registered prev
-      on prev.scope = cur.scope and prev.client_skey = cur.client_skey
-     and prev."window" = iff(cur."window" = 'ty', 'ly', 'ly2')
+            when ly.client_skey is not null        then 'retained'
+            when ty.first_date is null             then 'unknown'
+            when ty.first_date > pr.ly_to          then 'new'
+            else                                        'reactivated'
+        end                                            as segment
+    from registered ty
+    left join registered ly
+      on ly.scope = ty.scope and ly."window" = 'ly' and ly.client_skey = ty.client_skey
     cross join period pr
-    where cur."window" in ('ty', 'ly')
+    where ty."window" = 'ty'
 )
-select scope, "window", pr.through, segment,
+select scope, 'ty' as "window", pr.through, segment,
        count(*) as clients, sum(transactions) as transactions, sum(sales) as sales
 from classified cross join period pr
-group by scope, "window", pr.through, segment
+group by scope, pr.through, segment
 union all
 select scope, "window", pr.through, 'arc',
        count(*), sum(transactions), sum(sales)
@@ -1571,16 +1562,14 @@ from scoped cross join period pr
 where flag_walkin = 1
 group by scope, "window", pr.through
 union all
--- Les perdus de la base précédente, rangés sous la fenêtre qui les a perdus.
-select prev.scope, iff(prev."window" = 'ly', 'ty', 'ly'), pr.through, 'lost',
-       count(*), sum(prev.transactions), sum(prev.sales)
-from registered prev
-left join registered cur
-  on cur.scope = prev.scope and cur.client_skey = prev.client_skey
- and cur."window" = iff(prev."window" = 'ly', 'ty', 'ly')
+select ly.scope, 'ty', pr.through, 'lost',
+       count(*), sum(ly.transactions), sum(ly.sales)
+from registered ly
+left join registered ty
+  on ty.scope = ly.scope and ty."window" = 'ty' and ty.client_skey = ly.client_skey
 cross join period pr
-where prev."window" in ('ly', 'ly2') and cur.client_skey is null
-group by prev.scope, iff(prev."window" = 'ly', 'ty', 'ly'), pr.through
+where ly."window" = 'ly' and ty.client_skey is null
+group by ly.scope, pr.through
 """
 
 ALL = {
