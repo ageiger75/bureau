@@ -77,7 +77,7 @@ def ucfirst(text) -> str:
 templates.env.filters["ucfirst"] = ucfirst
 
 
-_FR_UNIT = re.compile(r"(?<![\w.])(-?\+?)(\d{1,3}(?:\d{3})*)(?:\.(\d+))?(?=\s?(?:M€|k€|€|%|pt\b)| à [+-]?\d)")
+_FR_UNIT = re.compile(r"(?<![\w.])(-?\+?)(\d{1,3}(?:\d{3})*)(?:\.(\d+))?(?=\s?(?:M€|k€|€|%|M clients|pt\b)| à [+-]?\d)")
 
 
 def fr_numbers(html) -> str:

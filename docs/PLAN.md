@@ -454,6 +454,16 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**L'écran du jour, troisième passe, le 9 septembre 2026.** Sur l'analyse d'expert cockpit :
+le verdict en mots au-dessus du chiffre (pastille, atterrissage, qui décroche) ; une barre de
+navigation collante avec les comptes ; six tuiles de même hauteur, le dernier mois clos en
+sixième, le mot en grand quand la fourchette du mois est large ; la table des périmètres à
+une ligne par périmètre, pastille et écart dans la même cellule, fourchette large dite comme
+telle ; la surveillance en table ; les gestes en groupe de boutons ; le même motif d'en-tête
+(titre, chiffre, ligne) sur tous les blocs ; les nombres à la française sur cet écran
+seulement (`fr`, un filtre de rendu, jamais dans les modules). Pas de mini-tendance par
+périmètre : il faudrait une série par périmètre que la lecture principale ne tient pas.
+
 **L'écran du jour, seconde passe, le 9 septembre 2026.** Le CEO : « la lecture de la page
 est vraiment nulle ». Refonte de la hiérarchie en trois niveaux et pas plus : le chiffre de
 tête avec ses faits en dessous (plan, trois écarts, mois restants), cinq cartes de verdict —
