@@ -442,6 +442,9 @@ fenêtre a portée, le sell-out de la fenêtre, le surcroît par jour contre les
 l'entourent. Un événement sans mesure est porté avec sa date et dit non pesé. Rien ici n'est
 un objectif. Décision du CEO : le poids est mesuré, jamais écrit de mémoire.
 
+**Feuille de route, le 9 septembre 2026.** Relecture des quatre pages contre les besoins du
+lecteur, écarts classés et cinq chantiers : `docs/ROADMAP-2026-09-09.md`.
+
 **Le canal des perdus, le 9 septembre 2026.** D'où partent les perdus : le sous-canal de
 leur dernier ticket de l'an dernier (`max_by`), et la base de l'an dernier découpée de même,
 pour que chaque canal dise ce qu'il a perdu de ses propres clients, contre l'an dernier au
