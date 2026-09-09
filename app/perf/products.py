@@ -92,8 +92,8 @@ def _mended(name: str) -> str:
 def _key(text) -> str:
     """L'entrepôt écrit les pays en capitales et en sigles — USA, UK —, l'annuaire et le
     plan en toutes lettres : un marché est le même sous toutes ces graphies. La table des
-    alias du plan est celle de toute la maison ; une région qui lisait 14 M€ où sa semaine
-    en montrait 45 avait perdu son premier marché sur trois lettres."""
+    alias du plan est celle de toute la maison ; une région qui lisait le tiers de ce que
+    sa semaine montrait avait perdu son premier marché sur trois lettres."""
     from .budget import normalise_market
 
     return normalise_market(str(text or "").strip()).casefold()
@@ -359,23 +359,33 @@ def coverage(rows: Iterable[dict], kpi_rows: Sequence, scopes_wanted: Sequence[s
              period: str) -> List[tuple]:
     """Par périmètre lu : (nom, ventes par produit, ventes des KPI, part couverte) sur un
     mois, ou rien quand l'une des deux lectures manque."""
-    from . import kpi_registry
-
     rows = list(rows or [])
+    # Les ventes du mois de la lecture des KPI, par périmètre replié et par clé : les
+    # lignes viennent en dictionnaires (l'entrepôt) ou en séquences (le cache, les tests).
+    sales: Dict[tuple, float] = {}
+    for row in kpi_rows or []:
+        if isinstance(row, dict):
+            lowered = {str(name).lower(): value for name, value in row.items()}
+            row_scope, key, when, value = (lowered.get("scope"), lowered.get("kpi_key"),
+                                           lowered.get("period"), lowered.get("value"))
+        elif len(row) >= 4:
+            row_scope, key, when, value = row[0], row[1], row[2], row[3]
+        else:
+            continue
+        key = str(key or "").strip()
+        if key in SALES_KEYS and str(when or "")[:7] == period and value is not None:
+            try:
+                sales[(_key(row_scope), key)] = float(value)
+            except (TypeError, ValueError):
+                continue
     found: List[tuple] = []
     for scope in scopes_wanted:
         by_product = sum(_number(row.get("net_sales")) for row in rows
                          if _key(row.get("scope")) == _key(scope)
                          and str(row.get("level") or "").strip().lower() == "category"
                          and str(row.get("period") or "")[:7] == period)
-        readings = kpi_registry.readings_by_key(kpi_rows or [], scope=scope)
-        by_kpi = None
-        for key in SALES_KEYS:
-            match = [reading.value for reading in readings.get(key, [])
-                     if reading.period[:7] == period]
-            if match:
-                by_kpi = match[-1]
-                break
+        by_kpi = next((sales[(_key(scope), key)] for key in SALES_KEYS
+                       if (_key(scope), key) in sales), None)
         if by_kpi is None or by_kpi <= 0:
             continue
         found.append((scope, by_product, by_kpi, by_product / by_kpi))
