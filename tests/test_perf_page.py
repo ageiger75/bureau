@@ -11,8 +11,8 @@ from app.perf import actuals, page as P
 
 
 class _Line:
-    def __init__(self, market, period, budget):
-        self.market, self.period, self.budget = market, period, budget
+    def __init__(self, market, period, budget, last_year=None):
+        self.market, self.period, self.budget, self.last_year = market, period, budget, last_year
 
 
 class _Budget:
@@ -24,8 +24,8 @@ def _published(lines):
     return actuals.Actuals(lines, [], year=2026, month=8)
 
 
-def _pl(market, actual, budget):
-    return actuals.Line(market, "R", "retail", actuals.SOLD, actual, 0.0, budget)
+def _pl(market, actual, budget, last_year=0.0):
+    return actuals.Line(market, "R", "retail", actuals.SOLD, actual, last_year, budget)
 
 
 def test_slugs_are_ascii_and_stable():
@@ -52,6 +52,56 @@ def test_the_landing_reads_two_hypotheses_and_calls_neither_a_forecast():
     assert abs(land.at_pace - (475.0 + 700.0 * 0.95)) < 1e-9
     assert abs(land.gap_at_pace - (-60.0)) < 1e-9
     assert land.pace_label == "-5.0 %"
+
+
+def test_the_weighted_landing_lets_the_remaining_months_weigh_what_they_weighed():
+    """Cinq mois clos à +10 % sur l'an dernier et à 95 % d'un plan plat ; l'an dernier des
+    sept mois restants est lourd (la saison). À ce rythme sur le plan, l'année manque ; à
+    la croissance tenue, elle dépasse — et l'écart entre les deux est le phasage."""
+    budget = _Budget([_Line("Northland", "2026-%02d" % m, 100.0, 80.0) for m in range(4, 9)]
+                     + [_Line("Northland", "2026-%02d" % m, 100.0, 120.0) for m in range(9, 13)]
+                     + [_Line("Northland", "2027-%02d" % m, 100.0, 120.0) for m in range(1, 4)])
+    published = _published([_pl("Northland", 440.0, 500.0, 400.0)])
+    land = P.landing(["Northland"], published, budget, "2026-09", "2026-08")
+
+    assert land.weighted_usable and land.growth_label == "+10.0 %"
+    assert land.remaining_last_year == 840.0
+    assert abs(land.at_growth - (440.0 + 840.0 * 1.1)) < 1e-9
+    assert abs(land.at_pace - (440.0 + 700.0 * 0.88)) < 1e-9
+    assert land.low == land.at_pace and land.high == land.at_growth
+    assert abs(land.phasing_gap - (land.at_growth - land.at_pace)) < 1e-9
+    assert land.moved_events == []
+
+
+def test_without_last_year_the_landing_keeps_its_two_hypotheses_and_no_range():
+    budget = _Budget([_Line("Northland", "2026-%02d" % m, 100.0) for m in range(4, 13)])
+    land = P.landing(["Northland"], _published([_pl("Northland", 475.0, 500.0)]), budget, "2026-09", "2026-08")
+    assert not land.weighted_usable and land.low == land.at_pace == land.high
+
+
+def test_a_moved_event_in_the_remaining_months_is_named_never_weighted():
+    from app.perf import events
+
+    class _Event:
+        def __init__(self, year, start):
+            self.year, self.start = year, start
+
+    class _Series:
+        def __init__(self, name, country, dated):
+            self.name, self.country, self.dated = name, country, dated
+
+    class _Calendar:
+        usable = True
+        series = {
+            "a": _Series("Fête mobile", "Northland", {"2026": _Event("2026", "2026-11-03"), "2025": _Event("2025", "2025-10-28")}),
+            "b": _Series("Fête fixe", "Northland", {"2026": _Event("2026", "2026-12-25"), "2025": _Event("2025", "2025-12-25")}),
+            "c": _Series("Ailleurs", "Southland", {"2026": _Event("2026", "2026-11-03"), "2025": _Event("2025", "2025-10-28")}),
+        }
+
+    assert events.month_of("2026-11-03") == "11"
+    moved = P.moved_events(_Calendar(), ["Northland"], ["2026-09", "2026-10", "2026-11", "2026-12"])
+    assert moved == ["Fête mobile (Northland) : en novembre cette année, en octobre l'an dernier"]
+    assert P.moved_events(None, ["Northland"], ["2026-11"]) == []
 
 
 def test_the_landing_is_absent_without_closed_months_or_a_plan():

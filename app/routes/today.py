@@ -255,10 +255,18 @@ def _landings(track, month):
             budget = None
     period = getattr(track, "period", "") or ""
     closed = getattr(track, "closed_through", "") or ""
-    group = page_module.landing(None, published, budget, period, closed)
+    calendar = None
+    if settings.has_calendar_file:
+        from ..perf import events as events_module
+
+        try:
+            calendar = events_module.current()
+        except Exception:  # noqa: BLE001 — un calendrier illisible ne fait pas tomber l'atterrissage
+            calendar = None
+    group = page_module.landing(None, published, budget, period, closed, calendar)
     directory = owners.current() if settings.has_owners_file else None
     known = page_module.perimeters(directory, month)
-    landings = {name: page_module.landing(item["markets"], published, budget, period, closed)
+    landings = {name: page_module.landing(item["markets"], published, budget, period, closed, calendar)
                 for name, item in known.items()}
     return group, landings
 

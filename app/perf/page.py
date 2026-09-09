@@ -33,19 +33,76 @@ def slug(name: str) -> str:
 
 
 class Landing:
-    """Où finit l'exercice, selon deux hypothèses qu'aucune ne prétend prédire."""
+    """Où finit l'exercice, selon trois hypothèses qu'aucune ne prétend prédire.
+
+    *Si le reste tient le plan* : les mois clos plus le plan des mois restants. *À ce
+    rythme* : le plan des mois restants au taux tenu sur les mois clos — le plan porte
+    déjà sa saison, mais un retard de cinq pour cent pris sur des mois creux n'est pas
+    un retard de cinq pour cent sur la saison des fêtes. *À la croissance tenue* : l'an
+    dernier des mois restants, mois par mois, à la croissance mesurée sur les mois clos —
+    les mois restants pèsent ce qu'ils ont pesé, et un plan mal phasé ne déplace plus
+    l'atterrissage. Les deux dernières encadrent ; l'écart entre elles est la part du
+    phasage du plan dans le chiffre, et il est dit.
+
+    Les temps forts qui changent de mois d'un exercice à l'autre sont nommés à côté, pas
+    comptés : un événement qui passe d'octobre à novembre déplace un mois, et le poids de
+    l'an dernier n'en sait rien. Le lecteur, si.
+    """
 
     __slots__ = ("closed_actual", "closed_budget", "full_plan", "closed_through",
-                 "months_left", "absent")
+                 "months_left", "absent", "closed_last_year", "remaining_last_year",
+                 "moved_events")
 
     def __init__(self, closed_actual=0.0, closed_budget=0.0, full_plan=0.0,
-                 closed_through="", months_left=0, absent="") -> None:
+                 closed_through="", months_left=0, absent="", closed_last_year=0.0,
+                 remaining_last_year=0.0, moved_events: Sequence[str] = ()) -> None:
         self.closed_actual = closed_actual
         self.closed_budget = closed_budget
         self.full_plan = full_plan
         self.closed_through = closed_through
         self.months_left = months_left
         self.absent = absent
+        #: L'an dernier des mois clos, publié avec eux, et l'an dernier des mois restants,
+        #: lu dans le plan mois par mois. Zéro quand l'une des deux sources ne le porte pas.
+        self.closed_last_year = closed_last_year
+        self.remaining_last_year = remaining_last_year
+        #: Les temps forts des mois restants qui ne tombent pas dans le même mois que l'an
+        #: dernier — une phrase chacun, jamais un coefficient.
+        self.moved_events = list(moved_events)
+
+    @property
+    def weighted_usable(self) -> bool:
+        return self.closed_last_year > 0 and self.remaining_last_year > 0
+
+    @property
+    def growth(self) -> float:
+        """Réalisé sur l'an dernier des mois clos — la croissance tenue jusqu'ici."""
+        return self.closed_actual / self.closed_last_year - 1.0 if self.closed_last_year else 0.0
+
+    @property
+    def at_growth(self) -> float:
+        return self.closed_actual + self.remaining_last_year * (1.0 + self.growth)
+
+    @property
+    def gap_at_growth(self) -> float:
+        return self.at_growth - self.full_plan
+
+    @property
+    def growth_label(self) -> str:
+        return "%+.1f %%" % (self.growth * 100)
+
+    @property
+    def low(self) -> float:
+        return min(self.at_pace, self.at_growth) if self.weighted_usable else self.at_pace
+
+    @property
+    def high(self) -> float:
+        return max(self.at_pace, self.at_growth) if self.weighted_usable else self.at_pace
+
+    @property
+    def phasing_gap(self) -> float:
+        """Ce que le phasage du plan met entre les deux hypothèses."""
+        return self.at_growth - self.at_pace if self.weighted_usable else 0.0
 
     @property
     def usable(self) -> bool:
@@ -86,7 +143,7 @@ class Landing:
 
 
 def landing(markets: Optional[Sequence[str]], published, budget, period: str,
-            closed_through: str) -> Landing:
+            closed_through: str, calendar=None) -> Landing:
     """L'atterrissage d'un ensemble de marchés — tous quand `markets` est None."""
     if not closed_through:
         return Landing(absent="pas de mois clos publié jusqu'au mois précédent")
@@ -101,11 +158,61 @@ def landing(markets: Optional[Sequence[str]], published, budget, period: str,
     wanted = set(markets) if markets is not None else None
     full_plan = sum((line.budget or 0.0) for line in budget.lines
                     if line.period in periods and (wanted is None or line.market in wanted))
-    closed_actual, closed_budget = track_module._closed_for(published, markets)
-    left = len([p for p in periods if p > closed_through])
+    remaining = [p for p in periods if p > closed_through]
+    remaining_last_year = sum((getattr(line, "last_year", None) or 0.0) for line in budget.lines
+                              if line.period in remaining and (wanted is None or line.market in wanted))
+    closed_actual, closed_budget, closed_last_year = _closed_three(published, markets)
     if not full_plan:
         return Landing(absent="aucun plan sur l'exercice pour ces marchés")
-    return Landing(closed_actual, closed_budget, full_plan, closed_through, left)
+    return Landing(closed_actual, closed_budget, full_plan, closed_through, len(remaining),
+                   closed_last_year=closed_last_year, remaining_last_year=remaining_last_year,
+                   moved_events=moved_events(calendar, markets, remaining))
+
+
+def _closed_three(published, markets: Optional[Sequence[str]]):
+    """Actual, budget et an dernier publiés, sur tout le fichier ou sur des marchés nommés."""
+    from . import actuals as actuals_module
+
+    if markets is None:
+        totals = published.totals()
+        return totals["actual"], totals["budget"], totals.get("last_year", 0.0)
+    wanted = set(markets)
+    actual = budget = last_year = 0.0
+    for line in actuals_module.by_scope(published).values():
+        if line.market in wanted:
+            actual += line.actual
+            budget += line.budget
+            last_year += getattr(line, "last_year", 0.0) or 0.0
+    return actual, budget, last_year
+
+
+def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence[str]) -> List[str]:
+    """Les temps forts des mois restants qui ne tombent pas dans le même mois que l'an
+    dernier, une phrase chacun. Rien sans calendrier ; rien quand tout tombe pareil."""
+    if calendar is None or not getattr(calendar, "usable", False) or not remaining:
+        return []
+    from . import events as events_module
+    from .invoiced import MONTHS_FR
+
+    found = []
+    for series in calendar.series.values():
+        if markets is not None and not any(events_module.same_country(series.country, m) for m in markets):
+            continue
+        dated = series.dated
+        for event in dated.values():
+            this_month = str(event.start or "")[:7]
+            if this_month not in remaining:
+                continue
+            before = dated.get(str(int(event.year) - 1)) if str(event.year).isdigit() else None
+            if before is None:
+                continue
+            last_month = str(before.start or "")[:7]
+            if len(last_month) < 7 or last_month[5:7] == this_month[5:7]:
+                continue
+            found.append("%s (%s) : en %s cette année, en %s l'an dernier"
+                         % (series.name, series.country, MONTHS_FR[int(this_month[5:7]) - 1],
+                            MONTHS_FR[int(last_month[5:7]) - 1]))
+    return sorted(found)
 
 
 class Page:

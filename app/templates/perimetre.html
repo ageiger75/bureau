@@ -40,6 +40,8 @@
         <p class="verdict-word">{{ page.landing.at_pace | eur }}</p>
         <p class="verdict-figures">à ce rythme ({{ page.landing.pace_label }} sur les mois clos) · <strong>{{ page.landing.gap_at_pace | eur }}</strong> contre un plan de {{ page.landing.full_plan | eur }}</p>
         <p class="verdict-basis">si le reste tient le plan : {{ page.landing.at_plan | eur }}, soit {{ page.landing.gap_at_plan | eur }} · {{ page.landing.months_left }} mois restent</p>
+        {% if page.landing.weighted_usable %}<p class="verdict-basis">à la croissance tenue sur l'an dernier ({{ page.landing.growth_label }}), les mois restants pesant ce qu'ils ont pesé : {{ page.landing.at_growth | eur }}, soit {{ page.landing.gap_at_growth | eur }} · phasage du plan {{ page.landing.phasing_gap | eur }}</p>{% endif %}
+        {% if page.landing.moved_events %}<p class="verdict-basis">temps forts qui changent de mois : {{ page.landing.moved_events | join(" · ") }}</p>{% endif %}
       {% else %}
         <p class="verdict-word is-absent">—</p>
         <p class="verdict-basis">{{ page.landing.absent }}</p>

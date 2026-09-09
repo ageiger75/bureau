@@ -454,6 +454,14 @@ date et trois mois contre l'an dernier, six mois du groupe, et en face le budget
 nettoyer au prorata — trois sources jamais additionnées ; la feuille grise de la Finance
 reste à `reconcile`.
 
+**L'atterrissage pesé, le 9 septembre 2026.** Troisième hypothèse à côté des deux
+autres (`page.Landing`) : à la croissance tenue sur l'an dernier, les mois restants pesant
+ce qu'ils ont pesé — l'an dernier du plan mois par mois, à la croissance mesurée sur les
+mois clos publiés. L'écran du jour donne la fourchette entre « à ce rythme sur le plan » et
+« à la croissance tenue », et nomme l'écart comme le phasage du plan. Les temps forts des
+mois restants qui changent de mois d'un exercice à l'autre sont nommés (`moved_events`,
+calendrier déposé), jamais comptés.
+
 **Décision du CEO, le 9 septembre 2026 : pas de « question produit » choisie par la
 machine.** Le cockpit pose les faits ; ce qui est important se décide avec le contexte que
 le CEO a et que l'écran n'a pas. Aucune sélection automatique du « plus gros fait » ne

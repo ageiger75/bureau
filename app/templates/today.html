@@ -20,13 +20,17 @@
   {% endif %}
 
   {% if landing and landing.usable %}
-    <p class="cockpit-total">{{ landing.at_pace | eur }}</p>
+    <p class="cockpit-total">{% if landing.weighted_usable %}{{ landing.low | eur }} à {{ landing.high | eur }}{% else %}{{ landing.at_pace | eur }}{% endif %}</p>
     <p class="lede">
-      À ce rythme, l'exercice atterrit à {{ landing.at_pace | eur }}, soit
+      À ce rythme sur le plan, l'exercice atterrit à {{ landing.at_pace | eur }}, soit
       <strong>{{ landing.gap_at_pace | eur }}</strong> contre un plan de {{ landing.full_plan | eur }}.
+      {% if landing.weighted_usable %}À la croissance tenue sur l'an dernier ({{ landing.growth_label }}), les mois restants pesant ce qu'ils ont pesé : {{ landing.at_growth | eur }}, soit {{ landing.gap_at_growth | eur }} ; l'écart entre les deux, {{ landing.phasing_gap | eur }}, est le phasage du plan.{% endif %}
       Si le reste tient le plan : {{ landing.at_plan | eur }}, soit {{ landing.gap_at_plan | eur }}.
       {{ landing.months_left }} mois restent ; le rythme des mois clos est de {{ landing.pace_label }}.
     </p>
+    {% if landing.moved_events %}
+      <p class="cockpit-caveat">Temps forts qui changent de mois sur les mois restants, que le poids de l'an dernier ne voit pas : {{ landing.moved_events | join(" · ") }}.</p>
+    {% endif %}
   {% elif landing %}
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
   {% endif %}
