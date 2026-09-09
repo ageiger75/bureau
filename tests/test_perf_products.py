@@ -230,3 +230,11 @@ def test_the_reading_says_when_it_covers_only_part_of_a_market_s_sales():
     P.check_coverage(review, rows, kpi_rows, ["United States", "Canada"])
     assert any("United States 28 %" in reason and "Canada" not in reason
                for reason in review.absent)
+
+
+def test_a_growth_from_almost_nothing_reads_as_a_multiple_not_a_percentage():
+    assert P.growth_word(14.49) == "×15"
+    assert P.growth_word(0.25) == "+25.0 %"
+    assert P.growth_word(None) == "n/d"
+    level = P.build(_rows("range", "Lavande", _year(2.0, 40.0))).level("range")
+    assert level.lines[0].growth_label == "×20" and level.lines[0].month_label == "×20"

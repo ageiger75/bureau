@@ -71,6 +71,19 @@ def _growth(now: float, before: Optional[float]) -> Optional[float]:
     return now / before - 1.0
 
 
+#: Au-delà, un pourcentage ne se lit plus : « +1449 % » est « ×15 », une ligne qui part de
+#: presque rien, et le lecteur doit le voir comme tel.
+MULTIPLE_FROM = 3.0
+
+
+def growth_word(value: Optional[float]) -> str:
+    if value is None:
+        return "n/d"
+    if value >= MULTIPLE_FROM:
+        return "×%.0f" % (value + 1.0)
+    return format_pct(value)
+
+
 def _number(value) -> float:
     try:
         return float(value or 0.0)
@@ -158,11 +171,11 @@ class Line:
 
     @property
     def growth_label(self) -> str:
-        return format_pct(self.growth)
+        return growth_word(self.growth)
 
     @property
     def month_label(self) -> str:
-        return format_pct(self.month_growth)
+        return growth_word(self.month_growth)
 
     @property
     def delta_label(self) -> str:
