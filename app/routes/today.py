@@ -352,7 +352,9 @@ def _products(source, refresh: bool = False, scope: str = ""):
     reader = getattr(source, "product_rows", None)
     rows = reader(wait_for_warehouse=refresh) if reader is not None else []
     note = getattr(source, "product_note", "") or ""
-    return products_module.build(rows, scope or products_module.GROUP, note=note)
+    review = products_module.build(rows, scope or products_module.GROUP, note=note)
+    kpi_rows = getattr(source, "kpi_rows", list)()
+    return products_module.check_coverage(review, rows, kpi_rows, [scope or products_module.GROUP])
 
 
 def _red_zones(kpi_rows, pnl, invoiced, track):
@@ -413,6 +415,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
 
     products = products_module.for_markets(inputs["product_rows"], item["markets"], label,
                                            note=inputs["product_note"])
+    products_module.check_coverage(products, inputs["product_rows"],
+                                   getattr(inputs["source"], "kpi_rows", list)(), item["markets"])
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],

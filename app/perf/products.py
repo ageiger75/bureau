@@ -341,6 +341,60 @@ def for_markets(rows: Iterable[dict], markets: Sequence[str], scope: str, note: 
     return review
 
 
+#: Sous cette part, la lecture produit ne couvre pas les ventes que la lecture des KPI
+#: rapporte pour le même périmètre et le même mois : des lignes sans produit au
+#: référentiel, ou un pays écrit autrement. Le bloc le dit avant d'être lu comme un tout.
+COVERED = 0.9
+
+#: Les clés de la lecture des KPI qui portent les ventes du mois, la plus proche d'abord :
+#: hors vrac comme la lecture produit, sinon toutes.
+SALES_KEYS = ("net_sales_hors_bulk", "net_sales")
+
+
+def coverage(rows: Iterable[dict], kpi_rows: Sequence, scopes_wanted: Sequence[str],
+             period: str) -> List[tuple]:
+    """Par périmètre lu : (nom, ventes par produit, ventes des KPI, part couverte) sur un
+    mois, ou rien quand l'une des deux lectures manque."""
+    from . import kpi_registry
+
+    rows = list(rows or [])
+    found: List[tuple] = []
+    for scope in scopes_wanted:
+        by_product = sum(_number(row.get("net_sales")) for row in rows
+                         if _key(row.get("scope")) == _key(scope)
+                         and str(row.get("level") or "").strip().lower() == "category"
+                         and str(row.get("period") or "")[:7] == period)
+        readings = kpi_registry.readings_by_key(kpi_rows or [], scope=scope)
+        by_kpi = None
+        for key in SALES_KEYS:
+            match = [reading.value for reading in readings.get(key, [])
+                     if reading.period[:7] == period]
+            if match:
+                by_kpi = match[-1]
+                break
+        if by_kpi is None or by_kpi <= 0:
+            continue
+        found.append((scope, by_product, by_kpi, by_product / by_kpi))
+    return found
+
+
+def check_coverage(review: Review, rows: Iterable[dict], kpi_rows: Sequence,
+                   scopes_wanted: Sequence[str]) -> Review:
+    """Ajoute à la lecture ce qu'elle ne couvre pas, marché par marché, quand la lecture
+    des KPI en sait plus qu'elle sur le même mois."""
+    if not review.usable or not review.period:
+        return review
+    short = [(scope, share) for scope, _, _, share in
+             coverage(rows, kpi_rows, scopes_wanted, review.period) if share < COVERED]
+    if short:
+        review.absent.append(
+            "la lecture produit ne couvre qu'une partie des ventes lues par ailleurs sur %s : %s "
+            "— des lignes sans produit au référentiel, à vérifier avant de lire ce bloc comme "
+            "un tout" % (month_fr(review.period),
+                         ", ".join("%s %.0f %%" % (scope, share * 100) for scope, share in short)))
+    return review
+
+
 def scopes(rows: Iterable[dict]) -> List[str]:
     """Les périmètres lus, le groupe d'abord."""
     seen: Dict[str, str] = {}

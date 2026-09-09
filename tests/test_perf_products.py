@@ -206,3 +206,23 @@ def test_a_market_written_in_capitals_by_the_warehouse_is_the_same_market():
     region = P.for_markets(rows, ["United States", "Canada"], "North America")
     assert region.level("category").lines[0].sales == 5 * 122.0
     assert P.scopes(rows) == ["CANADA", "UNITED STATES"]
+
+
+def test_the_reading_says_when_it_covers_only_part_of_a_market_s_sales():
+    """Une région lisait un tiers de ce que sa semaine montrait : des lignes sans produit
+    au référentiel. La lecture des KPI porte les ventes du même mois ; quand la lecture
+    produit en couvre moins que la part attendue, le bloc le dit, marché par marché."""
+    rows = (_rows("category", "Corps", _year(100.0, 110.0), scope="UNITED STATES")
+            + _rows("category", "Corps", _year(100.0, 110.0), scope="CANADA"))
+    kpi_rows = [{"scope": "UNITED STATES", "kpi_key": "net_sales_hors_bulk", "period": "2026-08",
+                 "value": 400.0},
+                {"scope": "CANADA", "kpi_key": "net_sales", "period": "2026-08", "value": 115.0}]
+
+    found = P.coverage(rows, kpi_rows, ["United States", "Canada", "Mexico"], "2026-08")
+    assert [(scope, round(share, 3)) for scope, _, _, share in found] == [
+        ("United States", 0.275), ("Canada", 0.957)]
+
+    review = P.for_markets(rows, ["United States", "Canada"], "North America")
+    P.check_coverage(review, rows, kpi_rows, ["United States", "Canada"])
+    assert any("United States 28 %" in reason and "Canada" not in reason
+               for reason in review.absent)
