@@ -463,6 +463,28 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
+**L'après-midi où l'écran a montré une conversion de 91 %, le 10 septembre 2026.** La
+première livraison de l'entonnoir physique sommait `NB_TICKETS` par le chemin sémantique :
+une colonne qui compte des lignes, pas des tickets — la docstring de `KPI_READINGS` le
+disait déjà pour ATV et UPT. Résultat : 91 % de conversion aux États-Unis (29 % comptés),
+115 % en France, et une « opportunité » de 1,3 M€ construite dessus. L'agent entrepôt l'a
+vu à la validation. Trois choses : les tickets se comptent sur le fait, en clés distinctes
+(magasin, jour, caisse, numéro), tickets à zéro exclus, sur les deux fenêtres seulement ;
+le cockpit refuse désormais de construire une conversion quand les tickets dépassent le
+trafic (`funnel_is_coherent`) et le dit ; et la leçon reste écrite dans la requête. Une
+seconde validation est demandée avant la relecture.
+
+**La lecture principale derrière l'écran, et une seule à la fois, le 10 septembre 2026.**
+Le même soir, la même requête a tourné deux fois en même temps (le fil de relecture à l'âge
+et la page), chacune ralentie par l'autre ; et une lecture expirée restait servie jusqu'au
+réveil du fil, des heures. Maintenant : la page qui sert une lecture expirée la relance une
+fois derrière l'écran (`read_dataset_behind`), un verrou serialise les lectures principales,
+un lecteur qui a attendu le verrou prend la lecture que l'autre vient d'écrire, le fil de
+relecture ne démarre pas pendant qu'une lecture court, et le cache principal porte
+l'empreinte de sa requête — une colonne de plus, et la lecture d'hier est expirée quel que
+soit son âge. À ne plus faire : `manage.py refresh` avant d'ouvrir une page, qui vide le
+cache et oblige la page à lire sous le lecteur.
+
 **Le retail physique qui lisait « cause non mesurée », le 10 septembre 2026.** Sur les
 États-Unis, l'agent entrepôt a trouvé le trafic (609 jours continus), les tickets et les
 unités — et décomposé l'écart : le trafic tient, l'avance de conversion s'évapore en juin,

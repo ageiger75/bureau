@@ -292,9 +292,7 @@ sellout_day as (
         store_business_area,
         store_sub_channel,
         transaction_date,
-        net_sales_eur,
-        nb_tickets,
-        quantity
+        net_sales_eur
     from semantic_view(
         dwh.semantic_layer.v_sl_ai_sellout_analysis
         dimensions
@@ -303,9 +301,7 @@ sellout_day as (
             d_stores.store_business_area,
             d_stores.store_sub_channel,
             f_sellout_sales_details.transaction_date
-        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur,
-                sum(f_sellout_sales_details.nb_tickets)    as nb_tickets,
-                sum(f_sellout_sales_details.quantity)      as quantity
+        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
         -- A bound the view can read on its own. The window below is expressed
         -- against the `period` CTE, which the view cannot see, so that predicate
         -- does not push down and the whole history gets aggregated at day grain
@@ -345,23 +341,48 @@ money as (
                 s.net_sales_eur, 0))     as sales_actual,
         sum(iff(s.transaction_date between add_months(p.period_start, -12)
                                        and add_months(p.period_end, -12),
-                s.net_sales_eur, 0))     as sales_last_year,
-        -- The physical funnel, per point-of-sale shape: tickets and units this month
-        -- and the same month a year earlier. Traffic is counted per country, not per
-        -- shape, and comes from `footfall` below.
-        sum(iff(s.transaction_date between p.period_start and p.period_end,
-                s.nb_tickets, 0))        as tickets,
-        sum(iff(s.transaction_date between add_months(p.period_start, -12)
-                                       and add_months(p.period_end, -12),
-                s.nb_tickets, 0))        as tickets_last_year,
-        sum(iff(s.transaction_date between p.period_start and p.period_end,
-                s.quantity, 0))          as quantity,
-        sum(iff(s.transaction_date between add_months(p.period_start, -12)
-                                       and add_months(p.period_end, -12),
-                s.quantity, 0))          as quantity_last_year
+                s.net_sales_eur, 0))     as sales_last_year
     from sellout_day s cross join period p
     where s.transaction_date between add_months(p.period_start, -12) and p.period_end
     group by s.iso2, s.store_sub_channel
+),
+checkouts as (
+    -- The physical funnel, per point-of-sale shape: tickets and units this month and
+    -- the same month a year earlier. Read on the fact itself and not through the
+    -- semantic function, for the reason `KPI_READINGS` gives for ATV and UPT: a ticket
+    -- is a distinct key (store, day, till, number), and the additive `NB_TICKETS` counts
+    -- lines. Read as tickets, it gave a conversion above one — 91 % on a market whose
+    -- counted conversion is 29 % — and the screen showed it for an afternoon. Zero-sales
+    -- tickets are excluded as the governed definitions exclude them. Two windows only,
+    -- never the eleven months between them.
+    select
+        s.store_country_iso2                              as iso2,
+        s.store_sub_channel                               as channel,
+        count(distinct iff(f.transaction_date between p.period_start and p.period_end,
+                           f.store_skey || '|' || f.transaction_date || '|'
+                               || f.transaction_till || '|' || f.transaction_number,
+                           null))                         as tickets,
+        count(distinct iff(f.transaction_date between add_months(p.period_start, -12)
+                                                  and add_months(p.period_end, -12),
+                           f.store_skey || '|' || f.transaction_date || '|'
+                               || f.transaction_till || '|' || f.transaction_number,
+                           null))                         as tickets_last_year,
+        sum(iff(f.transaction_date between p.period_start and p.period_end,
+                f.quantity, 0))                           as quantity,
+        sum(iff(f.transaction_date between add_months(p.period_start, -12)
+                                       and add_months(p.period_end, -12),
+                f.quantity, 0))                           as quantity_last_year
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores s on s.store_skey = f.store_skey
+    cross join period p
+    where f.flag_turnover = 1
+      and f.flag_zero_sales_ticket = 0
+      and s.store_brand = 'L''OCCITANE'
+      and f.transaction_date >= dateadd(month, -15, current_date)
+      and (f.transaction_date between p.period_start and p.period_end
+           or f.transaction_date between add_months(p.period_start, -12)
+                                     and add_months(p.period_end, -12))
+    group by 1, 2
 ),
 footfall as (
     -- Store traffic, per country: the counted estate, whatever the shape of the point
@@ -446,10 +467,10 @@ joined as (
         iff(m.channel is null or m.channel = 'E-COMMERCE', o.orders_last_year, null)
                                                 as orders_last_year,
         m.channel is null or m.channel = 'E-COMMERCE' as is_web_channel,
-        m.tickets                               as tickets,
-        m.tickets_last_year                     as tickets_last_year,
-        m.quantity                              as quantity,
-        m.quantity_last_year                    as quantity_last_year,
+        c.tickets                               as tickets,
+        c.tickets_last_year                     as tickets_last_year,
+        c.quantity                              as quantity,
+        c.quantity_last_year                    as quantity_last_year,
         t.traffic                               as traffic,
         t.traffic_last_year                     as traffic_last_year,
         p.period_start                          as period_start
@@ -458,6 +479,8 @@ joined as (
         on w.iso2 = m.iso2 and m.channel = 'E-COMMERCE'
     left join budget b
         on b.iso2 = m.iso2 and b.channel = m.channel
+    left join checkouts c
+        on c.iso2 = m.iso2 and c.channel = m.channel
     left join footfall t
         on t.iso2 = m.iso2
     left join web_orders o
@@ -1810,21 +1833,23 @@ group by 1, 2
 #: Le vrac de l'entrepôt ligne à ligne : ce que `KPI_READINGS` retire du sell-out pour lire
 #: les ventes hors vrac, rendu ici avec ce qui le porte — le mois, le pays, la valeur du
 #: drapeau, le sous-canal et le code du point de vente, la gamme. `period · market · flag ·
-#: sub_channel · store · range_name · net_eur · lines`. `store` est l'identifiant d'entrepôt
-#: du point de vente, pas son code métier. La définition est celle de la vue,
+#: sub_channel · store · range_name · net_eur · lines`. `store` est le code métier du point
+#: de vente (GSS), l'identifiant d'entrepôt quand il manque. La définition est celle de la vue,
 #: `FLAG_BULK` 2 à 5, et rien d'autre ; les valeurs du drapeau ne sont pas nommées par
 #: l'entrepôt, le cockpit les rend telles quelles. Même fenêtre que les lectures supply :
-#: d'avril de l'exercice précédent au dernier mois clos. Le point de vente est un
-#: identifiant : son nom vit dans le référentiel, pas dans le dépôt.
+#: d'avril de l'exercice précédent au dernier mois clos. Le point de vente est un code :
+#: son nom vit dans le référentiel, pas dans le dépôt.
 BULK_DETAIL = """
 select
     to_char(date_trunc('month', f.transaction_date), 'YYYY-MM')       as period,
     coalesce(nullif(trim(s.store_country), ''), '(sans pays)')         as market,
     f.flag_bulk                                                        as flag,
     coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
-    -- L'identifiant d'entrepôt du point de vente : la seule clé sûre de la dimension
-    -- (le code métier n'est pas exposé sous un nom vérifié ; `store_code` n'existe pas).
-    cast(s.store_skey as varchar)                                      as store,
+    -- Le code métier du point de vente (le code GSS, celui que la consolidation appelle
+    -- ENTITY_ID), vérifié par l'agent entrepôt le 10 septembre 2026 : renseigné partout,
+    -- à la sentinelle 'N/A' sur une part des lignes — l'identifiant d'entrepôt alors.
+    coalesce(nullif(nullif(trim(s.store_group_store_code), ''), 'N/A'),
+             cast(s.store_skey as varchar))                            as store,
     coalesce(nullif(trim(p.product_line), ''), '(sans gamme)')         as range_name,
     round(sum(f.net_sales_eur), 2)                                     as net_eur,
     count(*)                                                           as lines

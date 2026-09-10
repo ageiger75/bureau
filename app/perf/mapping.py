@@ -287,17 +287,30 @@ def _drivers_for(
         # telescope exactly: traffic × (tickets / traffic) × (units / tickets) ×
         # (sales / units). Tickets against counted traffic is a decomposition driver,
         # not the governed conversion rate — that one lives in the KPI section.
-        if traffic and tickets and quantity and sales > 0:
+        if funnel_is_coherent(traffic, tickets, quantity) and sales > 0:
             return retail_drivers(market, sales, conversion=tickets / traffic,
                                   upt=quantity / tickets, asp=sales / quantity)
         return retail_drivers(market, sales)
     return Drivers.sales_only(sales)
 
 
+def funnel_is_coherent(traffic, tickets, quantity) -> bool:
+    """More tickets than visitors is not a conversion, it is a wrong count. The afternoon
+    the screen showed 91 % on a market whose counters say 29 %, the column summed lines
+    and not tickets; a number like that is acted upon, so it is never built."""
+    return bool(traffic and tickets and quantity) and tickets < traffic
+
+
 #: Shown on a retail unit of a counted market whose traffic did not come through.
 NO_TRAFFIC_ROW_REASON = (
     "Le trafic en boutique n'est pas remonté pour ce marché sur la période : la conversion "
     "ne se lit pas ce mois-ci."
+)
+
+#: Shown when the funnel arrived and cannot be true.
+INCOHERENT_FUNNEL_REASON = (
+    "Plus de tickets que de visites comptées : la mesure est incohérente, et la conversion "
+    "ne se lit pas tant que la lecture n'est pas corrigée."
 )
 
 
@@ -587,6 +600,8 @@ def units_from_rows(
             reason = NO_COUNTER_REASON
         elif channel == RETAIL and not (traffic and tickets and quantity):
             reason = NO_TRAFFIC_ROW_REASON
+        elif channel == RETAIL and not funnel_is_coherent(traffic, tickets, quantity):
+            reason = INCOHERENT_FUNNEL_REASON
         elif channel == RETAIL and not (traffic_ly and tickets_ly and quantity_ly):
             reason = (
                 "Le trafic, les tickets et les unités de l'an dernier ne sont pas "

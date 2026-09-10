@@ -468,6 +468,18 @@ def test_the_same_funnel_is_refused_where_the_counters_are_not_trusted():
     assert "compté de façon fiable" in unit.no_breakdown_reason
 
 
+def test_more_tickets_than_visitors_is_refused_as_a_wrong_count_not_a_conversion():
+    """The afternoon of 10 September 2026: a column that counted lines read as tickets
+    gave 91 % on a market whose counters say 29 %, and the screen showed it."""
+    mapped = mapping.units_from_rows(
+        [funnel_row(tickets=1_400_000.0)],
+        budget=budget_of(line(market="United States", channel=RETAIL)))
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is False
+    assert unit.no_breakdown_reason == mapping.INCOHERENT_FUNNEL_REASON
+
+
 def test_last_years_funnel_missing_leaves_the_gap_unattributed():
     mapped = mapping.units_from_rows(
         [funnel_row(traffic_last_year=None, tickets_last_year=None, quantity_last_year=None)],

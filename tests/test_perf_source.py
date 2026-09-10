@@ -289,3 +289,65 @@ def test_a_product_cache_written_by_another_query_is_not_this_reading(tmp_path, 
     monkeypatch.setitem(queries.ALL, "PRODUCT_SALES", "select 2")
     assert source_module._read_product_cache() is None
     assert source_module._read_product_cache(any_age=True) is None
+
+
+def test_an_expired_main_reading_is_re_read_behind_the_screen_once(monkeypatch):
+    """Sans relance, une lecture expirée le restait jusqu'au réveil du fil de relecture,
+    des heures ; et deux relances en même temps doublaient le temps de chacune."""
+    import threading
+
+    from app.perf import source as source_module
+
+    started = threading.Event()
+    release = threading.Event()
+    calls = []
+
+    class _Slow:
+        def dataset(self, refresh=False, wait_for_warehouse=True):
+            calls.append((refresh, wait_for_warehouse))
+            started.set()
+            release.wait(5)
+
+    monkeypatch.setattr(source_module, "current_source", lambda: _Slow())
+    monkeypatch.setitem(source_module._dataset_behind, "running", False)
+    monkeypatch.setitem(source_module._dataset_behind, "error", "")
+
+    assert source_module.read_dataset_behind() is True
+    assert started.wait(5)
+    assert source_module.dataset_reading() is True
+    assert source_module.read_dataset_behind() is False
+    release.set()
+    for _ in range(100):
+        if not source_module.dataset_reading():
+            break
+        threading.Event().wait(0.02)
+    assert calls == [(True, True)]
+    assert source_module.dataset_reading() is False
+
+
+def test_the_reread_thread_does_not_start_a_second_main_reading(monkeypatch):
+    from app.perf import reread, source as source_module
+
+    monkeypatch.setattr(source_module, "dataset_reading", lambda: True)
+    monkeypatch.setattr(source_module, "current_source",
+                        lambda: (_ for _ in ()).throw(AssertionError("should not read")))
+
+    reread.reread_all()
+
+
+def test_a_main_cache_written_by_another_query_is_expired_and_not_fresh(monkeypatch):
+    """Une colonne de plus dans la requête principale : la lecture d'hier se sert à qui
+    attend, et se relit — elle ne passe pas pour la lecture du jour."""
+    import time as _time
+
+    from app.perf import source as source_module
+
+    source_module._write_disk_cache([{"market": "Northland"}], _time.time(), "hier",
+                                    fingerprint="ancienne")
+    try:
+        assert source_module._read_disk_cache(fingerprint="nouvelle") is None
+        served = source_module._read_disk_cache(max_age=float("inf"))
+        assert served is not None and served[0] == [{"market": "Northland"}]
+        assert source_module._read_disk_cache(fingerprint="ancienne") is not None
+    finally:
+        source_module.cache_forget()

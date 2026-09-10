@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 import logging
+import threading
 import time
 
 from ..config import settings
@@ -474,6 +475,55 @@ def behind_note(name: str) -> str:
 #: pas celui de la commande, et « manage.py bulk » n'existe pas.
 REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
                    "osa": "supply", "forecast": "supply", "orders": "supply", "bulk": "gris"}
+
+
+#: Une lecture principale à la fois. Trois portes y mènent — la page qui sert une lecture
+#: expirée et la relance derrière l'écran, le fil de relecture à l'âge, `?refresh=1` sous
+#: le lecteur — et un soir de septembre deux d'entre elles se sont ouvertes ensemble :
+#: la même requête a tourné deux fois en même temps (167 s et 276 s), chacune ralentie
+#: par l'autre, pour un résultat identique. Le verrou serialise ; le rejet d'une lecture
+#: fraîche écrite entre-temps évite la seconde.
+_DATASET_LOCK = threading.Lock()
+_dataset_behind = {"started": 0.0, "error": "", "running": False}
+
+#: Une lecture écrite il y a moins de ce temps par un autre lecteur vaut la sienne.
+JUST_READ_SECONDS = 5 * 60
+
+
+def dataset_reading() -> bool:
+    """Vrai pendant qu'une lecture principale court, dans ce processus."""
+    return _dataset_behind["running"] or _DATASET_LOCK.locked()
+
+
+def dataset_behind_note() -> str:
+    if _dataset_behind["error"]:
+        return ("la relecture en arrière-plan a échoué (%s) ; nouvel essai dans dix minutes, "
+                "ou tout de suite par ?refresh=1" % _dataset_behind["error"])
+    return ""
+
+
+def read_dataset_behind() -> bool:
+    """Relire le jeu de données principal dans un fil, une fois, et rendre vrai si le fil
+    est parti. La page qui a servi une lecture expirée l'appelle : le lecteur a sa page,
+    le fil écrit le cache, la page se recharge quand l'horodatage bouge."""
+    state = _dataset_behind
+    if state["running"] or _DATASET_LOCK.locked():
+        return False
+    if state["error"] and time.time() - state["started"] < RETRY_BEHIND_SECONDS:
+        return False
+    state.update(started=time.time(), error="", running=True)
+
+    def work() -> None:
+        try:
+            current_source().dataset(refresh=True, wait_for_warehouse=True)
+        except Exception as exc:  # pragma: no cover — depends on the warehouse
+            state["error"] = str(exc).strip().splitlines()[0][:160] if str(exc).strip() else type(exc).__name__
+            LOG.warning("warehouse: main reading behind the screen failed (%s)", exc)
+        finally:
+            state["running"] = False
+
+    threading.Thread(target=work, name="dataset-behind", daemon=True).start()
+    return True
 
 
 def read_behind(name: str) -> bool:
@@ -1128,7 +1178,11 @@ class SnowflakeSource:
         # the warehouse, and the refusal is clearer when nothing has been read yet.
         budget = self._budget()
 
-        stored = None if refresh else _read_disk_cache()
+        # Une lecture faite par une autre requête n'est pas cette lecture : une colonne
+        # de plus dans SALES_AND_DRIVERS, et la lecture d'hier est expirée quel que soit
+        # son âge — servie si quelqu'un attend, relue derrière l'écran.
+        fingerprint = _query_fingerprint(queries.SALES_AND_DRIVERS + queries.SELL_IN)
+        stored = None if refresh else _read_disk_cache(fingerprint=fingerprint)
         if stored is None and not refresh and not wait_for_warehouse:
             # Expired is not absent. An hour-old reading answers the same questions as a
             # fresh one; a page that hangs for minutes answers none.
@@ -1136,20 +1190,43 @@ class SnowflakeSource:
             if stored is not None:
                 LOG.info("warehouse: serving an expired cache rather than making the "
                          "reader wait")
+                # Et la relance, une fois, derrière l'écran : sans elle, une lecture
+                # expirée le restait jusqu'au réveil du fil de relecture, des heures.
+                read_dataset_behind()
         if stored is not None:
             rows, stamp, read_at_text = stored
             LOG.info("warehouse: %d rows from cache, read %s", len(rows), read_at_text)
         else:
-            rows = warehouse.rows(queries.SALES_AND_DRIVERS, label="SALES_AND_DRIVERS")
-            sold_in = self._sell_in_rows(mapping, queries, warehouse)
-            # Sell-in comes from a different source with a different cadence, so it is
-            # read separately and its absence costs its own lines rather than the whole
-            # screen. Read here and not after the cache branch: what gets written to
-            # disk below is this concatenation, so appending again on a cache hit would
-            # count every invoiced euro twice.
-            rows = rows + sold_in
-            stamp = time.time()
-            read_at_text = read_at()
+            # Le verrou d'abord sans attendre : s'il est pris, c'est qu'un autre lecteur
+            # est dans l'entrepôt, et ce qu'il écrit vaudra notre lecture. Pris tout de
+            # suite, la lecture demandée se fait — un `refresh` explicite relit.
+            waited = not _DATASET_LOCK.acquire(blocking=False)
+            if waited:
+                _DATASET_LOCK.acquire()
+            try:
+                just_read = (_read_disk_cache(max_age=JUST_READ_SECONDS, fingerprint=fingerprint)
+                             if waited else None)
+                if just_read is not None:
+                    rows, stamp, read_at_text = just_read
+                    stored = just_read
+                    LOG.info("warehouse: %d rows just read by another reader, read %s",
+                             len(rows), read_at_text)
+                else:
+                    rows = warehouse.rows(queries.SALES_AND_DRIVERS, label="SALES_AND_DRIVERS")
+                    sold_in = self._sell_in_rows(mapping, queries, warehouse)
+                    # Sell-in comes from a different source with a different cadence, so
+                    # it is read separately and its absence costs its own lines rather
+                    # than the whole screen. Read here and not after the cache branch:
+                    # what gets written to disk below is this concatenation, so appending
+                    # again on a cache hit would count every invoiced euro twice.
+                    rows = rows + sold_in
+                    stamp = time.time()
+                    read_at_text = read_at()
+                    # Écrit sous le verrou, avant l'historique : c'est ce que les autres
+                    # lecteurs guettent.
+                    _write_disk_cache(rows, stamp, read_at_text, fingerprint=fingerprint)
+            finally:
+                _DATASET_LOCK.release()
 
         if not rows:
             raise NotImplementedError(
@@ -1214,8 +1291,6 @@ class SnowflakeSource:
             period=period,
             published_note=published_note,
         )
-        if stored is None:
-            _write_disk_cache(rows, stamp, read_at_text)
         _cached = (
             built,
             stamp,

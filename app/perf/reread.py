@@ -42,6 +42,9 @@ def due(max_age_seconds: float, age: Optional[float] = None) -> bool:
 def reread_all() -> None:
     """Tout relire, dans l'ordre de `?refresh=1`, en attendant l'entrepôt : personne
     n'est devant."""
+    if source.dataset_reading():
+        LOG.info("reread: a main reading is already running, not starting another")
+        return
     current = source.current_source()
     current.dataset(refresh=True, wait_for_warehouse=True)
     for name in ("client_kpis", "product_rows", "client_rows", "partner_rows",
