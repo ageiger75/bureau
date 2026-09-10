@@ -271,6 +271,9 @@ def _drivers_for(
     sales: Optional[float],
     sessions: Optional[float],
     orders: Optional[float],
+    traffic: Optional[float] = None,
+    tickets: Optional[float] = None,
+    quantity: Optional[float] = None,
 ) -> Drivers:
     if sales is None:
         return Drivers.sales_only(0.0)
@@ -280,8 +283,22 @@ def _drivers_for(
         return Drivers.sales_only(sales)
     if channel == RETAIL:
         # The factory decides; a conversion rate from an uncounted market never gets built.
+        # Where the counters are trusted, the four drivers come from the same facts and
+        # telescope exactly: traffic × (tickets / traffic) × (units / tickets) ×
+        # (sales / units). Tickets against counted traffic is a decomposition driver,
+        # not the governed conversion rate — that one lives in the KPI section.
+        if traffic and tickets and quantity and sales > 0:
+            return retail_drivers(market, sales, conversion=tickets / traffic,
+                                  upt=quantity / tickets, asp=sales / quantity)
         return retail_drivers(market, sales)
     return Drivers.sales_only(sales)
+
+
+#: Shown on a retail unit of a counted market whose traffic did not come through.
+NO_TRAFFIC_ROW_REASON = (
+    "Le trafic en boutique n'est pas remonté pour ce marché sur la période : la conversion "
+    "ne se lit pas ce mois-ci."
+)
 
 
 #: Warehouse figures that add up when rows fold together. Everything else — market names,
@@ -295,7 +312,16 @@ SUMMED_FIELDS = (
     "orders",
     "sessions_last_year",
     "orders_last_year",
+    "tickets",
+    "quantity",
+    "tickets_last_year",
+    "quantity_last_year",
 )
+
+#: Warehouse figures that describe the whole country and ride on every row of it: taken
+#: once when rows fold together, never added. Summed, a market with four store shapes
+#: would count its footfall four times and its conversion would read at a quarter.
+ONCE_FIELDS = ("traffic", "traffic_last_year")
 
 
 def fold_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
@@ -333,11 +359,21 @@ def fold_rows(rows: Sequence[Dict[str, object]]) -> List[Dict[str, object]]:
         merged = folded[key]
         for field in SUMMED_FIELDS:
             merged[field] = _add(_number(merged.get(field)), _number(row.get(field)))
+        for field in ONCE_FIELDS:
+            merged[field] = _once(_number(merged.get(field)), _number(row.get(field)))
         merged["funnel_status"] = _better_status(
             str(merged.get("funnel_status") or ""), str(row.get("funnel_status") or "")
         )
 
     return [folded[key] for key in order]
+
+
+def _once(first: Optional[float], second: Optional[float]) -> Optional[float]:
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return max(first, second)
 
 
 def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
@@ -502,6 +538,14 @@ def units_from_rows(
         # behind it, so nothing can be attributed to a driver against a plan.
         sessions_ly = _number(row.get("sessions_last_year"))
         orders_ly = _number(row.get("orders_last_year"))
+        # The physical funnel: counted traffic for the country, tickets and units for
+        # the channel. Read here for every row and used by the factory on retail only.
+        traffic = _number(row.get("traffic"))
+        tickets = _number(row.get("tickets"))
+        quantity = _number(row.get("quantity"))
+        traffic_ly = _number(row.get("traffic_last_year"))
+        tickets_ly = _number(row.get("tickets_last_year"))
+        quantity_ly = _number(row.get("quantity_last_year"))
 
         from_warehouse_budget = _number(row.get("sales_budget"))
         from_warehouse_ly = _number(row.get("sales_last_year"))
@@ -541,6 +585,13 @@ def units_from_rows(
             reason = "Pas d'entonnoir derrière ce chiffre, et aucun ne manque."
         elif channel == RETAIL and not retail_conversion_is_reliable(market):
             reason = NO_COUNTER_REASON
+        elif channel == RETAIL and not (traffic and tickets and quantity):
+            reason = NO_TRAFFIC_ROW_REASON
+        elif channel == RETAIL and not (traffic_ly and tickets_ly and quantity_ly):
+            reason = (
+                "Le trafic, les tickets et les unités de l'an dernier ne sont pas "
+                "disponibles : l'évolution ne s'attribue à aucun levier."
+            )
         elif funnel_status in FUNNEL_REASONS:
             reason = FUNNEL_REASONS[funnel_status]
         elif channel == ECOMMERCE and not (sessions and orders):
@@ -578,7 +629,8 @@ def units_from_rows(
                 # Region matters: it is what lets an unlisted market fall to its BU head
                 # instead of going unowned.
                 owner=owners_module.owner_for(market, str(row.get("region") or "")),
-                actual=_drivers_for(channel, market, actual, sessions, orders),
+                actual=_drivers_for(channel, market, actual, sessions, orders,
+                                    traffic, tickets, quantity),
                 # Budget and last year carry no drivers: they are commitments and history,
                 # not measured funnels. A gap against them is still exact.
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
@@ -591,7 +643,8 @@ def units_from_rows(
                 reads_actual=not_read_reason(market, channel) == "",
                 not_read_reason=not_read_reason(market, channel),
                 last_year=_drivers_for(
-                    channel, market, last_year_value, sessions_ly, orders_ly
+                    channel, market, last_year_value, sessions_ly, orders_ly,
+                    traffic_ly, tickets_ly, quantity_ly
                 )
                 if last_year_value is not None
                 else Drivers.sales_only(0.0),

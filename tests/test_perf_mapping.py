@@ -410,14 +410,98 @@ def test_a_channel_the_plan_does_not_cover_is_unbudgeted_rather_than_zeroed():
 
 
 def test_a_retail_unit_carries_no_invented_funnel():
-    """Sessions and orders belong to the web. Until footfall arrives, a store unit has a
-    real gap and no measured cause — which the screen already knows how to say."""
+    """Sessions and orders belong to the web. Without footfall, a store unit has a real
+    gap and no measured cause — and the reason says the traffic did not come through
+    this month, not that the market has no counters."""
     mapped = mapping.units_from_rows(
         [row(market="France", channel="RETAIL")],
         budget=budget_of(line(market="France", channel=RETAIL)),
     )
 
     assert mapped.units[0].actual.has_breakdown is False
+    assert mapped.units[0].no_breakdown_reason == mapping.NO_TRAFFIC_ROW_REASON
+
+
+# ----------------------------------------------------------- the physical funnel
+#
+# Described in the query contract from the first day, delivered on 10 September 2026: the
+# counters had been running for years on a market shown as "cause not measured".
+
+
+def funnel_row(market="United States", channel="MALL STORE", **overrides):
+    base = dict(
+        market=market, channel=channel, sales_actual=5_000_000.0, sessions=None, orders=None,
+        sessions_last_year=None, orders_last_year=None, sales_last_year=4_600_000.0,
+        traffic=1_000_000.0, tickets=140_000.0, quantity=340_000.0,
+        traffic_last_year=980_000.0, tickets_last_year=135_000.0, quantity_last_year=320_000.0,
+    )
+    base.update(overrides)
+    return row(**base)
+
+
+def test_the_physical_funnel_telescopes_to_sales_in_a_counted_market():
+    mapped = mapping.units_from_rows(
+        [funnel_row()], budget=budget_of(line(market="United States", channel=RETAIL)))
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is True
+    assert unit.actual.labels == ("Traffic", "Conversion", "UPT", "ASP")
+    traffic, conversion, upt, asp = unit.actual.values
+    assert traffic == pytest.approx(1_000_000.0)
+    assert conversion == pytest.approx(0.14)
+    assert upt == pytest.approx(340_000.0 / 140_000.0)
+    assert asp == pytest.approx(5_000_000.0 / 340_000.0)
+    assert traffic * conversion * upt * asp == pytest.approx(5_000_000.0)
+    assert unit.last_year.has_breakdown is True
+    assert unit.last_year.values[0] == pytest.approx(980_000.0)
+    assert unit.no_breakdown_reason == ""
+
+
+def test_the_same_funnel_is_refused_where_the_counters_are_not_trusted():
+    """The business fact wins over the data: a Japanese row with every column filled still
+    reads as sales alone, and says why."""
+    mapped = mapping.units_from_rows(
+        [funnel_row(market="Japan")], budget=budget_of(line(market="Japan", channel=RETAIL)))
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is False
+    assert "compté de façon fiable" in unit.no_breakdown_reason
+
+
+def test_last_years_funnel_missing_leaves_the_gap_unattributed():
+    mapped = mapping.units_from_rows(
+        [funnel_row(traffic_last_year=None, tickets_last_year=None, quantity_last_year=None)],
+        budget=budget_of(line(market="United States", channel=RETAIL)))
+    unit = mapped.units[0]
+
+    assert unit.actual.has_breakdown is True
+    assert unit.last_year.has_breakdown is False
+    assert "l'an dernier" in unit.no_breakdown_reason
+
+
+def test_folding_store_shapes_adds_the_tickets_and_takes_the_traffic_once():
+    """Traffic is counted per country and rides on every shape of the country. Summed, a
+    market with three shapes would count its footfall three times and read a conversion
+    at a third of the truth."""
+    mapped = mapping.units_from_rows(
+        [
+            funnel_row(channel="MALL STORE", sales_actual=3_000_000.0, tickets=90_000.0,
+                       quantity=210_000.0),
+            funnel_row(channel="STREET STORE", sales_actual=1_500_000.0, tickets=40_000.0,
+                       quantity=100_000.0),
+            funnel_row(channel="OUTLET", sales_actual=500_000.0, tickets=10_000.0,
+                       quantity=30_000.0),
+        ],
+        budget=budget_of(line(market="United States", channel=RETAIL, budget=4_500_000.0)),
+    )
+    unit = mapped.units[0]
+
+    assert len(mapped.units) == 1
+    traffic, conversion, upt, asp = unit.actual.values
+    assert traffic == pytest.approx(1_000_000.0)
+    assert conversion == pytest.approx(0.14)
+    assert upt == pytest.approx(340_000.0 / 140_000.0)
+    assert traffic * conversion * upt * asp == pytest.approx(5_000_000.0)
 
 
 def test_the_channel_reaches_the_label():

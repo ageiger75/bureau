@@ -465,8 +465,15 @@ def behind_note(name: str) -> str:
     l'erreur si elle a échoué."""
     if _behind[name]["error"]:
         return ("la lecture en arrière-plan a échoué (%s) ; nouvel essai dans dix minutes, "
-                "ou tout de suite par « manage.py %s --refresh »" % (_behind[name]["error"], name))
+                "ou tout de suite par « manage.py %s --refresh »"
+                % (_behind[name]["error"], REFRESH_COMMAND.get(name, name)))
     return ""
+
+
+#: La commande qui relit chaque cache en attendant l'entrepôt — le nom de la lecture n'est
+#: pas celui de la commande, et « manage.py bulk » n'existe pas.
+REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
+                   "osa": "supply", "forecast": "supply", "orders": "supply", "bulk": "gris"}
 
 
 def read_behind(name: str) -> bool:

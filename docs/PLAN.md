@@ -463,6 +463,22 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
+**Le retail physique qui lisait « cause non mesurée », le 10 septembre 2026.** Sur les
+États-Unis, l'agent entrepôt a trouvé le trafic (609 jours continus), les tickets et les
+unités — et décomposé l'écart : le trafic tient, l'avance de conversion s'évapore en juin,
+les unités par ticket tombent de 3 à 5 % et le prix monte de 5 à 8 %. Le cockpit savait
+le faire depuis le premier jour (`model.retail_drivers`, quatre leviers qui se
+télescopent, `TRAFFIC_COUNTER_MARKETS` pour dire où les compteurs sont fiables) ; mais
+`SALES_AND_DRIVERS` ne rendait que les sessions et les commandes du web, jamais le trafic,
+les tickets et les unités des boutiques. Le contrat le promettait, la requête ne le
+livrait pas. Livré : `footfall` par pays sur les deux fenêtres, tickets et unités par forme
+de point de vente dans `money`, six colonnes de plus ; `mapping` les plie (tickets et
+unités s'additionnent entre formes, le trafic se prend une fois — `ONCE_FIELDS`) et le
+`retail_drivers` reçoit conversion, UPT et prix ; un marché à compteurs sans trafic sur
+la période le dit ainsi, et non « pas de compteur ». La requête est à valider par l'agent
+entrepôt avant la première relecture. Le niveau de remise (`V_SL_F_SALES_DETAILS`, onze
+postes) est la lecture suivante — la cause derrière les unités par ticket.
+
 **Le registre qui doublait, le 9 septembre 2026.** Le journal disait `DELETE statement on
 table 'issue_evidence' expected to delete 128640 row(s); 0 were matched` et « ce qui a
 changé » citait vingt fois la même lecture. La cause : `memory.save` réécrivait les preuves

@@ -28,7 +28,12 @@ refuse a row where they disagree:
     retail:      traffic, tickets, quantity
 
 **And the same drivers for the same period one year earlier**, as
-`sessions_last_year` and `orders_last_year`. They are not optional: a budget is a
+`sessions_last_year` and `orders_last_year`, `traffic_last_year`, `tickets_last_year` and
+`quantity_last_year`. Traffic is counted per country and returned on every row of the
+country; the cockpit uses it on retail rows only, once per channel, in the markets whose
+counters it trusts — the retail funnel was described here from the first day and only
+delivered on 10 September 2026; until then every physical store read as "cause not
+measured" even where the counters had been running for years. They are not optional: a budget is a
 committed number with no funnel behind it, so a movement can only be attributed to a
 driver by comparing measured periods. Without last year's drivers the cockpit shows the
 gap and refuses to explain it.
@@ -287,7 +292,9 @@ sellout_day as (
         store_business_area,
         store_sub_channel,
         transaction_date,
-        net_sales_eur
+        net_sales_eur,
+        nb_tickets,
+        quantity
     from semantic_view(
         dwh.semantic_layer.v_sl_ai_sellout_analysis
         dimensions
@@ -296,7 +303,9 @@ sellout_day as (
             d_stores.store_business_area,
             d_stores.store_sub_channel,
             f_sellout_sales_details.transaction_date
-        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur
+        metrics sum(f_sellout_sales_details.net_sales_eur) as net_sales_eur,
+                sum(f_sellout_sales_details.nb_tickets)    as nb_tickets,
+                sum(f_sellout_sales_details.quantity)      as quantity
         -- A bound the view can read on its own. The window below is expressed
         -- against the `period` CTE, which the view cannot see, so that predicate
         -- does not push down and the whole history gets aggregated at day grain
@@ -336,10 +345,49 @@ money as (
                 s.net_sales_eur, 0))     as sales_actual,
         sum(iff(s.transaction_date between add_months(p.period_start, -12)
                                        and add_months(p.period_end, -12),
-                s.net_sales_eur, 0))     as sales_last_year
+                s.net_sales_eur, 0))     as sales_last_year,
+        -- The physical funnel, per point-of-sale shape: tickets and units this month
+        -- and the same month a year earlier. Traffic is counted per country, not per
+        -- shape, and comes from `footfall` below.
+        sum(iff(s.transaction_date between p.period_start and p.period_end,
+                s.nb_tickets, 0))        as tickets,
+        sum(iff(s.transaction_date between add_months(p.period_start, -12)
+                                       and add_months(p.period_end, -12),
+                s.nb_tickets, 0))        as tickets_last_year,
+        sum(iff(s.transaction_date between p.period_start and p.period_end,
+                s.quantity, 0))          as quantity,
+        sum(iff(s.transaction_date between add_months(p.period_start, -12)
+                                       and add_months(p.period_end, -12),
+                s.quantity, 0))          as quantity_last_year
     from sellout_day s cross join period p
     where s.transaction_date between add_months(p.period_start, -12) and p.period_end
     group by s.iso2, s.store_sub_channel
+),
+footfall as (
+    -- Store traffic, per country: the counted estate, whatever the shape of the point
+    -- of sale. The same fact `KPI_READINGS` reads as `retail_traffic`, on the two
+    -- windows this query compares. Handed to every row of the country and used by the
+    -- cockpit on retail rows only, once per channel (see `mapping.ONCE_FIELDS`) — and
+    -- only in the markets whose counters are trusted (`model.TRAFFIC_COUNTER_MARKETS`).
+    select
+        t.iso2,
+        sum(iff(t.transaction_date between p.period_start and p.period_end,
+                t.retail_traffic, 0))    as traffic,
+        sum(iff(t.transaction_date between add_months(p.period_start, -12)
+                                       and add_months(p.period_end, -12),
+                t.retail_traffic, 0))    as traffic_last_year
+    from (
+        select store_country_iso2 as iso2, transaction_date, retail_traffic
+        from semantic_view(
+            dwh.semantic_layer.v_sl_ai_sellout_analysis
+            dimensions d_stores.store_country_iso2, f_store_traffic.transaction_date
+            metrics sum(f_store_traffic.retail_traffic_adjusted) as retail_traffic
+            where d_stores.store_brand = 'L''OCCITANE'
+              and f_store_traffic.transaction_date >= dateadd(month, -26, current_date)
+        )
+    ) t cross join period p
+    where t.transaction_date between add_months(p.period_start, -12) and p.period_end
+    group by t.iso2
 ),
 budget as (
     select g.iso2, g.store_sub_channel as channel, sum(g.goals_eur) as sales_budget
@@ -398,12 +446,20 @@ joined as (
         iff(m.channel is null or m.channel = 'E-COMMERCE', o.orders_last_year, null)
                                                 as orders_last_year,
         m.channel is null or m.channel = 'E-COMMERCE' as is_web_channel,
+        m.tickets                               as tickets,
+        m.tickets_last_year                     as tickets_last_year,
+        m.quantity                              as quantity,
+        m.quantity_last_year                    as quantity_last_year,
+        t.traffic                               as traffic,
+        t.traffic_last_year                     as traffic_last_year,
         p.period_start                          as period_start
     from money m
     full outer join web w
         on w.iso2 = m.iso2 and m.channel = 'E-COMMERCE'
     left join budget b
         on b.iso2 = m.iso2 and b.channel = m.channel
+    left join footfall t
+        on t.iso2 = m.iso2
     left join web_orders o
         on o.iso2 = coalesce(m.iso2, w.iso2) and (m.channel is null or m.channel = 'E-COMMERCE')
     cross join period p
@@ -424,6 +480,13 @@ select
     -- is what it is, and `funnel_status` says why.
     iff(coalesce(orders, 0) = 0, null, orders)                       as orders,
     iff(coalesce(orders, 0) = 0, null, orders_last_year)             as orders_last_year,
+    -- The physical funnel, nulled where nothing was counted for the same reason.
+    iff(coalesce(traffic, 0) = 0, null, traffic)                     as traffic,
+    iff(coalesce(traffic_last_year, 0) = 0, null, traffic_last_year) as traffic_last_year,
+    iff(coalesce(tickets, 0) = 0, null, tickets)                     as tickets,
+    iff(coalesce(tickets_last_year, 0) = 0, null, tickets_last_year) as tickets_last_year,
+    iff(coalesce(quantity, 0) = 0, null, quantity)                   as quantity,
+    iff(coalesce(quantity_last_year, 0) = 0, null, quantity_last_year) as quantity_last_year,
     case
         when not is_web_channel                   then 'not_a_web_channel'
         when web_iso2 is null                     then 'no_analytics_site'
@@ -1747,18 +1810,21 @@ group by 1, 2
 #: Le vrac de l'entrepôt ligne à ligne : ce que `KPI_READINGS` retire du sell-out pour lire
 #: les ventes hors vrac, rendu ici avec ce qui le porte — le mois, le pays, la valeur du
 #: drapeau, le sous-canal et le code du point de vente, la gamme. `period · market · flag ·
-#: sub_channel · store · range_name · net_eur · lines`. La définition est celle de la vue,
+#: sub_channel · store · range_name · net_eur · lines`. `store` est l'identifiant d'entrepôt
+#: du point de vente, pas son code métier. La définition est celle de la vue,
 #: `FLAG_BULK` 2 à 5, et rien d'autre ; les valeurs du drapeau ne sont pas nommées par
 #: l'entrepôt, le cockpit les rend telles quelles. Même fenêtre que les lectures supply :
-#: d'avril de l'exercice précédent au dernier mois clos. Le code du point de vente est un
-#: code : son nom vit dans le référentiel, pas dans le dépôt.
+#: d'avril de l'exercice précédent au dernier mois clos. Le point de vente est un
+#: identifiant : son nom vit dans le référentiel, pas dans le dépôt.
 BULK_DETAIL = """
 select
     to_char(date_trunc('month', f.transaction_date), 'YYYY-MM')       as period,
     coalesce(nullif(trim(s.store_country), ''), '(sans pays)')         as market,
     f.flag_bulk                                                        as flag,
     coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
-    coalesce(nullif(trim(s.store_code), ''), '(sans code)')            as store,
+    -- L'identifiant d'entrepôt du point de vente : la seule clé sûre de la dimension
+    -- (le code métier n'est pas exposé sous un nom vérifié ; `store_code` n'existe pas).
+    cast(s.store_skey as varchar)                                      as store,
     coalesce(nullif(trim(p.product_line), ''), '(sans gamme)')         as range_name,
     round(sum(f.net_sales_eur), 2)                                     as net_eur,
     count(*)                                                           as lines
