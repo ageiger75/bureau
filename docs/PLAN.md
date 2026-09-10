@@ -463,11 +463,11 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
-**L'après-midi où l'écran a montré une conversion de 91 %, le 10 septembre 2026.** La
+**L'après-midi où l'écran a montré une conversion au-dessus de un, le 10 septembre 2026.** La
 première livraison de l'entonnoir physique sommait `NB_TICKETS` par le chemin sémantique :
 une colonne qui compte des lignes, pas des tickets — la docstring de `KPI_READINGS` le
-disait déjà pour ATV et UPT. Résultat : 91 % de conversion aux États-Unis (29 % comptés),
-115 % en France, et une « opportunité » de 1,3 M€ construite dessus. L'agent entrepôt l'a
+disait déjà pour ATV et UPT. Résultat : une conversion trois fois trop haute, au-delà de
+cent pour cent sur un marché, et une « opportunité » construite dessus. L'agent entrepôt l'a
 vu à la validation. Trois choses : les tickets se comptent sur le fait, en clés distinctes
 (magasin, jour, caisse, numéro), tickets à zéro exclus, sur les deux fenêtres seulement ;
 le cockpit refuse désormais de construire une conversion quand les tickets dépassent le

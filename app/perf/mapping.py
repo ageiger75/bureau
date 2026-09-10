@@ -296,7 +296,7 @@ def _drivers_for(
 
 def funnel_is_coherent(traffic, tickets, quantity) -> bool:
     """More tickets than visitors is not a conversion, it is a wrong count. The afternoon
-    the screen showed 91 % on a market whose counters say 29 %, the column summed lines
+    the screen showed a conversion three times too high, the column summed lines
     and not tickets; a number like that is acted upon, so it is never built."""
     return bool(traffic and tickets and quantity) and tickets < traffic
 

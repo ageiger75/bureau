@@ -351,8 +351,8 @@ checkouts as (
     -- the same month a year earlier. Read on the fact itself and not through the
     -- semantic function, for the reason `KPI_READINGS` gives for ATV and UPT: a ticket
     -- is a distinct key (store, day, till, number), and the additive `NB_TICKETS` counts
-    -- lines. Read as tickets, it gave a conversion above one — 91 % on a market whose
-    -- counted conversion is 29 % — and the screen showed it for an afternoon. Zero-sales
+    -- lines. Read as tickets, it gave a conversion three times too high, above one on
+    -- one market, and the screen showed it for an afternoon. Zero-sales
     -- tickets are excluded as the governed definitions exclude them. Two windows only,
     -- never the eleven months between them.
     select

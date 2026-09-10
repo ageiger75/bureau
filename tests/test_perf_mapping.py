@@ -470,7 +470,7 @@ def test_the_same_funnel_is_refused_where_the_counters_are_not_trusted():
 
 def test_more_tickets_than_visitors_is_refused_as_a_wrong_count_not_a_conversion():
     """The afternoon of 10 September 2026: a column that counted lines read as tickets
-    gave 91 % on a market whose counters say 29 %, and the screen showed it."""
+    gave a conversion three times too high, and the screen showed it."""
     mapped = mapping.units_from_rows(
         [funnel_row(tickets=1_400_000.0)],
         budget=budget_of(line(market="United States", channel=RETAIL)))
