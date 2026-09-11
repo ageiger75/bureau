@@ -463,6 +463,18 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
+**L'entonnoir physique validé, le 11 septembre 2026.** Seconde validation de l'agent
+entrepôt : conversion et unités par ticket identiques à ses mesures indépendantes, à la
+décimale, sur les trois formes physiques américaines, cette année et l'an dernier ; la
+correction se paie en octets (un septième de plus), pas en temps. Un défaut latent qu'il a
+vu et que le cockpit a corrigé : la clé de ticket concaténait la caisse sans `coalesce`,
+et une caisse nulle annulait la clé entière — sans effet sur les boutiques, visible sur un
+canal web dont les tickets ne servent pas, mais un marché qui cesserait de renseigner la
+caisse aurait sous-compté sans signal. Corrigé dans `checkouts` et dans la clé de
+`CLIENT_FLOW`, qui avait la même écriture. Et une réserve à connaître : `checkouts` exclut
+les tickets à zéro, `money` non ; l'écart est de l'ordre du millième d'unité, à savoir
+seulement si quelqu'un dérive un prix unitaire des deux colonnes.
+
 **L'après-midi où l'écran a montré une conversion au-dessus de un, le 10 septembre 2026.** La
 première livraison de l'entonnoir physique sommait `NB_TICKETS` par le chemin sémantique :
 une colonne qui compte des lignes, pas des tickets — la docstring de `KPI_READINGS` le

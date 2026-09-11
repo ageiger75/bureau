@@ -354,18 +354,21 @@ checkouts as (
     -- lines. Read as tickets, it gave a conversion three times too high, above one on
     -- one market, and the screen showed it for an afternoon. Zero-sales
     -- tickets are excluded as the governed definitions exclude them. Two windows only,
-    -- never the eleven months between them.
+    -- never the eleven months between them. The till is coalesced: a null till would
+    -- void the whole concatenated key and `count(distinct)` would drop the ticket in
+    -- silence — seen on one web channel at validation, never on a physical shape, and
+    -- a market that stopped filling the till would under-count without a signal.
     select
         s.store_country_iso2                              as iso2,
         s.store_sub_channel                               as channel,
         count(distinct iff(f.transaction_date between p.period_start and p.period_end,
                            f.store_skey || '|' || f.transaction_date || '|'
-                               || f.transaction_till || '|' || f.transaction_number,
+                               || coalesce(f.transaction_till, '') || '|' || f.transaction_number,
                            null))                         as tickets,
         count(distinct iff(f.transaction_date between add_months(p.period_start, -12)
                                                   and add_months(p.period_end, -12),
                            f.store_skey || '|' || f.transaction_date || '|'
-                               || f.transaction_till || '|' || f.transaction_number,
+                               || coalesce(f.transaction_till, '') || '|' || f.transaction_number,
                            null))                         as tickets_last_year,
         sum(iff(f.transaction_date between p.period_start and p.period_end,
                 f.quantity, 0))                           as quantity,
@@ -1584,7 +1587,7 @@ base as (
             coalesce(nullif(c.client_first_purchase_date_ecom,   '1900-01-01'), '9999-12-31'),
             coalesce(nullif(c.client_first_purchase_date_retail, '1900-01-01'), '9999-12-31')
         ), '9999-12-31')                                             as first_date,
-        f.store_skey || '|' || f.transaction_date || '|' || f.transaction_till
+        f.store_skey || '|' || f.transaction_date || '|' || coalesce(f.transaction_till, '')
             || '|' || f.transaction_number                           as ticket,
         iff(f.transaction_date >= pr.ty_from, 'ty', 'ly')            as "window",
         f.transaction_date,
