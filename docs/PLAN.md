@@ -790,6 +790,36 @@ jamais publiés seuls par la source. Les honoraires imputés au canal distribute
 ne sont pas la fermeture du 86 Champs, qui se lit ailleurs : une charge récurrente à
 expliquer par le contrôle de gestion, exclue nommément du fichier.
 
+### Phase F — Le dossier de visite, et la mesure qui ne dépend pas d'un drapeau
+
+Ce que la semaine du 13 septembre a appris, en préparant un déplacement sur un marché.
+
+**Le cockpit lit des drapeaux ; les drapeaux ne sont pas posés pareil partout.** Le vrac
+« marqué » l'est dans un marché et presque pas dans le voisin, pour le même flux : la
+comparaison entre marchés compare des pratiques de saisie. La mesure qui tient est
+comportementale — un ticket de plus de cinquante unités, un prix unitaire loin sous celui
+de la référence — et elle se lit sur le fait, sans drapeau. Les deux critères ne désignent
+pas la même population (la quantité désigne les comptes de gros, le prix ramasse les
+magasins d'usine) et ne se fondent pas. À écrire comme lecture du cockpit, validée par
+l'agent entrepôt, à côté du vrac marqué, jamais à sa place.
+
+**Un marché se visite avec un dossier, pas avec une page de groupe.** `gris --marche` en est
+la première forme : mesuré, ligne à ligne, sous-marin, registre. La forme complète est une
+page par marché : ses canaux contre le plan et leurs leviers, ses boutiques qui décrochent
+le plus (pas seulement celles sous la médiane), le gris sous ses deux définitions, ce qui
+lui arrive par les périmètres qui l'alimentent sans passer par lui, les partenaires facturés
+depuis le pays, les notes et les sujets du registre, et les trois questions à poser. Sans
+cette page, chaque déplacement redemande à l'agent entrepôt ce que le cockpit tient déjà.
+
+**Les décisions du lecteur doivent être lisibles par l'agent entrepôt.** Il relitige ce qui
+est tranché parce qu'il ne lit pas les notes de contexte. Une sortie en lecture seule des
+notes et des arbitrages — `manage.py decisions`, un fichier dans `var/` — à lui donner en
+tête de chaque brief.
+
+**Ce qui n'a pas de plan doit le dire une fois, pas partout.** Trois cartes sur cinq disent
+« aucun plan n'a jamais été posé sur les sessions ou la conversion » ; une ligne dans les
+notes de lecture suffirait.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,
