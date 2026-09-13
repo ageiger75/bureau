@@ -51,18 +51,38 @@ def codes_in(*texts: str) -> List[str]:
 
 
 class Centre:
-    __slots__ = ("code", "label", "channel", "countries", "months")
+    __slots__ = ("code", "label", "channel", "months", "by_country")
 
     def __init__(self, code: str, label: str, channel: str) -> None:
         self.code = code
         self.label = label
         self.channel = channel
-        self.countries: set = set()
         self.months: Dict[str, float] = {}
+        #: Les mêmes mois, par pays de facturation : un centre facturé de deux pays est
+        #: deux histoires, et une migration se lit sur le pays qui bouge.
+        self.by_country: Dict[str, Dict[str, float]] = {}
+
+    @property
+    def countries(self) -> set:
+        return set(self.by_country)
+
+    def months_in(self, countries) -> Dict[str, float]:
+        """Les mois, restreints à des pays de facturation ; tous sans restriction."""
+        if not countries or not self.by_country:
+            return self.months
+        found: Dict[str, float] = {}
+        for iso2 in countries:
+            for period, value in self.by_country.get(iso2, {}).items():
+                found[period] = found.get(period, 0.0) + value
+        return found
+
+    @staticmethod
+    def _active(months: Dict[str, float]) -> List[str]:
+        return sorted(m for m, v in months.items() if v > 0)
 
     @property
     def active(self) -> List[str]:
-        return sorted(m for m, v in self.months.items() if v > 0)
+        return self._active(self.months)
 
     @property
     def first(self) -> str:
@@ -73,6 +93,10 @@ class Centre:
     def last(self) -> str:
         active = self.active
         return active[-1] if active else ""
+
+    def first_in(self, countries) -> str:
+        active = self._active(self.months_in(countries))
+        return active[0] if active else ""
 
     def identity(self, names: Dict[str, str]) -> str:
         known = names.get(self.code.upper())
@@ -154,7 +178,8 @@ def _centres(rows: Sequence[dict], before: str) -> Dict[str, Centre]:
         centre.months[period] = centre.months.get(period, 0.0) + value
         iso2 = str(row.get("iso2") or "").strip().upper()
         if iso2:
-            centre.countries.add(iso2)
+            country = centre.by_country.setdefault(iso2, {})
+            country[period] = country.get(period, 0.0) + value
     return centres
 
 
@@ -169,30 +194,37 @@ def read(code: str, centres: Dict[str, Centre], names: Dict[str, str], period: s
         return reading
     reading.closed_since = _shift(centre.last, 1)
     identity = centre.identity(names)
-    candidates = [
-        other for other in centres.values()
-        if other.code != centre.code and other.channel != centre.channel
-        and other.identity(names) == identity and other.first
-        and other.first >= _shift(reading.closed_since, -OVERLAP_MONTHS)
-        and other.months.get(period, 0.0) > 0
-    ]
+    # La migration se lit sur les pays de facturation du centre qui s'est tu : le centre
+    # de destination peut facturer un autre pays depuis des années, et ce n'est pas lui
+    # qui a bougé.
+    countries = centre.countries
+    threshold = _shift(reading.closed_since, -OVERLAP_MONTHS)
+    candidates = []
+    for other in centres.values():
+        if other.code == centre.code or other.channel == centre.channel:
+            continue
+        if other.identity(names) != identity:
+            continue
+        first = other.first_in(countries)
+        amount = other.months_in(countries).get(period, 0.0)
+        if first and first >= threshold and amount > 0:
+            candidates.append((amount, first, other))
     if candidates:
-        best = max(candidates, key=lambda other: other.months.get(period, 0.0))
+        amount, first, best = max(candidates, key=lambda item: item[0])
         reading.destination = best.code
         reading.destination_channel = best.channel
-        reading.destination_since = best.first
-        reading.moved = best.months.get(period, 0.0)
+        reading.destination_since = first
+        reading.moved = amount
     start = fiscal_start(period)
     for other in centres.values():
         if other.code == centre.code or other.channel != centre.channel:
             continue
-        if centre.countries and other.countries and not (centre.countries & other.countries):
-            continue
         if other.identity(names) == identity:
             continue
-        if other.first and other.first >= start and other.months.get(period, 0.0) > 0:
-            reading.newcomers.append((other.code, _mended(other.label or "").title(),
-                                      other.months.get(period, 0.0)))
+        first = other.first_in(countries)
+        amount = other.months_in(countries).get(period, 0.0)
+        if first and first >= start and amount > 0:
+            reading.newcomers.append((other.code, _mended(other.label or "").title(), amount))
     reading.newcomers.sort(key=lambda item: -item[2])
     return reading
 

@@ -128,3 +128,20 @@ def test_a_dated_boundary_reaches_the_check_and_its_message(monkeypatch):
         assert "mauvais côté" not in check.message
     finally:
         C.reset()
+
+
+def test_the_migration_is_read_on_the_country_that_moved_not_on_the_whole_centre():
+    """Le centre de destination facturait déjà un autre pays depuis des années ; seul le
+    pays du centre qui s'est tu a bougé, et c'est sur lui que la migration se lit — et
+    que le montant déplacé se compte."""
+    rows = (_rows(OLD, "PARTNER ONE", "WEBP", _months("2025-04", "2026-04", 700.0), iso2="US")
+            + _rows(NEW, "PARTNER ONE", "WHOCH", _months("2025-04", "2026-08", 400.0), iso2="CA")
+            + _rows(NEW, "PARTNER ONE", "WHOCH", _months("2026-05", "2026-08", 900.0), iso2="US")
+            + _rows(FRESH, "NEW WEB SHOP", "WEBP", _months("2025-04", "2026-08", 50.0), iso2="DE"))
+    note = _note()
+    reading, = B.apply([note], rows, {}, "2026-08", today=__import__("datetime").date(2026, 9, 13))
+
+    assert reading.destination == NEW and reading.destination_since == "2026-05"
+    assert reading.moved == 900.0
+    # Le centre allemand facture depuis toujours : ce n'est pas un nouveau venu américain.
+    assert reading.newcomers == []
