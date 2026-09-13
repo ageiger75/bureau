@@ -525,3 +525,150 @@ def build(rows: Sequence, plan=None, note: str = "", bulk_rows: Sequence[dict] =
         sum(float(getattr(line, "sales", 0.0) or 0.0) for line in budget_lines))
     return Review(group, markets, start, through, budget_lines, budget_total,
                   len(ytd_months), note, detail=detail(bulk_rows, through, bulk_note))
+
+
+# ------------------------------------------------------------- un marché, en entier
+#
+# Avant d'aller voir un marché : ce que tout le monde mesure et qui se compare au plan (le
+# vrac marqué, la ligne du budget), ce que le cockpit voit ligne à ligne, et les signaux
+# qui ne passent par aucune mesure officielle — le canal voisin qui se vide quand celui-ci
+# se remplit, le duty free qui absorbe plus que le pays ne consomme, les partenaires
+# facturés depuis le pays, ce que le registre en dit. Des lignes, pour une commande ; rien
+# n'est jugé, tout est posé côte à côte.
+
+#: Les marchés dont le vrac se déplace l'un vers l'autre, à lire ensemble.
+NEIGHBOURS = {"China": ("Hong Kong",), "Hong Kong": ("China",)}
+#: Les périmètres de sell-in qui alimentent un marché sans passer par lui.
+FEEDERS = {"China": ("Travel Retail Asia",), "Hong Kong": ("Travel Retail Asia",)}
+
+
+def _line_for_market(plan, market: str):
+    """La ligne de flux à nettoyer que le budget nomme pour ce marché, si elle existe."""
+    from .budget import MARKET_ALIASES
+
+    wanted = {market.upper()}
+    for alias, name in MARKET_ALIASES.items():
+        if name == market:
+            wanted.add(str(alias).upper())
+    found = []
+    for line in getattr(plan, "unhealthy", []) or []:
+        name = str(getattr(line, "name", "") or "").upper()
+        if any(token and token in name for token in wanted):
+            found.append(line)
+    return found
+
+
+def market_brief(market: str, review: Review, plan=None, dataset=None, accounts=None,
+                 register=None, iso2_by_market: Optional[Dict[str, str]] = None) -> List[str]:
+    """Le gris d'un marché en une page de lignes : mesuré, ligne à ligne, sous-marin."""
+    from ..domain import issues as domain
+    from .budget import normalise_market
+
+    market = normalise_market(market)
+    out: List[str] = []
+
+    # 1. Mesuré par tout le monde, et en ligne avec le plan ?
+    out.append("MESURÉ — le vrac que l'entrepôt marque, et la ligne que le budget nomme")
+    mine = next((m for m in review.markets if m.scope == market), None)
+    if mine is None:
+        out.append("  aucun vrac marqué sur %s dans les relevés" % market)
+    else:
+        out.append("  vrac marqué %s : %s à date (%s des ventes du marché), %s sur l'an dernier, "
+                   "%s sur trois mois — %s"
+                   % (market, mine.bulk_label, mine.share_label, mine.growth_label,
+                      mine.growth_recent_label, mine.word))
+        months = sorted(mine.months)[-6:]
+        out.append("  mois par mois : " + " · ".join(
+            "%s %s" % (m, format_eur(mine.months[m])) for m in months))
+    lines = _line_for_market(plan, market)
+    if lines and review.months_elapsed:
+        total = sum(float(getattr(line, "sales", 0.0) or 0.0) for line in lines)
+        expected = total * review.months_elapsed / 12.0
+        ratio = (mine.bulk / expected) if (mine and expected > 0) else None
+        verdict = ""
+        if ratio is not None:
+            verdict = (" — au-dessus" if ratio > 1.15 else
+                       " — en dessous, le budget compte aussi ce que l'entrepôt ne marque pas"
+                       if ratio < 0.85 else " — dans l'ordre de grandeur")
+        out.append("  budget : %s de flux à nettoyer sur l'exercice (%s), soit %s à date au prorata "
+                   "de %d mois%s" % (format_eur(total), ", ".join(str(line.name) for line in lines),
+                                     format_eur(expected), review.months_elapsed, verdict))
+    else:
+        out.append("  budget : aucune ligne de flux à nettoyer nommée pour %s" % market)
+
+    # 2. Ligne à ligne.
+    detail = review.detail
+    out.append("LIGNE À LIGNE — les comptes qui portent le vrac de %s" % market)
+    if detail is None or not detail.usable:
+        out.append("  " + (getattr(detail, "note", "") or "le vrac ligne à ligne n'est pas lu"))
+    else:
+        own = [line for line in detail.accounts if line.market == market]
+        if not own:
+            out.append("  aucun compte de %s parmi les premiers" % market)
+        for line in own:
+            out.append("  %-40s %10s  part %5s  %8s  3 mois %8s  %s" % (
+                line.label[:40], line.ytd_label, line.share_label, line.growth_label,
+                line.growth_recent_label, line.word))
+        if detail.ranges:
+            out.append("  gammes du vrac, tous marchés : " + ", ".join(
+                "%s %s (%s)" % (line.label, line.ytd_label, line.growth_label)
+                for line in detail.ranges[:4]))
+
+    # 3. Sous-marin : ce qui ne passe par aucune mesure officielle.
+    out.append("SOUS-MARIN — ce qui bouge sans être marqué")
+    for neighbour in NEIGHBOURS.get(market, ()):
+        other = next((m for m in review.markets if m.scope == neighbour), None)
+        if other is not None and mine is not None:
+            out.append("  %s : vrac %s, %s sur trois mois, %s ; %s : %s sur trois mois, %s — "
+                       "un flux qui change de porte se lit sur les deux"
+                       % (market, mine.bulk_label, mine.growth_recent_label, mine.word,
+                          neighbour, other.growth_recent_label, other.word))
+    units = list(getattr(dataset, "units", []) or [])
+    for feeder in FEEDERS.get(market, ()):
+        for unit in units:
+            if getattr(unit, "market", "") == feeder and getattr(unit, "is_sell_in", False):
+                out.append("  %s : %s ce mois, %s contre le plan, %s contre l'an dernier — "
+                           "ce que le duty free absorbe se retrouve quelque part"
+                           % (unit.label, format_eur(unit.sales_actual),
+                              format_eur(unit.gap_vs_budget),
+                              _vs(unit.sales_actual, unit.sales_last_year)))
+    for unit in units:
+        if getattr(unit, "market", "") != market or getattr(unit, "is_aggregate", False):
+            continue
+        out.append("  %s : %s ce mois, %s contre le plan, %s contre l'an dernier"
+                   % (unit.label, format_eur(unit.sales_actual), format_eur(unit.gap_vs_budget),
+                      _vs(unit.sales_actual, unit.sales_last_year)))
+    iso2 = (iso2_by_market or {}).get(market, "")
+    if iso2 and accounts is not None:
+        billed = []
+        for partner in getattr(accounts, "partners", []) or []:
+            for line in getattr(partner, "countries", []) or []:
+                if line.country == iso2 and line.ytd > 0:
+                    billed.append((line.ytd, partner, line))
+        billed.sort(key=lambda item: -item[0])
+        for _ytd, partner, line in billed[:6]:
+            out.append("  facturé depuis %s : %s (%s) %s à date, %s sur l'an dernier, %s sur "
+                       "trois mois — %s" % (iso2, partner.name, partner.channel_label,
+                                            line.ytd_label, line.growth_ytd_label,
+                                            line.growth_recent_label, line.word))
+
+    # 4. Le registre.
+    out.append("REGISTRE — ce que le cockpit a déjà écrit sur %s" % market)
+    found = []
+    for issue in getattr(register, "issues", []) or []:
+        scopes = getattr(issue, "scopes", []) or []
+        if market in scopes or market.lower() in (issue.title or "").lower():
+            found.append(issue)
+    found.sort(key=lambda issue: issue.status == domain.CLOSED)
+    if not found:
+        out.append("  aucun sujet")
+    for issue in found[:8]:
+        mention = Mention(issue)
+        out.append("  %s · %s · %s%s" % (issue.issue_id, issue.title[:110], mention.status_word,
+                                         (" — " + mention.conclusion) if mention.conclusion else ""))
+    return out
+
+
+def _vs(now: float, before: Optional[float]) -> str:
+    growth = _growth(float(now or 0.0), before)
+    return "n/d" if growth is None else format_pct(growth)

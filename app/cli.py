@@ -69,7 +69,7 @@
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
     python -m app.cli frontieres     ce que les factures disent de chaque note de reclassement : le centre nommé, depuis quand il se tait, où le partenaire est passé
-    python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt
+    python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt ; --marche Chine, un marché en une page
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
     python -m app.cli issues         les sujets qui traversent les lectures
@@ -4284,7 +4284,8 @@ def cmd_frontieres(argv: List[str]) -> int:
 
 def cmd_gris(argv: List[str]) -> int:
     """Le gris et le vrac : est-on en ligne, d'où ça vient — marché par marché, puis ligne à
-    ligne —, comment ça évolue, et ce que le registre en dit. `--refresh` relit l'entrepôt."""
+    ligne —, comment ça évolue, et ce que le registre en dit. `--refresh` relit l'entrepôt ;
+    `--marche Chine` pose un seul marché en une page : mesuré, ligne à ligne, sous-marin."""
     from .db import SessionFactory, create_all
     from .perf import ebitda as ebitda_module
     from .perf import grey as grey_module
@@ -4293,8 +4294,30 @@ def cmd_gris(argv: List[str]) -> int:
     from .routes.today import _grey
 
     plan = ebitda_module.current() if settings.has_ebitda_file else None
-    review = _grey(current_source(), plan, refresh="--refresh" in argv)
+    source = current_source()
+    review = _grey(source, plan, refresh="--refresh" in argv)
     create_all()
+    market = _option(argv, "--marche")
+    if market:
+        from .perf.budget import normalise_market
+        from .routes.today import _accounts
+
+        dataset = source.dataset(wait_for_warehouse=False)
+        accounts = _accounts(source, dataset)
+        iso2_by_market = {}
+        try:
+            for row in source.month_to_date():
+                iso2_by_market[normalise_market(str(row.get("market") or ""))] = str(
+                    row.get("iso2") or "").strip().upper()
+        except Exception:  # noqa: BLE001 — sans pays, pas de partenaires facturés depuis
+            pass
+        with SessionFactory() as session:
+            register = memory.load(session)
+            session.commit()
+        for line in grey_module.market_brief(market, review, plan, dataset, accounts, register,
+                                             iso2_by_market):
+            print(line)
+        return 0
     with SessionFactory() as session:
         review.dossier = grey_module.dossier(memory.load(session))
         session.commit()
