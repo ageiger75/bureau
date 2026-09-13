@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}{{ dossier.name }} — dossier de visite{% endblock %}
+{% block content %}
+<section class="cockpit-header" data-read-at="{{ read_at }}" data-partners-at="{{ partners_at }}" data-bulk-at="{{ bulk_at }}">
+  <p class="cockpit-eyebrow"><a href="/marches">Marchés</a> · dossier de visite · {{ dossier.period_label }}</p>
+  <h2>{{ dossier.name }}{% if dossier.owner %} · {{ dossier.owner }}{% endif %}</h2>
+  <p class="lede">Ce qu'il faut savoir avant de s'asseoir en face du marché : trois questions, ses canaux contre le plan, ses boutiques qui décrochent, son gris sous ses deux définitions, ce qui l'alimente sans passer par lui, et ce que le cockpit en a déjà écrit. Rien n'est relu à l'entrepôt.</p>
+</section>
+
+<section class="panel" id="questions">
+  <h2>Les trois questions</h2>
+  {% if dossier.questions %}
+    <ol class="talk-lines">
+      {% for question in dossier.questions %}<li>{{ question }}</li>{% endfor %}
+    </ol>
+    <p class="cockpit-caveat">Générées de ce que les chiffres montrent de plus net, pas de ce qu'on sait du marché. À remplacer par les vôtres.</p>
+  {% else %}
+    <p class="empty">Rien d'assez net dans les lectures pour poser une question.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="canaux">
+  <h2>Les canaux, le mois contre le plan</h2>
+  {% if dossier.channels %}
+    <p class="product-headline">{{ dossier.month_sales | eur }} ce mois, {{ dossier.month_gap | eur }} contre le plan, tous canaux.</p>
+    <table class="month-table product-table">
+      <thead><tr><th>Canal</th><th>Ventes</th><th>vs plan</th><th>vs l'an dernier</th><th></th></tr></thead>
+      <tbody>
+        {% for item in dossier.channels %}
+          <tr><td>{{ item.channel_label }}{% if item.is_sell_in %} <span class="badge badge-class">sell-in</span>{% endif %}</td><td class="num">{{ item.sales_label }}</td><td class="num {{ 'is-en-retard' if item.gap < 0 else 'is-en-avance' }}">{{ item.gap_label }}</td><td class="num">{{ item.growth_label }}</td><td class="absent">{{ item.reason }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">Aucun canal lu pour ce marché.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="boutiques">
+  <h2>Les boutiques qui décrochent le plus</h2>
+  {% if dossier.declines %}
+    <table class="month-table product-table">
+      <thead><tr><th>Boutique</th><th>Ventes du mois</th><th>vs l'an dernier</th><th></th></tr></thead>
+      <tbody>
+        {% for move in dossier.declines %}
+          <tr><td>{{ move.name or move.code }}</td><td class="num">{{ move.actual_label }}</td><td class="num is-en-retard">{{ move.delta_label }}</td><td class="num">{{ move.growth_label }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if dossier.gains %}<p class="cockpit-caveat">Et celles qui poussent : {% for move in dossier.gains %}{{ move.name or move.code }} {{ move.delta_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
+    <p class="cockpit-caveat">Le mois de la feuille par boutique de la CFO, contre le même mois l'an dernier ; les plus fortes baisses en euros, pas en pourcentage.</p>
+  {% else %}
+    <p class="empty">{{ (dossier.stores_note or "aucune boutique ne décroche sur le mois") | ucfirst }}.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="gris">
+  <h2>Le gris, sous ses deux définitions</h2>
+  <h3 class="subject-heading">Marqué par l'entrepôt</h3>
+  <p class="product-headline">{{ dossier.marked_sentence | ucfirst }}.</p>
+  <p>{{ dossier.budget_sentence | ucfirst }}.</p>
+  {% if dossier.accounts %}
+    <table class="month-table product-table">
+      <thead><tr><th>Compte (point de vente · sous-canal)</th><th>Vrac à date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th><th></th></tr></thead>
+      <tbody>
+        {% for line in dossier.accounts %}
+          <tr><td>{{ line.label }}</td><td class="num">{{ line.ytd_label }}</td><td class="num">{{ line.share_label }}</td><td class="num">{{ line.growth_label }}</td><td class="num">{{ line.growth_recent_label }}</td><td>{{ line.word }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+  <h3 class="subject-heading">Lu sans drapeau</h3>
+  {% if dossier.shadow and dossier.shadow.usable %}
+    {% for piece in dossier.shadow.slices %}
+      <p class="routed-why">{{ piece.sentence | ucfirst }}.</p>
+      <table class="month-table product-table">
+        <thead><tr><th>{{ piece.label | ucfirst }} · point de vente</th><th>À date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th>{% if piece.kind == "quantity" %}<th>Marqué comme vrac</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for store in piece.shown %}
+            <tr><td>{{ store.code }} · {{ store.sub_channel }}</td><td class="num">{{ store.ytd_label }}</td><td class="num">{{ store.share_label }}</td><td class="num">{{ store.growth_label }}</td><td class="num">{{ store.growth_recent_label }}</td>{% if piece.kind == "quantity" %}<td class="num">{{ store.marking_label }}</td>{% endif %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endfor %}
+    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Elles ne désignent pas la même population et ne s'additionnent pas. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher.</p>
+  {% else %}
+    <p class="empty">{{ (dossier.shadow_note or "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="alimente">
+  <h2>Ce qui l'alimente sans passer par lui</h2>
+  {% if dossier.neighbours or dossier.feeds %}
+    <ul class="talk-lines">
+      {% for sentence in dossier.neighbours %}<li>{{ sentence | ucfirst }}.</li>{% endfor %}
+      {% for feed in dossier.feeds %}<li>{{ feed.sentence | ucfirst }} — ce que le duty free absorbe se retrouve quelque part.</li>{% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">Rien de connu : ni voisin dont le flux change de porte, ni périmètre de sell-in qui l'alimente.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="partenaires">
+  <h2>Les partenaires facturés depuis {{ dossier.iso2 or "le pays" }}</h2>
+  {% if dossier.partners %}
+    <table class="month-table product-table">
+      <thead><tr><th>Partenaire</th><th>Canal</th><th>Exercice à date</th><th>vs l'an dernier</th><th>3 derniers mois</th><th></th></tr></thead>
+      <tbody>
+        {% for partner, line in dossier.partners %}
+          <tr><td>{{ partner.name }}{% if not partner.named %} <span class="cockpit-caveat">(libellé de l'entrepôt)</span>{% endif %}</td><td>{{ partner.channel_label }}</td><td class="num">{{ line.ytd_label }}</td><td class="num">{{ line.growth_ytd_label }}</td><td class="num">{{ line.growth_recent_label }}</td><td>{{ line.word }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">Aucun partenaire facturé depuis ce pays, ou pays de facturation inconnu.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="registre">
+  <h2>Ce que le cockpit en a déjà écrit</h2>
+  {% if dossier.issues or dossier.notes %}
+    <ul class="talk-lines">
+      {% for item in dossier.issues %}<li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>{% endfor %}
+      {% for note in dossier.notes %}<li>Note {{ note.kind }}{% if note.channel %} · {{ note.channel }}{% endif %}, depuis {{ note.since or "—" }} : “{{ note.text }}”{% if note.source %} — {{ note.source }}{% endif %}</li>{% endfor %}
+    </ul>
+  {% else %}
+    <p class="empty">Rien d'écrit sur ce marché, ni sujet ni note.</p>
+  {% endif %}
+</section>
+{% endblock %}

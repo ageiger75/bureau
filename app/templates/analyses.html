@@ -866,6 +866,24 @@
     <p class="empty">{{ (detail.note if detail and detail.note else "le vrac ligne à ligne n'est pas lu") | ucfirst }}.</p>
   {% endif %}
 
+  {# Sans drapeau : les gros tickets et les prix hors norme, marché par marché, et qui pose
+     le drapeau. La comparaison qui ne dépend pas d'une pratique de saisie. #}
+  <h3 class="subject-heading">Lu sans drapeau{% if shadow and shadow.usable %} · {{ shadow.window_label }}{% endif %}</h3>
+  {% if shadow and shadow.usable %}
+    <p class="product-headline">{{ shadow.headline | ucfirst }}.</p>
+    <table class="month-table product-table">
+      <thead><tr><th>Marché</th><th>Gros tickets à date</th><th>vs l'an dernier</th><th>Marqués comme vrac</th><th>Prix hors norme à date</th><th>vs l'an dernier</th></tr></thead>
+      <tbody>
+        {% for item in shadow.shown[:8] %}
+          <tr><td><a href="/marche/{{ item.scope | slug }}">{{ item.scope }}</a></td><td class="num">{{ item.quantity.ytd_label if item.quantity.usable else "—" }}</td><td class="num">{{ item.quantity.growth_label if item.quantity.usable else "" }}</td><td class="num {{ 'is-en-retard' if item.quantity.marks_its_bulk is sameas false else '' }}">{{ item.quantity.marking_label if item.quantity.usable else "" }}</td><td class="num">{{ item.price.ytd_label if item.price.usable else "—" }}</td><td class="num">{{ item.price.growth_label if item.price.usable else "" }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher. Chaque marché ouvre son dossier de visite.</p>
+  {% else %}
+    <p class="empty">{{ (shadow.note if shadow and shadow.note else "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
+  {% endif %}
+
   {# Le dossier : ce que le registre a déjà dit du gris. #}
   <h3 class="subject-heading">Ce que le registre en dit</h3>
   {% if grey and grey.dossier %}

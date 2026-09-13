@@ -267,10 +267,11 @@ def partner_cache_forget() -> None:
 
 
 def bulk_cache_forget() -> None:
-    try:
-        _cache_path(QUERY_CACHES["bulk"][0]).unlink()
-    except OSError:
-        pass
+    for name in ("bulk", "shadow"):
+        try:
+            _cache_path(QUERY_CACHES[name][0]).unlink()
+        except OSError:
+            pass
 
 
 def supplychain_cache_forget() -> None:
@@ -302,6 +303,7 @@ QUERY_CACHES = {
     "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
     "orders": ("warehouse-orders.json", "ORDER_FILL"),
     "bulk": ("warehouse-bulk.json", "BULK_DETAIL"),
+    "shadow": ("warehouse-shadow.json", "SHADOW_BULK"),
 }
 
 
@@ -386,6 +388,7 @@ QUERY_MAX_AGE = {
     "orders": 7 * 24 * 3600,
     # Le vrac bouge par commandes, au mois clos : une semaine aussi.
     "bulk": 7 * 24 * 3600,
+    "shadow": 7 * 24 * 3600,
 }
 
 
@@ -445,7 +448,8 @@ def partner_stamp() -> str:
 
 
 def bulk_stamp() -> str:
-    return query_stamp("bulk")
+    """Les deux lectures du gris en un horodatage : marqué, et sans drapeau."""
+    return "|".join(query_stamp(name) for name in ("bulk", "shadow"))
 
 
 def supplychain_stamp() -> str:
@@ -474,7 +478,8 @@ def behind_note(name: str) -> str:
 #: La commande qui relit chaque cache en attendant l'entrepôt — le nom de la lecture n'est
 #: pas celui de la commande, et « manage.py bulk » n'existe pas.
 REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
-                   "osa": "supply", "forecast": "supply", "orders": "supply", "bulk": "gris"}
+                   "osa": "supply", "forecast": "supply", "orders": "supply", "bulk": "gris",
+                   "shadow": "gris"}
 
 
 #: Une lecture principale à la fois. Trois portes y mènent — la page qui sert une lecture
@@ -935,10 +940,13 @@ class MockSource:
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.order_rows()
 
-    bulk_note = ""
+    bulk_note = shadow_note = ""
 
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.bulk_rows()
+
+    def shadow_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.shadow_rows()
 
     def sell_in_series(self):
         """(exercice à date, exercice clos) : les lignes de sell-in inventées."""
@@ -1407,7 +1415,7 @@ class SnowflakeSource:
         note_field = "%s_note" % {"products": "product", "clients": "client",
                                   "partners": "partner", "osa": "osa",
                                   "forecast": "forecast", "orders": "order",
-                                  "bulk": "bulk"}[name]
+                                  "bulk": "bulk", "shadow": "shadow"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1456,6 +1464,10 @@ class SnowflakeSource:
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le vrac ligne à ligne — mois, pays, drapeau, point de vente, gamme — ou rien."""
         return self._query_rows("bulk", wait_for_warehouse, "du vrac ligne à ligne")
+
+    def shadow_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le gris sans drapeau — gros tickets et prix hors norme, par point de vente — ou rien."""
+        return self._query_rows("shadow", wait_for_warehouse, "du gris sans drapeau")
 
     def client_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Les clients — le pont et le flux — de la dernière lecture, ou rien."""

@@ -1868,6 +1868,82 @@ where f.flag_turnover = 1
 group by 1, 2, 3, 4, 5, 6
 """ % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
 
+#: Le gris sans drapeau : deux populations lues sur le fait, sans `FLAG_BULK`, parce que le
+#: drapeau n'est pas posé pareil d'un marché à l'autre — presque tout à Hong Kong, presque
+#: rien en Chine, pour le même flux. La comparaison entre marchés comparait des pratiques
+#: de saisie. Ici, deux critères comportementaux, tenus séparés parce qu'ils ne désignent
+#: pas la même population : le ticket de plus de cinquante unités (les comptes de gros,
+#: marqués ou non — `flagged_eur` dit la part marquée) ; la ligne vendue sous soixante pour
+#: cent du prix unitaire moyen de la référence dans le pays ce mois-là, hors drapeau (les
+#: magasins d'usine, surtout). `period · market · store · sub_channel · kind · net_eur ·
+#: lines · flagged_eur`, `kind` valant `quantity` ou `price`. Même fenêtre que le vrac.
+#: Écrit sur la mesure de l'agent entrepôt du 13 septembre 2026, à valider.
+SHADOW_BIG_TICKET_UNITS = 50
+SHADOW_CHEAP_RATIO = 0.6
+SHADOW_BULK = """
+with base as (
+    select
+        to_char(date_trunc('month', f.transaction_date), 'YYYY-MM')       as period,
+        coalesce(nullif(trim(s.store_country), ''), '(sans pays)')         as market,
+        coalesce(nullif(nullif(trim(s.store_group_store_code), ''), 'N/A'),
+                 cast(s.store_skey as varchar))                            as store,
+        coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
+        f.store_skey || '|' || f.transaction_date || '|'
+            || coalesce(f.transaction_till, '') || '|' || f.transaction_number as ticket,
+        f.product_skey                                                     as product_skey,
+        f.quantity                                                         as quantity,
+        f.net_sales_eur                                                    as net_eur,
+        iff(coalesce(f.flag_bulk, 0) in (2, 3, 4, 5), 1, 0)                as flagged
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores s on s.store_skey = f.store_skey
+    where f.flag_turnover = 1
+      and f.flag_zero_sales_ticket = 0
+      and s.store_brand = 'L''OCCITANE'
+      and f.transaction_date >= dateadd(month, -26, current_date)
+      and f.transaction_date >= %(from)s
+      and f.transaction_date <  %(to)s
+),
+tickets as (
+    select period, market, store, sub_channel, ticket,
+           sum(quantity) as units, sum(net_eur) as net_eur, max(flagged) as flagged
+    from base
+    group by 1, 2, 3, 4, 5
+),
+big as (
+    select period, market, store, sub_channel, 'quantity' as kind,
+           round(sum(net_eur), 2)                              as net_eur,
+           count(*)                                            as lines,
+           round(sum(iff(flagged = 1, net_eur, 0)), 2)         as flagged_eur
+    from tickets
+    where units > %(units)d
+    group by 1, 2, 3, 4
+),
+reference as (
+    select period, market, product_skey,
+           sum(net_eur) / nullif(sum(quantity), 0) as unit_price
+    from base
+    where quantity > 0
+    group by 1, 2, 3
+),
+cheap as (
+    select b.period, b.market, b.store, b.sub_channel, 'price' as kind,
+           round(sum(b.net_eur), 2)                            as net_eur,
+           count(*)                                            as lines,
+           0                                                   as flagged_eur
+    from base b
+    join reference r
+      on r.period = b.period and r.market = b.market and r.product_skey = b.product_skey
+    where b.quantity > 0
+      and b.flagged = 0
+      and b.net_eur / b.quantity < %(ratio)s * r.unit_price
+    group by 1, 2, 3, 4
+)
+select * from big
+union all
+select * from cheap
+""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO, "units": SHADOW_BIG_TICKET_UNITS,
+       "ratio": SHADOW_CHEAP_RATIO}
+
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,
@@ -1887,6 +1963,7 @@ ALL = {
     "FORECAST_BIAS": FORECAST_BIAS,
     "ORDER_FILL": ORDER_FILL,
     "BULK_DETAIL": BULK_DETAIL,
+    "SHADOW_BULK": SHADOW_BULK,
 }
 
 

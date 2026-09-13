@@ -421,6 +421,62 @@ def _supplychain(source, refresh: bool = False):
     return supplychain_module.build(rows["osa_rows"], rows["forecast_rows"], rows["order_rows"], notes)
 
 
+def _shadow(source, refresh: bool = False, through: str = ""):
+    """Le gris sans drapeau, sur la dernière lecture des gros tickets et des prix hors norme :
+    jamais une requête sous un lecteur."""
+    from ..perf import shadow as shadow_module
+
+    reader = getattr(source, "shadow_rows", None)
+    rows = reader(wait_for_warehouse=refresh) if reader is not None else []
+    return shadow_module.build(rows, through=through,
+                               note=getattr(source, "shadow_note", "") or "")
+
+
+def _iso2_by_market(source):
+    """Le pays de facturation de chaque marché, tel que la lecture du mois le porte."""
+    from ..perf.budget import normalise_market
+
+    found = {}
+    try:
+        for row in source.month_to_date():
+            market = normalise_market(str(row.get("market") or ""))
+            iso2 = str(row.get("iso2") or "").strip().upper()
+            if market and iso2:
+                found[market] = iso2
+    except Exception:  # noqa: BLE001 — sans pays, pas de partenaires facturés depuis
+        pass
+    return found
+
+
+def _dossier(market: str, session, source=None, refresh: bool = False):
+    """Le dossier de visite d'un marché, sur ce que le cockpit tient déjà."""
+    from ..config import settings
+    from ..perf import context as context_module
+    from ..perf import ebitda as ebitda_module
+    from ..perf import memory as memory_module
+    from ..perf import owners as owners_module
+    from ..perf import stores as stores_module
+    from ..perf import visit as visit_module
+    from ..perf.source import current_source
+
+    source = source or current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    plan = ebitda_module.current() if settings.has_ebitda_file else None
+    grey = _guard("gris", lambda: _grey(source, plan, refresh), lambda exc: None)
+    shadow = _guard("gris sans drapeau", lambda: _shadow(source, refresh, getattr(grey, "through", "") or ""),
+                    lambda exc: None)
+    accounts = _guard("partenaires", lambda: _accounts(source, dataset, refresh), lambda exc: None)
+    store_sales = (_guard("boutiques", stores_module.current_sales, lambda exc: None)
+                   if settings.has_store_sales_file else None)
+    register = memory_module.load(session)
+    unit = next((u for u in getattr(dataset, "units", []) or [] if getattr(u, "market", "") == market), None)
+    owner = owners_module.owner_for(market, getattr(unit, "region", "") or "").name if unit else ""
+    return visit_module.build(
+        market, dataset=dataset, grey_review=grey, shadow_review=shadow, plan=plan,
+        accounts=accounts, register=register, notes=context_module.current().notes,
+        store_sales=store_sales, iso2_by_market=_iso2_by_market(source), owner=owner)
+
+
 def _grey(source, plan=None, refresh: bool = False):
     """Le gris et le vrac : les relevés KPI déjà tenus, le budget EBITDA, et la dernière
     lecture du vrac ligne à ligne — jamais une requête sous un lecteur."""
@@ -541,6 +597,54 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
         "due_default": pledges_module.default_due(),
+    })
+
+
+@router.get("/marches")
+def markets(request: Request, session: Session = Depends(get_session)):
+    """Les marchés, un par ligne : le mois contre le plan, et le dossier de visite derrière."""
+    from ..perf import page as page_module
+    from ..perf.source import current_source
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    rows = {}
+    for unit in getattr(dataset, "units", []) or []:
+        if getattr(unit, "is_aggregate", False) or not getattr(unit, "market", ""):
+            continue
+        row = rows.setdefault(unit.market, {"name": unit.market, "slug": page_module.slug(unit.market),
+                                            "sales": 0.0, "gap": 0.0, "channels": 0})
+        row["sales"] += float(unit.sales_actual or 0.0)
+        row["gap"] += float(unit.gap_vs_budget or 0.0)
+        row["channels"] += 1
+    listed = sorted(rows.values(), key=lambda row: -row["sales"])
+    return render(request, "marches.html", {"user": None, "source": source, "rows": listed,
+                                            "period_label": getattr(dataset, "period_label", "")})
+
+
+@router.get("/marche/{name}")
+def market_dossier(name: str, request: Request, session: Session = Depends(get_session)):
+    """Le dossier de visite : un marché en une page, avant d'aller le voir."""
+    from fastapi import HTTPException
+
+    from ..perf import page as page_module
+    from ..perf.source import current_source
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    markets = sorted({unit.market for unit in getattr(dataset, "units", []) or []
+                      if getattr(unit, "market", "") and not getattr(unit, "is_aggregate", False)})
+    market = next((m for m in markets if page_module.slug(m) == name), None)
+    if market is None:
+        raise HTTPException(status_code=404, detail="marché inconnu : %s" % name)
+    refresh = request.query_params.get("refresh") in ("1", "true", "yes")
+    dossier = _dossier(market, session, source=source, refresh=refresh)
+    from ..perf import source as source_module
+
+    return render(request, "marche.html", {
+        "user": None, "source": source, "dossier": dossier,
+        "read_at": source_module.last_read(), "partners_at": source_module.partner_stamp(),
+        "bulk_at": source_module.bulk_stamp(),
     })
 
 
@@ -679,6 +783,8 @@ def _screen(request: Request, session: Session):
                       lambda exc: accounts_module.Review([], note=_broken("partenaires")(exc)))
     grey = _guard("gris", lambda: _grey(source, getattr(ebitda, "plan", None), refresh),
                   lambda exc: grey_module.Review(None, [], note=_broken("gris")(exc)))
+    shadow = _guard("gris sans drapeau", lambda: _shadow(source, refresh, getattr(grey, "through", "") or ""),
+                    lambda exc: None)
     supply = _guard("supply", supply_module.current, lambda exc: None)
     supplychain = _guard("supply entrepôt", lambda: _supplychain(source, refresh),
                          lambda exc: supplychain_module.Review(None, None, None, [_broken("supply")(exc)]))
@@ -870,6 +976,7 @@ def _screen(request: Request, session: Session):
             "bulk_findings": bulk_findings,
             "accounts": accounts,
             "grey": grey,
+            "shadow": shadow,
             "reclassifications": analytics.reclassification_checks(dataset),
             "elsewhere": elsewhere,
             "plans_above": plans_above,

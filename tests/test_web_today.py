@@ -1029,3 +1029,21 @@ def test_partners_by_name_and_the_grey_and_bulk_live_on_analyses(client):
 
     body = client.get("/freshness", headers={"Accept": "application/json"}).json()
     assert "partners" in body
+
+
+def test_a_market_has_a_visit_dossier_and_the_grey_is_read_without_a_flag(client):
+    """Avant d'aller voir un marché : une page, dans un ordre fixe, sur ce que le cockpit tient."""
+    listing = page_text(client.get("/marches"))
+    assert "Les marchés" in listing and "/marche/china" in listing
+
+    dossier = page_text(client.get("/marche/china"))
+    assert "dossier de visite" in dossier and "Les trois questions" in dossier
+    assert "cinquante unités" in dossier
+    assert "Le gris, sous ses deux définitions" in dossier and "Lu sans drapeau" in dossier
+    assert "gros tickets" in dossier.lower() and "ne pose pas le drapeau" in dossier
+    assert "Ce que le cockpit en a déjà écrit" in dossier
+
+    assert client.get("/marche/nowhere").status_code == 404
+
+    analyses = page_text(client.get("/analyses"))
+    assert "Lu sans drapeau" in analyses and "Marqués comme vrac" in analyses

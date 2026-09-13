@@ -820,6 +820,20 @@ tête de chaque brief.
 « aucun plan n'a jamais été posé sur les sessions ou la conversion » ; une ligne dans les
 notes de lecture suffirait.
 
+**Livré le 14 septembre 2026, avant un déplacement.** `SHADOW_BULK` et `shadow.py` : le gris
+sans drapeau, deux populations lues sur le fait et tenues séparées — le ticket de plus de
+cinquante unités (marqué ou non, avec la part marquée, qui dit si le marché pose le
+drapeau) et la ligne vendue sous soixante pour cent du prix de la référence dans le pays,
+hors drapeau. Cache propre, une semaine, `refresh --bulk` les oublie avec le vrac ligne à
+ligne. Sur Analyses, sous le gris : un tableau par marché, gros tickets, part marquée, prix
+hors norme. Et `visit.py` : le dossier de visite, une page par marché (`/marche/<marché>`,
+liste sur `/marches`, `manage.py marche China`), dans un ordre fixe — trois questions
+générées de ce que les chiffres montrent de plus net, canaux contre plan et an dernier,
+boutiques qui décrochent le plus en euros sur la feuille de la CFO, gris marqué avec la ligne
+du budget et les comptes, gris sans drapeau avec ses points de vente, voisin et périmètre
+qui alimentent, partenaires facturés depuis le pays, sujets et notes. Rien n'est relu à
+l'entrepôt. La requête est à valider par l'agent entrepôt à la première relecture.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

@@ -68,6 +68,7 @@
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
+    python -m app.cli marche China   le dossier de visite d'un marché : trois questions, canaux, boutiques, gris marqué et sans drapeau, registre
     python -m app.cli frontieres     ce que les factures disent de chaque note de reclassement : le centre nommé, depuis quand il se tait, où le partenaire est passé
     python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt ; --marche Chine, un marché en une page
                                      --unmatched : les codes que le référentiel ignore
@@ -1655,7 +1656,7 @@ def cmd_refresh(argv: List[str] = ()) -> int:
         return 0
     if "--bulk" in tuple(argv):
         source.bulk_cache_forget()
-        print("Lecture du vrac ligne à ligne oubliée. Le reste reste en cache.")
+        print("Lectures du gris oubliées (ligne à ligne et sans drapeau). Le reste reste en cache.")
         return 0
     if "--month" in tuple(argv):
         source.month_cache_forget()
@@ -4242,6 +4243,26 @@ def cmd_partenaires(argv: List[str]) -> int:
     return 0
 
 
+def cmd_marche(argv: List[str]) -> int:
+    """Le dossier de visite d'un marché, tel que la page le rend : les trois questions, les
+    canaux, les boutiques qui décrochent, le gris sous ses deux définitions, ce qui l'alimente,
+    les partenaires facturés depuis le pays, le registre. `--refresh` relit l'entrepôt."""
+    from .db import SessionFactory, create_all
+    from .routes.today import _dossier
+
+    market = " ".join(arg for arg in argv if not arg.startswith("--")).strip()
+    if not market:
+        print("Écrire le marché : manage.py marche China", file=sys.stderr)
+        return 2
+    create_all()
+    with SessionFactory() as session:
+        dossier = _dossier(market, session, refresh="--refresh" in argv)
+        session.commit()
+    for line in dossier.lines():
+        print(line)
+    return 0
+
+
 def cmd_frontieres(argv: List[str]) -> int:
     """Les notes de reclassement datées contre les factures des partenaires, en clair :
     ce que la page fait en silence, montré ligne par ligne pour comprendre une date qui
@@ -4990,6 +5011,8 @@ def main(argv: List[str]) -> int:
         return cmd_gris(argv[1:])
     if command == "frontieres":
         return cmd_frontieres(argv[1:])
+    if command == "marche":
+        return cmd_marche(argv[1:])
     if command == "remplissage":
         return cmd_remplissage(argv[1:])
     if command == "supply":

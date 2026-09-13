@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Marchés — CEO Performance{% endblock %}
+{% block content %}
+<section class="panel" id="marches">
+  <h2>Les marchés</h2>
+  <p class="lede">Un marché par ligne, {{ period_label }} : ses ventes du mois et son écart au plan, tous canaux. Chaque nom ouvre son dossier de visite — les trois questions, les canaux, les boutiques qui décrochent, le gris sous ses deux définitions, ce qui l'alimente, le registre.</p>
+  <table class="month-table mix-table">
+    <thead><tr><th>Marché</th><th>Ventes du mois</th><th>vs plan</th><th>Canaux</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><a href="/marche/{{ row.slug }}">{{ row.name }}</a></td>
+        <td class="num">{{ row.sales | eur }}</td>
+        <td class="num {{ 'is-en-retard' if row.gap < 0 else 'is-en-avance' }}">{{ row.gap | eur }}</td>
+        <td class="num">{{ row.channels }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if not rows %}<p class="empty">Aucun marché lu.</p>{% endif %}
+</section>
+{% endblock %}
