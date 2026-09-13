@@ -441,6 +441,18 @@
             <td>{{ item.word }}</td>
             <td>{{ item.channel_plan_label }}</td>
           </tr>
+          {% for line in item.split %}
+          <tr class="month-rest">
+            <td>dont facturé de {{ line.country }}</td>
+            <td></td>
+            <td class="num">{{ line.ytd_label }}</td>
+            <td class="num {{ 'is-en-retard' if line.growth_ytd is not none and line.growth_ytd < -0.05 else ('is-en-avance' if line.growth_ytd is not none and line.growth_ytd > 0.05 else '') }}">{{ line.growth_ytd_label }}</td>
+            <td class="num">{{ line.growth_recent_label }}</td>
+            <td></td>
+            <td>{{ line.word }}</td>
+            <td></td>
+          </tr>
+          {% endfor %}
         {% endfor %}
         {% if accounts.rest %}
           <tr class="month-rest" title="{{ accounts.rest | map(attribute='name') | join(', ') }}"><td>{{ accounts.rest | length }} autres partenaires</td><td></td><td class="num">{{ accounts.rest_total | eur }}</td><td></td><td></td><td></td><td></td><td></td></tr>
@@ -449,7 +461,7 @@
     </table>
     {% if accounts.question %}<p class="ask">{{ accounts.question }}</p>{% endif %}
     {% if accounts.unnamed_note %}<p class="cockpit-caveat">{{ accounts.unnamed_note | ucfirst }}.</p>{% endif %}
-    <p class="cockpit-caveat">Le pays d'un partenaire est son pays de facturation, pas un marché ; un partenaire facturé de plusieurs pays est lu en une ligne.</p>
+    <p class="cockpit-caveat">Le pays d'un partenaire est son pays de facturation, pas un marché ; un partenaire facturé de plusieurs pays est lu en une ligne, et un pays qui ne raconte pas la même histoire que le total s'affiche dessous.</p>
   {% else %}
     <p class="empty">{{ (accounts.note if accounts and accounts.note else "le sell-in par partenaire n'est pas encore lu") | ucfirst }}.</p>
   {% endif %}

@@ -43,6 +43,11 @@ MOST = 8
 #: Trois derniers mois : la fenêtre qui alerte, à côté de l'exercice qui lisse.
 RECENT = 3
 
+#: Un pays de facturation se montre sous son partenaire quand sa croissance s'écarte de
+#: celle du total d'au moins ce nombre de points.
+SPLIT_APART = 0.10
+MOST_COUNTRIES = 3
+
 #: En deçà, un partenaire est « en ligne » avec son an dernier ; au-delà, il avance ou
 #: recule. Cinq pour cent : un mois de commande glissé sur douze en fait déjà huit.
 NOTICED = 0.05
@@ -83,13 +88,19 @@ class Partner:
     """Un partenaire : ses mois, ses deux fenêtres, sa part de canal."""
 
     __slots__ = ("code", "name", "named", "channel", "months", "ytd", "ytd_ly", "recent",
-                 "recent_ly", "ytd_months", "recent_months", "channel_ytd", "channel_gap")
+                 "recent_ly", "ytd_months", "recent_months", "channel_ytd", "channel_gap",
+                 "country", "countries")
 
-    def __init__(self, code: str, name: str, named: bool, channel: str) -> None:
+    def __init__(self, code: str, name: str, named: bool, channel: str,
+                 country: str = "") -> None:
         self.code = code
         self.name = name
         self.named = named
         self.channel = channel
+        #: Le pays de facturation, sur une ligne de pays ; vide sur la ligne du partenaire.
+        self.country = country
+        #: Les lignes par pays de facturation, quand le partenaire en a plusieurs.
+        self.countries: List["Partner"] = []
         self.months: Dict[str, float] = {}
         self.ytd = 0.0
         self.ytd_ly: Optional[float] = None
@@ -136,6 +147,26 @@ class Partner:
         if recent is not None and year <= -NOTICED and recent >= NOTICED:
             return "recule mais reprend"
         return "en ligne avec l'an dernier"
+
+    @property
+    def split(self) -> List["Partner"]:
+        """Les pays de facturation qui ne racontent pas la même histoire que le total.
+
+        Un e-retailer mondial facturé de plusieurs pays se lit en une ligne, et cette ligne
+        peut avancer quand l'un de ses pays recule — le premier e-retailer d'un marché qui
+        perd un dixième de son chiffre disparaissait dans le total. Rendus seulement quand
+        la croissance du pays s'écarte de celle du total d'au moins dix points : un pays
+        qui dit la même chose que le total n'est qu'une ligne de plus.
+        """
+        if len(self.countries) < 2 or self.growth_ytd is None:
+            return []
+        shown = []
+        for line in sorted(self.countries, key=lambda item: -item.ytd):
+            if line.ytd <= 0 or line.growth_ytd is None:
+                continue
+            if abs(line.growth_ytd - self.growth_ytd) >= SPLIT_APART:
+                shown.append(line)
+        return shown[:MOST_COUNTRIES]
 
     @property
     def ytd_label(self) -> str:
@@ -273,6 +304,7 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
     channel_gaps = {str(k).strip().lower(): v for k, v in (channel_gaps or {}).items()}
     current_month = (today or datetime.date.today()).strftime("%Y-%m")
     by_code: Dict[str, Partner] = {}
+    by_country: Dict[tuple, Partner] = {}
     periods = set()
     for row in rows:
         period = str(row.get("period") or "").strip()[:7]
@@ -289,6 +321,15 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
             by_code[code] = partner
         partner.months[period] = partner.months.get(period, 0.0) + value
         periods.add(period)
+        # Et par pays de facturation, pour la ligne qui diverge du total.
+        iso2 = str(row.get("iso2") or "").strip().upper()
+        if iso2:
+            line = by_country.get((code, iso2))
+            if line is None:
+                line = by_country[(code, iso2)] = Partner(code, partner.name, partner.named,
+                                                          partner.channel, country=iso2)
+                partner.countries.append(line)
+            line.months[period] = line.months.get(period, 0.0) + value
     if not by_code:
         return Review([], note=note or "aucune facture de partenaire dans la lecture")
 
@@ -297,17 +338,9 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
     ytd_months = [m for m in _months_between(start, through) if m in periods]
     recent_months = ytd_months[-RECENT:]
     channel_ytd: Dict[str, float] = {}
+    for partner in list(by_code.values()) + list(by_country.values()):
+        _windows(partner, ytd_months, recent_months, periods)
     for partner in by_code.values():
-        partner.ytd_months = ytd_months
-        partner.recent_months = recent_months
-        partner.ytd = sum(partner.months.get(m, 0.0) for m in ytd_months)
-        partner.recent = sum(partner.months.get(m, 0.0) for m in recent_months)
-        ly_months = [_shift(m, -12) for m in ytd_months]
-        if all(m in periods for m in ly_months):
-            partner.ytd_ly = sum(partner.months.get(m, 0.0) for m in ly_months)
-        recent_ly = [_shift(m, -12) for m in recent_months]
-        if all(m in periods for m in recent_ly):
-            partner.recent_ly = sum(partner.months.get(m, 0.0) for m in recent_ly)
         channel_ytd[partner.channel] = channel_ytd.get(partner.channel, 0.0) + partner.ytd
     for partner in by_code.values():
         partner.channel_ytd = channel_ytd.get(partner.channel, 0.0)
@@ -321,6 +354,19 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
                         "et gardent le libellé de leur centre de profit : %s"
                         % (len(unnamed), ", ".join(item.name for item in unnamed)))
     return Review(partners, through, start, note, unnamed_note)
+
+
+def _windows(partner: Partner, ytd_months, recent_months, periods) -> None:
+    partner.ytd_months = ytd_months
+    partner.recent_months = recent_months
+    partner.ytd = sum(partner.months.get(m, 0.0) for m in ytd_months)
+    partner.recent = sum(partner.months.get(m, 0.0) for m in recent_months)
+    ly_months = [_shift(m, -12) for m in ytd_months]
+    if all(m in periods for m in ly_months):
+        partner.ytd_ly = sum(partner.months.get(m, 0.0) for m in ly_months)
+    recent_ly = [_shift(m, -12) for m in recent_months]
+    if all(m in periods for m in recent_ly):
+        partner.recent_ly = sum(partner.months.get(m, 0.0) for m in recent_ly)
 
 
 def _number(value) -> Optional[float]:

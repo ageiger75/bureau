@@ -463,6 +463,22 @@ un bloc qui tombe (partenaires, gris, supply, produits, clients…) va au journa
 et dit qu'il est en erreur, la page se rend — plus jamais un onglet en « internal error »
 pour un bloc.
 
+**La frontière datée, le 13 septembre 2026.** Une note de reclassement disait qu'un centre
+de profit était rangé du mauvais côté ; le cockpit la croyait et sortait le canal des
+conversations, « aucune action du CEO ». Mais une note n'a pas de fin : le centre nommé ne
+facturait plus depuis le printemps, le même partenaire était passé sur un autre centre dans
+le canal où le plan l'attendait, et ce qui restait sur le canal — un e-retailer qui recule
+d'un an sur l'autre — dormait sous l'étiquette. L'agent entrepôt l'a mesuré ; le lecteur
+avait bien tranché, mais la décision vit dans les notes de contexte du cockpit, que l'agent
+ne lit pas. Trois choses : `boundary.py` date chaque note de reclassement contre les
+factures des partenaires (le centre nommé facture-t-il encore ; sinon depuis quand, où le
+partenaire est passé, pour combien ce mois ; et les centres apparus dans le même canal sans
+note) — à partir du mois où le centre se tait, la note cesse de s'appliquer, quel que soit
+le côté où le plan range le partenaire, et le panneau des frontières porte la date et la
+migration ; la page Partenaires déplie un partenaire facturé de plusieurs pays quand l'un
+d'eux s'écarte du total de dix points ; et les arbitrages restent dans les notes, à dire à
+l'agent quand on lui pose une question dessus.
+
 **L'entonnoir physique validé, le 11 septembre 2026.** Seconde validation de l'agent
 entrepôt : conversion et unités par ticket identiques à ses mesures indépendantes, à la
 décimale, sur les trois formes physiques américaines, cette année et l'an dernier ; la

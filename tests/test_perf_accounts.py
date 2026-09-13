@@ -93,3 +93,26 @@ def test_names_come_from_the_sell_in_lines_of_the_partners_file():
 def test_an_empty_reading_is_a_stated_absence():
     review = A.build([], note="pas encore lu")
     assert not review.usable and review.note == "pas encore lu" and review.headline == ""
+
+
+def test_a_partner_invoiced_from_several_countries_shows_the_country_that_diverges():
+    """Un e-retailer mondial se lit en une ligne, et cette ligne avançait quand l'un de ses
+    pays reculait d'un dixième. Le pays qui ne raconte pas la même histoire s'affiche
+    dessous ; celui qui dit la même chose reste dans le total."""
+    rows = (_rows("PC_A", "WORLD WEB", "WEBP", _flat(100.0), iso2="LU")
+            + _rows("PC_A", "WORLD WEB", "WEBP",
+                    {m: (200.0 if m < "2026-04" else 160.0) for m in _flat(1.0)}, iso2="US")
+            + _rows("PC_A", "WORLD WEB", "WEBP", _flat(150.0), iso2="DE"))
+    review = A.build(rows, today=__import__("datetime").date(2026, 9, 13))
+    partner, = review.partners
+
+    assert [line.country for line in partner.countries] == ["LU", "US", "DE"]
+    assert [line.country for line in partner.split] == ["US"]
+    assert partner.split[0].word == "recule"
+    assert partner.split[0].growth_ytd is not None and partner.split[0].growth_ytd < -0.15
+
+
+def test_a_partner_invoiced_from_one_country_has_nothing_to_split():
+    review = A.build(_rows("PC_B", "ONE SHOP", "DPT", _flat(50.0), iso2="FR"),
+                     today=__import__("datetime").date(2026, 9, 13))
+    assert review.partners[0].split == []

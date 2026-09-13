@@ -4226,6 +4226,10 @@ def cmd_partenaires(argv: List[str]) -> int:
             item.name[:26] + ("" if item.named else " *"), item.channel_label[:20], item.ytd_label,
             item.growth_ytd_label, item.growth_recent_label, item.share_label, item.word,
             item.channel_plan_label))
+        for line in item.split:
+            print("  %-26s %-20s %10s  %8s  3 mois %8s  %s" % (
+                "  dont facturé de " + line.country, "", line.ytd_label,
+                line.growth_ytd_label, line.growth_recent_label, line.word))
     if review.rest:
         from .perf.analytics import format_eur
 

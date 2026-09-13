@@ -1253,6 +1253,10 @@ class SnowflakeSource:
         # every month of the fiscal year, so the units take only the one on screen —
         # otherwise a market would appear four times, once per month, all called July.
         current = _sell_in_month(rows, sold_in, period)
+        # Les notes de reclassement datées contre les factures des partenaires, avant que
+        # les unités les prennent : un centre de profit qui s'est tu cesse d'éteindre son
+        # canal. Jamais une requête : la dernière lecture partenaires, ou rien.
+        self._date_boundaries(context_module, period)
         mapped = mapping.units_from_rows(
             current, budget=budget, history=history, sell_in_record=sell_in_record
         )
@@ -1300,6 +1304,27 @@ class SnowflakeSource:
             _inputs_generation(),
         )
         return built
+
+    def _date_boundaries(self, context_module, period: str) -> None:
+        from . import boundary as boundary_module
+
+        try:
+            rows = self.partner_rows(wait_for_warehouse=False)
+        except Exception:  # noqa: BLE001 — une lecture absente n'arrête pas l'écran
+            rows = []
+        names = {}
+        if settings.has_partners_file:
+            from . import accounts as accounts_module
+            from . import partners as partners_module
+
+            try:
+                names = accounts_module.names_from(partners_module.current())
+            except Exception:  # noqa: BLE001
+                names = {}
+        try:
+            boundary_module.apply(context_module.current().notes, rows, names, period)
+        except Exception as exc:  # noqa: BLE001
+            LOG.warning("boundary: notes left undated (%s)", exc)
 
     def commitments(self) -> List["mock.MockCommitment"]:
         self._refuse_if_unwritten("COMMITMENTS")

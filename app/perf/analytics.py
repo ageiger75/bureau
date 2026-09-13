@@ -831,8 +831,22 @@ class ReclassificationCheck:
         )
 
     @property
+    def dated(self):
+        """La lecture des factures qui date la frontière, quand une note en porte une."""
+        for note in self.notes:
+            reading = getattr(note, "boundary", None)
+            if reading is not None and reading.closed:
+                return reading
+        return None
+
+    @property
     def message(self) -> str:
         moved = _listed_labels([label for label, _ in self.legs])
+        dated = self.dated
+        if dated is not None:
+            return ("%s : %s sont notés comme une frontière, et %s. %s"
+                    % (self.market, moved, dated.sentence,
+                       self.direction)).replace("  ", " ").strip()
         if not self.crossed:
             return (
                 "%s : rien n'a franchi la frontière ce mois-ci — %s bougent dans le même sens, "
@@ -864,24 +878,39 @@ def reclassification_checks(dataset: Dataset) -> List[ReclassificationCheck]:
     """
     from .context import RECLASSIFIED
 
-    by_market: Dict[str, List[BusinessUnit]] = {}
+    from . import context as context_module
+
+    period = str(getattr(dataset, "period", "") or "")
+
+    def boundary_notes(unit) -> List:
+        # Les notes de l'unité, et celles qu'une date a fait cesser : une frontière
+        # datée dans les comptes reste une frontière à montrer, avec sa date.
+        found = [note for note in unit.context_notes if note.kind == RECLASSIFIED]
+        for note in context_module.notes_for(unit.market, unit.channel, period,
+                                             include_closed=True):
+            if note.kind == RECLASSIFIED and note.closed_since and note not in found:
+                found.append(note)
+        return found
+
+    by_market: Dict[str, List[tuple]] = {}
     for unit in dataset.units:
         if unit.is_aggregate or not unit.budget_known:
             continue
-        if any(note.kind == RECLASSIFIED for note in unit.context_notes):
-            by_market.setdefault(unit.market, []).append(unit)
+        notes = boundary_notes(unit)
+        if notes:
+            by_market.setdefault(unit.market, []).append((unit, notes))
 
     found = []
-    for market, units in sorted(by_market.items()):
-        if len(units) < 2:
+    for market, pairs in sorted(by_market.items()):
+        if len(pairs) < 2:
             continue
-        legs = [(unit.label, unit.gap_vs_budget) for unit in units]
+        legs = [(unit.label, unit.gap_vs_budget) for unit, _notes in pairs]
         net = sum(gap for _, gap in legs)
         gross = max(abs(gap) for _, gap in legs)
         seen, notes = set(), []
-        for unit in units:
-            for note in unit.context_notes:
-                if note.kind == RECLASSIFIED and note.text not in seen:
+        for _unit, unit_notes in pairs:
+            for note in unit_notes:
+                if note.text not in seen:
                     seen.add(note.text)
                     notes.append(note)
         found.append(ReclassificationCheck(market, legs, net, gross, notes))

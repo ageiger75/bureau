@@ -148,7 +148,7 @@ class Note:
     """One piece of context, scoped to a market, a channel and a starting month."""
 
     __slots__ = ("market", "channel", "since", "kind", "text", "source", "asked",
-                 "action_owner")
+                 "action_owner", "closed_since", "boundary")
 
     def __init__(self, market, channel, since, kind, text, source="", asked="",
                  action_owner="") -> None:
@@ -173,6 +173,13 @@ class Note:
         #: market is not the one to question. Naming the wrong person beside a real number
         #: is the most expensive thing this product can do.
         self.action_owner = action_owner
+        #: Le premier mois où la note ne s'applique plus, posé par `boundary.apply` quand
+        #: le centre de profit qu'elle nomme a cessé de facturer : une note n'a pas de fin
+        #: écrite, et sans cette date elle éteignait un canal des mois après que les
+        #: comptes avaient bougé. Vide tant que rien ne la date.
+        self.closed_since = ""
+        #: La lecture des factures derrière la note, pour le panneau des frontières.
+        self.boundary = None
 
     @property
     def meaning(self) -> str:
@@ -182,7 +189,8 @@ class Note:
     def question(self) -> str:
         return self.asked or KIND_QUESTION.get(self.kind, "")
 
-    def applies_to(self, market: str, channel: str, period: str) -> bool:
+    def applies_to(self, market: str, channel: str, period: str,
+                   include_closed: bool = False) -> bool:
         if self.market and self.market != market:
             return False
         # An empty channel means the note covers the whole market, which is usually right:
@@ -190,6 +198,8 @@ class Note:
         if self.channel and self.channel != channel:
             return False
         if self.since and period and period < self.since:
+            return False
+        if not include_closed and self.closed_since and period and period >= self.closed_since:
             return False
         return True
 
@@ -201,8 +211,10 @@ class Context:
     def __len__(self) -> int:
         return len(self.notes)
 
-    def notes_for(self, market: str, channel: str, period: str) -> List[Note]:
-        return [n for n in self.notes if n.applies_to(market, channel, period)]
+    def notes_for(self, market: str, channel: str, period: str,
+                  include_closed: bool = False) -> List[Note]:
+        return [n for n in self.notes
+                if n.applies_to(market, channel, period, include_closed=include_closed)]
 
     def markets(self) -> List[str]:
         return sorted({n.market for n in self.notes if n.market})
@@ -323,5 +335,6 @@ def reset() -> None:
     _stamp = None
 
 
-def notes_for(market: str, channel: str, period: str) -> List[Note]:
-    return current().notes_for(market, channel, period)
+def notes_for(market: str, channel: str, period: str,
+              include_closed: bool = False) -> List[Note]:
+    return current().notes_for(market, channel, period, include_closed=include_closed)
