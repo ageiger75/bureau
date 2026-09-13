@@ -145,3 +145,17 @@ def test_the_migration_is_read_on_the_country_that_moved_not_on_the_whole_centre
     assert reading.moved == 900.0
     # Le centre allemand facture depuis toujours : ce n'est pas un nouveau venu américain.
     assert reading.newcomers == []
+
+
+def test_an_identity_that_differs_by_a_word_is_the_same_partner():
+    assert B.same_partner("une enseigne", "une enseigne web")
+    assert B.same_partner("Une Enseigne Web", "une enseigne")
+    assert not B.same_partner("une enseigne", "une enseignette")
+    assert not B.same_partner("", "une enseigne")
+
+
+def test_the_explanation_shows_the_centre_and_every_candidate():
+    lines = B.explain(OLD, ROWS, {}, "2026-08", today=__import__("datetime").date(2026, 9, 13))
+    assert lines[0].startswith(OLD) and "dernier mois 2026-04" in lines[0]
+    assert any(NEW in line for line in lines) and any("→ destination %s" % NEW in line for line in lines)
+    assert B.explain("000NOPE", ROWS, {}, "2026-08")[0].startswith("000NOPE : absent")

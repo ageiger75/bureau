@@ -105,6 +105,19 @@ class Centre:
         return _mended(self.label or "").strip().lower()
 
 
+def same_partner(one: str, other: str) -> bool:
+    """Deux identités désignent le même partenaire quand elles sont égales, ou quand l'une
+    est l'autre suivie d'un mot — « une enseigne » et « une enseigne web » : le fichier du
+    lecteur nomme un centre, l'entrepôt libelle l'autre, et ce n'est pas la même main."""
+    one, other = one.strip().lower(), other.strip().lower()
+    if not one or not other:
+        return False
+    if one == other:
+        return True
+    short, long = sorted((one, other), key=len)
+    return long.startswith(short + " ")
+
+
 class Reading:
     """Ce que les factures disent d'une note : le centre nommé, et ce qu'il est devenu."""
 
@@ -203,7 +216,7 @@ def read(code: str, centres: Dict[str, Centre], names: Dict[str, str], period: s
     for other in centres.values():
         if other.code == centre.code or other.channel == centre.channel:
             continue
-        if other.identity(names) != identity:
+        if not same_partner(other.identity(names), identity):
             continue
         first = other.first_in(countries)
         amount = other.months_in(countries).get(period, 0.0)
@@ -219,7 +232,7 @@ def read(code: str, centres: Dict[str, Centre], names: Dict[str, str], period: s
     for other in centres.values():
         if other.code == centre.code or other.channel != centre.channel:
             continue
-        if other.identity(names) == identity:
+        if same_partner(other.identity(names), identity):
             continue
         first = other.first_in(countries)
         amount = other.months_in(countries).get(period, 0.0)
@@ -265,3 +278,45 @@ def apply(notes: Sequence, rows: Sequence[dict], names: Optional[Dict[str, str]]
             readings.append(reading)
             break
     return readings
+
+
+def explain(code: str, rows: Sequence[dict], names: Optional[Dict[str, str]], period: str,
+            today=None) -> List[str]:
+    """Ce que les factures disent d'un code, ligne par ligne, pour la commande de contrôle :
+    le centre, son identité, ses pays, son dernier mois ; puis chaque centre de la même
+    identité et ce qui l'a retenu ou écarté. Rien n'est jugé, tout est montré."""
+    import datetime
+
+    names = {str(k).strip().upper(): v for k, v in (names or {}).items()}
+    current_month = (today or datetime.date.today()).strftime("%Y-%m")
+    centres = _centres(rows, current_month) if rows else {}
+    centre = centres.get(code.upper())
+    if centre is None:
+        return ["%s : absent des factures partenaires en cache (%d centres lus)"
+                % (code, len(centres))]
+    identity = centre.identity(names)
+    lines = ["%s · %s · identité « %s » · pays %s · premier mois %s · dernier mois %s"
+             % (centre.code, CHANNEL_NAMES.get(centre.channel, centre.channel.upper()),
+                identity, ",".join(sorted(centre.countries)) or "—", centre.first or "—",
+                centre.last or "—")]
+    reading = read(code, centres, names, period)
+    if reading is None:
+        return lines + ["  aucune lecture"]
+    lines.append("  mois affiché %s · muet depuis %s" % (period, reading.closed_since or "—"))
+    for other in sorted(centres.values(), key=lambda item: item.code):
+        if other.code == centre.code:
+            continue
+        alike = same_partner(other.identity(names), identity)
+        if not alike and other.channel != centre.channel:
+            continue
+        first = other.first_in(centre.countries)
+        amount = other.months_in(centre.countries).get(period, 0.0)
+        lines.append("  %s · %s · identité « %s » · pays %s · premier mois sur ces pays %s · %s"
+                     % (other.code, CHANNEL_NAMES.get(other.channel, other.channel.upper()),
+                        other.identity(names), ",".join(sorted(other.countries)) or "—",
+                        first or "—", format_eur(amount) + " sur le mois affiché"))
+    if reading.destination:
+        lines.append("  → destination %s, %s" % (reading.destination, format_eur(reading.moved or 0.0)))
+    if reading.newcomers:
+        lines.append("  → nouveaux venus : " + ", ".join(c for c, _l, _a in reading.newcomers))
+    return lines

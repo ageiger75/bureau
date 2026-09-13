@@ -68,6 +68,7 @@
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
+    python -m app.cli frontieres     ce que les factures disent de chaque note de reclassement : le centre nommé, depuis quand il se tait, où le partenaire est passé
     python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
@@ -4241,6 +4242,46 @@ def cmd_partenaires(argv: List[str]) -> int:
     return 0
 
 
+def cmd_frontieres(argv: List[str]) -> int:
+    """Les notes de reclassement datées contre les factures des partenaires, en clair :
+    ce que la page fait en silence, montré ligne par ligne pour comprendre une date qui
+    manque ou une destination absente."""
+    from .perf import boundary as boundary_module
+    from .perf import context as context_module
+    from .perf.source import current_source
+
+    source = current_source()
+    dataset = source.dataset(wait_for_warehouse=False)
+    period = str(getattr(dataset, "period", "") or "")
+    try:
+        rows = source.partner_rows(wait_for_warehouse=False)
+    except Exception as exc:  # noqa: BLE001
+        rows = []
+        print("factures partenaires non lues : %s" % exc)
+    names = {}
+    if settings.has_partners_file:
+        from .perf import accounts as accounts_module
+        from .perf import partners as partners_module
+
+        names = accounts_module.names_from(partners_module.current())
+    notes = [n for n in context_module.current().notes if n.kind == context_module.RECLASSIFIED]
+    if not notes:
+        print("Aucune note de reclassement dans var/context.csv.")
+        return 0
+    print("Mois affiché %s · %d lignes de factures · %d noms dans var/partners.csv"
+          % (period or "—", len(rows), len(names)))
+    for note in notes:
+        print("\n%s · %s · depuis %s" % (note.market, note.channel or "tout le marché", note.since or "—"))
+        codes = boundary_module.codes_in(note.text, note.source, note.action_owner, note.asked)
+        if not codes:
+            print("  aucun code de centre de profit dans la note (texte, source, qui agit, question)")
+            continue
+        for code in codes:
+            for line in boundary_module.explain(code, rows, names, period):
+                print("  " + line)
+    return 0
+
+
 def cmd_gris(argv: List[str]) -> int:
     """Le gris et le vrac : est-on en ligne, d'où ça vient — marché par marché, puis ligne à
     ligne —, comment ça évolue, et ce que le registre en dit. `--refresh` relit l'entrepôt."""
@@ -4924,6 +4965,8 @@ def main(argv: List[str]) -> int:
         return cmd_partenaires(argv[1:])
     if command == "gris":
         return cmd_gris(argv[1:])
+    if command == "frontieres":
+        return cmd_frontieres(argv[1:])
     if command == "remplissage":
         return cmd_remplissage(argv[1:])
     if command == "supply":
