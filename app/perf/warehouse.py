@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -100,12 +101,25 @@ LOGIN_TIMEOUT_SECONDS = 180
 LOG = logging.getLogger("ceoos.warehouse")
 
 
+#: Une connexion s'ouvre à la fois. L'identité passe par le navigateur et le connecteur
+#: garde ensuite le jeton dans le trousseau ; mais deux fils qui se connectent au même
+#: instant — la lecture principale et une lecture derrière l'écran — partent chacun avant
+#: que l'autre ait rangé le jeton, et le navigateur ouvre deux pages « votre identité a
+#: été confirmée ». Serialisée, la seconde connexion trouve le jeton de la première.
+_CONNECT = threading.Lock()
+
+
 def _connect():
     """Open a connection from the named entry in ~/.snowflake/connections.toml.
 
     Imported lazily so the connector stays an optional dependency: the cockpit runs, and
     its whole test suite passes, on a machine that has never heard of Snowflake.
     """
+    with _CONNECT:
+        return _open()
+
+
+def _open():
     try:
         import snowflake.connector  # noqa: WPS433 — deliberate lazy import
     except ImportError as exc:  # pragma: no cover — depends on the local install

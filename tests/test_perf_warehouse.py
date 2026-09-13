@@ -1005,3 +1005,34 @@ def test_the_headline_month_names_the_other_one_when_they_differ():
     assert _period_label("2026-07") == "Ventes de juillet 2026 · dernier mois complet"
     assert _period_label("2026-07", "2026-07") == "Ventes de juillet 2026 · dernier mois complet"
     assert _period_label("2026-07", "2026-06").endswith("· factures partenaires jusqu'à juin")
+
+
+def test_connections_open_one_at_a_time_so_the_browser_asks_once(monkeypatch):
+    """L'identité passe par le navigateur, et le jeton n'est rangé qu'après la première
+    connexion : deux fils qui se connectent au même instant ouvraient deux pages de
+    confirmation. Serialisées, la seconde trouve le jeton de la première."""
+    import threading
+
+    from app.perf import warehouse
+
+    inside = []
+    overlaps = []
+    gate = threading.Event()
+
+    def slow_open():
+        inside.append(1)
+        if len(inside) > 1:
+            overlaps.append(True)
+        gate.wait(0.1)
+        inside.pop()
+        return object()
+
+    monkeypatch.setattr(warehouse, "_open", slow_open)
+    threads = [threading.Thread(target=warehouse._connect) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    gate.set()
+    for thread in threads:
+        thread.join(5)
+
+    assert overlaps == []
