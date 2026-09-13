@@ -39,6 +39,16 @@ def _note(text="Le centre %s est rangé du mauvais côté" % OLD, source=""):
                   kind=C.RECLASSIFIED, text=text, source=source)
 
 
+def test_a_code_written_in_the_action_owner_field_is_read_too():
+    """La note américaine portait le code dans « qui agit », et le panneau ne le lisait
+    pas : la frontière restait sans date."""
+    note = C.Note(market="Northland", channel="webp", since="2025-09", kind=C.RECLASSIFIED,
+                  text="Une frontière", source="Un deck",
+                  action_owner="Consolidation — centre de profit %s" % OLD)
+    readings = B.apply([note], ROWS, {}, "2026-08", today=__import__("datetime").date(2026, 9, 13))
+    assert readings and readings[0].closed_since == "2026-05"
+
+
 def test_codes_are_read_from_the_note_and_its_source():
     assert B.codes_in("centre de profit %s" % OLD, "Consolidation — %s" % NEW) == [OLD, NEW]
     assert B.codes_in("rien ici", "") == []

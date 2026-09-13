@@ -47,6 +47,8 @@ RECENT = 3
 #: celle du total d'au moins ce nombre de points.
 SPLIT_APART = 0.10
 MOST_COUNTRIES = 3
+#: Et seulement s'il pèse au moins cette part du partenaire.
+LEAST_COUNTRY_SHARE = 0.05
 
 #: En deçà, un partenaire est « en ligne » avec son an dernier ; au-delà, il avance ou
 #: recule. Cinq pour cent : un mois de commande glissé sur douze en fait déjà huit.
@@ -158,11 +160,15 @@ class Partner:
         la croissance du pays s'écarte de celle du total d'au moins dix points : un pays
         qui dit la même chose que le total n'est qu'une ligne de plus.
         """
-        if len(self.countries) < 2 or self.growth_ytd is None:
+        if len(self.countries) < 2 or self.growth_ytd is None or self.ytd <= 0:
             return []
         shown = []
         for line in sorted(self.countries, key=lambda item: -item.ytd):
             if line.ytd <= 0 or line.growth_ytd is None:
+                continue
+            # Un pays qui pèse presque rien dans le partenaire ne raconte rien de lui :
+            # deux mille euros à moins cent pour cent ne sont pas une histoire.
+            if line.ytd / self.ytd < LEAST_COUNTRY_SHARE:
                 continue
             if abs(line.growth_ytd - self.growth_ytd) >= SPLIT_APART:
                 shown.append(line)

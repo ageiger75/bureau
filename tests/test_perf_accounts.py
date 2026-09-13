@@ -116,3 +116,11 @@ def test_a_partner_invoiced_from_one_country_has_nothing_to_split():
     review = A.build(_rows("PC_B", "ONE SHOP", "DPT", _flat(50.0), iso2="FR"),
                      today=__import__("datetime").date(2026, 9, 13))
     assert review.partners[0].split == []
+
+
+def test_a_country_that_weighs_almost_nothing_in_the_partner_is_not_split_out():
+    rows = (_rows("PC_C", "WIDE WEB", "WEBP", _flat(1000.0), iso2="LU")
+            + _rows("PC_C", "WIDE WEB", "WEBP",
+                    {m: (10.0 if m < "2026-04" else 1.0) for m in _flat(1.0)}, iso2="HK"))
+    review = A.build(rows, today=__import__("datetime").date(2026, 9, 13))
+    assert review.partners[0].split == []

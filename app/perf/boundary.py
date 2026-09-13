@@ -220,7 +220,10 @@ def apply(notes: Sequence, rows: Sequence[dict], names: Optional[Dict[str, str]]
         note.boundary = None
         if not centres or not period:
             continue
-        for code in codes_in(note.text, note.source):
+        # Le code vit où le lecteur l'a écrit : le texte, la source, ou « qui agit » —
+        # la note américaine le portait dans ce dernier champ, et le panneau le lisait.
+        for code in codes_in(note.text, note.source, getattr(note, "action_owner", ""),
+                             getattr(note, "asked", "")):
             reading = read(code, centres, names, period)
             if reading is None:
                 continue
