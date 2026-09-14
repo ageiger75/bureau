@@ -18,7 +18,7 @@
       {% elif page.scope and page.scope.month.usable %}
         <p class="verdict-word is-{{ page.scope.month.label | replace(' ', '-') }}">{{ page.scope.month.label }}</p>
         <p class="verdict-figures">{{ page.scope.month.actual | eur }} vendus · attendu {% if page.scope.month.narrow %}{{ page.scope.month.middle | eur }}{% else %}{{ page.scope.month.low | eur }} à {{ page.scope.month.high | eur }}{% endif %} · <strong>{{ page.scope.month.gap_label }}</strong></p>
-        <p class="verdict-basis">{{ page.scope.month.coverage_label }} du plan sell-out du mois</p>
+        <p class="verdict-basis">{{ page.scope.month.coverage_sentence }}</p>
       {% else %}
         <p class="verdict-word is-absent">—</p>
         <p class="verdict-basis">{{ page.scope.month.absent if page.scope else "mois non lu" }}</p>

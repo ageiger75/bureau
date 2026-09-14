@@ -221,3 +221,12 @@ def test_a_band_too_wide_to_conclude_is_said_undecided_never_in_line():
     assert behind.label == T.BEHIND
     narrow = T.Verdict(actual=15.0, low=14.8, high=15.2)
     assert narrow.label == T.IN_LINE
+
+
+def test_the_coverage_sentence_says_what_the_sell_out_measures_not_that_the_month_is_done():
+    from app.perf.track import Verdict
+
+    whole = Verdict(actual=10.0, low=8.0, high=12.0, coverage=1.0)
+    assert whole.coverage_sentence == "tout le plan du mois se mesure en sell-out"
+    part = Verdict(actual=10.0, low=8.0, high=12.0, coverage=0.6)
+    assert part.coverage_sentence.startswith("le sell-out mesure 60 % du plan du mois")

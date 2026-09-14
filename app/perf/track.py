@@ -170,6 +170,15 @@ class Verdict:
     def coverage_label(self) -> str:
         return "%.0f %%" % (self.coverage * 100)
 
+    @property
+    def coverage_sentence(self) -> str:
+        """Ce que la couverture veut dire, en clair : « 100 % du plan » à côté d'un mois à
+        71 % se lisait comme un mois fait. C'est la part du plan que le sell-out mesure."""
+        if self.coverage >= 0.995:
+            return "tout le plan du mois se mesure en sell-out"
+        return ("le sell-out mesure %s du plan du mois ; le reste n'a pas de forme de mois"
+                % self.coverage_label)
+
 
 class Scope:
     """Un périmètre — ou le groupe — avec ses deux verdicts."""
