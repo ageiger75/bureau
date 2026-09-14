@@ -66,13 +66,21 @@ class Channel:
 
 
 class StoreMove:
-    __slots__ = ("code", "name", "actual", "last_year")
+    __slots__ = ("code", "name", "actual", "last_year", "status")
 
-    def __init__(self, code: str, name: str, actual: float, last_year: float) -> None:
+    def __init__(self, code: str, name: str, actual: float, last_year: float,
+                 status: str = "") -> None:
         self.code = code
         self.name = name
         self.actual = actual
         self.last_year = last_year
+        #: Le statut de la feuille de la CFO : une boutique fermée n'est pas une boutique
+        #: muette, et la seconde vaut une question.
+        self.status = status
+
+    @property
+    def closed(self) -> bool:
+        return any(word in (self.status or "").lower() for word in ("clos", "ferm"))
 
     @property
     def delta(self) -> float:
@@ -140,6 +148,9 @@ class Dossier:
         self.neighbours: List[str] = []
         self.feeds: List[Feed] = []
         self.partners: List = []
+        #: Les centres arrêtés et nouveaux facturés depuis le pays : la relève, ou le trou.
+        self.stopped: List = []
+        self.newcomers: List = []
         self.iso2 = ""
         self.issues: List[Mention] = []
         self.notes: List = []
@@ -187,6 +198,29 @@ class Dossier:
                                      m.growth_recent_label, m.word))
 
     @property
+    def relay_sentence(self) -> str:
+        parts = []
+        if self.stopped:
+            parts.append("arrêtés cette année, %s l'an dernier sur la fenêtre : %s" % (
+                format_eur(sum(p.ytd_ly or 0.0 for p in self.stopped)),
+                ", ".join(p.name for p in self.stopped[:3])))
+        if self.newcomers:
+            parts.append("nouveaux, %s à date : %s" % (
+                format_eur(sum(p.ytd for p in self.newcomers)),
+                ", ".join(p.name for p in self.newcomers[:3])))
+        text = " ; ".join(parts)
+        if self.stopped and self.newcomers:
+            gone = sum(p.ytd_ly or 0.0 for p in self.stopped)
+            if gone > 0:
+                text += " — la relève couvre %d %% de ce qui s'est arrêté" % round(
+                    100 * sum(p.ytd for p in self.newcomers) / gone)
+        return text
+
+    @property
+    def mute_stores(self) -> List[StoreMove]:
+        return [m for m in self.silent if not m.closed]
+
+    @property
     def questions(self) -> List[str]:
         """Trois questions, générées de ce que les chiffres montrent de plus net."""
         found: List[str] = []
@@ -215,6 +249,14 @@ class Dossier:
             top = self.accounts[0]
             found.append("%s : %s de vrac à date, %s sur l'an dernier. Qui est ce compte, et "
                          "qu'est-ce qu'on lui vend ?" % (top.label, top.ytd_label, top.growth_label))
+        if self.stopped and self.newcomers:
+            found.append("Facturé depuis %s, %s. Qui reprend le volume des centres arrêtés, et "
+                         "où va le reste ?" % (self.iso2, self.relay_sentence))
+        if self.mute_stores:
+            mute = self.mute_stores[0]
+            found.append("%s : aucune vente ce mois, %s l'an dernier, et aucune fermeture dans la "
+                         "feuille. Fermée, ou muette ?" % (mute.name or mute.code,
+                                                           format_eur(mute.last_year)))
         if self.declines:
             worst = self.declines[0]
             found.append("%s : %s sur le mois contre l'an dernier (%s). Qu'est-ce qui s'est "
@@ -261,9 +303,13 @@ class Dossier:
             out.append("  %-40s %10s  %10s  %s" % ((move.name or move.code)[:40], move.actual_label,
                                                    move.delta_label, move.growth_label))
         if self.silent:
-            out.append("  sans vente ce mois, fermées ou muettes : %d boutiques, %s l'an dernier — %s"
-                       % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
-                          ", ".join((m.name or m.code) for m in self.silent[:4])))
+            closed = [m for m in self.silent if m.closed]
+            mute = [m for m in self.silent if not m.closed]
+            out.append("  sans vente ce mois : %d boutiques, %s l'an dernier — %d fermées selon la "
+                       "feuille%s" % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
+                                      len(closed),
+                                      (", et muettes sans fermeture : %s" % ", ".join(
+                                          (m.name or m.code) for m in mute[:4])) if mute else ""))
         if self.gains:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
@@ -302,6 +348,8 @@ class Dossier:
                 line.growth_ytd_label, line.growth_recent_label, line.word))
         if not self.partners:
             out.append("  aucun, ou pays de facturation inconnu")
+        if self.stopped or self.newcomers:
+            out.append("  relève : %s" % self.relay_sentence)
         out.append("REGISTRE ET NOTES")
         for item in self.issues:
             out.append("  %s · %s · %s%s" % (item.issue_id, item.title[:100], item.status_word,
@@ -342,7 +390,8 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
             if last_year is None or float(last_year) <= 0:
                 continue
             moves.append(StoreMove(str(store.code), str(getattr(store, "name", "") or ""),
-                                   actual, float(last_year)))
+                                   actual, float(last_year),
+                                   str(getattr(store, "status", "") or "")))
         moves.sort(key=lambda move: move.delta)
         dossier.silent = [move for move in moves if move.actual <= 0]
         dossier.declines = [move for move in moves if move.delta < 0 and move.actual > 0][:MOST_STORE_MOVES]
@@ -392,6 +441,15 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
                     billed.append((line.ytd, partner, line))
         billed.sort(key=lambda item: -item[0])
         dossier.partners = [(partner, line) for _ytd, partner, line in billed[:MOST_PARTNERS]]
+        # La relève, vue du pays : les centres facturés depuis lui qui se sont tus, et les
+        # nouveaux. Un opérateur qui s'arrête et deux qui ouvrent ne se lisent que côte à côte.
+        for partner in getattr(accounts, "stopped", []) or []:
+            if any(line.country == dossier.iso2 and (line.ytd_ly or 0.0) > 0
+                   for line in partner.countries):
+                dossier.stopped.append(partner)
+        for partner in getattr(accounts, "newcomers", []) or []:
+            if any(line.country == dossier.iso2 and line.ytd > 0 for line in partner.countries):
+                dossier.newcomers.append(partner)
 
     found = []
     for issue in getattr(register, "issues", []) or []:

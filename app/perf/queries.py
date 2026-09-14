@@ -1877,7 +1877,9 @@ group by 1, 2, 3, 4, 5, 6
 #: cent du prix unitaire moyen de la référence dans le pays ce mois-là, hors drapeau (les
 #: magasins d'usine, surtout). `period · market · store · sub_channel · kind · net_eur ·
 #: lines · flagged_eur`, `kind` valant `quantity` ou `price`. Même fenêtre que le vrac.
-#: Écrit sur la mesure de l'agent entrepôt du 13 septembre 2026, à valider.
+#: Écrit sur la mesure de l'agent entrepôt du 13 septembre 2026, validé le 14 à l'euro
+#: près sur deux magasins et deux marchés ; les unités comptées sont les unités payées, et
+#: les lignes à zéro euro sont hors du critère de prix, sur sa relecture.
 SHADOW_BIG_TICKET_UNITS = 50
 SHADOW_CHEAP_RATIO = 0.6
 SHADOW_BULK = """
@@ -1904,8 +1906,12 @@ with base as (
       and f.transaction_date <  %(to)s
 ),
 tickets as (
+    -- Paid units only: a gift-with-purchase line carries units and no euros, and a web
+    -- store's tickets of seventy-five units at two hundred euros, two thirds of them
+    -- free, read as bulk when they are a promotion. Validated on 14 September 2026.
     select period, market, store, sub_channel, ticket,
-           sum(quantity) as units, sum(net_eur) as net_eur, max(flagged) as flagged
+           sum(iff(net_eur > 0, quantity, 0)) as units,
+           sum(net_eur) as net_eur, max(flagged) as flagged
     from base
     group by 1, 2, 3, 4, 5
 ),
@@ -1934,6 +1940,9 @@ cheap as (
     join reference r
       on r.period = b.period and r.market = b.market and r.product_skey = b.product_skey
     where b.quantity > 0
+      -- Sold, not given: without this the criterion is a detector of free goods, and
+      -- the line count is wrong by a factor of a hundred (validation of 14 September).
+      and b.net_eur > 0
       and b.flagged = 0
       and b.net_eur / b.quantity < %(ratio)s * r.unit_price
     group by 1, 2, 3, 4

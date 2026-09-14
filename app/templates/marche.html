@@ -47,7 +47,7 @@
         {% endfor %}
       </tbody>
     </table>
-    {% if dossier.silent %}<p class="cockpit-caveat">Sans vente ce mois, fermées ou muettes : {{ dossier.silent | length }} boutiques, {{ dossier.silent | map(attribute='last_year') | sum | eur }} l'an dernier — {% for m in dossier.silent[:4] %}{{ m.name or m.code }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+    {% if dossier.silent %}<p class="cockpit-caveat">Sans vente ce mois : {{ dossier.silent | length }} boutiques, {{ dossier.silent | map(attribute='last_year') | sum | eur }} l'an dernier, dont {{ dossier.silent | rejectattr('closed') | list | length }} sans fermeture dans la feuille{% if dossier.mute_stores %} — {% for m in dossier.mute_stores[:4] %}{{ m.name or m.code }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.</p>{% endif %}
     {% if dossier.gains %}<p class="cockpit-caveat">Et celles qui poussent : {% for move in dossier.gains %}{{ move.name or move.code }} {{ move.delta_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
     <p class="cockpit-caveat">Le mois de la feuille par boutique de la CFO, contre le même mois l'an dernier ; les plus fortes baisses en euros, pas en pourcentage.</p>
   {% else %}
@@ -118,6 +118,7 @@
   {% else %}
     <p class="empty">Aucun partenaire facturé depuis ce pays, ou pays de facturation inconnu.</p>
   {% endif %}
+  {% if dossier.relay_sentence %}<p class="routed-why">Relève : {{ dossier.relay_sentence }}.</p>{% endif %}
 </section>
 
 <section class="panel" id="registre">

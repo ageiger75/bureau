@@ -58,3 +58,23 @@ def test_a_channel_without_a_plan_says_so_instead_of_a_gap_equal_to_its_sales():
     assert channel.gap_label == "plan non lu" and channel.gap == 0.0
     feed = visit.Feed("Westland Travel Retail", 1000.0, 1000.0, 900.0, budget_known=False)
     assert "plan non lu" in feed.sentence and "contre le plan" not in feed.sentence
+
+
+def test_a_silent_store_without_a_closure_is_a_question_and_a_closed_one_is_not():
+    class _Store:
+        def __init__(self, code, name, market, status, actual, last_year):
+            self.code, self.name, self.market, self.status = code, name, market, status
+            self.actual, self.last_year, self.budget, self.is_bulk = actual, last_year, None, False
+
+    class _Sales:
+        usable = True
+        stores = [_Store("S1", "Une boutique fermée", "China", "Closed", 0.0, 50_000.0),
+                  _Store("S2", "Une boutique muette", "China", "New", 0.0, 80_000.0),
+                  _Store("S3", "Une boutique qui tient", "China", "Open", 40_000.0, 42_000.0)]
+
+    dossier = visit.build("China", store_sales=_Sales())
+    assert [m.code for m in dossier.silent] == ["S2", "S1"] or [m.code for m in dossier.silent] == ["S1", "S2"]
+    assert [m.code for m in dossier.mute_stores] == ["S2"]
+    assert any("Une boutique muette" in q and "Fermée, ou muette" in q for q in dossier.questions)
+    assert not any("Une boutique fermée" in q for q in dossier.questions)
+    assert "1 fermées selon la feuille" in "\n".join(dossier.lines())

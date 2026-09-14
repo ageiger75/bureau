@@ -124,3 +124,22 @@ def test_a_country_that_weighs_almost_nothing_in_the_partner_is_not_split_out():
                     {m: (10.0 if m < "2026-04" else 1.0) for m in _flat(1.0)}, iso2="HK"))
     review = A.build(rows, today=__import__("datetime").date(2026, 9, 13))
     assert review.partners[0].split == []
+
+
+def test_a_centre_that_stopped_and_the_newcomers_that_relay_it_are_read_side_by_side():
+    """Un opérateur qui s'arrête disparaît de la table des partenaires ; le trou qu'il laisse
+    ne se lit nulle part si personne ne le nomme, et la relève ne se juge qu'en face."""
+    old = {m: 100_000.0 for m in _flat(1.0) if m <= "2026-02"}
+    new_a = {m: 60_000.0 for m in _flat(1.0) if m >= "2026-02"}
+    new_b = {m: 20_000.0 for m in _flat(1.0) if m >= "2026-04"}
+    rows = (_rows("PC_OLD", "OLD OPERATOR", "TRA", old, iso2="CN")
+            + _rows("PC_NEW_A", "NEW ONE", "TRA", new_a, iso2="CN")
+            + _rows("PC_NEW_B", "NEW TWO", "TRA", new_b, iso2="CN")
+            + _rows("PC_STEADY", "STEADY", "TRA", _flat(50_000.0), iso2="CN"))
+    review = A.build(rows, today=__import__("datetime").date(2026, 9, 13))
+
+    assert [p.code for p in review.stopped] == ["PC_OLD"]
+    assert [p.code for p in review.newcomers] == ["PC_NEW_A"]  # PC_NEW_B sous le seuil
+    assert "1 centre arrêté cette année" in review.relay_sentence
+    assert "Old Operator" in review.relay_sentence and "New One" in review.relay_sentence
+    assert "la relève couvre 60 %" in review.relay_sentence

@@ -834,6 +834,18 @@ du budget et les comptes, gris sans drapeau avec ses points de vente, voisin et 
 qui alimentent, partenaires facturés depuis le pays, sujets et notes. Rien n'est relu à
 l'entrepôt. La requête est à valider par l'agent entrepôt à la première relecture.
 
+**Validé par l'agent entrepôt le 14 septembre 2026, et corrigé sur sa relecture.** La
+requête du gris sans drapeau rend ses chiffres à l'euro près sur deux magasins et deux
+marchés. Deux corrections : les unités d'un ticket sont les unités payées (une ligne de
+cadeau porte des unités et pas d'euros, et la boutique web officielle passait pour un compte
+de gros), et le critère de prix exclut les lignes à zéro euro (sans quoi il détecte du
+gratuit, pas de la remise). Deux lectures nouvelles, apprises sur un cas réel : la relève des
+centres de profit — un opérateur qui s'arrête disparaît de la table des partenaires et le
+trou qu'il laisse ne se lit nulle part ; `accounts.Review.stopped` et `newcomers`, et la
+phrase qui les met en face, sur Analyses et dans le dossier par pays de facturation ; et les
+boutiques sans vente : fermées selon la feuille de la CFO, ou muettes sans fermeture, la
+seconde valant une question.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

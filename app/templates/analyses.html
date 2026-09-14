@@ -459,6 +459,7 @@
         {% endif %}
       </tbody>
     </table>
+    {% if accounts.relay_sentence %}<p class="routed-why">{{ accounts.relay_sentence | ucfirst }}.</p>{% endif %}
     {% if accounts.question %}<p class="ask">{{ accounts.question }}</p>{% endif %}
     {% if accounts.unnamed_note %}<p class="cockpit-caveat">{{ accounts.unnamed_note | ucfirst }}.</p>{% endif %}
     <p class="cockpit-caveat">Le pays d'un partenaire est son pays de facturation, pas un marché ; un partenaire facturé de plusieurs pays est lu en une ligne, et un pays qui ne raconte pas la même histoire que le total s'affiche dessous.</p>

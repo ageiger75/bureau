@@ -202,6 +202,11 @@ class Partner:
             % format_eur(abs(self.channel_gap)))
 
 
+#: Un centre arrêté vaut une ligne s'il facturait au moins ceci sur la même fenêtre l'an
+#: dernier ; un centre nouveau, s'il facture au moins ceci à date. En deçà, c'est du bruit.
+LEAST_RELAY = 250_000.0
+
+
 class Review:
     """La lecture, telle que la page et la commande la rendent."""
 
@@ -216,6 +221,60 @@ class Review:
     @property
     def usable(self) -> bool:
         return bool(self.partners)
+
+    @property
+    def stopped(self) -> List[Partner]:
+        """Les centres qui facturaient l'an dernier sur la fenêtre et se sont tus avant le
+        dernier mois lu : une relève, ou un arrêt. Un centre qui s'arrête ne disparaît pas
+        du chiffre d'un coup, il disparaît de la table des partenaires — et le trou qu'il
+        laisse ne se lit nulle part si personne ne le nomme."""
+        if not self.through:
+            return []
+        found = [p for p in self.partners
+                 if (p.ytd_ly or 0.0) >= LEAST_RELAY and p.months
+                 and max(m for m, v in p.months.items() if v > 0) < self.through
+                 and p.months.get(self.through, 0.0) <= 0]
+        return sorted(found, key=lambda p: -(p.ytd_ly or 0.0))
+
+    @property
+    def newcomers(self) -> List[Partner]:
+        """Les centres dont la première facture tombe dans les douze derniers mois : la
+        relève, quand il y en a une. Douze mois et non l'exercice : un opérateur qui ouvre en
+        janvier pour reprendre un centre arrêté en mars est la relève de cet exercice."""
+        if not self.through:
+            return []
+        since = _shift(self.through, -12)
+        found = []
+        for p in self.partners:
+            active = sorted(m for m, v in p.months.items() if v > 0)
+            if active and active[0] >= since and p.ytd >= LEAST_RELAY:
+                found.append(p)
+        return sorted(found, key=lambda p: -p.ytd)
+
+    @property
+    def relay_sentence(self) -> str:
+        """Les arrêts contre la relève, en euros : ce que les centres arrêtés faisaient l'an
+        dernier sur la fenêtre, ce que les nouveaux font à date."""
+        stopped, new = self.stopped, self.newcomers
+        if not stopped and not new:
+            return ""
+        parts = []
+        if stopped:
+            parts.append("%d centre%s arrêté%s cette année, %s l'an dernier sur la fenêtre (%s)" % (
+                len(stopped), "s" if len(stopped) > 1 else "", "s" if len(stopped) > 1 else "",
+                format_eur(sum(p.ytd_ly or 0.0 for p in stopped)),
+                ", ".join(p.name for p in stopped[:3])))
+        if new:
+            parts.append("%d nouveau%s, %s à date (%s)" % (
+                len(new), "x" if len(new) > 1 else "", format_eur(sum(p.ytd for p in new)),
+                ", ".join(p.name for p in new[:3])))
+        text = " ; ".join(parts)
+        if stopped and new:
+            gone = sum(p.ytd_ly or 0.0 for p in stopped)
+            back = sum(p.ytd for p in new)
+            if gone > 0:
+                text += " — la relève couvre %d %% de ce qui s'est arrêté" % round(100 * back / gone)
+        return text
 
     @property
     def shown(self) -> List[Partner]:
