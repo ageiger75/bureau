@@ -50,3 +50,13 @@ def test_the_window_stops_where_the_kpi_readings_stop_and_empty_rows_say_so():
     assert review.through == "2026-06"
     assert S.build([]).note == "le gris sans drapeau n'est pas encore lu"
     assert not S.build([]).usable
+
+
+def test_the_unmarked_euros_and_who_carries_them_are_named():
+    """Un marché qui marque ses grands comptes et pas le reste a un vrac marqué qui est un
+    plancher : la mesure qui manquait est l'écart, et les points de vente qui le portent."""
+    north = S.build(ROWS).for_market("Northland").quantity
+    assert round(north.unmarked, 6) == round(north.ytd - north.flagged_ytd, 6)
+    assert [store.code for store in north.unmarked_stores] == ["ST-N-1", "ST-N-2"]
+    assert north.stores[0].unmarked_label in north.sentence and "non marqués" in north.sentence
+    assert S.build(ROWS).for_market("Northland").price.unmarked == 0.0

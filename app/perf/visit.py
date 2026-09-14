@@ -22,11 +22,16 @@ from .grey import FEEDERS, NEIGHBOURS, Mention, _growth, _line_for_market
 MOST_STORE_MOVES = 5
 MOST_PARTNERS = 6
 MOST_ISSUES = 8
+#: Au-delà de cette part de gros tickets non marqués, la première question est celle-là.
+UNMARKED_WORTH_ASKING = 0.2
+#: Un partenaire de duty free facturé depuis le pays qui bondit d'autant sur trois mois, ou
+#: sans an dernier, vaut une question.
+DUTY_FREE_JUMP = 0.25
 
 
 class Channel:
     __slots__ = ("label", "channel_label", "sales", "gap", "last_year", "is_sell_in",
-                 "reason", "question")
+                 "reason", "question", "budget_known")
 
     def __init__(self, unit) -> None:
         from .mapping import _channel_label
@@ -34,7 +39,10 @@ class Channel:
         self.label = unit.label
         self.channel_label = _channel_label(getattr(unit, "channel", ""))
         self.sales = float(unit.sales_actual or 0.0)
-        self.gap = float(unit.gap_vs_budget or 0.0)
+        #: Sans plan connu, pas d'écart : un écart égal aux ventes dirait que le plan est
+        #: zéro, ce qui n'est jamais ce qu'un plan absent veut dire.
+        self.budget_known = bool(getattr(unit, "budget_known", True))
+        self.gap = float(unit.gap_vs_budget or 0.0) if self.budget_known else 0.0
         self.last_year = getattr(unit, "sales_last_year", None)
         self.is_sell_in = bool(getattr(unit, "is_sell_in", False))
         self.reason = getattr(unit, "no_breakdown_reason", "") or ""
@@ -50,7 +58,7 @@ class Channel:
 
     @property
     def gap_label(self) -> str:
-        return format_eur(self.gap)
+        return format_eur(self.gap) if self.budget_known else "plan non lu"
 
     @property
     def growth_label(self) -> str:
@@ -88,19 +96,22 @@ class StoreMove:
 
 
 class Feed:
-    __slots__ = ("label", "sales", "gap", "last_year")
+    __slots__ = ("label", "sales", "gap", "last_year", "budget_known")
 
-    def __init__(self, label: str, sales: float, gap: float, last_year) -> None:
+    def __init__(self, label: str, sales: float, gap: float, last_year,
+                 budget_known: bool = True) -> None:
         self.label = label
         self.sales = sales
-        self.gap = gap
+        self.gap = gap if budget_known else 0.0
         self.last_year = last_year
+        self.budget_known = budget_known
 
     @property
     def sentence(self) -> str:
         growth = _growth(self.sales, self.last_year)
-        return "%s : %s ce mois, %s contre le plan, %s contre l'an dernier" % (
-            self.label, format_eur(self.sales), format_eur(self.gap),
+        return "%s : %s ce mois, %s, %s contre l'an dernier" % (
+            self.label, format_eur(self.sales),
+            ("%s contre le plan" % format_eur(self.gap)) if self.budget_known else "plan non lu",
             "n/d" if growth is None else format_pct(growth))
 
 
@@ -112,6 +123,9 @@ class Dossier:
         self.channels: List[Channel] = []
         self.declines: List[StoreMove] = []
         self.gains: List[StoreMove] = []
+        #: Les boutiques sans vente ce mois avec un an dernier : fermées, ou muettes — pas
+        #: des décrochages, et comptées à part.
+        self.silent: List[StoreMove] = []
         self.stores_note = ""
         #: Le vrac marqué de ce marché (`grey.Market`), ou rien.
         self.marked = None
@@ -178,8 +192,17 @@ class Dossier:
         found: List[str] = []
         shadow = self.shadow
         if shadow is not None and shadow.quantity.usable and shadow.quantity.stores:
-            top = shadow.quantity.stores[0]
-            if shadow.quantity.marks_its_bulk is False:
+            piece = shadow.quantity
+            top = piece.stores[0]
+            carriers = piece.unmarked_stores
+            if (piece.unmarked_share or 0.0) >= UNMARKED_WORTH_ASKING and carriers:
+                found.append("%s de gros tickets ne sont pas marqués comme du vrac à date, "
+                             "portés d'abord par %s (%s) : qui achète plus de cinquante unités "
+                             "par ticket, et pourquoi ces tickets ne portent pas le drapeau "
+                             "quand les grands comptes le portent ? Le flux est-il assumé, ou "
+                             "caché ?" % (piece.unmarked_label, carriers[0].code,
+                                          carriers[0].sub_channel))
+            elif piece.marks_its_bulk is False:
                 found.append("Chez %s (%s), qui achète plus de cinquante unités par ticket, et "
                              "pourquoi ces tickets ne sont pas marqués comme du vrac quand d'autres "
                              "marchés les marquent ? Le flux est-il assumé, ou caché ?"
@@ -197,6 +220,16 @@ class Dossier:
             found.append("%s : %s sur le mois contre l'an dernier (%s). Qu'est-ce qui s'est "
                          "arrêté, une décision ou un acheteur, et où le volume est-il parti ?"
                          % (worst.name or worst.code, worst.delta_label, worst.growth_label))
+        duty_free = [(partner, line) for partner, line in self.partners
+                     if "travel" in (partner.channel_label or "").lower()
+                     and (line.growth_recent is None or line.growth_recent >= DUTY_FREE_JUMP)]
+        if duty_free:
+            partner, line = duty_free[0]
+            found.append("Le duty free facturé depuis %s : %s à date chez %s, %s — qui commande "
+                         "ce stock, et où est-il vendu ?" % (
+                             self.iso2, line.ytd_label, partner.name,
+                             "sans an dernier" if line.growth_ytd is None
+                             else "%s sur trois mois" % line.growth_recent_label))
         if self.marked is not None and (self.marked.share_of_market or 0.0) >= 0.05:
             found.append("La croissance de %s, c'est hors vrac ou vrac compris ? Laquelle est "
                          "dans le plan, laquelle est dans le bonus ?" % self.name)
@@ -227,6 +260,10 @@ class Dossier:
         for move in self.declines:
             out.append("  %-40s %10s  %10s  %s" % ((move.name or move.code)[:40], move.actual_label,
                                                    move.delta_label, move.growth_label))
+        if self.silent:
+            out.append("  sans vente ce mois, fermées ou muettes : %d boutiques, %s l'an dernier — %s"
+                       % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
+                          ", ".join((m.name or m.code) for m in self.silent[:4])))
         if self.gains:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
@@ -241,9 +278,14 @@ class Dossier:
             for piece in self.shadow.slices:
                 out.append("  " + piece.sentence)
                 for store in piece.shown:
-                    out.append("    %-34s %10s  part %5s  %8s  marqué %5s" % (
+                    out.append("    %-34s %10s  part %5s  %8s  marqué %5s%s" % (
                         ("%s · %s" % (store.code, store.sub_channel))[:34], store.ytd_label,
-                        store.share_label, store.growth_label, store.marking_label))
+                        store.share_label, store.growth_label, store.marking_label,
+                        ("  non marqué %s" % store.unmarked_label) if store.unmarked > 0 else ""))
+                if piece.kind == "quantity" and piece.unmarked > 0:
+                    out.append("    non marqués, portés par : " + ", ".join(
+                        "%s · %s %s" % (item.code, item.sub_channel, item.unmarked_label)
+                        for item in piece.unmarked_stores))
         else:
             out.append("  " + (self.shadow_note or "le gris sans drapeau n'est pas lu"))
         out.append("CE QUI L'ALIMENTE SANS PASSER PAR LUI")
@@ -302,7 +344,8 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
             moves.append(StoreMove(str(store.code), str(getattr(store, "name", "") or ""),
                                    actual, float(last_year)))
         moves.sort(key=lambda move: move.delta)
-        dossier.declines = [move for move in moves if move.delta < 0][:MOST_STORE_MOVES]
+        dossier.silent = [move for move in moves if move.actual <= 0]
+        dossier.declines = [move for move in moves if move.delta < 0 and move.actual > 0][:MOST_STORE_MOVES]
         dossier.gains = [move for move in reversed(moves) if move.delta > 0][:3]
         if not moves:
             dossier.stores_note = "aucune boutique de %s avec un an dernier dans le fichier" % name
@@ -337,7 +380,8 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
             if getattr(unit, "market", "") == feeder and getattr(unit, "is_sell_in", False):
                 dossier.feeds.append(Feed(unit.label, float(unit.sales_actual or 0.0),
                                           float(unit.gap_vs_budget or 0.0),
-                                          getattr(unit, "sales_last_year", None)))
+                                          getattr(unit, "sales_last_year", None),
+                                          bool(getattr(unit, "budget_known", True))))
 
     dossier.iso2 = (iso2_by_market or {}).get(name, "")
     if dossier.iso2 and accounts is not None:

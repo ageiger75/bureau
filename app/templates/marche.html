@@ -38,7 +38,7 @@
 
 <section class="panel" id="boutiques">
   <h2>Les boutiques qui décrochent le plus</h2>
-  {% if dossier.declines %}
+  {% if dossier.declines or dossier.silent %}
     <table class="month-table product-table">
       <thead><tr><th>Boutique</th><th>Ventes du mois</th><th>vs l'an dernier</th><th></th></tr></thead>
       <tbody>
@@ -47,6 +47,7 @@
         {% endfor %}
       </tbody>
     </table>
+    {% if dossier.silent %}<p class="cockpit-caveat">Sans vente ce mois, fermées ou muettes : {{ dossier.silent | length }} boutiques, {{ dossier.silent | map(attribute='last_year') | sum | eur }} l'an dernier — {% for m in dossier.silent[:4] %}{{ m.name or m.code }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
     {% if dossier.gains %}<p class="cockpit-caveat">Et celles qui poussent : {% for move in dossier.gains %}{{ move.name or move.code }} {{ move.delta_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
     <p class="cockpit-caveat">Le mois de la feuille par boutique de la CFO, contre le même mois l'an dernier ; les plus fortes baisses en euros, pas en pourcentage.</p>
   {% else %}
@@ -77,10 +78,13 @@
         <thead><tr><th>{{ piece.label | ucfirst }} · point de vente</th><th>À date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th>{% if piece.kind == "quantity" %}<th>Marqué comme vrac</th>{% endif %}</tr></thead>
         <tbody>
           {% for store in piece.shown %}
-            <tr><td>{{ store.code }} · {{ store.sub_channel }}</td><td class="num">{{ store.ytd_label }}</td><td class="num">{{ store.share_label }}</td><td class="num">{{ store.growth_label }}</td><td class="num">{{ store.growth_recent_label }}</td>{% if piece.kind == "quantity" %}<td class="num">{{ store.marking_label }}</td>{% endif %}</tr>
+            <tr><td>{{ store.code }} · {{ store.sub_channel }}</td><td class="num">{{ store.ytd_label }}</td><td class="num">{{ store.share_label }}</td><td class="num">{{ store.growth_label }}</td><td class="num">{{ store.growth_recent_label }}</td>{% if piece.kind == "quantity" %}<td class="num {{ 'is-en-retard' if store.marking is not none and store.marking < 0.5 else '' }}">{{ store.marking_label }}</td>{% endif %}</tr>
           {% endfor %}
         </tbody>
       </table>
+      {% if piece.kind == "quantity" and piece.unmarked > 0 %}
+        <p class="cockpit-caveat">Non marqués, {{ piece.unmarked_label }}, portés par : {% for item in piece.unmarked_stores %}{{ item.code }} · {{ item.sub_channel }} {{ item.unmarked_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>
+      {% endif %}
     {% endfor %}
     <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Elles ne désignent pas la même population et ne s'additionnent pas. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher.</p>
   {% else %}

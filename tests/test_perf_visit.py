@@ -38,3 +38,23 @@ def test_a_market_without_readings_still_has_a_dossier():
     dossier = visit.build("Westland")
     assert dossier.name == "Westland" and dossier.questions == []
     assert "rien d'écrit" in "\n".join(dossier.lines())
+
+
+def test_the_first_question_is_about_the_unmarked_euros_when_they_weigh():
+    dossier = _dossier()
+    piece = dossier.shadow.quantity
+    assert piece.unmarked_share is not None and piece.unmarked_share >= visit.UNMARKED_WORTH_ASKING
+    assert dossier.questions[0].startswith(piece.unmarked_label)
+    assert "ne portent pas le drapeau" in dossier.questions[0]
+
+
+def test_a_channel_without_a_plan_says_so_instead_of_a_gap_equal_to_its_sales():
+    class _Unit:
+        label = "Westland Travel Retail"; channel = "travel"; sales_actual = 1000.0
+        gap_vs_budget = 1000.0; sales_last_year = 900.0; is_sell_in = True
+        no_breakdown_reason = ""; budget_known = False; market = "Westland"; is_aggregate = False
+
+    channel = visit.Channel(_Unit())
+    assert channel.gap_label == "plan non lu" and channel.gap == 0.0
+    feed = visit.Feed("Westland Travel Retail", 1000.0, 1000.0, 900.0, budget_known=False)
+    assert "plan non lu" in feed.sentence and "contre le plan" not in feed.sentence

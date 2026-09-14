@@ -80,6 +80,15 @@ class Store:
         return self.ytd / self.total if self.total > 0 else None
 
     @property
+    def unmarked(self) -> float:
+        """Les euros de gros tickets que le drapeau ne couvre pas."""
+        return max(self.ytd - self.flagged_ytd, 0.0) if self.kind == "quantity" else 0.0
+
+    @property
+    def unmarked_label(self) -> str:
+        return format_eur(self.unmarked)
+
+    @property
     def ytd_label(self) -> str:
         return format_eur(self.ytd)
 
@@ -169,6 +178,27 @@ class Slice:
         return self.stores[:MOST_STORES]
 
     @property
+    def unmarked(self) -> float:
+        """Les euros de gros tickets que le drapeau ne couvre pas : le vrac qui n'est pas
+        dans le vrac marqué. C'est la mesure qui manquait — un marché qui marque ses six
+        premiers comptes et pas le reste a un vrac marqué qui est un plancher."""
+        return sum(item.unmarked for item in self.stores)
+
+    @property
+    def unmarked_share(self) -> Optional[float]:
+        return self.unmarked / self.ytd if self.ytd > 0 else None
+
+    @property
+    def unmarked_stores(self) -> List[Store]:
+        """Les points de vente qui portent les gros tickets non marqués, les plus lourds en tête."""
+        carrying = [item for item in self.stores if item.unmarked > 0]
+        return sorted(carrying, key=lambda item: -item.unmarked)[:MOST_STORES]
+
+    @property
+    def unmarked_label(self) -> str:
+        return format_eur(self.unmarked)
+
+    @property
     def ytd_label(self) -> str:
         return format_eur(self.ytd)
 
@@ -192,9 +222,14 @@ class Slice:
         text = "%s : %s à date, %s sur l'an dernier, %s sur trois mois — %s" % (
             self.label, self.ytd_label, self.growth_label, self.growth_recent_label, self.word)
         if self.kind == "quantity" and self.marking is not None:
-            text += " ; marqués comme vrac à %s" % self.marking_label
+            text += " ; marqués comme vrac à %s en valeur, soit %s non marqués" % (
+                self.marking_label, self.unmarked_label)
             if not self.marks_its_bulk:
                 text += " : ce marché ne pose pas le drapeau, son vrac marqué est un plancher"
+            carriers = self.unmarked_stores
+            if carriers and self.unmarked > 0:
+                text += " ; les non marqués sont portés par %s" % ", ".join(
+                    "%s (%s)" % (item.code, item.unmarked_label) for item in carriers[:3])
         if self.stores:
             top = self.stores[0]
             text += " ; le premier point de vente, %s, en porte %s" % (top.code, top.share_label)
