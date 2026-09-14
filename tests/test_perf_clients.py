@@ -267,3 +267,18 @@ def test_the_day_card_says_the_base_the_lost_share_and_the_new_in_one_line():
     assert review.word == "+5.0 %" and not review.falling
     assert review.card.startswith("base perdue 40 % (41 % l'an dernier, la saison) · nouveaux 33 % des actifs, à -25.0 % de panier")
     assert review.card.endswith("retenus à +5.0 % de panier")
+
+
+def test_a_market_without_registered_clients_says_so_once_and_keeps_its_visits():
+    # Un marché dont l'entrepôt ne connaît aucun compte client : la lecture tient sur les
+    # visites sans compte, avec leur an dernier, et dit une seule fois ce qui manque — pas
+    # « l'an dernier n'est pas dans la lecture » alors que la table le compare.
+    rows = [_row("FARLAND", "ly", "walkin", 200, 200, 10_000.0),
+            _row("FARLAND", "ty", "walkin", 190, 190, 9_800.0)]
+    review = C.build(rows, "FARLAND")
+    assert review.usable and review.headline == ""
+    assert [pair.name for pair in review.bridge] == ["walkin"]
+    assert review.pair("walkin").clients_growth_label == "-5.0 %"
+    assert len(review.absent) == 1 and "aucun client enregistré" in review.absent[0]
+    assert not any("l'an dernier n'est pas" in reason or "n'est pas dans la lecture" in reason
+                   for reason in review.absent)

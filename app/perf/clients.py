@@ -599,16 +599,25 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
     lost = current.get("lost")
     if lost is not None:
         lost.before = earlier.get("lost")
-    if not flow:
+    if arc_now is None or arc_now.clients <= 0:
+        #: Pas de clients enregistrés du tout : ce n'est pas l'an dernier qui manque, c'est
+        #: le compte client. Une seule raison, la vraie, plutôt que trois qui décrivent
+        #: chacune un bout de la même absence.
+        absent.append("aucun client enregistré dans la lecture : toutes les ventes sont des "
+                      "visites sans compte, et le pont, le flux et la part perdue ne se lisent "
+                      "pas tant que les comptes clients ne sont pas dans l'entrepôt")
+        base = None
+    elif not flow:
         absent.append("le flux — retenus, réactivés, nouveaux — n'est pas dans la lecture")
-    elif arc_now is not None and arc_now.clients > 0:
+    elif arc_now.clients > 0:
         summed = sum(item.segment.clients for item in flow)
         if abs(summed - arc_now.clients) > FLOW_AGREES * arc_now.clients:
             absent.append("le flux ne fait pas le pont : %s clients dans les segments contre "
                           "%s enregistrés actifs — une lecture à vérifier avant de lire les parts"
                           % (_count(summed), _count(arc_now.clients)))
     if base is None:
-        absent.append("l'an dernier n'est pas dans la lecture : le pont n'a pas de croissance")
+        if arc_now is not None and arc_now.clients > 0:
+            absent.append("l'an dernier n'est pas dans la lecture : le pont n'a pas de croissance")
     elif lost is not None and lost.before is None:
         absent.append("l'exercice d'avant n'est pas dans la lecture : la part perdue ne se "
                       "compare pas encore à l'an dernier au même mois")

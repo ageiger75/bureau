@@ -2,7 +2,7 @@
    périmètre. Attend `clients`, une lecture de app/perf/clients.py, ou None. #}
   {% if clients and clients.usable %}
     <p class="lede">{{ clients.basis | ucfirst }}.</p>
-    <p class="product-headline">{{ clients.headline }}.</p>
+    {% if clients.headline %}<p class="product-headline">{{ clients.headline }}.</p>{% endif %}
     <h3 class="subject-heading">Clients × panier = ventes</h3>
     <table class="month-table product-table">
       <thead>
