@@ -847,6 +847,9 @@ boutiques sans vente : fermées selon la feuille de la CFO, ou muettes sans ferm
 seconde valant une question. La feuille dit le statut en chiffres, pas en mots : le dossier
 compte les boutiques sans vente par code (« 4 » ×14, « 1 » ×1) et ne tranche pas tant que
 `CEOOS_STORE_CLOSED_STATUSES` dans `.env` ne dit pas quels codes sont fermés.
+Le gris est aussi sur la page d'un périmètre, en trois chiffres par marché : marqué par
+l'entrepôt (l'officiel), le plan à date, lu sans drapeau — et le mesuré, somme des deux
+lectures, contre le plan.
 
 ### Phase 5 — B6, les moteurs du plan
 

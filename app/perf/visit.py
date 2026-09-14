@@ -199,6 +199,65 @@ class Dossier:
         return text
 
     @property
+    def marked_bulk(self) -> float:
+        """L'officiel : ce que l'entrepôt marque comme vrac."""
+        return float(self.marked.bulk) if self.marked is not None else 0.0
+
+    @property
+    def unmarked_bulk(self) -> float:
+        """Les gros tickets que le drapeau ne couvre pas."""
+        shadow = self.shadow
+        if shadow is None or not shadow.quantity.usable:
+            return 0.0
+        return float(shadow.quantity.unmarked)
+
+    @property
+    def measured_bulk(self) -> float:
+        """Ce que le cockpit mesure : le marqué, plus ce qui passe sans drapeau."""
+        return self.marked_bulk + self.unmarked_bulk
+
+    @property
+    def unmarked_known(self) -> bool:
+        return self.shadow is not None and self.shadow.quantity.usable
+
+    marked_bulk_label = property(lambda self: format_eur(self.marked_bulk))
+    measured_bulk_label = property(lambda self: format_eur(self.measured_bulk))
+
+    @property
+    def unmarked_bulk_label(self) -> str:
+        return format_eur(self.unmarked_bulk) if self.unmarked_known else "non lu"
+
+    @property
+    def plan_bulk_label(self) -> str:
+        expected = self.expected_to_date
+        return format_eur(expected) if expected else "plan sans ligne"
+
+    @property
+    def measured_vs_plan(self) -> str:
+        """Le mesuré contre le plan à date, en un mot — et rien quand le plan n'a pas de
+        ligne, plutôt qu'un écart contre zéro."""
+        expected = self.expected_to_date or 0.0
+        if expected <= 0 or self.measured_bulk <= 0:
+            return ""
+        ratio = self.measured_bulk / expected
+        if ratio > 1.15:
+            return "au-dessus du plan"
+        if ratio < 0.85:
+            return "en dessous du plan"
+        return "dans l'ordre du plan"
+
+    @property
+    def grey_sentence(self) -> str:
+        """Mesuré = marqué + sans drapeau, contre le plan : la ligne d'un périmètre."""
+        if self.marked is None and not self.unmarked_known:
+            return "aucun vrac lu sur %s" % self.name
+        text = "%s : mesuré %s, dont marqué par l'entrepôt %s et lu sans drapeau %s ; le plan attend %s à date" % (
+            self.name, self.measured_bulk_label, self.marked_bulk_label, self.unmarked_bulk_label,
+            self.plan_bulk_label)
+        word = self.measured_vs_plan
+        return text + (" — %s" % word if word else "")
+
+    @property
     def marked_sentence(self) -> str:
         if self.marked is None:
             return "aucun vrac marqué sur %s dans les relevés" % self.name
@@ -363,6 +422,7 @@ class Dossier:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
         out.append("GRIS — marqué par l'entrepôt, et lu sans drapeau")
+        out.append("  " + self.grey_sentence)
         out.append("  " + self.marked_sentence)
         out.append("  " + self.budget_sentence)
         for line in self.accounts:

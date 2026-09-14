@@ -247,6 +247,30 @@
 </section>
 {% endif %}
 
+{% if dossiers %}
+<section class="panel" id="gris">
+  <h2>Le gris</h2>
+  <p class="lede">Trois chiffres qui ne disent pas la même chose : ce que l'entrepôt marque comme vrac, l'officiel ; ce que le plan attend à date sur ses lignes de flux à nettoyer ; et ce que le cockpit lit sans drapeau, les tickets de plus de cinquante unités que personne n'a marqués. Le mesuré est la somme des deux lectures.</p>
+  <table class="month-table product-table">
+    <thead><tr><th>Marché</th><th>Marqué par l'entrepôt</th><th>Plan à date</th><th>Lu sans drapeau</th><th>Mesuré</th><th></th></tr></thead>
+    <tbody>
+    {% for dossier in dossiers %}
+      <tr>
+        <td><a href="/marche/{{ dossier.slug }}">{{ dossier.name }}</a></td>
+        <td class="num">{{ dossier.marked_bulk_label }}</td>
+        <td class="num">{{ dossier.plan_bulk_label }}</td>
+        <td class="num">{{ dossier.unmarked_bulk_label }}</td>
+        <td class="num"><strong>{{ dossier.measured_bulk_label }}</strong></td>
+        <td>{{ dossier.measured_vs_plan }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% for dossier in dossiers %}{% if dossier.marked is not none %}<p class="routed-why">{{ dossier.marked_sentence | ucfirst }}.</p>{% endif %}{% endfor %}
+  <p class="cockpit-caveat">Le vrac marqué d'un marché qui ne pose pas le drapeau est un plancher ; le plan compte aussi ce que l'entrepôt ne marque pas. Le détail, ligne à ligne et compte par compte, est dans le dossier du marché.</p>
+</section>
+{% endif %}
+
 <section class="panel" id="produits">
   <h2>Ce qui marche, par produit</h2>
   {% with products = page.products %}{% include "partials/_products.html" %}{% endwith %}

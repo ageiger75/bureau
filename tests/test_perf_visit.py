@@ -131,3 +131,20 @@ def test_the_closed_status_setting_is_read_from_the_environment(monkeypatch):
     assert config.load_settings().store_closed_statuses == ("4", "9")
     monkeypatch.setenv("CEOOS_STORE_CLOSED_STATUSES", "")
     assert config.load_settings().store_closed_statuses == ()
+
+
+def test_the_grey_reads_as_three_figures_marked_plan_and_unmarked():
+    dossier = _dossier()
+    assert dossier.marked_bulk > 0 and dossier.unmarked_bulk > 0
+    assert dossier.measured_bulk == dossier.marked_bulk + dossier.unmarked_bulk
+    assert dossier.plan_bulk_label == "plan sans ligne" and dossier.measured_vs_plan == ""
+    assert dossier.grey_sentence.startswith("China : mesuré %s, dont marqué par l'entrepôt %s"
+                                            % (dossier.measured_bulk_label, dossier.marked_bulk_label))
+    assert "le plan attend plan sans ligne" in dossier.grey_sentence
+
+    dossier.expected_to_date = dossier.measured_bulk / 2
+    assert dossier.measured_vs_plan == "au-dessus du plan"
+    assert dossier.grey_sentence.endswith("— au-dessus du plan")
+
+    empty = visit.build("Westland")
+    assert empty.unmarked_bulk_label == "non lu" and empty.grey_sentence == "aucun vrac lu sur Westland"

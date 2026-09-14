@@ -1047,3 +1047,16 @@ def test_a_market_has_a_visit_dossier_and_the_grey_is_read_without_a_flag(client
 
     analyses = page_text(client.get("/analyses"))
     assert "Lu sans drapeau" in analyses and "Marqués comme vrac" in analyses
+
+
+def test_a_perimeter_page_shows_its_grey_in_three_figures(client, monkeypatch):
+    from app.perf import page as page_module
+
+    known = {"Nord": {"markets": ["China"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    page = page_text(client.get("/perimetre/nord"))
+
+    assert "Le gris" in page
+    for heading in ("Marqué par l'entrepôt", "Plan à date", "Lu sans drapeau", "Mesuré"):
+        assert heading in page
+    assert 'href="/marche/china"' in page

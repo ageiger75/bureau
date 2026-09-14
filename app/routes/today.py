@@ -594,9 +594,14 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               clients=clients)
     from ..perf import pledges as pledges_module
 
+    #: Le gris de chaque marché du périmètre : marqué, plan, sans drapeau — le dossier de
+    #: visite le tient déjà, sur les lectures en cache ; rien n'est relu à l'entrepôt.
+    dossiers = [d for d in (_guard("gris %s" % market,
+                                   lambda market=market: _dossier(market, session, source=inputs["source"]),
+                                   lambda exc: None) for market in item["markets"]) if d is not None]
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
-        "due_default": pledges_module.default_due(),
+        "due_default": pledges_module.default_due(), "dossiers": dossiers,
     })
 
 
