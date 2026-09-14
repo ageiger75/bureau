@@ -47,7 +47,7 @@
         {% endfor %}
       </tbody>
     </table>
-    {% if dossier.silent %}<p class="cockpit-caveat">Sans vente ce mois : {{ dossier.silent | length }} boutiques, {{ dossier.silent | map(attribute='last_year') | sum | eur }} l'an dernier, dont {{ dossier.silent | rejectattr('closed') | list | length }} sans fermeture dans la feuille{% if dossier.mute_stores %} — {% for m in dossier.mute_stores[:4] %}{{ m.name or m.code }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}.</p>{% endif %}
+    {% if dossier.silent %}<p class="cockpit-caveat">Sans vente ce mois : {{ dossier.silent | length }} boutiques, {{ dossier.silent | map(attribute='last_year') | sum | eur }} l'an dernier{% if dossier.closure_vocabulary_known %}, dont {{ dossier.mute_stores | length }} sans fermeture dans la feuille{% if dossier.mute_stores %} — {% for m in dossier.mute_stores[:4] %}{{ m.name or m.code }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}{% else %} — fermées ou muettes, la feuille dit « {{ dossier.silent_statuses[:4] | join(" », « ") }} » et le dossier ne tranche pas{% endif %}.</p>{% endif %}
     {% if dossier.gains %}<p class="cockpit-caveat">Et celles qui poussent : {% for move in dossier.gains %}{{ move.name or move.code }} {{ move.delta_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>{% endif %}
     <p class="cockpit-caveat">Le mois de la feuille par boutique de la CFO, contre le même mois l'an dernier ; les plus fortes baisses en euros, pas en pourcentage.</p>
   {% else %}

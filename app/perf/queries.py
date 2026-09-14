@@ -363,12 +363,12 @@ checkouts as (
         s.store_sub_channel                               as channel,
         count(distinct iff(f.transaction_date between p.period_start and p.period_end,
                            f.store_skey || '|' || f.transaction_date || '|'
-                               || coalesce(f.transaction_till, '') || '|' || f.transaction_number,
+                               || coalesce(f.transaction_till, '') || '|' || coalesce(f.transaction_number, ''),
                            null))                         as tickets,
         count(distinct iff(f.transaction_date between add_months(p.period_start, -12)
                                                   and add_months(p.period_end, -12),
                            f.store_skey || '|' || f.transaction_date || '|'
-                               || coalesce(f.transaction_till, '') || '|' || f.transaction_number,
+                               || coalesce(f.transaction_till, '') || '|' || coalesce(f.transaction_number, ''),
                            null))                         as tickets_last_year,
         sum(iff(f.transaction_date between p.period_start and p.period_end,
                 f.quantity, 0))                           as quantity,
@@ -1588,7 +1588,7 @@ base as (
             coalesce(nullif(c.client_first_purchase_date_retail, '1900-01-01'), '9999-12-31')
         ), '9999-12-31')                                             as first_date,
         f.store_skey || '|' || f.transaction_date || '|' || coalesce(f.transaction_till, '')
-            || '|' || f.transaction_number                           as ticket,
+            || '|' || coalesce(f.transaction_number, '')             as ticket,
         iff(f.transaction_date >= pr.ty_from, 'ty', 'ly')            as "window",
         f.transaction_date,
         s.store_sub_channel                                          as sub_channel,
@@ -1891,7 +1891,7 @@ with base as (
                  cast(s.store_skey as varchar))                            as store,
         coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
         f.store_skey || '|' || f.transaction_date || '|'
-            || coalesce(f.transaction_till, '') || '|' || f.transaction_number as ticket,
+            || coalesce(f.transaction_till, '') || '|' || coalesce(f.transaction_number, '') as ticket,
         f.product_skey                                                     as product_skey,
         f.quantity                                                         as quantity,
         f.net_sales_eur                                                    as net_eur,
@@ -1916,6 +1916,8 @@ tickets as (
     group by 1, 2, 3, 4, 5
 ),
 big as (
+    -- `lines` counts tickets here and lines in `cheap`: one name, two populations, and
+    -- the cockpit reads it as a count of items of the kind, never as one figure.
     select period, market, store, sub_channel, 'quantity' as kind,
            round(sum(net_eur), 2)                              as net_eur,
            count(*)                                            as lines,
@@ -1925,11 +1927,15 @@ big as (
     group by 1, 2, 3, 4
 ),
 reference as (
+    -- A reference price needs a base: a product sold once in the month would otherwise
+    -- be its own average, and any other sale would compare against it (validation of
+    -- 14 September, small in euros, wrong in principle).
     select period, market, product_skey,
            sum(net_eur) / nullif(sum(quantity), 0) as unit_price
     from base
-    where quantity > 0
+    where quantity > 0 and net_eur > 0
     group by 1, 2, 3
+    having sum(quantity) >= %(units)d
 ),
 cheap as (
     select b.period, b.market, b.store, b.sub_channel, 'price' as kind,

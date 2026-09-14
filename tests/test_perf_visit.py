@@ -78,3 +78,21 @@ def test_a_silent_store_without_a_closure_is_a_question_and_a_closed_one_is_not(
     assert any("Une boutique muette" in q and "Fermée, ou muette" in q for q in dossier.questions)
     assert not any("Une boutique fermée" in q for q in dossier.questions)
     assert "1 fermées selon la feuille" in "\n".join(dossier.lines())
+
+
+def test_when_the_sheet_does_not_say_closed_the_dossier_does_not_call_a_store_mute():
+    class _Store:
+        def __init__(self, code, name, market, status, actual, last_year):
+            self.code, self.name, self.market, self.status = code, name, market, status
+            self.actual, self.last_year, self.budget, self.is_bulk = actual, last_year, None, False
+
+    class _Sales:
+        usable = True
+        stores = [_Store("S1", "Une boutique", "China", "2", 0.0, 50_000.0),
+                  _Store("S2", "Une autre", "China", "", 0.0, 80_000.0)]
+
+    dossier = visit.build("China", store_sales=_Sales())
+    assert not dossier.closure_vocabulary_known
+    assert dossier.mute_stores == [] and sorted(dossier.silent_statuses) == ["(vide)", "2"]
+    assert not any("Fermée, ou muette" in q for q in dossier.questions)
+    assert "le dossier ne tranche pas" in "\n".join(dossier.lines())

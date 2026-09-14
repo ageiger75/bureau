@@ -22,6 +22,10 @@ from .grey import FEEDERS, NEIGHBOURS, Mention, _growth, _line_for_market
 MOST_STORE_MOVES = 5
 MOST_PARTNERS = 6
 MOST_ISSUES = 8
+#: Les mots de la feuille de la CFO qui disent qu'une boutique est fermée. La feuille ne
+#: parle pas comme le référentiel : quand aucun mot ne s'y retrouve, le dossier montre le
+#: statut tel quel et ne conclut pas.
+CLOSED_WORDS = ("clos", "ferm", "close")
 #: Au-delà de cette part de gros tickets non marqués, la première question est celle-là.
 UNMARKED_WORTH_ASKING = 0.2
 #: Un partenaire de duty free facturé depuis le pays qui bondit d'autant sur trois mois, ou
@@ -80,7 +84,7 @@ class StoreMove:
 
     @property
     def closed(self) -> bool:
-        return any(word in (self.status or "").lower() for word in ("clos", "ferm"))
+        return any(word in (self.status or "").lower() for word in CLOSED_WORDS)
 
     @property
     def delta(self) -> float:
@@ -217,7 +221,25 @@ class Dossier:
         return text
 
     @property
+    def closure_vocabulary_known(self) -> bool:
+        """La feuille dit-elle « fermée » avec un mot que le dossier reconnaît ? Sans quoi
+        une boutique muette et une boutique fermée se ressemblent, et le dossier ne doit pas
+        les distinguer à la place du lecteur."""
+        return any(m.closed for m in self.silent)
+
+    @property
+    def silent_statuses(self) -> List[str]:
+        seen: List[str] = []
+        for m in self.silent:
+            label = (m.status or "").strip() or "(vide)"
+            if label not in seen:
+                seen.append(label)
+        return seen
+
+    @property
     def mute_stores(self) -> List[StoreMove]:
+        if not self.closure_vocabulary_known:
+            return []
         return [m for m in self.silent if not m.closed]
 
     @property
@@ -303,13 +325,19 @@ class Dossier:
             out.append("  %-40s %10s  %10s  %s" % ((move.name or move.code)[:40], move.actual_label,
                                                    move.delta_label, move.growth_label))
         if self.silent:
-            closed = [m for m in self.silent if m.closed]
-            mute = [m for m in self.silent if not m.closed]
-            out.append("  sans vente ce mois : %d boutiques, %s l'an dernier — %d fermées selon la "
-                       "feuille%s" % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
-                                      len(closed),
-                                      (", et muettes sans fermeture : %s" % ", ".join(
-                                          (m.name or m.code) for m in mute[:4])) if mute else ""))
+            if self.closure_vocabulary_known:
+                closed = [m for m in self.silent if m.closed]
+                mute = self.mute_stores
+                out.append("  sans vente ce mois : %d boutiques, %s l'an dernier — %d fermées selon "
+                           "la feuille%s" % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
+                                             len(closed),
+                                             (", et muettes sans fermeture : %s" % ", ".join(
+                                                 (m.name or m.code) for m in mute[:4])) if mute else ""))
+            else:
+                out.append("  sans vente ce mois : %d boutiques, %s l'an dernier — fermées ou muettes, "
+                           "la feuille dit « %s » et le dossier ne tranche pas"
+                           % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
+                              " », « ".join(self.silent_statuses[:4])))
         if self.gains:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
