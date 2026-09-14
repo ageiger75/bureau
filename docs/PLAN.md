@@ -844,7 +844,9 @@ centres de profit — un opérateur qui s'arrête disparaît de la table des par
 trou qu'il laisse ne se lit nulle part ; `accounts.Review.stopped` et `newcomers`, et la
 phrase qui les met en face, sur Analyses et dans le dossier par pays de facturation ; et les
 boutiques sans vente : fermées selon la feuille de la CFO, ou muettes sans fermeture, la
-seconde valant une question.
+seconde valant une question. La feuille dit le statut en chiffres, pas en mots : le dossier
+compte les boutiques sans vente par code (« 4 » ×14, « 1 » ×1) et ne tranche pas tant que
+`CEOOS_STORE_CLOSED_STATUSES` dans `.env` ne dit pas quels codes sont fermés.
 
 ### Phase 5 — B6, les moteurs du plan
 

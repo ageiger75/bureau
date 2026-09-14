@@ -91,8 +91,43 @@ def test_when_the_sheet_does_not_say_closed_the_dossier_does_not_call_a_store_mu
         stores = [_Store("S1", "Une boutique", "China", "2", 0.0, 50_000.0),
                   _Store("S2", "Une autre", "China", "", 0.0, 80_000.0)]
 
-    dossier = visit.build("China", store_sales=_Sales())
+    dossier = visit.build("China", store_sales=_Sales(), closed_statuses=())
     assert not dossier.closure_vocabulary_known
     assert dossier.mute_stores == [] and sorted(dossier.silent_statuses) == ["(vide)", "2"]
     assert not any("Fermée, ou muette" in q for q in dossier.questions)
-    assert "le dossier ne tranche pas" in "\n".join(dossier.lines())
+    text = "\n".join(dossier.lines())
+    assert "le dossier ne tranche pas" in text and "CEOOS_STORE_CLOSED_STATUSES" in text
+
+
+def test_a_configured_status_code_counts_as_a_closure_and_the_rest_stay_mute():
+    class _Store:
+        def __init__(self, code, name, market, status, actual, last_year):
+            self.code, self.name, self.market, self.status = code, name, market, status
+            self.actual, self.last_year, self.budget, self.is_bulk = actual, last_year, None, False
+
+    class _Sales:
+        usable = True
+        stores = [_Store("S1", "Une fermée", "China", "4", 0.0, 50_000.0),
+                  _Store("S2", "Une autre fermée", "China", "4", 0.0, 30_000.0),
+                  _Store("S3", "Une nouvelle muette", "China", "1", 0.0, 80_000.0),
+                  _Store("S4", "Une qui tient", "China", "1", 40_000.0, 42_000.0)]
+
+    blind = visit.build("China", store_sales=_Sales(), closed_statuses=())
+    assert blind.silent_status_counts == [("4", 2), ("1", 1)]
+    assert blind.silent_statuses_sentence == "« 4 » ×2, « 1 » ×1"
+    assert blind.mute_stores == []
+
+    dossier = visit.build("China", store_sales=_Sales(), closed_statuses=("4",))
+    assert dossier.closure_vocabulary_known
+    assert [m.code for m in dossier.mute_stores] == ["S3"]
+    assert any("Une nouvelle muette" in q and "Fermée, ou muette" in q for q in dossier.questions)
+    assert "2 fermées selon la feuille" in "\n".join(dossier.lines())
+
+
+def test_the_closed_status_setting_is_read_from_the_environment(monkeypatch):
+    from app import config
+
+    monkeypatch.setenv("CEOOS_STORE_CLOSED_STATUSES", " 4, 9 ,4,")
+    assert config.load_settings().store_closed_statuses == ("4", "9")
+    monkeypatch.setenv("CEOOS_STORE_CLOSED_STATUSES", "")
+    assert config.load_settings().store_closed_statuses == ()

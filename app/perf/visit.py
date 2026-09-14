@@ -14,7 +14,7 @@ montrent de plus net, pas de ce qu'on sait du marché. Le lecteur les remplace.
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .analytics import format_eur, format_pct
 from .grey import FEEDERS, NEIGHBOURS, Mention, _growth, _line_for_market
@@ -70,10 +70,10 @@ class Channel:
 
 
 class StoreMove:
-    __slots__ = ("code", "name", "actual", "last_year", "status")
+    __slots__ = ("code", "name", "actual", "last_year", "status", "closed_codes")
 
     def __init__(self, code: str, name: str, actual: float, last_year: float,
-                 status: str = "") -> None:
+                 status: str = "", closed_codes: Sequence[str] = ()) -> None:
         self.code = code
         self.name = name
         self.actual = actual
@@ -81,10 +81,16 @@ class StoreMove:
         #: Le statut de la feuille de la CFO : une boutique fermée n'est pas une boutique
         #: muette, et la seconde vaut une question.
         self.status = status
+        #: Les codes que la configuration déclare fermés (`CEOOS_STORE_CLOSED_STATUSES`) :
+        #: la feuille parle en chiffres, et le dossier ne devine pas ce qu'ils veulent dire.
+        self.closed_codes = tuple(str(code).strip() for code in closed_codes)
 
     @property
     def closed(self) -> bool:
-        return any(word in (self.status or "").lower() for word in CLOSED_WORDS)
+        status = (self.status or "").strip()
+        if status and status in self.closed_codes:
+            return True
+        return any(word in status.lower() for word in CLOSED_WORDS)
 
     @property
     def delta(self) -> float:
@@ -237,6 +243,20 @@ class Dossier:
         return seen
 
     @property
+    def silent_status_counts(self) -> List[Tuple[str, int]]:
+        """Chaque statut des boutiques sans vente et son nombre, le plus fréquent d'abord :
+        de quoi lire « 4 » ×14, « 1 » ×1 et décider ce que « 4 » veut dire."""
+        counts: Dict[str, int] = {}
+        for label in ((m.status or "").strip() or "(vide)" for m in self.silent):
+            counts[label] = counts.get(label, 0) + 1
+        return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+    @property
+    def silent_statuses_sentence(self) -> str:
+        return ", ".join("« %s » ×%d" % (label, count)
+                         for label, count in self.silent_status_counts[:4])
+
+    @property
     def mute_stores(self) -> List[StoreMove]:
         if not self.closure_vocabulary_known:
             return []
@@ -335,9 +355,10 @@ class Dossier:
                                                  (m.name or m.code) for m in mute[:4])) if mute else ""))
             else:
                 out.append("  sans vente ce mois : %d boutiques, %s l'an dernier — fermées ou muettes, "
-                           "la feuille dit « %s » et le dossier ne tranche pas"
+                           "la feuille dit %s et le dossier ne tranche pas (CEOOS_STORE_CLOSED_STATUSES "
+                           "dans .env dit quels codes sont fermés)"
                            % (len(self.silent), format_eur(sum(-m.delta for m in self.silent)),
-                              " », « ".join(self.silent_statuses[:4])))
+                              self.silent_statuses_sentence))
         if self.gains:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
@@ -393,9 +414,15 @@ class Dossier:
 
 def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=None,
           accounts=None, register=None, notes: Sequence = (), store_sales=None,
-          iso2_by_market: Optional[Dict[str, str]] = None, owner: str = "") -> Dossier:
+          iso2_by_market: Optional[Dict[str, str]] = None, owner: str = "",
+          closed_statuses: Optional[Sequence[str]] = None) -> Dossier:
     from ..domain import issues as domain
     from .budget import normalise_market
+
+    if closed_statuses is None:
+        from ..config import settings
+
+        closed_statuses = tuple(getattr(settings, "store_closed_statuses", ()) or ())
 
     name = normalise_market(market)
     dossier = Dossier(name, owner, str(getattr(dataset, "period_label", "") or ""))
@@ -419,7 +446,7 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
                 continue
             moves.append(StoreMove(str(store.code), str(getattr(store, "name", "") or ""),
                                    actual, float(last_year),
-                                   str(getattr(store, "status", "") or "")))
+                                   str(getattr(store, "status", "") or ""), closed_statuses))
         moves.sort(key=lambda move: move.delta)
         dossier.silent = [move for move in moves if move.actual <= 0]
         dossier.declines = [move for move in moves if move.delta < 0 and move.actual > 0][:MOST_STORE_MOVES]

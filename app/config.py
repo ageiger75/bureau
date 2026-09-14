@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -217,6 +217,10 @@ class Settings:
     #: Au-delà de cet âge, le serveur relit l'entrepôt de lui-même, derrière l'écran.
     #: Zéro désactive : la relecture ne se fait alors qu'au démarrage et sur `?refresh=1`.
     reread_hours: float = 6.0
+    #: Les codes de statut de la feuille de la CFO qui veulent dire « fermée ». La feuille
+    #: parle en chiffres, pas en mots ; sans ce réglage, le dossier de visite montre les
+    #: codes tels quels et ne tranche pas entre une boutique fermée et une boutique muette.
+    store_closed_statuses: Tuple[str, ...] = ()
 
     @property
     def is_local(self) -> bool:
@@ -536,7 +540,18 @@ def load_settings() -> Settings:
         supply_file=_env("CEOOS_SUPPLY_FILE") or DEFAULT_SUPPLY_FILE,
         snowflake_connection=snowflake_connection,
         reread_hours=_hours(_env("CEOOS_REREAD_HOURS"), 6.0),
+        store_closed_statuses=_codes(_env("CEOOS_STORE_CLOSED_STATUSES")),
     )
+
+
+def _codes(text: str) -> Tuple[str, ...]:
+    """Une liste de codes séparés par des virgules, sans doublon ni blanc."""
+    seen: List[str] = []
+    for part in text.split(","):
+        code = part.strip()
+        if code and code not in seen:
+            seen.append(code)
+    return tuple(seen)
 
 
 def _hours(text: str, default: float) -> float:
