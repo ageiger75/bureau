@@ -100,6 +100,18 @@
     <p class="verdict-figures">{{ page.invoiced.growth_label }} sur l'an dernier à jours ouvrés égaux · {{ page.invoiced.same_dates_label }} à dates égales</p>
     <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
   </div>
+  {% if page.together %}
+  <div class="verdict" id="ensemble">
+    <p class="verdict-title">Sell-in et sell-out ensemble, {{ track.month_title | lower }}</p>
+    {% if page.together.usable %}
+      <p class="verdict-word is-{{ page.together.verdict.label | replace(' ', '-') }}">{{ page.together.verdict.label }}</p>
+      <p class="verdict-figures">{{ page.together.verdict.actual | eur }} · attendu {% if page.together.verdict.narrow %}{{ page.together.verdict.middle | eur }}{% else %}{{ page.together.verdict.low | eur }} à {{ page.together.verdict.high | eur }}{% endif %} · <strong>{{ page.together.verdict.gap_label }}</strong></p>
+    {% else %}
+      <p class="verdict-word is-absent">—</p>
+    {% endif %}
+    <p class="verdict-basis">{{ page.together.basis }}</p>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 

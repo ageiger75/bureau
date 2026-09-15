@@ -851,6 +851,15 @@ Le gris est aussi sur la page d'un périmètre, en trois chiffres par marché : 
 l'entrepôt (l'officiel), le plan à date, lu sans drapeau — et le mesuré, somme des deux
 lectures, contre le plan.
 
+Le mois, sell-in et sell-out ensemble. Le verdict du mois est sell-out seul, parce que le
+sell-out avance en jours et qu'une facture tombe quand elle tombe ; le sell-in du mois se
+lisait facture contre facture, jamais contre le plan. Mais la question posée au MD est
+« es-tu en ligne sur le mois », et il répond sur les deux. La page d'un périmètre porte
+donc une troisième carte, à côté du sell-in : le sell-out à son rythme attendu, plus le
+sell-in facturé à date contre le plan sell-in du mois pris à la forme de l'an dernier (la
+part du mois qui était facturée au même nombre de jours ouvrés). Au niveau du périmètre
+seulement, jamais par canal : l'axe des factures et celui du plan ne se recoupent pas.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

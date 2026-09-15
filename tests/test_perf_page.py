@@ -167,3 +167,39 @@ def test_the_question_falls_back_to_the_biggest_fire_then_to_the_verdict():
     empty = P.build("Nord", "", ["Northland"], _Dataset(), None, _Track())
     assert empty.question == ""
     assert any("verdict" in reason for reason in empty.absent)
+
+
+class _Segment:
+    def __init__(self, market, period, segment, budget):
+        self.market, self.period, self.segment, self.budget = market, period, segment, budget
+
+
+class _Billed:
+    def __init__(self, current, share):
+        self.current, self.share_by_now = current, share
+
+
+def test_sell_in_and_sell_out_together_read_against_the_plan_at_last_years_shape():
+    from app.perf import track
+
+    budget = _Budget([_Segment("Northland", "2026-09", "RET - Retail", 1_000.0),
+                      _Segment("Northland", "2026-09", "TRA - Travel retail", 600.0),
+                      _Segment("Northland", "2026-09", "DIS - Distributors", 400.0),
+                      _Segment("Southland", "2026-09", "DIS - Distributors", 999.0),
+                      _Segment("Northland", "2026-08", "DIS - Distributors", 999.0)])
+    assert P.sell_in_plan_for(budget, ["Northland"], "2026-09") == 1_000.0
+
+    # Sell-out seul : 440 contre 500 à 580 attendus, en retard. Le sell-in facturé à date
+    # est 560 contre 1 000 × 46 % = 460 attendus : ensemble, 1 000 contre 960 à 1 040 — en ligne.
+    sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
+    assert sell_out.label == "en retard"
+    together = P.Together(sell_out, _Billed(560.0, 0.46), 1_000.0)
+    assert together.usable and together.verdict.label == "en ligne"
+    assert abs(together.verdict.actual - 1_000.0) < 1e-9
+    assert abs(together.verdict.low - 960.0) < 1e-9 and abs(together.verdict.high - 1_040.0) < 1e-9
+    assert "46 % du plan du mois" in together.basis and "jamais par canal" in together.basis
+
+    without_plan = P.Together(sell_out, _Billed(560.0, 0.46), 0.0)
+    assert not without_plan.usable and "aucune ligne sell-in" in without_plan.basis
+    without_shape = P.Together(sell_out, _Billed(560.0, None), 1_000.0)
+    assert not without_shape.usable and "forme de mois" in without_shape.basis

@@ -75,7 +75,8 @@ class Line:
     """Un canal, un périmètre ou le groupe : facturé à date, et l'an dernier à jours
     facturés égaux et à dates égales."""
 
-    __slots__ = ("name", "current", "current_business", "aligned", "same_dates")
+    __slots__ = ("name", "current", "current_business", "aligned", "same_dates",
+                 "last_year_month")
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -85,6 +86,17 @@ class Line:
         self.current_business = 0.0
         self.aligned = 0.0
         self.same_dates = 0.0
+        #: Le même mois de l'an dernier, entier : ce qui donne au mois sa forme — quelle
+        #: part du mois était facturée au même nombre de jours ouvrés.
+        self.last_year_month = 0.0
+
+    @property
+    def share_by_now(self) -> Optional[float]:
+        """La part du mois de l'an dernier facturée à jours ouvrés égaux — la forme du mois,
+        prise l'an dernier faute de calendrier d'expédition. None sans mois entier."""
+        if self.last_year_month <= 0 or self.aligned < 0:
+            return None
+        return min(1.0, self.aligned / self.last_year_month)
 
     @property
     def growth(self) -> Optional[float]:
@@ -245,6 +257,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     aligned_days = {day for day in before if start <= day <= end and day.weekday() < 5}
     business_now = {day for day in current if day.weekday() < 5}
     same_dates = {day for day in before if day.month == month.month and day.day <= through.day}
+    month_days = {day for day in before if day.month == month.month}
     if not any(day.month == month.month for day in before):
         absent.append("l'an dernier ne porte aucune facture sur ce mois : pas de comparaison")
 
@@ -279,6 +292,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
             pour(entries, "aligned")
         if day in same_dates:
             pour(entries, "same_dates")
+        if day in month_days:
+            pour(entries, "last_year_month")
 
     names = markets_by_iso2 or {}
     market_lines: Dict[str, Line] = {}
@@ -289,6 +304,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         merged.current_business += line.current_business
         merged.aligned += line.aligned
         merged.same_dates += line.same_dates
+        merged.last_year_month += line.last_year_month
     placed, _leads = place_markets(list(market_lines), org, directory)
     perimeters: Dict[str, Line] = {}
     loose = Line("Sans périmètre")
@@ -298,6 +314,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         target.current_business += line.current_business
         target.aligned += line.aligned
         target.same_dates += line.same_dates
+        target.last_year_month += line.last_year_month
     ordered = sorted(perimeters.values(), key=lambda line: -line.current)
     if not placed:
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")

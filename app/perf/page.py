@@ -248,6 +248,84 @@ def moved_events(calendar, markets: Optional[Sequence[str]], remaining: Sequence
     return lines
 
 
+class Together:
+    """Le mois à date, sell-in et sell-out ensemble, contre le plan du périmètre.
+
+    Le verdict du mois est sell-out seul, parce que le sell-out avance en jours et qu'une
+    facture tombe quand elle tombe. Mais la question qu'on pose au MD est « es-tu en ligne
+    sur le mois », et il répond sur les deux. Ici, les deux : le sell-out à son rythme
+    attendu, et le sell-in facturé à date contre le plan du mois pris à la forme de l'an
+    dernier — la part du mois qui était facturée au même nombre de jours ouvrés. Au niveau
+    du périmètre seulement : par canal, l'axe des factures et celui du plan ne se
+    recoupent pas.
+    """
+
+    def __init__(self, sell_out, billed, sell_in_plan: float) -> None:
+        self.sell_out = sell_out
+        self.billed = billed
+        #: Le plan sell-in du mois, entier, sur les marchés du périmètre.
+        self.sell_in_plan = float(sell_in_plan or 0.0)
+        self.absent = ""
+        self.verdict = None
+        share = getattr(billed, "share_by_now", None)
+        if sell_out is None or not sell_out.usable:
+            self.absent = "le sell-out du mois ne se lit pas : rien à additionner"
+        elif billed is None or not getattr(billed, "current", 0.0):
+            self.absent = "aucune facture lue sur ce périmètre ce mois"
+        elif self.sell_in_plan <= 0:
+            self.absent = "le plan ne nomme aucune ligne sell-in sur ce périmètre pour ce mois"
+        elif share is None:
+            self.absent = ("l'an dernier ne porte aucune facture sur ce mois : le sell-in "
+                           "n'a pas de forme de mois, et ne se compare pas au plan à date")
+        else:
+            self.expected_sell_in = self.sell_in_plan * share
+            self.verdict = track_module.Verdict(
+                sell_out.actual + billed.current,
+                sell_out.low + self.expected_sell_in,
+                sell_out.high + self.expected_sell_in,
+                sell_out.coverage, basis="sell-in et sell-out, au niveau du périmètre",
+                early=sell_out.early)
+
+    @property
+    def usable(self) -> bool:
+        return self.verdict is not None
+
+    @property
+    def share_label(self) -> str:
+        share = getattr(self.billed, "share_by_now", None)
+        return "%.0f %%" % (share * 100) if share is not None else "n/d"
+
+    @property
+    def basis(self) -> str:
+        from .analytics import format_eur
+
+        if not self.usable:
+            return self.absent
+        return ("sell-out %s contre %s à %s attendus à ce jour ; sell-in facturé %s contre "
+                "%s attendus, soit %s du plan du mois (%s), la part que l'an dernier avait "
+                "facturée à jours ouvrés égaux · au niveau du périmètre, jamais par canal"
+                % (format_eur(self.sell_out.actual), format_eur(self.sell_out.low),
+                   format_eur(self.sell_out.high), format_eur(self.billed.current),
+                   format_eur(self.expected_sell_in), self.share_label,
+                   format_eur(self.sell_in_plan)))
+
+
+def sell_in_plan_for(budget, markets: Sequence[str], period: str) -> float:
+    """Le plan sell-in du mois sur des marchés : les lignes du plan dont le segment est
+    facturé à un partenaire. Zéro quand le plan ne les nomme pas."""
+    from .budget import perimeter_of
+
+    wanted = set(markets)
+    total = 0.0
+    for line in getattr(budget, "lines", None) or ():
+        if getattr(line, "period", "") != period or getattr(line, "market", "") not in wanted:
+            continue
+        if perimeter_of(str(getattr(line, "segment", "") or "")) != "sell-in":
+            continue
+        total += float(getattr(line, "budget", 0.0) or 0.0)
+    return total
+
+
 class Page:
     """Tout ce que la page rend, déjà filtré."""
 
@@ -256,7 +334,7 @@ class Page:
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
                  retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = (),
-                 products=None, elsewhere: Sequence = (), clients=None) -> None:
+                 products=None, elsewhere: Sequence = (), clients=None, together=None) -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -301,6 +379,8 @@ class Page:
         self.pnl = pnl
         #: Son écart au budget, poste par poste, avec le verdict de chaque poste.
         self.pnl_breakdown = ""
+        #: Le mois à date, sell-in et sell-out ensemble, contre le plan — ou None.
+        self.together = together
 
     @property
     def slug(self) -> str:
@@ -370,13 +450,18 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     talks = [talk for talk in getattr(prepared, "conversations", ()) or () if talk.market in wanted]
     watch_lines = [item for item in getattr(prepared, "watch", ()) or ()
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
+    together = None
+    if scope is not None and billed is not None:
+        together = Together(scope.month, billed,
+                            sell_in_plan_for(budget, markets, getattr(track, "period", "") or ""))
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
                  retail=stores, retail_years=retail.years if retail is not None else "",
                  talks=talks, watch_lines=watch_lines, products=products, clients=clients,
                  elsewhere=[fire for fire in elsewhere
-                            if getattr(getattr(fire, "unit", None), "market", "") in wanted])
+                            if getattr(getattr(fire, "unit", None), "market", "") in wanted],
+                 together=together)
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

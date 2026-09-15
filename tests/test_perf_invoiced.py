@@ -122,3 +122,15 @@ def test_codes_that_are_not_commercial_channels_are_kept_apart_and_named():
     assert review.other_codes == ["HOLD", "vide"]
     assert review.other_note.startswith("%s facturés hors canaux commerciaux (HOLD, vide)" % __import__("app.perf.analytics", fromlist=["format_eur"]).format_eur(1005.0))
     assert all(line.name != "HOLD" for line in review.channels)
+
+
+def test_the_line_keeps_last_years_whole_month_to_give_the_month_its_shape():
+    review = I.build(_rows(), {"JP": "Japan", "FR": "France"}, today=TODAY)
+    # L'an dernier, vingt jours ouvrés à 130 sur le mois : 2 600 ; quatre alignés : 520.
+    assert review.group.last_year_month == 2_600.0
+    assert abs(review.group.share_by_now - 520.0 / 2_600.0) < 1e-9
+    japan = next(line for line in review.perimeters + [review.loose] if line is not None
+                 and line.name in ("Japan", "Sans périmètre"))
+    assert japan.last_year_month > 0
+    empty = I.Line("Nulle")
+    assert empty.share_by_now is None
