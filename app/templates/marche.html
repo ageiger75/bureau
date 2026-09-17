@@ -10,7 +10,7 @@
 <section class="panel" id="questions">
   <h2>Les trois questions</h2>
   {% if dossier.questions %}
-    <ol class="talk-lines">
+    <ol class="line-list">
       {% for question in dossier.questions %}<li>{{ question }}</li>{% endfor %}
     </ol>
     <p class="cockpit-caveat">Générées de ce que les chiffres montrent de plus net, pas de ce qu'on sait du marché. À remplacer par les vôtres.</p>
@@ -104,7 +104,7 @@
 <section class="panel" id="alimente">
   <h2>Ce qui l'alimente sans passer par lui</h2>
   {% if dossier.neighbours or dossier.feeds %}
-    <ul class="talk-lines">
+    <ul class="line-list">
       {% for sentence in dossier.neighbours %}<li>{{ sentence | ucfirst }}.</li>{% endfor %}
       {% for feed in dossier.feeds %}<li>{{ feed.sentence | ucfirst }} — ce que le duty free absorbe se retrouve quelque part.</li>{% endfor %}
     </ul>
@@ -133,7 +133,7 @@
 <section class="panel" id="registre">
   <h2>Ce que le cockpit en a déjà écrit</h2>
   {% if dossier.issues or dossier.notes %}
-    <ul class="talk-lines">
+    <ul class="line-list">
       {% for item in dossier.issues %}<li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>{% endfor %}
       {% for note in dossier.notes %}<li>Note {{ note.kind }}{% if note.channel %} · {{ note.channel }}{% endif %}, depuis {{ note.since or "—" }} : “{{ note.text }}”{% if note.source %} — {{ note.source }}{% endif %}</li>{% endfor %}
     </ul>

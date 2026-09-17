@@ -532,7 +532,7 @@
   <h3 class="subject-heading">Ce que l'entrepôt voit de la supply</h3>
   {% if supplychain and supplychain.usable %}
     {% set against = supplychain.against(supply) if supply and supply.usable else [] %}
-    {% if against %}<ul class="talk-lines">{% for line in against %}<li>{{ line | ucfirst }}.</li>{% endfor %}</ul>{% endif %}
+    {% if against %}<ul class="line-list">{% for line in against %}<li>{{ line | ucfirst }}.</li>{% endfor %}</ul>{% endif %}
     {% if supplychain.service_sentence %}<p class="routed-why">{{ supplychain.service_sentence | ucfirst }}.</p>{% endif %}
     {% if supplychain.bias_sentence %}<p class="routed-why">{{ supplychain.bias_sentence | ucfirst }}.</p>{% endif %}
     {% if supplychain.fill_sentence %}<p class="routed-why">{{ supplychain.fill_sentence | ucfirst }}.</p>{% endif %}
@@ -888,7 +888,7 @@
   {# Le dossier : ce que le registre a déjà dit du gris. #}
   <h3 class="subject-heading">Ce que le registre en dit</h3>
   {% if grey and grey.dossier %}
-    <ul class="talk-lines">
+    <ul class="line-list">
       {% for item in grey.dossier %}
         <li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.last_seen %}, vu le {{ item.last_seen }}{% endif %}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>
       {% endfor %}

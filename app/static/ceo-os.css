@@ -889,6 +889,11 @@ input:focus, textarea:focus, select:focus {
 .talk-lines { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; max-width: 92ch; }
 .talk-lines dt { color: var(--ink-faint); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
 .talk-lines dd { margin: 0; font-size: 14px; }
+/* Une liste de phrases — les trois questions, les notes du dossier. Pas la grille des
+   lignes en deux colonnes : posée sur une liste, sa colonne « max-content » prenait une
+   question sur deux et la laissait déborder de la case. */
+.line-list { margin: 0; padding-left: 1.4em; max-width: 92ch; font-size: 14px; display: block; }
+.line-list li { margin: 0 0 6px; overflow-wrap: anywhere; }
 .talk-question { font-weight: 600; }
 .watch { padding: 6px 0; border-top: 1px solid var(--rule-soft); }
 .watch:first-child { border-top: 0; }
