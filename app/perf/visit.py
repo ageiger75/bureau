@@ -20,6 +20,8 @@ from .analytics import format_eur, format_pct
 from .grey import FEEDERS, NEIGHBOURS, Mention, _growth, _line_for_market
 
 MOST_STORE_MOVES = 5
+#: Par niveau produit et par sens, les lignes que le terminal montre.
+MOST_PRODUCT_LINES = 5
 MOST_PARTNERS = 6
 MOST_ISSUES = 8
 #: Les mots de la feuille de la CFO qui disent qu'une boutique est fermée. La feuille ne
@@ -164,6 +166,9 @@ class Dossier:
         self.iso2 = ""
         self.issues: List[Mention] = []
         self.notes: List = []
+        #: Ce qui marche par produit sur ce marché — catégories et gammes, la même lecture
+        #: que la page du périmètre, sur ce seul marché — ou None.
+        self.products = None
 
     @property
     def slug(self) -> str:
@@ -443,6 +448,22 @@ class Dossier:
                         for item in piece.unmarked_stores))
         else:
             out.append("  " + (self.shadow_note or "le gris sans drapeau n'est pas lu"))
+        out.append("PRODUITS — ce qui pousse et ce qui recule, exercice à date")
+        products = self.products
+        if products is not None and getattr(products, "usable", False):
+            out.append("  " + products.headline)
+            for level in products.levels:
+                out.append("  %s : %s" % (level.title, level.sentence or "%s sur l'exercice"
+                                          % format_pct(level.growth)))
+                for word, lines in (("pousse", level.growing), ("recule", level.falling)):
+                    for line in lines[:MOST_PRODUCT_LINES]:
+                        out.append("    %-8s %-30s %10s  %8s  écart %10s  part %5s  dernier mois %8s" % (
+                            word, line.name[:30], format_eur(line.sales), line.growth_label,
+                            line.delta_label, "%.0f %%" % (line.share * 100), line.month_label))
+        else:
+            out.append("  " + (getattr(products, "absent", [""])[0] if products is not None
+                               and getattr(products, "absent", None) else
+                               "la lecture produit n'est pas déposée"))
         out.append("CE QUI L'ALIMENTE SANS PASSER PAR LUI")
         for sentence in self.neighbours:
             out.append("  " + sentence)
@@ -475,7 +496,7 @@ class Dossier:
 def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=None,
           accounts=None, register=None, notes: Sequence = (), store_sales=None,
           iso2_by_market: Optional[Dict[str, str]] = None, owner: str = "",
-          closed_statuses: Optional[Sequence[str]] = None) -> Dossier:
+          closed_statuses: Optional[Sequence[str]] = None, products=None) -> Dossier:
     from ..domain import issues as domain
     from .budget import normalise_market
 
@@ -486,6 +507,7 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
 
     name = normalise_market(market)
     dossier = Dossier(name, owner, str(getattr(dataset, "period_label", "") or ""))
+    dossier.products = products
 
     units = list(getattr(dataset, "units", []) or [])
     dossier.channels = sorted(

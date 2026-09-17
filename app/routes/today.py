@@ -488,10 +488,24 @@ def _dossier(market: str, session, source=None, refresh: bool = False):
     register = memory_module.load(session)
     unit = next((u for u in getattr(dataset, "units", []) or [] if getattr(u, "market", "") == market), None)
     owner = owners_module.owner_for(market, getattr(unit, "region", "") or "").name if unit else ""
+    products = _guard("produits %s" % market, lambda: _market_products(source, market), lambda exc: None)
     return visit_module.build(
         market, dataset=dataset, grey_review=grey, shadow_review=shadow, plan=plan,
         accounts=accounts, register=register, notes=context_module.current().notes,
-        store_sales=store_sales, iso2_by_market=_iso2_by_market(source), owner=owner)
+        store_sales=store_sales, iso2_by_market=_iso2_by_market(source), owner=owner,
+        products=products)
+
+
+def _market_products(source, market: str):
+    """Ce qui marche par produit sur un seul marché : la lecture du disque, jamais une
+    requête, la même que la page du périmètre sur un marché."""
+    from ..perf import products as products_module
+
+    rows = _product_rows(source)
+    if not rows:
+        return None
+    return products_module.for_markets(rows, [market], market,
+                                       note=getattr(source, "product_note", "") or "")
 
 
 def _grey(source, plan=None, refresh: bool = False):

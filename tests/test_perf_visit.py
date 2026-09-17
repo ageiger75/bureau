@@ -148,3 +148,18 @@ def test_the_grey_reads_as_three_figures_marked_plan_and_unmarked():
 
     empty = visit.build("Westland")
     assert empty.unmarked_bulk_label == "non lu" and empty.grey_sentence == "aucun vrac lu sur Westland"
+
+
+def test_the_dossier_carries_what_sells_by_product_on_this_market_alone():
+    from app.perf import products
+
+    review = products.for_markets(mock.product_rows(), ["China"], "China")
+    dossier = visit.build("China", dataset=mock.dataset(), products=review)
+    assert dossier.products is review and review.usable
+    text = "\n".join(dossier.lines())
+    assert "PRODUITS — ce qui pousse et ce qui recule" in text
+    assert text.index("CANAUX") < text.index("PRODUITS") < text.index("CE QUI L'ALIMENTE")
+    assert any(line.startswith("    pousse") or line.startswith("    recule") for line in dossier.lines())
+
+    bare = visit.build("Westland")
+    assert "la lecture produit n'est pas déposée" in "\n".join(bare.lines())

@@ -863,6 +863,8 @@ seulement, jamais par canal : l'axe des factures et celui du plan ne se recoupen
 Les lectures courtes — le mois, la semaine, le sell-in au jour — servent leur dernière
 lecture, datée, quand l'entrepôt refuse la requête (une vue qui disparaît, un droit qui
 tombe), et la page le dit à côté des chiffres. Sans lecture derrière, l'erreur remonte.
+Le dossier de visite porte aussi ce qui marche par produit sur le seul marché — catégories
+et gammes, la lecture de la page du périmètre — à l'écran et dans `manage.py marche`.
 
 ### Phase 5 — B6, les moteurs du plan
 

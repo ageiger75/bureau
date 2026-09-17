@@ -4,7 +4,7 @@
 <section class="cockpit-header" data-read-at="{{ read_at }}" data-partners-at="{{ partners_at }}" data-bulk-at="{{ bulk_at }}">
   <p class="cockpit-eyebrow"><a href="/marches">Marchés</a> · dossier de visite · {{ dossier.period_label }}</p>
   <h2>{{ dossier.name }}{% if dossier.owner %} · {{ dossier.owner }}{% endif %}</h2>
-  <p class="lede">Ce qu'il faut savoir avant de s'asseoir en face du marché : trois questions, ses canaux contre le plan, ses boutiques qui décrochent, son gris sous ses deux définitions, ce qui l'alimente sans passer par lui, et ce que le cockpit en a déjà écrit. Rien n'est relu à l'entrepôt.</p>
+  <p class="lede">Ce qu'il faut savoir avant de s'asseoir en face du marché : trois questions, ses canaux contre le plan, ce qui marche par produit, ses boutiques qui décrochent, son gris sous ses deux définitions, ce qui l'alimente sans passer par lui, et ce que le cockpit en a déjà écrit. Rien n'est relu à l'entrepôt.</p>
 </section>
 
 <section class="panel" id="questions">
@@ -27,12 +27,21 @@
       <thead><tr><th>Canal</th><th>Ventes</th><th>vs plan</th><th>vs l'an dernier</th><th></th></tr></thead>
       <tbody>
         {% for item in dossier.channels %}
-          <tr><td>{{ item.channel_label }}{% if item.is_sell_in %} <span class="badge badge-class">sell-in</span>{% endif %}</td><td class="num">{{ item.sales_label }}</td><td class="num {{ 'is-en-retard' if item.gap < 0 else 'is-en-avance' }}">{{ item.gap_label }}</td><td class="num">{{ item.growth_label }}</td><td class="absent">{{ item.reason }}</td></tr>
+          <tr><td>{{ item.channel_label }}{% if item.is_sell_in %} <span class="badge badge-class">sell-in</span>{% endif %}</td><td class="num">{{ item.sales_label }}</td><td class="num {{ 'is-en-retard' if item.gap < 0 else 'is-en-avance' }}">{{ item.gap_label }}</td><td class="num">{{ item.growth_label }}</td><td class="absent">{% if not item.is_sell_in %}{{ item.reason }}{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
     <p class="empty">Aucun canal lu pour ce marché.</p>
+  {% endif %}
+</section>
+
+<section class="panel" id="produits">
+  <h2>Ce qui marche, par produit</h2>
+  {% if dossier.products and dossier.products.usable %}
+    {% with products = dossier.products %}{% include "partials/_products.html" %}{% endwith %}
+  {% else %}
+    <p class="empty">{{ ((dossier.products.absent[0] if dossier.products and dossier.products.absent else "") or "la lecture produit n'est pas déposée") | ucfirst }}.</p>
   {% endif %}
 </section>
 
