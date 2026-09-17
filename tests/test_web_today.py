@@ -1060,3 +1060,9 @@ def test_a_perimeter_page_shows_its_grey_in_three_figures(client, monkeypatch):
     for heading in ("Marqué par l'entrepôt", "Plan à date", "Lu sans drapeau", "Mesuré"):
         assert heading in page
     assert 'href="/marche/china"' in page
+
+
+def test_a_conversation_names_its_market_as_a_link_to_the_dossier(client):
+    page = client.get("/").text
+    assert 'href="/marche/japan"' in page
+    assert "le dossier du marché" in page

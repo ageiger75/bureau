@@ -429,9 +429,11 @@
           <li class="talk">
             <p class="talk-title">
               <span class="chip chip-role">{{ talk.role }}</span>
-              <strong>{% if talk.market %}<a href="/marche/{{ talk.market | slug }}">{{ talk.market }}</a>{% else %}{{ talk.issue.title }}{% endif %}</strong>
+              {% set head = (talk.market or "").split('/')[0].strip() %}
+              <strong>{% if head %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ talk.issue.title }}{% endif %}</strong>
               {% if talk.who %}<span class="talk-who">avec {{ talk.who }}</span>{% else %}<span class="muted">aucun interlocuteur dans l'annuaire</span>{% endif %}
               <span class="subject-ref">{{ talk.issue.issue_id }}</span>
+              {% if head %}<a class="scope-link" href="/marche/{{ head | slug }}">le dossier du marché</a>{% if track and track.perimeters and head in (track.perimeters | map(attribute='name') | list) %} <a class="scope-link" href="/perimetre/{{ head | slug }}">la page du périmètre</a>{% endif %}{% endif %}
             </p>
             {% if talk.stake %}<p class="talk-stake">{{ talk.stake | ucfirst }}.</p>{% endif %}
             <p class="talk-question">{{ talk.question | ucfirst }}</p>
@@ -466,7 +468,7 @@
         <tbody>
         {% for item in prepared.watch %}
           <tr>
-            <td class="cell-name"><strong>{% if item.issue.scopes %}{% set head = item.issue.scopes[0].split('/')[0].strip() %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ item.issue.title }}{% endif %}</strong> <small>{{ item.issue.issue_id }}</small></td>
+            <td class="cell-name"><strong>{% if item.issue.scopes %}{% set head = item.issue.scopes[0].split('/')[0].strip() %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ item.issue.title }}{% endif %}</strong> <small>{{ item.issue.issue_id }}</small>{% if item.issue.scopes and track and track.perimeters and head in (track.perimeters | map(attribute='name') | list) %} <a class="scope-link" href="/perimetre/{{ head | slug }}">périmètre</a>{% endif %}</td>
             <td class="num {{ 'is-en-retard' if item.year_gap is not none and item.year_gap < 0 else '' }}">{{ item.year_label }}</td>
             <td class="num {{ 'is-en-retard' if item.gap is not none and item.gap < 0 else '' }}">{{ item.gap_label }}</td>
             <td>{{ item.months_label }}</td>
