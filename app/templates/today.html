@@ -429,7 +429,7 @@
           <li class="talk">
             <p class="talk-title">
               <span class="chip chip-role">{{ talk.role }}</span>
-              <strong>{{ talk.market or talk.issue.title }}</strong>
+              <strong>{% if talk.market %}<a href="/marche/{{ talk.market | slug }}">{{ talk.market }}</a>{% else %}{{ talk.issue.title }}{% endif %}</strong>
               {% if talk.who %}<span class="talk-who">avec {{ talk.who }}</span>{% else %}<span class="muted">aucun interlocuteur dans l'annuaire</span>{% endif %}
               <span class="subject-ref">{{ talk.issue.issue_id }}</span>
             </p>
@@ -466,7 +466,7 @@
         <tbody>
         {% for item in prepared.watch %}
           <tr>
-            <td class="cell-name"><strong>{{ item.issue.scopes[0] if item.issue.scopes else item.issue.title }}</strong> <small>{{ item.issue.issue_id }}</small></td>
+            <td class="cell-name"><strong>{% if item.issue.scopes %}{% set head = item.issue.scopes[0].split('/')[0].strip() %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ item.issue.title }}{% endif %}</strong> <small>{{ item.issue.issue_id }}</small></td>
             <td class="num {{ 'is-en-retard' if item.year_gap is not none and item.year_gap < 0 else '' }}">{{ item.year_label }}</td>
             <td class="num {{ 'is-en-retard' if item.gap is not none and item.gap < 0 else '' }}">{{ item.gap_label }}</td>
             <td>{{ item.months_label }}</td>

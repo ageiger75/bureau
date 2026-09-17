@@ -583,6 +583,46 @@ def month_cache_forget() -> None:
             pass
 
 
+#: Les lectures courtes que l'entrepôt a refusées et que la dernière lecture remplace,
+#: avec la phrase qui le dit à l'écran. Vide quand la lecture est passée.
+_stale = {"month": "", "daily": "", "invoiced": ""}
+
+
+def stale_note(name: str) -> str:
+    return _stale.get(name, "")
+
+
+def _rows_or_last(key: str, cache_file: str, query: str, label: str) -> List[dict]:
+    """Une lecture courte : le cache jeune, sinon l'entrepôt — et quand l'entrepôt refuse,
+    la dernière lecture, datée, plutôt qu'une page qui dit « impossible ».
+
+    Une vue qui disparaît ou un droit qui tombe ne change pas ce qui a été lu hier ; le
+    cockpit s'ouvre sur sa dernière lecture et dit d'où elle date. Sans aucune lecture
+    derrière, l'erreur remonte telle quelle : il n'y a rien d'honnête à montrer.
+    """
+    from . import warehouse
+
+    stored = _read_disk_cache(cache_file)
+    if stored is not None:
+        return stored[0]
+    try:
+        rows = warehouse.rows(query, label=label)
+    except Exception as exc:  # noqa: BLE001 — l'entrepôt, pas le code
+        last = _read_disk_cache(cache_file, max_age=float("inf"))
+        if last is None:
+            _stale[key] = ""
+            raise
+        why = str(exc).strip().splitlines()[0][:160] if str(exc).strip() else type(exc).__name__
+        _stale[key] = ("l'entrepôt a refusé la lecture (%s) : chiffres de la dernière lecture, "
+                       "du %s" % (why, last[2]))
+        LOG.warning("warehouse: %s refused (%s); serving the last reading, from %s",
+                    label, why, last[2])
+        return last[0]
+    _stale[key] = ""
+    _write_disk_cache(rows, time.time(), read_at(), cache_file)
+    return rows
+
+
 def _read_month_cache():
     stored = _read_disk_cache(MONTH_CACHE_FILE)
     return None if stored is None else stored[0]
@@ -1490,37 +1530,25 @@ class SnowflakeSource:
         de trois minutes jamais — voir `client_kpis` pour la règle inverse.
         """
         self._refuse_if_unwritten("MONTH_TO_DATE")
-        from . import queries, warehouse
+        from . import queries
 
-        rows = _read_month_cache()
-        if rows is None:
-            rows = warehouse.rows(queries.MONTH_TO_DATE, label="MONTH_TO_DATE")
-            _write_month_cache(rows)
-        return rows
+        return _rows_or_last("month", MONTH_CACHE_FILE, queries.MONTH_TO_DATE, "MONTH_TO_DATE")
 
     def daily_sales(self) -> List[dict]:
         """Le sell-out au jour, marché par marché, six semaines et les mêmes dates l'an
         dernier. Son propre cache, court, comme le mois."""
         self._refuse_if_unwritten("DAILY_SALES")
-        from . import queries, warehouse
+        from . import queries
 
-        rows = _read_daily_cache()
-        if rows is None:
-            rows = warehouse.rows(queries.DAILY_SALES, label="DAILY_SALES")
-            _write_daily_cache(rows)
-        return rows
+        return _rows_or_last("daily", DAILY_CACHE_FILE, queries.DAILY_SALES, "DAILY_SALES")
 
     def sell_in_daily(self) -> List[dict]:
         """Le sell-in facturé au jour, du 1er du mois à hier et les mêmes dates l'an
         dernier. Son propre cache, court."""
         self._refuse_if_unwritten("SELL_IN_DAILY")
-        from . import queries, warehouse
+        from . import queries
 
-        rows = _read_invoiced_cache()
-        if rows is None:
-            rows = warehouse.rows(queries.SELL_IN_DAILY, label="SELL_IN_DAILY")
-            _write_invoiced_cache(rows)
-        return rows
+        return _rows_or_last("invoiced", INVOICED_CACHE_FILE, queries.SELL_IN_DAILY, "SELL_IN_DAILY")
 
     def month_targets(self, period: str) -> dict:
         """L'objectif sell-out du mois par marché, tel que le plan l'écrit."""

@@ -98,7 +98,20 @@ def _month_review(source):
     phasing = pace_module.current() if settings.has_phasing_file else None
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
-    return month_module.build(rows, targets, phasing, org, directory=directory)
+    review = month_module.build(rows, targets, phasing, org, directory=directory)
+    _say_if_stale(review, "month")
+    return review
+
+
+def _say_if_stale(review, name: str) -> None:
+    """Quand l'entrepôt a refusé une lecture courte et que la dernière la remplace, la
+    page le dit à côté des chiffres — jamais des chiffres datés sans leur date."""
+    from ..perf import source as source_module
+
+    note = source_module.stale_note(name)
+    absent = getattr(review, "absent", None)
+    if note and isinstance(absent, list) and note not in absent:
+        absent.append(note)
 
 
 def _week_review(source, month):
@@ -119,7 +132,9 @@ def _week_review(source, month):
     lumpy = [line.market for line in getattr(month, "lines", []) if getattr(line, "lumpy", False)]
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
-    return weekly_module.build(rows, lumpy, org, directory)
+    review = weekly_module.build(rows, lumpy, org, directory)
+    _say_if_stale(review, "daily")
+    return review
 
 
 def _invoiced_review(source, weekly):
@@ -149,7 +164,9 @@ def _invoiced_review(source, weekly):
         names = {}
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
-    return invoiced_module.build(rows, names, org, directory)
+    review = invoiced_module.build(rows, names, org, directory)
+    _say_if_stale(review, "invoiced")
+    return review
 
 
 def _gifting_review():

@@ -860,6 +860,10 @@ sell-in facturé à date contre le plan sell-in du mois pris à la forme de l'an
 part du mois qui était facturée au même nombre de jours ouvrés). Au niveau du périmètre
 seulement, jamais par canal : l'axe des factures et celui du plan ne se recoupent pas.
 
+Les lectures courtes — le mois, la semaine, le sell-in au jour — servent leur dernière
+lecture, datée, quand l'entrepôt refuse la requête (une vue qui disparaît, un droit qui
+tombe), et la page le dit à côté des chiffres. Sans lecture derrière, l'erreur remonte.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

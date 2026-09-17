@@ -351,3 +351,43 @@ def test_a_main_cache_written_by_another_query_is_expired_and_not_fresh(monkeypa
         assert source_module._read_disk_cache(fingerprint="ancienne") is not None
     finally:
         source_module.cache_forget()
+
+
+def test_a_short_reading_the_warehouse_refuses_is_served_from_its_last_reading(tmp_path, monkeypatch):
+    """Une vue qui disparaît ou un droit qui tombe ne change pas ce qui a été lu hier :
+    le mois, la semaine et le sell-in s'ouvrent sur leur dernière lecture, datée, au lieu
+    d'une page qui dit « impossible ». Sans lecture derrière, l'erreur remonte."""
+    import time
+
+    from app.perf import source as source_module
+    from app.perf import warehouse
+
+    monkeypatch.setattr(source_module, "_cache_path", lambda name=source_module.CACHE_FILE: tmp_path / name)
+
+    def refuse(query, label=""):
+        raise RuntimeError("002003 (02000): SQL compilation error: Semantic View does not exist or not authorized.")
+
+    monkeypatch.setattr(warehouse, "rows", refuse)
+    rows = [{"market": "Northland", "iso2": "NL", "read_through": "2026-09-16"}]
+    source_module._write_disk_cache(rows, time.time() - 10 ** 7, "2026-09-16 08:03 UTC",
+                                    source_module.MONTH_CACHE_FILE)
+
+    served = source_module.SnowflakeSource().month_to_date()
+    assert served == rows
+    note = source_module.stale_note("month")
+    assert "refusé la lecture" in note and "2026-09-16 08:03 UTC" in note
+    assert "Semantic View" in note
+
+    try:
+        source_module.SnowflakeSource().daily_sales()
+    except RuntimeError as exc:
+        assert "Semantic View" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("sans lecture derrière, l'erreur doit remonter")
+    assert source_module.stale_note("daily") == ""
+
+    # La lecture qui passe efface la note.
+    monkeypatch.setattr(warehouse, "rows", lambda query, label="": rows)
+    source_module._cache_path(source_module.MONTH_CACHE_FILE).unlink()
+    assert source_module.SnowflakeSource().month_to_date() == rows
+    assert source_module.stale_note("month") == ""
