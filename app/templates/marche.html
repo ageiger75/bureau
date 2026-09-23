@@ -95,7 +95,7 @@
         <p class="cockpit-caveat">Non marqués, {{ piece.unmarked_label }}, portés par : {% for item in piece.unmarked_stores %}{{ item.code }} · {{ item.sub_channel }} {{ item.unmarked_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>
       {% endif %}
     {% endfor %}
-    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Elles ne désignent pas la même population et ne s'additionnent pas. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher.</p>
+    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Elles ne désignent pas la même population et ne s'additionnent pas. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode.</p>
   {% else %}
     <p class="empty">{{ (dossier.shadow_note or "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}

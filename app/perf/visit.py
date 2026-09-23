@@ -17,7 +17,8 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .analytics import format_eur, format_pct
-from .grey import FEEDERS, NEIGHBOURS, Mention, _growth, _line_for_market
+from .grey import (FEEDERS, FLAG_NOT_VALIDATED, NEIGHBOURS, Mention, _growth, _line_for_market,
+                   flag_validated)
 
 MOST_STORE_MOVES = 5
 #: Par niveau produit et par sens, les lignes que le terminal montre.
@@ -297,7 +298,16 @@ class Dossier:
     def unmarked_known(self) -> bool:
         return self.shadow is not None and self.shadow.quantity.usable
 
-    marked_bulk_label = property(lambda self: format_eur(self.marked_bulk))
+    @property
+    def flag_validated(self) -> bool:
+        return flag_validated(self.name)
+
+    @property
+    def marked_bulk_label(self) -> str:
+        if self.marked is None and not self.flag_validated:
+            return FLAG_NOT_VALIDATED
+        return format_eur(self.marked_bulk)
+
     measured_bulk_label = property(lambda self: format_eur(self.measured_bulk))
 
     @property
@@ -329,14 +339,20 @@ class Dossier:
         if self.marked is None and not self.unmarked_known:
             return "aucun vrac lu sur %s" % self.name
         text = "%s : mesuré %s, dont marqué par l'entrepôt %s et lu sans drapeau %s ; le plan attend %s à date" % (
-            self.name, self.measured_bulk_label, self.marked_bulk_label, self.unmarked_bulk_label,
-            self.plan_bulk_label)
+            self.name, self.measured_bulk_label,
+            self.marked_bulk_label if self.flag_validated or self.marked is not None
+            else "%s (zéro de méthode)" % FLAG_NOT_VALIDATED,
+            self.unmarked_bulk_label, self.plan_bulk_label)
         word = self.measured_vs_plan
         return text + (" — %s" % word if word else "")
 
     @property
     def marked_sentence(self) -> str:
         if self.marked is None:
+            if not self.flag_validated:
+                return ("aucun vrac marqué sur %s : le drapeau n'est pas validé par la Finance sur "
+                        "ce marché (Chine et Hong Kong seulement à ce jour), un zéro de méthode, "
+                        "pas l'absence d'un flux" % self.name)
             return "aucun vrac marqué sur %s dans les relevés" % self.name
         m = self.marked
         return ("vrac marqué : %s à date, %s des ventes du marché, %s sur l'an dernier, %s sur "
@@ -407,7 +423,13 @@ class Dossier:
             piece = shadow.quantity
             top = piece.stores[0]
             carriers = piece.unmarked_stores
-            if (piece.unmarked_share or 0.0) >= UNMARKED_WORTH_ASKING and carriers:
+            if not piece.flag_validated and carriers:
+                found.append("%s de gros tickets à date, portés d'abord par %s (%s), et le "
+                             "drapeau vrac n'est pas validé ici : personne ne mesure ce flux "
+                             "officiellement. Qui achète plus de cinquante unités par ticket, "
+                             "et le flux est-il assumé, ou caché ?"
+                             % (piece.ytd_label, carriers[0].code, carriers[0].sub_channel))
+            elif (piece.unmarked_share or 0.0) >= UNMARKED_WORTH_ASKING and carriers:
                 found.append("%s de gros tickets ne sont pas marqués comme du vrac à date, "
                              "portés d'abord par %s (%s) : qui achète plus de cinquante unités "
                              "par ticket, et pourquoi ces tickets ne portent pas le drapeau "

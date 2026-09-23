@@ -876,6 +876,16 @@ du mois facturée à des partenaires, hors lecture, et le ciseau — un sell-in 
 Une vraie lecture du vrac sur les factures attend de savoir ce que la table des factures
 porte : quantités, prix unitaire, type de client. À demander à l'agent entrepôt.
 
+Appris de l'équipe data (septembre 2026) : la méthode du drapeau vrac n'est validée par la
+Finance qu'en Chine et à Hong Kong, la Corée et Taïwan ensuite (`grey.FLAG_VALIDATED_MARKETS`).
+Ailleurs, un vrac marqué à zéro est un zéro de méthode, pas l'absence d'un flux : le cockpit
+écrit « drapeau non validé » à la place du chiffre, sur les trois pages et au terminal, et le
+gris sans drapeau distingue le marché qui ne pose pas le drapeau de celui où il n'existe pas.
+Suite de la même source, dans l'ordre : le sell-in du cockpit contre les cinq filtres officiels
+de la maison ; le gris sans drapeau sur la remise explicite (lignes payées, gros tickets) à la
+place du critère de prix ; les héros sur `IS_KEY_BETS` ; la Chine sans identification client,
+un fait du marché ; le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

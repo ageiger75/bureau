@@ -536,6 +536,20 @@ def build(rows: Sequence, plan=None, note: str = "", bulk_rows: Sequence[dict] =
 # facturés depuis le pays, ce que le registre en dit. Des lignes, pour une commande ; rien
 # n'est jugé, tout est posé côte à côte.
 
+#: Les marchés où la Finance a validé la méthode du drapeau vrac — retour de l'équipe data,
+#: septembre 2026 : la Chine et Hong Kong, la Corée et Taïwan ensuite. Ailleurs, un vrac
+#: marqué à zéro est un zéro de méthode, pas l'absence d'un flux, et le cockpit doit le dire
+#: plutôt que d'écrire « 0 € » comme s'il avait mesuré.
+FLAG_VALIDATED_MARKETS = ("China", "Hong Kong")
+FLAG_NOT_VALIDATED = "drapeau non validé"
+
+
+def flag_validated(market: str) -> bool:
+    from .budget import normalise_market
+
+    return normalise_market(str(market or "")) in FLAG_VALIDATED_MARKETS
+
+
 #: Les marchés dont le vrac se déplace l'un vers l'autre, à lire ensemble.
 NEIGHBOURS = {"China": ("Hong Kong",), "Hong Kong": ("China",)}
 #: Les périmètres de sell-in qui alimentent un marché sans passer par lui.
@@ -571,7 +585,10 @@ def market_brief(market: str, review: Review, plan=None, dataset=None, accounts=
     out.append("MESURÉ — le vrac que l'entrepôt marque, et la ligne que le budget nomme")
     mine = next((m for m in review.markets if m.scope == market), None)
     if mine is None:
-        out.append("  aucun vrac marqué sur %s dans les relevés" % market)
+        out.append("  aucun vrac marqué sur %s dans les relevés%s" % (
+            market, "" if flag_validated(market) else
+            " — le drapeau n'est pas validé par la Finance sur ce marché (Chine et Hong Kong "
+            "seulement à ce jour) : un zéro de méthode, pas l'absence d'un flux"))
     else:
         out.append("  vrac marqué %s : %s à date (%s des ventes du marché), %s sur l'an dernier, "
                    "%s sur trois mois — %s"

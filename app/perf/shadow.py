@@ -24,7 +24,7 @@ from typing import Dict, List, Optional, Sequence
 
 from .accounts import _months_between, _shift, fiscal_start
 from .analytics import format_eur, format_pct
-from .grey import NOTICED, RECENT, _growth, _word
+from .grey import NOTICED, RECENT, _growth, _word, flag_validated
 
 KINDS = ("quantity", "price")
 KIND_LABELS = {"quantity": "gros tickets", "price": "prix hors norme"}
@@ -114,9 +114,15 @@ class Store:
 class Slice:
     """Une population d'un marché : gros tickets, ou prix hors norme."""
 
-    def __init__(self, kind: str, stores: Sequence[Store] = ()) -> None:
+    def __init__(self, kind: str, stores: Sequence[Store] = (), scope: str = "") -> None:
         self.kind = kind
         self.stores = sorted(stores, key=lambda item: -item.ytd)
+        #: Le marché, pour savoir si le drapeau y est validé ; vide sur le total.
+        self.scope = scope
+
+    @property
+    def flag_validated(self) -> bool:
+        return flag_validated(self.scope) if self.scope else True
 
     @property
     def label(self) -> str:
@@ -224,7 +230,10 @@ class Slice:
         if self.kind == "quantity" and self.marking is not None:
             text += " ; marqués comme vrac à %s en valeur, soit %s non marqués" % (
                 self.marking_label, self.unmarked_label)
-            if not self.marks_its_bulk:
+            if not self.flag_validated:
+                text += (" : le drapeau n'est pas validé par la Finance sur ce marché, le zéro "
+                         "est un zéro de méthode et le vrac marqué un plancher")
+            elif not self.marks_its_bulk:
                 text += " : ce marché ne pose pas le drapeau, son vrac marqué est un plancher"
             carriers = self.unmarked_stores
             if carriers and self.unmarked > 0:
@@ -241,6 +250,9 @@ class Market:
         self.scope = scope
         self.quantity = quantity
         self.price = price
+        for piece in (quantity, price):
+            if not piece.scope:
+                piece.scope = scope
 
     @property
     def usable(self) -> bool:
@@ -282,8 +294,14 @@ class Review:
 
     @property
     def unmarked(self) -> List[Market]:
-        """Les marchés qui ne posent pas le drapeau sur leurs gros tickets."""
-        return [m for m in self.shown if m.quantity.usable and m.quantity.marks_its_bulk is False]
+        """Les marchés où le drapeau est validé et qui ne le posent pas sur leurs gros tickets."""
+        return [m for m in self.shown if m.quantity.usable and m.quantity.marks_its_bulk is False
+                and m.quantity.flag_validated]
+
+    @property
+    def unvalidated(self) -> List[Market]:
+        """Les marchés à gros tickets où le drapeau n'est pas validé : leur zéro n'est pas une mesure."""
+        return [m for m in self.shown if m.quantity.usable and not m.quantity.flag_validated]
 
     @property
     def headline(self) -> str:
@@ -295,6 +313,9 @@ class Review:
         if self.unmarked:
             text += " ; ne posent pas le drapeau : %s" % ", ".join(
                 "%s (%s)" % (m.scope, m.quantity.marking_label) for m in self.unmarked[:4])
+        if self.unvalidated:
+            text += " ; drapeau non validé par la Finance, un zéro de méthode : %d marché%s" % (
+                len(self.unvalidated), "s" if len(self.unvalidated) > 1 else "")
         return text
 
 

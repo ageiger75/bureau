@@ -202,3 +202,19 @@ def test_the_grey_says_what_the_sell_in_weighs_and_opens_the_scissors_when_partn
     shops_only = visit.build("Southland", dataset=_Dataset([_Unit("Southland", "retail", 600.0, 600.0)]))
     assert shops_only.sell_in_share is None and shops_only.sell_in_share_label == "aucun"
     assert "que la lecture couvre" in shops_only.sell_in_grey_sentence
+
+
+def test_a_market_without_a_validated_flag_says_method_not_absence():
+    from app.perf import grey as grey_module
+
+    rows = [dict(r, market="Westland") for r in mock.shadow_rows() if r.get("market") == "China"]
+    shadow_review = shadow.build(rows)
+    dossier = visit.build("Westland", shadow_review=shadow_review)
+    assert not dossier.flag_validated and dossier.marked is None
+    assert dossier.marked_bulk_label == grey_module.FLAG_NOT_VALIDATED
+    assert "zéro de méthode" in dossier.marked_sentence and "zéro de méthode" in dossier.grey_sentence
+    assert dossier.questions and "n'est pas validé ici" in dossier.questions[0]
+    assert not any("quand les grands comptes le portent" in q for q in dossier.questions)
+
+    china = _dossier()
+    assert china.flag_validated and "zéro de méthode" not in china.marked_sentence

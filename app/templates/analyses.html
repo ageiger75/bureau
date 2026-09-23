@@ -824,7 +824,7 @@
       </table>
     {% endif %}
     {% if grey.question %}<p class="ask">{{ grey.question }}</p>{% endif %}
-    <p class="cockpit-caveat">Le vrac lu est la différence entre les ventes et les ventes hors vrac de chaque relevé, définition de l'entrepôt (FLAG_BULK 2 à 5). Le daigou et un groupe facturé plutôt que vendu n'y sont pas marqués : la feuille grise de la Finance, au trimestre, se rapproche par la commande reconcile.</p>
+    <p class="cockpit-caveat">Le vrac lu est la différence entre les ventes et les ventes hors vrac de chaque relevé, définition de l'entrepôt (FLAG_BULK 2 à 5). Le daigou et un groupe facturé plutôt que vendu n'y sont pas marqués : la feuille grise de la Finance, au trimestre, se rapproche par la commande reconcile. La méthode du drapeau n'est validée par la Finance qu'en Chine et à Hong Kong, la Corée et Taïwan ensuite : un marché absent de cette table n'a pas forcément zéro vrac, il n'a pas encore de méthode.</p>
   {% else %}
     <p class="empty">{{ (grey.note if grey and grey.note else "les deux bases ne sont pas lues") | ucfirst }}.</p>
   {% endif %}
@@ -880,7 +880,7 @@
         {% endfor %}
       </tbody>
     </table>
-    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher. Chaque marché ouvre son dossier de visite.</p>
+    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode. Chaque marché ouvre son dossier de visite.</p>
   {% else %}
     <p class="empty">{{ (shadow.note if shadow and shadow.note else "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}
