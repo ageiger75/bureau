@@ -1336,37 +1336,58 @@ from semantic_view(
 
 
 #: Le sell-in facturé au jour, du 1er du mois en cours à hier, et les mêmes dates un an
-#: plus tôt : `window · invoice_date · iso2 · channel · net_eur`. `window` vaut `current`
-#: ou `last_year` ; `channel` est le code du centre de profit (TRA, WEBP, DIS, WHOCH…),
-#: jamais la colonne de canal de la facture, vide quatre fois sur cinq ; `net_eur` est le
-#: net au taux fixe, jamais au taux de la facture. Écrit par l'agent entrepôt contre
+#: plus tôt : `window · invoice_date · iso2 · channel · pos_type · net_eur`. `window` vaut
+#: `current` ou `last_year` ; `channel` est le code du centre de profit (TRA, WEBP, DIS,
+#: WHOCH…), jamais la colonne de canal de la facture, vide quatre fois sur cinq ; `net_eur`
+#: est le net au taux fixe, jamais au taux de la facture. Écrit par l'agent entrepôt contre
 #: V_SL_F_SELLIN_INVOICE_ITEM. Une seule marque, comme le sell-out : la table en porte cinq,
-#: et poser cinq marques à côté d'une seule ferait une croissance de rien. `window` est un
-#: mot réservé, d'où les guillemets, qui doivent survivre au littéral.
+#: et poser cinq marques à côté d'une seule ferait une croissance de rien.
+#:
+#: Les filtres de la maison, appris le 23 septembre 2026 sur juin : les kits comptés une
+#: fois (`kit_flag in (0, 2)`, le kit et ses composants faisaient deux fois le même euro), et
+#: le type du point de vente facturé (`V_SL_D_POS.channel_type_desc`, jointure
+#: `bill_to_skey = pos_skey`, sans orpheline). Le cockpit garde `SELL IN` et `B2B` dans son
+#: total et lit `SUBSIDIARY` à part : une facture à une filiale du groupe qui revend à son
+#: propre réseau porte un canal commercial parfaitement valide, et ce flux faisait près de
+#: la moitié du facturé lu — dont un seul client, en travel retail, les trois quarts. Le
+#: canal du centre de profit et le type du point de vente ne mesurent pas la même chose :
+#: l'un dit par quel canal la facture part, l'autre à qui elle est adressée. Le filtre de la
+#: maison sur la pertinence turnover du produit vit sur la dimension produit et ne retirait
+#: rien de mesurable : non repris. Le montant reste `net_invoice_amount_eur_annual` : la
+#: maison désigne `billed_net_value_eur_annual`, trois pour cent en dessous sur le
+#: commercial et trois fois au-dessus sur l'intragroupe, incertain — à arbitrer avec
+#: l'équipe data avant de basculer. `window` est un mot réservé, d'où les guillemets.
+SELL_IN_POS_TYPES = ("SELL IN", "B2B")
 SELL_IN_DAILY = """
 select
     'current'                                       as "window",
     i.billing_date                                  as invoice_date,
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
+    coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
     round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
+  and i.kit_flag in (0, 2)
   and i.billing_date >= date_trunc('month', current_date)
   and i.billing_date <= dateadd(day, -1, current_date)
-group by 1, 2, 3, 4
+group by 1, 2, 3, 4, 5
 union all
 select
     'last_year'                                     as "window",
     i.billing_date                                  as invoice_date,
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
+    coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
     round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
+  and i.kit_flag in (0, 2)
   and i.billing_date >= add_months(date_trunc('month', current_date), -12)
   and i.billing_date <= last_day(add_months(date_trunc('month', current_date), -12))
-group by 1, 2, 3, 4
+group by 1, 2, 3, 4, 5
 """
 
 
@@ -1715,6 +1736,9 @@ group by ly.scope, pr.through, ly.last_channel
 #: partenaire se lit contre l'an dernier et contre le plan de son canal, et le bloc le dit.
 #: La fenêtre ouvre en avril de l'exercice précédent pour que l'exercice à date ait son an
 #: dernier mois par mois, comme `PRODUCT_SALES`.
+#: Mêmes filtres de la maison que `SELL_IN_DAILY` : kits comptés une fois, et seuls les
+#: points de vente facturés `SELL IN` et `B2B` — une filiale du groupe n'est pas un
+#: partenaire, et la lecture des partenaires ne la nomme pas.
 PARTNER_SELL_IN = """
 select
     to_char(date_trunc('month', i.billing_date), 'YYYY-MM')  as period,
@@ -1724,7 +1748,10 @@ select
     i.country                                               as iso2,
     round(sum(i.net_invoice_amount_eur_annual), 2)          as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
+join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
+  and i.kit_flag in (0, 2)
+  and p.channel_type_desc in ('SELL IN', 'B2B')
   and i.billing_date >= add_months(date_trunc('year', dateadd(month, -3, current_date)), -9)
   and i.billing_date <= dateadd(day, -1, current_date)
 group by 1, 2, 4, 5

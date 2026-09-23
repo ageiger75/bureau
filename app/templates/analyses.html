@@ -416,6 +416,7 @@
     {% endif %}
     </tbody>
   </table>
+  {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
   {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
 </section>
 {% endif %}

@@ -134,3 +134,45 @@ def test_the_line_keeps_last_years_whole_month_to_give_the_month_its_shape():
     assert japan.last_year_month > 0
     empty = I.Line("Nulle")
     assert empty.share_by_now is None
+
+
+def test_invoices_to_group_subsidiaries_are_kept_apart_and_named():
+    """Une facture à une filiale du groupe porte un canal commercial valide et n'est pas du
+    sell-in : hors du total, nommée, avec sa propre croissance. Une ligne sans type de point
+    de vente — une lecture écrite avant la colonne — compte comme avant."""
+    rows = _rows()
+    for day in (1, 2, 3, 4):
+        rows.append({"window": "current", "invoice_date": "2026-09-%02d" % day, "iso2": "HK",
+                     "channel": "tra", "pos_type": "SUBSIDIARY", "net_eur": 1_000.0})
+    for day in range(1, 27):
+        if datetime.date(2025, 9, day).weekday() < 5:
+            rows.append({"window": "last_year", "invoice_date": "2025-09-%02d" % day, "iso2": "HK",
+                         "channel": "tra", "pos_type": "SUBSIDIARY", "net_eur": 500.0})
+    review = I.build(rows, {"JP": "Japan", "FR": "France", "HK": "Hong Kong"}, today=TODAY)
+
+    assert review.group.current == 600.0
+    assert "tra" not in {line.name.lower() for line in review.channels}
+    assert review.intragroup is not None and review.intragroup.current == 4_000.0
+    assert review.intragroup_types == ["SUBSIDIARY"]
+    assert review.intragroup.growth is not None and abs(review.intragroup.growth - 1.0) < 1e-9
+    from app.perf.analytics import format_eur
+
+    assert review.intragroup_note.startswith(
+        "%s facturés à des filiales du groupe (SUBSIDIARY), hors du total" % format_eur(4_000.0))
+    assert "+100" in review.intragroup_note
+
+    typed = [dict(row, pos_type="SELL IN") for row in _rows()]
+    assert I.build(typed, {"JP": "Japan", "FR": "France"}, today=TODAY).group.current == 600.0
+    assert I.build(_rows(), today=TODAY).intragroup is None
+
+
+def test_the_invoice_queries_apply_the_house_filters_and_read_the_bill_to_pos():
+    from app.perf import queries
+
+    for text in (queries.SELL_IN_DAILY, queries.PARTNER_SELL_IN):
+        assert "v_sl_d_pos p on p.pos_skey = i.bill_to_skey" in text
+        assert "i.kit_flag in (0, 2)" in text
+        assert "net_invoice_amount_eur_annual" in text and "billed_net_value" not in text
+    assert "as pos_type" in queries.SELL_IN_DAILY and "left join" in queries.SELL_IN_DAILY
+    assert "p.channel_type_desc in ('SELL IN', 'B2B')" in queries.PARTNER_SELL_IN
+    assert queries.SELL_IN_POS_TYPES == ("SELL IN", "B2B")

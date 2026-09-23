@@ -971,7 +971,10 @@ def sell_in_daily() -> List[dict]:
     today = datetime.date.today()
     first = today.replace(day=1)
     rows = []
-    bases = {("JP", "webp"): 60_000.0, ("FR", "dis"): 35_000.0, ("CN", "tra"): 80_000.0}
+    bases = {("JP", "webp", "SELL IN"): 60_000.0, ("FR", "dis", "SELL IN"): 35_000.0,
+             ("CN", "tra", "SELL IN"): 80_000.0,
+             # Une filiale du groupe livrée depuis le même centre : hors du total, nommée.
+             ("HK", "tra", "SUBSIDIARY"): 50_000.0}
     for window, start in ((INVOICED_CURRENT, first),
                           (INVOICED_LAST_YEAR, first.replace(year=first.year - 1))):
         day = start
@@ -979,10 +982,11 @@ def sell_in_daily() -> List[dict]:
             (start.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1))
         while day <= end:
             if day.weekday() < 5:
-                for (iso2, channel), base in bases.items():
+                for (iso2, channel, pos_type), base in bases.items():
                     factor = 0.9 if window == INVOICED_LAST_YEAR else 1.0
                     rows.append({"window": window, "invoice_date": day.isoformat(), "iso2": iso2,
-                                 "channel": channel, "net_eur": round(base * factor, 2)})
+                                 "channel": channel, "pos_type": pos_type,
+                                 "net_eur": round(base * factor, 2)})
             day += datetime.timedelta(days=1)
     return rows
 

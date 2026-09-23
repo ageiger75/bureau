@@ -38,6 +38,11 @@ CODES = {"tra": "tra", "webp": "webp", "dis": "dis", "whoch": "whoch", "whoin": 
 
 #: Le nombre de canaux et de périmètres portés avant de replier le reste.
 MOST = 6
+#: Les types de point de vente facturé que la maison compte comme du sell-in : un
+#: partenaire qui revend, ou un client B2B. Le reste — `SUBSIDIARY`, une filiale du groupe
+#: qui revend à son propre réseau — est lu à part, nommé, et hors du total. Une ligne sans
+#: type (lecture écrite avant la colonne) compte comme du sell-in, comme avant.
+COMMERCIAL_POS_TYPES = ("SELL IN", "B2B")
 
 #: Ce que l'écran appelle les factures dont le centre de profit n'est pas un canal
 #: commercial — HOLD, RET, ALLOCATE, PROD, un code vide. Tenues à part et nommées, hors du
@@ -122,7 +127,8 @@ class Review:
                  days: int, group: Optional[Line], channels: Sequence[Line],
                  perimeters: Sequence[Line], absent: Sequence[str],
                  loose: Optional[Line] = None, other: Optional[Line] = None,
-                 other_codes: Sequence[str] = ()) -> None:
+                 other_codes: Sequence[str] = (), intragroup: Optional[Line] = None,
+                 intragroup_types: Sequence[str] = ()) -> None:
         self.month = month
         self.through = through
         #: Les jours ouvrés depuis le 1er, cette année — le N de l'alignement.
@@ -135,6 +141,9 @@ class Review:
         #: Les factures hors canaux commerciaux, à part, avec les codes qu'elles portent.
         self.other = other
         self.other_codes = list(other_codes)
+        #: Les factures aux filiales du groupe, à part : ce n'est pas du sell-in.
+        self.intragroup = intragroup
+        self.intragroup_types = list(intragroup_types)
 
     @property
     def other_note(self) -> str:
@@ -144,6 +153,21 @@ class Review:
             return ""
         return ("%s facturés hors canaux commerciaux (%s), tenus hors du total"
                 % (format_eur(self.other.current), ", ".join(self.other_codes)))
+
+    @property
+    def intragroup_note(self) -> str:
+        """Ce que le groupe se facture à lui-même, nommé et hors du total : une filiale
+        livrée plus tôt n'est pas un partenaire qui commande plus."""
+        from .analytics import format_eur
+
+        if self.intragroup is None or not self.intragroup.current:
+            return ""
+        text = ("%s facturés à des filiales du groupe (%s), hors du total : une filiale "
+                "livrée n'est pas un partenaire qui commande"
+                % (format_eur(self.intragroup.current), ", ".join(self.intragroup_types)))
+        if self.intragroup.growth is not None:
+            text += " · %s sur l'an dernier à jours ouvrés égaux" % self.intragroup.growth_label
+        return text
 
     @property
     def usable(self) -> bool:
@@ -241,6 +265,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
             continue
         target.setdefault(day, []).append({"iso2": str(row.get("iso2") or "").strip().upper(),
                                            "channel": str(row.get("channel") or "").strip().lower(),
+                                           "pos_type": (str(row.get("pos_type") or "").strip().upper()
+                                                        if "pos_type" in row else ""),
                                            "amount": amount})
     if not current:
         return Review(None, None, 0, None, [], [], ["aucune facture lue sur le mois en cours : le sell-in du mois ne se lit pas"])
@@ -266,10 +292,19 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     group = Line("Groupe")
     other = Line(OTHER)
     other_codes: List[str] = []
+    intragroup = Line("Intragroupe")
+    intragroup_types: List[str] = []
 
     def pour(entries, attribute):
         for entry in entries:
             code = entry["channel"]
+            pos_type = entry.get("pos_type") or ""
+            if pos_type and pos_type not in COMMERCIAL_POS_TYPES:
+                # Une facture à une filiale du groupe : à part, nommée, hors du total.
+                setattr(intragroup, attribute, getattr(intragroup, attribute) + entry["amount"])
+                if pos_type not in intragroup_types:
+                    intragroup_types.append(pos_type)
+                continue
             if code not in CODES:
                 # Pas un canal commercial : à part, nommé, hors du total.
                 setattr(other, attribute, getattr(other, attribute) + entry["amount"])
@@ -320,4 +355,5 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")
     return Review(month, through, days, group, list(channels.values()), ordered, absent,
                   loose if loose.current else None, other if other.current else None,
-                  sorted(other_codes))
+                  sorted(other_codes), intragroup if intragroup.current else None,
+                  sorted(intragroup_types))

@@ -888,11 +888,21 @@ tickets du marché est de la revente, pas du retail. Inde et Brésil écartés p
 (`DISCOUNT_UNUSABLE_MARKETS`). Validé par l'agent entrepôt le 23 septembre 2026 sur Chine et
 Hong Kong. Une lecture en cache écrite avant la colonne ne rend aucun taux : `refresh --bulk`.
 
-Suite de la même source, dans l'ordre : le sell-in du cockpit avec les filtres de la maison
-(canal du point de vente facturé `SELL IN`/`B2B` sur `V_SL_D_POS`, kits, montant
-`BILLED_NET_VALUE_EUR_ANNUAL`) et l'intragroupe lu à part ; les héros sur `IS_KEY_BETS` ; la
-Chine sans identification client, un fait du marché ; le carnet de commandes dans la carte
-« sell-in et sell-out ensemble ».
+Le sell-in facturé (au jour, et par partenaire) applique les filtres de la maison : les kits
+comptés une fois, et le type du point de vente facturé (`V_SL_D_POS.channel_type_desc` par
+`bill_to_skey = pos_skey`). `SELL IN` et `B2B` font le total ; `SUBSIDIARY` — une filiale du
+groupe qui revend à son propre réseau, près de la moitié du facturé lu avant, dont un seul
+client en travel retail les trois quarts — est lu à part, nommé, avec sa croissance, sur
+l'écran du jour et sur Analyses (`invoiced.intragroup_note`). La zone rouge Travel Retail et
+la carte « sell-in et sell-out ensemble » en héritent. Le montant reste
+`net_invoice_amount_eur_annual` : la mesure désignée par la maison, `billed_net_value`, est
+trois pour cent en dessous sur le commercial et trois fois au-dessus sur l'intragroupe — à
+arbitrer avec l'équipe data avant de basculer. Le filtre de pertinence turnover du produit,
+inerte et sur la dimension produit, n'est pas repris. Le cache des factures se relit tout
+seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours.
+
+Suite, dans l'ordre : les héros sur `IS_KEY_BETS` ; la Chine sans identification client, un
+fait du marché ; le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
 
 ### Phase 5 — B6, les moteurs du plan
 
