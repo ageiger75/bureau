@@ -99,6 +99,11 @@
   {% else %}
     <p class="empty">{{ (dossier.shadow_note or "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}
+  <h3 class="subject-heading">Côté sell-in</h3>
+  {% if dossier.sell_in_grey_sentence %}
+    <p class="{{ 'product-headline' if dossier.scissors_open else 'routed-why' }}">{{ dossier.sell_in_grey_sentence | ucfirst }}.</p>
+  {% endif %}
+  <p class="cockpit-caveat">Les deux lectures ci-dessus sont des lectures de tickets : le sell-out. Les factures aux partenaires n'ont ni drapeau vrac ni ticket ; ce qui s'y lit, c'est le ciseau entre ce que les partenaires achètent et ce qui se vend en face, et les partenaires eux-mêmes, plus bas.</p>
 </section>
 
 <section class="panel" id="alimente">

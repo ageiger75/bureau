@@ -30,6 +30,11 @@ MOST_ISSUES = 8
 CLOSED_WORDS = ("clos", "ferm", "close")
 #: Au-delà de cette part de gros tickets non marqués, la première question est celle-là.
 UNMARKED_WORTH_ASKING = 0.2
+#: Le gris côté sell-in n'a pas de drapeau : les factures aux partenaires n'en portent pas.
+#: Ce qui se lit, c'est le ciseau — un sell-in qui pousse de dix points de plus que le
+#: sell-out du même marché, quand le sell-in pèse assez pour compter.
+SCISSORS_POINTS = 0.10
+LEAST_SELL_IN_SHARE = 0.15
 #: Un partenaire de duty free facturé depuis le pays qui bondit d'autant sur trois mois, ou
 #: sans an dernier, vaut une question.
 DUTY_FREE_JUMP = 0.25
@@ -203,6 +208,73 @@ class Dossier:
                      if ratio < 0.85 else " — le vrac marqué est dans l'ordre de grandeur")
         return text
 
+    # ---- côté sell-in : ce que la lecture du gris ne couvre pas, et le ciseau
+    @property
+    def sell_in_channels(self) -> List[Channel]:
+        return [item for item in self.channels if item.is_sell_in]
+
+    @property
+    def sell_out_channels(self) -> List[Channel]:
+        return [item for item in self.channels if not item.is_sell_in]
+
+    @staticmethod
+    def _growth_of(channels: Sequence[Channel]) -> Optional[float]:
+        known = [item for item in channels if item.last_year is not None]
+        if not known:
+            return None
+        return _growth(sum(item.sales for item in known),
+                       sum(float(item.last_year or 0.0) for item in known))
+
+    @property
+    def sell_in_sales(self) -> float:
+        return sum(item.sales for item in self.sell_in_channels)
+
+    @property
+    def sell_in_share(self) -> Optional[float]:
+        total = self.month_sales
+        return self.sell_in_sales / total if total > 0 and self.sell_in_channels else None
+
+    @property
+    def sell_in_share_label(self) -> str:
+        share = self.sell_in_share
+        return "%.0f %%" % (share * 100) if share is not None else "aucun"
+
+    sell_in_growth = property(lambda self: self._growth_of(self.sell_in_channels))
+    sell_out_growth = property(lambda self: self._growth_of(self.sell_out_channels))
+
+    @property
+    def scissors(self) -> Optional[float]:
+        """Le sell-in moins le sell-out, en points de croissance sur l'an dernier."""
+        if self.sell_in_growth is None or self.sell_out_growth is None:
+            return None
+        return self.sell_in_growth - self.sell_out_growth
+
+    @property
+    def scissors_open(self) -> bool:
+        share = self.sell_in_share or 0.0
+        return (self.scissors is not None and self.scissors >= SCISSORS_POINTS
+                and share >= LEAST_SELL_IN_SHARE)
+
+    @property
+    def sell_in_grey_sentence(self) -> str:
+        """Le gris côté sell-in : ce que les factures aux partenaires pèsent dans le marché,
+        hors de toute lecture à drapeau, et le ciseau quand il s'ouvre."""
+        if not self.channels:
+            return ""
+        if not self.sell_in_channels:
+            return ("aucun canal sell-in sur %s ce mois : le gris de ce marché passe par ses "
+                    "tickets, que la lecture couvre" % self.name)
+        text = ("le sell-in fait %s des ventes du mois de %s (%s), hors de toute lecture du "
+                "gris : les factures aux partenaires ne portent pas de drapeau vrac"
+                % (self.sell_in_share_label, self.name, format_eur(self.sell_in_sales)))
+        if self.sell_in_growth is not None and self.sell_out_growth is not None:
+            text += " ; il fait %s sur l'an dernier quand le sell-out fait %s" % (
+                format_pct(self.sell_in_growth), format_pct(self.sell_out_growth))
+            if self.scissors_open:
+                text += (" — ce que les partenaires achètent ne se vend pas en face : du stock "
+                         "chez eux, ou un flux qui ressort ailleurs")
+        return text
+
     @property
     def marked_bulk(self) -> float:
         """L'officiel : ce que l'entrepôt marque comme vrac."""
@@ -363,6 +435,11 @@ class Dossier:
             found.append("%s : aucune vente ce mois, %s l'an dernier, et aucune fermeture dans la "
                          "feuille. Fermée, ou muette ?" % (mute.name or mute.code,
                                                            format_eur(mute.last_year)))
+        if self.scissors_open:
+            found.append("Le sell-in de %s fait %s sur l'an dernier quand le sell-out fait %s, "
+                         "pour %s des ventes du mois. Qui achète, et où ça ressort ?"
+                         % (self.name, format_pct(self.sell_in_growth),
+                            format_pct(self.sell_out_growth), self.sell_in_share_label))
         if self.declines:
             worst = self.declines[0]
             found.append("%s : %s sur le mois contre l'an dernier (%s). Qu'est-ce qui s'est "
@@ -426,10 +503,12 @@ class Dossier:
         if self.gains:
             out.append("  et celles qui poussent : " + ", ".join(
                 "%s %s" % (move.name or move.code, move.delta_label) for move in self.gains))
-        out.append("GRIS — marqué par l'entrepôt, et lu sans drapeau")
+        out.append("GRIS — marqué par l'entrepôt, et lu sans drapeau ; le sell-in à côté")
         out.append("  " + self.grey_sentence)
         out.append("  " + self.marked_sentence)
         out.append("  " + self.budget_sentence)
+        if self.sell_in_grey_sentence:
+            out.append("  " + self.sell_in_grey_sentence)
         for line in self.accounts:
             out.append("  %-40s %10s  part %5s  %8s  3 mois %8s  %s" % (
                 line.label[:40], line.ytd_label, line.share_label, line.growth_label,

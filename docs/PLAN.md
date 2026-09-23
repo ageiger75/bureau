@@ -866,6 +866,16 @@ tombe), et la page le dit à côté des chiffres. Sans lecture derrière, l'erre
 Le dossier de visite porte aussi ce qui marche par produit sur le seul marché — catégories
 et gammes, la lecture de la page du périmètre — à l'écran et dans `manage.py marche`.
 
+Le gris est une lecture de tickets, le sell-out : le drapeau vrac et les deux critères sans
+drapeau vivent sur le fait sell-out, et les factures aux partenaires n'en portent aucun. Sur
+un marché dont le flux passe par des partenaires (l'Italie), la lecture ne voit donc que la
+part vendue en propre. Ce qui se lit côté sell-in, sur ce que le cockpit tient déjà : la part
+du mois facturée à des partenaires, hors lecture, et le ciseau — un sell-in qui pousse de
+`SCISSORS_POINTS` de plus que le sell-out du même marché, quand il pèse au moins
+`LEAST_SELL_IN_SHARE` du mois — dans le dossier, sur la page du périmètre et en question.
+Une vraie lecture du vrac sur les factures attend de savoir ce que la table des factures
+porte : quantités, prix unitaire, type de client. À demander à l'agent entrepôt.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

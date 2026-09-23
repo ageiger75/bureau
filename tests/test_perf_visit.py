@@ -163,3 +163,42 @@ def test_the_dossier_carries_what_sells_by_product_on_this_market_alone():
 
     bare = visit.build("Westland")
     assert "la lecture produit n'est pas déposée" in "\n".join(bare.lines())
+
+
+class _Unit:
+    def __init__(self, market, channel, sales, last_year, gap=0.0, sell_in=False):
+        self.market, self.channel, self.label = market, channel, "%s %s" % (market, channel)
+        self.sales_actual, self.sales_last_year, self.gap_vs_budget = sales, last_year, gap
+        self.is_sell_in, self.is_aggregate, self.budget_known = sell_in, False, True
+        self.no_breakdown_reason = ""
+
+
+class _Dataset:
+    period_label = "Août 2026"
+
+    def __init__(self, units):
+        self.units = units
+
+
+def test_the_grey_says_what_the_sell_in_weighs_and_opens_the_scissors_when_partners_outbuy_the_shops():
+    # Sell-out en recul de 10 %, sell-in en hausse de 30 % pour 40 % du mois : le ciseau
+    # s'ouvre, et la question le dit. Un marché sans sell-in dit que la lecture le couvre.
+    units = [_Unit("Southland", "retail", 600.0, 667.0),
+             _Unit("Southland", "wholesale", 400.0, 308.0, sell_in=True)]
+    dossier = visit.build("Southland", dataset=_Dataset(units))
+    assert abs(dossier.sell_in_share - 0.4) < 1e-9 and dossier.sell_in_share_label == "40 %"
+    assert dossier.scissors is not None and dossier.scissors > visit.SCISSORS_POINTS
+    assert dossier.scissors_open
+    assert "hors de toute lecture du gris" in dossier.sell_in_grey_sentence
+    assert "ressort ailleurs" in dossier.sell_in_grey_sentence
+    assert any("Qui achète, et où ça ressort" in q for q in dossier.questions)
+    assert "le sell-in fait 40 %" in "\n".join(dossier.lines())
+
+    calm = visit.build("Southland", dataset=_Dataset([
+        _Unit("Southland", "retail", 600.0, 600.0),
+        _Unit("Southland", "wholesale", 400.0, 400.0, sell_in=True)]))
+    assert not calm.scissors_open and not any("Qui achète" in q for q in calm.questions)
+
+    shops_only = visit.build("Southland", dataset=_Dataset([_Unit("Southland", "retail", 600.0, 600.0)]))
+    assert shops_only.sell_in_share is None and shops_only.sell_in_share_label == "aucun"
+    assert "que la lecture couvre" in shops_only.sell_in_grey_sentence
