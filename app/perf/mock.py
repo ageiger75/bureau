@@ -934,26 +934,32 @@ def bulk_rows() -> List[dict]:
 #: Le gris sans drapeau, inventé : des gros tickets marqués presque partout sauf sur un
 #: marché, et des prix hors norme dans deux magasins d'usine.
 SHADOW_SHAPES = (
-    # marché, point de vente, sous-canal, genre, base mensuelle, part marquée, croissance
-    ("China", "ST-CN-0410", "SHOP IN SHOP", "quantity", 240_000.0, 0.08, 0.40),
-    ("China", "ST-CN-0512", "SHOP IN SHOP", "quantity", 90_000.0, 0.05, 0.10),
-    ("Hong Kong", "ST-HK-0021", "SHOP IN SHOP", "quantity", 110_000.0, 0.97, -0.35),
-    ("Japan", "ST-JP-0130", "MALL STORE", "quantity", 12_000.0, 0.90, 0.02),
-    ("China", "ST-CN-0902", "OUTLET", "price", 60_000.0, 0.0, 0.05),
-    ("Japan", "ST-JP-0777", "OUTLET", "price", 35_000.0, 0.0, -0.03),
+    # marché, point de vente, sous-canal, genre, base mensuelle, part marquée, croissance,
+    # remise sur le brut des lignes payées
+    ("China", "ST-CN-0410", "SHOP IN SHOP", "quantity", 240_000.0, 0.08, 0.40, 0.30),
+    ("China", "ST-CN-0512", "SHOP IN SHOP", "quantity", 90_000.0, 0.05, 0.10, 0.22),
+    ("Hong Kong", "ST-HK-0021", "SHOP IN SHOP", "quantity", 110_000.0, 0.97, -0.35, 0.50),
+    ("Japan", "ST-JP-0130", "MALL STORE", "quantity", 12_000.0, 0.90, 0.02, 0.06),
+    # Les autres tickets de chaque marché : la référence de la remise.
+    ("China", "(marché)", "(tous)", "normal", 8_000_000.0, 0.0, 0.05, 0.05),
+    ("Hong Kong", "(marché)", "(tous)", "normal", 900_000.0, 0.0, -0.02, 0.11),
+    ("Japan", "(marché)", "(tous)", "normal", 6_000_000.0, 0.0, 0.01, 0.06),
 )
 
 
 def shadow_rows() -> List[dict]:
-    """Le gris sans drapeau — gros tickets et prix hors norme —, inventé."""
+    """Le gris sans drapeau — gros tickets, leur marquage et leur remise, et les autres
+    tickets du marché en référence —, inventé."""
     rows = []
     for index, period in enumerate(_months_back()):
-        for market, store, sub_channel, kind, base, flagged, yearly in SHADOW_SHAPES:
+        for market, store, sub_channel, kind, base, flagged, yearly, discount in SHADOW_SHAPES:
             value = base * (1.0 + yearly) ** (index / 12.0) * (1.0 + 0.1 * ((index + len(store)) % 4 == 0))
             rows.append({"period": period, "market": market, "store": store,
                          "sub_channel": sub_channel, "kind": kind,
                          "net_eur": round(value, 2), "lines": 40 + index,
-                         "flagged_eur": round(value * flagged, 2)})
+                         "flagged_eur": round(value * flagged, 2),
+                         # net = brut × (1 − remise), donc remise = net × r / (1 − r)
+                         "discount_eur": round(value * discount / (1.0 - discount), 2)})
     return rows
 
 

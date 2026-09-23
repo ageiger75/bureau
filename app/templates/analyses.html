@@ -873,14 +873,14 @@
   {% if shadow and shadow.usable %}
     <p class="product-headline">{{ shadow.headline | ucfirst }}.</p>
     <table class="month-table product-table">
-      <thead><tr><th>Marché</th><th>Gros tickets à date</th><th>vs l'an dernier</th><th>Marqués comme vrac</th><th>Prix hors norme à date</th><th>vs l'an dernier</th></tr></thead>
+      <thead><tr><th>Marché</th><th>Gros tickets à date</th><th>vs l'an dernier</th><th>Marqués comme vrac</th><th>Remise des gros tickets</th><th>Remise des autres tickets</th></tr></thead>
       <tbody>
         {% for item in shadow.shown[:8] %}
-          <tr><td><a href="/marche/{{ item.scope | slug }}">{{ item.scope }}</a></td><td class="num">{{ item.quantity.ytd_label if item.quantity.usable else "—" }}</td><td class="num">{{ item.quantity.growth_label if item.quantity.usable else "" }}</td><td class="num {{ 'is-en-retard' if item.quantity.marks_its_bulk is sameas false else '' }}">{{ item.quantity.marking_label if item.quantity.usable else "" }}</td><td class="num">{{ item.price.ytd_label if item.price.usable else "—" }}</td><td class="num">{{ item.price.growth_label if item.price.usable else "" }}</td></tr>
+          <tr><td><a href="/marche/{{ item.scope | slug }}">{{ item.scope }}</a></td><td class="num">{{ item.quantity.ytd_label if item.quantity.usable else "—" }}</td><td class="num">{{ item.quantity.growth_label if item.quantity.usable else "" }}</td><td class="num {{ 'is-en-retard' if item.quantity.marks_its_bulk is sameas false else '' }}">{{ item.quantity.marking_label if item.quantity.usable else "" }}</td><td class="num {{ 'is-en-retard' if item.resells else '' }}" title="{{ item.discount_sentence }}">{{ item.quantity.discount_label }}{% if item.resells %} · revente{% endif %}</td><td class="num">{{ item.normal.discount_label }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
-    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode. Chaque marché ouvre son dossier de visite.</p>
+    <p class="cockpit-caveat">Une lecture du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités payées, marqué ou non, et sa remise explicite sur les lignes payées contre celle des autres tickets du marché — le gros ticket remisé au moins à 20 % et au moins deux fois plus que les autres est de la revente, pas du retail ; la remise n'est pas lisible en Inde ni au Brésil. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode. Chaque marché ouvre son dossier de visite.</p>
   {% else %}
     <p class="empty">{{ (shadow.note if shadow and shadow.note else "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}

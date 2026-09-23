@@ -1868,20 +1868,25 @@ where f.flag_turnover = 1
 group by 1, 2, 3, 4, 5, 6
 """ % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
 
-#: Le gris sans drapeau : deux populations lues sur le fait, sans `FLAG_BULK`, parce que le
-#: drapeau n'est pas posé pareil d'un marché à l'autre — presque tout à Hong Kong, presque
-#: rien en Chine, pour le même flux. La comparaison entre marchés comparait des pratiques
-#: de saisie. Ici, deux critères comportementaux, tenus séparés parce qu'ils ne désignent
-#: pas la même population : le ticket de plus de cinquante unités (les comptes de gros,
-#: marqués ou non — `flagged_eur` dit la part marquée) ; la ligne vendue sous soixante pour
-#: cent du prix unitaire moyen de la référence dans le pays ce mois-là, hors drapeau (les
-#: magasins d'usine, surtout). `period · market · store · sub_channel · kind · net_eur ·
-#: lines · flagged_eur`, `kind` valant `quantity` ou `price`. Même fenêtre que le vrac.
-#: Écrit sur la mesure de l'agent entrepôt du 13 septembre 2026, validé le 14 à l'euro
-#: près sur deux magasins et deux marchés ; les unités comptées sont les unités payées, et
-#: les lignes à zéro euro sont hors du critère de prix, sur sa relecture.
+#: Le gris sans drapeau : les gros tickets lus sur le fait, sans `FLAG_BULK`, parce que le
+#: drapeau n'est validé par la Finance qu'en Chine et à Hong Kong et n'est pas posé pareil
+#: ailleurs. Le ticket de plus de cinquante unités payées, marqué ou non — `flagged_eur` dit
+#: la part marquée — et sa remise explicite, lignes payées seulement : le gros ticket remisé
+#: trois à cinq fois plus que le ticket normal est de la revente, pas du retail (mesure de
+#: l'agent entrepôt du 23 septembre 2026 : cadeau et remise sont anticorrélés, le retail se
+#: pilote au cadeau, le gros ticket à la remise). Le critère de prix inféré d'un prix de
+#: référence, qui ramassait surtout les magasins d'usine, est remplacé par cette colonne.
+#: `period · market · store · sub_channel · kind · net_eur · lines · flagged_eur ·
+#: discount_eur`, `kind` valant `quantity` (par point de vente) ou `normal` (les autres
+#: tickets, au seul niveau du marché, point de vente `(marché)` et sous-canal `(tous)`, la
+#: référence du taux). Le ticket est `transaction_number` seul, unique dans tout l'entrepôt
+#: (69 collisions sur 142 millions, aucune depuis avril 2025). Les retours restent dans le
+#: net du ticket, comme avant ; les unités et la remise ne comptent que les lignes payées.
+#: Validé le 23 septembre 2026 sur Chine et Hong Kong : mêmes tickets que la lecture
+#: précédente, mêmes taux que la mesure de l'agent. La colonne de remise est inutilisable
+#: en Inde (remise égale au net) et au Brésil (signe inversé, qui se compense au grain
+#: ticket et n'est attrapé par aucun contrôle) : `shadow.DISCOUNT_UNUSABLE_MARKETS`.
 SHADOW_BIG_TICKET_UNITS = 50
-SHADOW_CHEAP_RATIO = 0.6
 SHADOW_BULK = """
 with base as (
     select
@@ -1890,11 +1895,10 @@ with base as (
         coalesce(nullif(nullif(trim(s.store_group_store_code), ''), 'N/A'),
                  cast(s.store_skey as varchar))                            as store,
         coalesce(nullif(trim(s.store_sub_channel), ''), 'N/A')             as sub_channel,
-        f.store_skey || '|' || f.transaction_date || '|'
-            || coalesce(f.transaction_till, '') || '|' || coalesce(f.transaction_number, '') as ticket,
-        f.product_skey                                                     as product_skey,
+        f.transaction_number                                               as ticket,
         f.quantity                                                         as quantity,
         f.net_sales_eur                                                    as net_eur,
+        coalesce(f.explicit_discount_eur, 0)                               as discount_eur,
         iff(coalesce(f.flag_bulk, 0) in (2, 3, 4, 5), 1, 0)                as flagged
     from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
     join dwh.semantic_layer.v_sl_ai_d_stores s on s.store_skey = f.store_skey
@@ -1906,58 +1910,44 @@ with base as (
       and f.transaction_date <  %(to)s
 ),
 tickets as (
-    -- Paid units only: a gift-with-purchase line carries units and no euros, and a web
-    -- store's tickets of seventy-five units at two hundred euros, two thirds of them
-    -- free, read as bulk when they are a promotion. Validated on 14 September 2026.
+    -- Paid lines only for the units and the discount: a gift-with-purchase line carries
+    -- units and discount and no euros, and would read as bulk or as a rebate. The net
+    -- keeps every line, returns included, as the previous reading did (validation of
+    -- 23 September: filtering the base instead moved Hong Kong by fourteen percent).
     select period, market, store, sub_channel, ticket,
-           sum(iff(net_eur > 0, quantity, 0)) as units,
-           sum(net_eur) as net_eur, max(flagged) as flagged
+           sum(iff(net_eur > 0, quantity, 0))      as units,
+           sum(net_eur)                            as net_eur,
+           sum(iff(net_eur > 0, discount_eur, 0))  as discount_eur,
+           max(flagged)                            as flagged
     from base
     group by 1, 2, 3, 4, 5
 ),
 big as (
-    -- `lines` counts tickets here and lines in `cheap`: one name, two populations, and
-    -- the cockpit reads it as a count of items of the kind, never as one figure.
     select period, market, store, sub_channel, 'quantity' as kind,
            round(sum(net_eur), 2)                              as net_eur,
            count(*)                                            as lines,
-           round(sum(iff(flagged = 1, net_eur, 0)), 2)         as flagged_eur
+           round(sum(iff(flagged = 1, net_eur, 0)), 2)         as flagged_eur,
+           round(sum(discount_eur), 2)                         as discount_eur
     from tickets
     where units > %(units)d
     group by 1, 2, 3, 4
 ),
-reference as (
-    -- A reference price needs a base: a product sold once in the month would otherwise
-    -- be its own average, and any other sale would compare against it (validation of
-    -- 14 September, small in euros, wrong in principle).
-    select period, market, product_skey,
-           sum(net_eur) / nullif(sum(quantity), 0) as unit_price
-    from base
-    where quantity > 0 and net_eur > 0
-    group by 1, 2, 3
-    having sum(quantity) >= %(units)d
-),
-cheap as (
-    select b.period, b.market, b.store, b.sub_channel, 'price' as kind,
-           round(sum(b.net_eur), 2)                            as net_eur,
+normal as (
+    -- The other tickets of the market: the reference the big tickets' discount is read
+    -- against. One row per market and month, never per store.
+    select period, market, '(marché)' as store, '(tous)' as sub_channel, 'normal' as kind,
+           round(sum(net_eur), 2)                              as net_eur,
            count(*)                                            as lines,
-           0                                                   as flagged_eur
-    from base b
-    join reference r
-      on r.period = b.period and r.market = b.market and r.product_skey = b.product_skey
-    where b.quantity > 0
-      -- Sold, not given: without this the criterion is a detector of free goods, and
-      -- the line count is wrong by a factor of a hundred (validation of 14 September).
-      and b.net_eur > 0
-      and b.flagged = 0
-      and b.net_eur / b.quantity < %(ratio)s * r.unit_price
-    group by 1, 2, 3, 4
+           0                                                   as flagged_eur,
+           round(sum(discount_eur), 2)                         as discount_eur
+    from tickets
+    where units <= %(units)d
+    group by 1, 2
 )
 select * from big
 union all
-select * from cheap
-""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO, "units": SHADOW_BIG_TICKET_UNITS,
-       "ratio": SHADOW_CHEAP_RATIO}
+select * from normal
+""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO, "units": SHADOW_BIG_TICKET_UNITS}
 
 ALL = {
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,

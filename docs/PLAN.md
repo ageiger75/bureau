@@ -881,10 +881,18 @@ Finance qu'en Chine et à Hong Kong, la Corée et Taïwan ensuite (`grey.FLAG_VA
 Ailleurs, un vrac marqué à zéro est un zéro de méthode, pas l'absence d'un flux : le cockpit
 écrit « drapeau non validé » à la place du chiffre, sur les trois pages et au terminal, et le
 gris sans drapeau distingue le marché qui ne pose pas le drapeau de celui où il n'existe pas.
-Suite de la même source, dans l'ordre : le sell-in du cockpit contre les cinq filtres officiels
-de la maison ; le gris sans drapeau sur la remise explicite (lignes payées, gros tickets) à la
-place du critère de prix ; les héros sur `IS_KEY_BETS` ; la Chine sans identification client,
-un fait du marché ; le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
+Le gris sans drapeau lit maintenant la remise explicite (`EXPLICIT_DISCOUNT_EUR`, lignes
+payées, au grain ticket, `transaction_number` seul comme clé) à la place du critère de prix :
+le gros ticket remisé au moins à `RESALE_DISCOUNT` et `RESALE_TIMES` fois plus que les autres
+tickets du marché est de la revente, pas du retail. Inde et Brésil écartés par le nom
+(`DISCOUNT_UNUSABLE_MARKETS`). Validé par l'agent entrepôt le 23 septembre 2026 sur Chine et
+Hong Kong. Une lecture en cache écrite avant la colonne ne rend aucun taux : `refresh --bulk`.
+
+Suite de la même source, dans l'ordre : le sell-in du cockpit avec les filtres de la maison
+(canal du point de vente facturé `SELL IN`/`B2B` sur `V_SL_D_POS`, kits, montant
+`BILLED_NET_VALUE_EUR_ANNUAL`) et l'intragroupe lu à part ; les héros sur `IS_KEY_BETS` ; la
+Chine sans identification client, un fait du marché ; le carnet de commandes dans la carte
+« sell-in et sell-out ensemble ».
 
 ### Phase 5 — B6, les moteurs du plan
 

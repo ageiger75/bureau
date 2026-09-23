@@ -1,18 +1,18 @@
 """Le gris sans drapeau : ce que les tickets disent, quel que soit le marquage.
 
-Le vrac « marqué » dépend d'un drapeau que l'entrepôt ne pose pas pareil partout : presque
-tout à Hong Kong, presque rien en Chine, pour le même flux. Comparer les deux marchés sur ce
-drapeau comparait des pratiques de saisie. Ce module lit deux comportements sur le fait,
-que `SHADOW_BULK` rend par mois, marché et point de vente :
+Le vrac « marqué » dépend d'un drapeau que la Finance n'a validé qu'en Chine et à Hong Kong,
+et que l'entrepôt ne pose pas pareil ailleurs. Ce module lit sur le fait, que `SHADOW_BULK`
+rend par mois, marché et point de vente :
 
-**Les gros tickets** — plus de cinquante unités sur un ticket. C'est le compte de gros, qu'il
-soit marqué ou non ; la part marquée dit si le marché pose le drapeau, et un marché qui ne
-le pose pas a un vrac « marqué » qui est un plancher.
+**Les gros tickets** — plus de cinquante unités payées sur un ticket. C'est le compte de
+gros, qu'il soit marqué ou non ; la part marquée dit si le marché pose le drapeau, et un
+marché qui ne le pose pas a un vrac « marqué » qui est un plancher.
 
-**Les prix hors norme** — une ligne vendue sous soixante pour cent du prix unitaire moyen de
-la référence dans le pays ce mois-là, hors drapeau. Ce critère ramasse surtout les magasins
-d'usine ; il ne désigne pas la même population que le premier, et les deux ne se fondent
-jamais.
+**Leur remise** — la remise explicite des lignes payées, contre celle des autres tickets du
+marché. Le gros ticket remisé trois à cinq fois plus que le ticket normal est de la revente,
+pas du retail : cadeau et remise sont anticorrélés, le retail se pilote au cadeau, le gros
+ticket à la remise. Le taux seul ne suffit pas — la France a le même taux sur cent
+cinquante tickets que la Chine sur six mille —, c'est le taux avec le volume qui signe.
 
 Rien ici n'est du vrac au sens de l'entrepôt : ce sont des lectures du cockpit, nommées
 comme telles, posées à côté du vrac marqué et jamais à sa place.
@@ -26,20 +26,29 @@ from .accounts import _months_between, _shift, fiscal_start
 from .analytics import format_eur, format_pct
 from .grey import NOTICED, RECENT, _growth, _word, flag_validated
 
-KINDS = ("quantity", "price")
-KIND_LABELS = {"quantity": "gros tickets", "price": "prix hors norme"}
+KINDS = ("quantity", "normal")
+KIND_LABELS = {"quantity": "gros tickets", "normal": "autres tickets"}
 KIND_MEANING = {
-    "quantity": "tickets de plus de cinquante unités, marqués ou non",
-    "price": "lignes vendues sous soixante pour cent du prix de la référence, hors drapeau",
+    "quantity": "tickets de plus de cinquante unités payées, marqués ou non",
+    "normal": "les autres tickets du marché, la référence de la remise",
 }
 #: En deçà, un marché « ne pose pas le drapeau » sur ses gros tickets.
 LOW_MARKING = 0.5
 MOST_STORES = 6
+#: Les marchés où la colonne de remise de l'entrepôt est inutilisable — mesure du 23
+#: septembre 2026 : en Inde la remise égale le net, au Brésil le signe est inversé et se
+#: compense au grain ticket, ce qu'aucun contrôle de vraisemblance n'attrape. Écartés par
+#: le nom, jamais par un seuil.
+DISCOUNT_UNUSABLE_MARKETS = ("India", "Brazil")
+#: Au-delà de ce taux de remise sur les gros tickets, et d'au moins le double du taux des
+#: autres tickets, le gros ticket est de la revente.
+RESALE_DISCOUNT = 0.2
+RESALE_TIMES = 2.0
 
 
 class Store:
-    __slots__ = ("code", "market", "sub_channel", "kind", "months", "flagged", "ytd",
-                 "ytd_ly", "recent", "recent_ly", "flagged_ytd", "total")
+    __slots__ = ("code", "market", "sub_channel", "kind", "months", "flagged", "discount", "ytd",
+                 "ytd_ly", "recent", "recent_ly", "flagged_ytd", "discount_ytd", "total")
 
     def __init__(self, code: str, market: str, sub_channel: str, kind: str) -> None:
         self.code = code
@@ -48,12 +57,28 @@ class Store:
         self.kind = kind
         self.months: Dict[str, float] = {}
         self.flagged: Dict[str, float] = {}
+        self.discount: Dict[str, float] = {}
         self.ytd = 0.0
         self.ytd_ly: Optional[float] = None
         self.recent = 0.0
         self.recent_ly: Optional[float] = None
         self.flagged_ytd = 0.0
+        self.discount_ytd = 0.0
         self.total = 0.0
+
+    @property
+    def discount_rate(self) -> Optional[float]:
+        """La remise explicite sur le brut des lignes payées — None quand le marché n'a
+        pas de colonne fiable, ou rien à date."""
+        if self.market in DISCOUNT_UNUSABLE_MARKETS or not self.discount:
+            return None
+        gross = self.ytd + self.discount_ytd
+        return self.discount_ytd / gross if gross > 0 else None
+
+    @property
+    def discount_label(self) -> str:
+        rate = self.discount_rate
+        return "—" if rate is None else "%d %%" % round(rate * 100)
 
     @property
     def label(self) -> str:
@@ -180,6 +205,27 @@ class Slice:
         return None if marking is None else marking >= LOW_MARKING
 
     @property
+    def discount_ytd(self) -> float:
+        return sum(item.discount_ytd for item in self.stores)
+
+    @property
+    def discount_rate(self) -> Optional[float]:
+        """La remise des gros tickets sur leur brut, lignes payées — None sur un marché
+        dont la colonne est inutilisable."""
+        if self.scope and self.scope in DISCOUNT_UNUSABLE_MARKETS:
+            return None
+        #: Une lecture écrite avant la colonne de remise n'a pas de remise : None, pas 0 %.
+        if not any(item.discount for item in self.stores):
+            return None
+        gross = self.ytd + self.discount_ytd
+        return self.discount_ytd / gross if gross > 0 else None
+
+    @property
+    def discount_label(self) -> str:
+        rate = self.discount_rate
+        return "—" if rate is None else "%d %%" % round(rate * 100)
+
+    @property
     def shown(self) -> List[Store]:
         return self.stores[:MOST_STORES]
 
@@ -244,23 +290,54 @@ class Slice:
             text += " ; le premier point de vente, %s, en porte %s" % (top.code, top.share_label)
         return text
 
+    def discount_sentence(self, normal: Optional["Slice"]) -> str:
+        """La remise des gros tickets contre celle des autres tickets du marché."""
+        rate = self.discount_rate
+        if self.kind != "quantity" or not self.usable:
+            return ""
+        if self.scope in DISCOUNT_UNUSABLE_MARKETS:
+            return ("remise non lisible sur %s : la colonne de l'entrepôt y est inutilisable"
+                    % self.scope)
+        if rate is None:
+            return ""
+        text = "remisés à %s sur les lignes payées" % self.discount_label
+        reference = normal.discount_rate if normal is not None else None
+        if reference is not None:
+            text += " contre %s sur les autres tickets du marché" % normal.discount_label
+            if rate >= RESALE_DISCOUNT and rate >= RESALE_TIMES * reference:
+                text += " — de la revente, pas du retail"
+        return text
+
 
 class Market:
-    def __init__(self, scope: str, quantity: Slice, price: Slice) -> None:
+    def __init__(self, scope: str, quantity: Slice, normal: Optional[Slice] = None) -> None:
         self.scope = scope
         self.quantity = quantity
-        self.price = price
-        for piece in (quantity, price):
+        #: Les autres tickets du marché : la référence de la remise, jamais montrée seule.
+        self.normal = normal if normal is not None else Slice("normal", (), scope)
+        for piece in (self.quantity, self.normal):
             if not piece.scope:
                 piece.scope = scope
 
     @property
     def usable(self) -> bool:
-        return self.quantity.usable or self.price.usable
+        return self.quantity.usable
 
     @property
     def slices(self) -> List[Slice]:
-        return [item for item in (self.quantity, self.price) if item.usable]
+        return [self.quantity] if self.quantity.usable else []
+
+    @property
+    def resells(self) -> bool:
+        """Les gros tickets remisés comme de la revente : au moins `RESALE_DISCOUNT`, et au
+        moins `RESALE_TIMES` fois le taux des autres tickets."""
+        rate, reference = self.quantity.discount_rate, self.normal.discount_rate
+        return (rate is not None and reference is not None
+                and rate >= RESALE_DISCOUNT and rate >= RESALE_TIMES * reference)
+
+    @property
+    def discount_sentence(self) -> str:
+        return self.quantity.discount_sentence(self.normal)
 
 
 class Review:
@@ -289,8 +366,12 @@ class Review:
     @property
     def shown(self) -> List[Market]:
         """Les marchés par gros tickets décroissants, ceux qui en ont."""
-        return sorted((m for m in self.markets if m.usable),
-                      key=lambda m: -(m.quantity.ytd + m.price.ytd))
+        return sorted((m for m in self.markets if m.usable), key=lambda m: -m.quantity.ytd)
+
+    @property
+    def resellers(self) -> List[Market]:
+        """Les marchés dont les gros tickets sont remisés comme de la revente."""
+        return [m for m in self.shown if m.resells]
 
     @property
     def unmarked(self) -> List[Market]:
@@ -316,6 +397,10 @@ class Review:
         if self.unvalidated:
             text += " ; drapeau non validé par la Finance, un zéro de méthode : %d marché%s" % (
                 len(self.unvalidated), "s" if len(self.unvalidated) > 1 else "")
+        if self.resellers:
+            text += " ; remisés comme de la revente : %s" % ", ".join(
+                "%s (%s contre %s)" % (m.scope, m.quantity.discount_label, m.normal.discount_label)
+                for m in self.resellers[:4])
         return text
 
 
@@ -343,6 +428,8 @@ def build(rows: Sequence[dict], through: str = "", note: str = "") -> Review:
         period = str(row["period"])[:7]
         store.months[period] = store.months.get(period, 0.0) + float(row.get("net_eur") or 0.0)
         store.flagged[period] = store.flagged.get(period, 0.0) + float(row.get("flagged_eur") or 0.0)
+        if "discount_eur" in row:
+            store.discount[period] = store.discount.get(period, 0.0) + float(row.get("discount_eur") or 0.0)
     ly = [_shift(m, -12) for m in ytd_months]
     ly_recent = [_shift(m, -12) for m in recent_months]
     by_market: Dict[str, Dict[str, List[Store]]] = {}
@@ -350,6 +437,7 @@ def build(rows: Sequence[dict], through: str = "", note: str = "") -> Review:
         store.ytd = sum(store.months.get(m, 0.0) for m in ytd_months)
         store.recent = sum(store.months.get(m, 0.0) for m in recent_months)
         store.flagged_ytd = sum(store.flagged.get(m, 0.0) for m in ytd_months)
+        store.discount_ytd = sum(store.discount.get(m, 0.0) for m in ytd_months)
         if any(m in store.months for m in ly):
             store.ytd_ly = sum(store.months.get(m, 0.0) for m in ly)
         if any(m in store.months for m in ly_recent):
@@ -363,7 +451,7 @@ def build(rows: Sequence[dict], through: str = "", note: str = "") -> Review:
             total = sum(item.ytd for item in items)
             for item in items:
                 item.total = total
-        markets.append(Market(scope, Slice("quantity", kinds.get("quantity", [])),
-                              Slice("price", kinds.get("price", []))))
-    markets.sort(key=lambda m: -(m.quantity.ytd + m.price.ytd))
+        markets.append(Market(scope, Slice("quantity", kinds.get("quantity", []), scope),
+                              Slice("normal", kinds.get("normal", []), scope)))
+    markets.sort(key=lambda m: -m.quantity.ytd)
     return Review(markets, start, last, note)

@@ -441,6 +441,12 @@ class Dossier:
                              "pourquoi ces tickets ne sont pas marqués comme du vrac quand d'autres "
                              "marchés les marquent ? Le flux est-il assumé, ou caché ?"
                              % (top.code, top.sub_channel))
+            elif shadow.resells:
+                found.append("Chez %s (%s), les gros tickets sont remisés à %s contre %s sur les "
+                             "autres tickets : c'est de la revente. Qui revend, à qui, et "
+                             "est-ce assumé ?" % (top.code, top.sub_channel,
+                                                   shadow.quantity.discount_label,
+                                                   shadow.normal.discount_label))
             else:
                 found.append("Chez %s (%s), %s de gros tickets à date, %s sur l'an dernier : "
                              "qui est le client final ?" % (top.code, top.sub_channel,
@@ -538,6 +544,8 @@ class Dossier:
         if self.shadow is not None and self.shadow.usable:
             for piece in self.shadow.slices:
                 out.append("  " + piece.sentence)
+                if self.shadow.discount_sentence:
+                    out.append("  " + self.shadow.discount_sentence)
                 for store in piece.shown:
                     out.append("    %-34s %10s  part %5s  %8s  marqué %5s%s" % (
                         ("%s · %s" % (store.code, store.sub_channel))[:34], store.ytd_label,

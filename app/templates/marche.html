@@ -83,11 +83,12 @@
   {% if dossier.shadow and dossier.shadow.usable %}
     {% for piece in dossier.shadow.slices %}
       <p class="routed-why">{{ piece.sentence | ucfirst }}.</p>
+      {% if dossier.shadow.discount_sentence %}<p class="{{ 'product-headline' if dossier.shadow.resells else 'routed-why' }}">{{ dossier.shadow.discount_sentence | ucfirst }}.</p>{% endif %}
       <table class="month-table product-table">
-        <thead><tr><th>{{ piece.label | ucfirst }} · point de vente</th><th>À date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th>{% if piece.kind == "quantity" %}<th>Marqué comme vrac</th>{% endif %}</tr></thead>
+        <thead><tr><th>{{ piece.label | ucfirst }} · point de vente</th><th>À date</th><th>Part</th><th>vs l'an dernier</th><th>3 derniers mois</th>{% if piece.kind == "quantity" %}<th>Marqué comme vrac</th><th>Remise</th>{% endif %}</tr></thead>
         <tbody>
           {% for store in piece.shown %}
-            <tr><td>{{ store.code }} · {{ store.sub_channel }}</td><td class="num">{{ store.ytd_label }}</td><td class="num">{{ store.share_label }}</td><td class="num">{{ store.growth_label }}</td><td class="num">{{ store.growth_recent_label }}</td>{% if piece.kind == "quantity" %}<td class="num {{ 'is-en-retard' if store.marking is not none and store.marking < 0.5 else '' }}">{{ store.marking_label }}</td>{% endif %}</tr>
+            <tr><td>{{ store.code }} · {{ store.sub_channel }}</td><td class="num">{{ store.ytd_label }}</td><td class="num">{{ store.share_label }}</td><td class="num">{{ store.growth_label }}</td><td class="num">{{ store.growth_recent_label }}</td>{% if piece.kind == "quantity" %}<td class="num {{ 'is-en-retard' if store.marking is not none and store.marking < 0.5 else '' }}">{{ store.marking_label }}</td><td class="num">{{ store.discount_label }}</td>{% endif %}</tr>
           {% endfor %}
         </tbody>
       </table>
@@ -95,7 +96,7 @@
         <p class="cockpit-caveat">Non marqués, {{ piece.unmarked_label }}, portés par : {% for item in piece.unmarked_stores %}{{ item.code }} · {{ item.sub_channel }} {{ item.unmarked_label }}{% if not loop.last %} · {% endif %}{% endfor %}.</p>
       {% endif %}
     {% endfor %}
-    <p class="cockpit-caveat">Deux lectures du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités, marqué ou non ; la ligne vendue sous soixante pour cent du prix de la référence dans le pays ce mois-là, hors drapeau. Elles ne désignent pas la même population et ne s'additionnent pas. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode.</p>
+    <p class="cockpit-caveat">Une lecture du cockpit, pas de l'entrepôt : le ticket de plus de cinquante unités payées, marqué ou non, et sa remise explicite sur les lignes payées contre celle des autres tickets du marché — le gros ticket remisé au moins à 20 % et au moins deux fois plus que les autres est de la revente, pas du retail ; la remise n'est pas lisible en Inde ni au Brésil. Un marché qui ne pose pas le drapeau a un vrac marqué qui est un plancher, et le drapeau n'est validé par la Finance qu'en Chine et à Hong Kong : ailleurs, le zéro est un zéro de méthode.</p>
   {% else %}
     <p class="empty">{{ (dossier.shadow_note or "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}
@@ -103,7 +104,7 @@
   {% if dossier.sell_in_grey_sentence %}
     <p class="{{ 'product-headline' if dossier.scissors_open else 'routed-why' }}">{{ dossier.sell_in_grey_sentence | ucfirst }}.</p>
   {% endif %}
-  <p class="cockpit-caveat">Les deux lectures ci-dessus sont des lectures de tickets : le sell-out. Les factures aux partenaires n'ont ni drapeau vrac ni ticket ; ce qui s'y lit, c'est le ciseau entre ce que les partenaires achètent et ce qui se vend en face, et les partenaires eux-mêmes, plus bas.</p>
+  <p class="cockpit-caveat">La lecture ci-dessus est une lecture de tickets : le sell-out. Les factures aux partenaires n'ont ni drapeau vrac ni ticket ; ce qui s'y lit, c'est le ciseau entre ce que les partenaires achètent et ce qui se vend en face, et les partenaires eux-mêmes, plus bas.</p>
 </section>
 
 <section class="panel" id="alimente">
