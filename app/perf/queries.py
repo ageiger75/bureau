@@ -1060,6 +1060,32 @@ sellout_window as (
     select s.* from sellout s cross join period p
     where s.month between p.first_month and p.last_month
 ),
+heroes as (
+    -- The house defines its heroes by `V_SL_D_PRODUCTS.IS_KEY_BETS`, not by the AI
+    -- dimension's `IS_HERO`, a hard-coded list of eight families that misses seventy-six
+    -- official heroes (warehouse agent, 23 September 2026: a point and a half of share
+    -- on twelve months, most of the gap to the tracker). The semantic view does not expose the
+    -- house's flag, so the share is read on the fact, joined to the house's dimension —
+    -- the same net, checked to the euro, and the same window as `sales_keys`.
+    select
+        iff(grouping(s.store_country) = 1, 'LOEP',
+            coalesce(s.store_country, '(sans pays)'))                    as scope,
+        to_char(date_trunc('month', f.transaction_date), 'YYYY-MM')      as period,
+        sum(iff(k.is_key_bets = 1, f.net_sales_eur, 0))                  as hero_sales,
+        sum(f.net_sales_eur)                                             as net_sales
+    from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
+    join dwh.semantic_layer.v_sl_ai_d_stores s on s.store_skey = f.store_skey
+    left join dwh.semantic_layer.v_sl_d_products k on k.product_skey = f.product_skey
+    cross join period pr
+    where f.flag_turnover = 1
+      and s.store_brand = 'L''OCCITANE'
+      and f.transaction_date >= dateadd(month, -26, current_date)
+      and date_trunc('month', f.transaction_date)
+          between pr.first_month and pr.last_month
+    group by grouping sets (
+        (s.store_country, date_trunc('month', f.transaction_date)),
+        (date_trunc('month', f.transaction_date)))
+),
 sales_keys as (
     select
         -- `grouping()` distinguishes the roll-up from a member whose country is null.
@@ -1215,7 +1241,7 @@ union all
 select scope, 'brand_com_sales', period, brand_com_sales from sales_keys
 union all
 select scope, 'heroes_wob', period,
-       100.0 * hero_sales / nullif(net_sales, 0) from sales_keys
+       100.0 * hero_sales / nullif(net_sales, 0) from heroes
 union all
 select scope, 'refills_wob', period,
        100.0 * refill_sales / nullif(net_sales, 0) from sales_keys
@@ -1400,7 +1426,7 @@ group by 1, 2, 3, 4, 5
 #:     name        text     -- le libellé du niveau, jamais un code seul
 #:     period      text     -- 'YYYY-MM', le mois de transaction
 #:     net_sales   number   -- NET_SALES_EUR, FLAG_TURNOVER = 1, hors vrac (FLAG_BULK 2 à 5)
-#:     is_hero     number   -- 1 quand la référence est un héros du référentiel, sinon 0
+#:     is_hero     number   -- 1 quand la référence est un héros de la maison (IS_KEY_BETS), sinon 0
 #:
 #: Les catégories et les gammes sont rendues pour le groupe et pour chaque pays ; les
 #: références pour le groupe seulement — quarante pays fois quelques milliers de références
@@ -1469,11 +1495,13 @@ base as (
         p.product_line                           as range_name,
         p.last_product_id                        as product_id,
         p.last_product_desc_en                   as product_name,
-        p.is_hero,
+        -- The house's hero flag (`IS_KEY_BETS`), never the AI dimension's `IS_HERO` list.
+        iff(k.is_key_bets = 1, 1, 0)             as is_hero,
         f.net_sales_eur
     from dwh.semantic_layer.v_sl_ai_f_sellout_sales_details f
     join dwh.semantic_layer.v_sl_ai_d_stores   s on s.store_skey   = f.store_skey
     join dwh.semantic_layer.v_sl_ai_d_products p on p.product_skey = f.product_skey
+    left join dwh.semantic_layer.v_sl_d_products k on k.product_skey = f.product_skey
     cross join period pr
     where f.flag_turnover = 1
       and s.store_brand = 'L''OCCITANE'

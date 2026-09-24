@@ -238,3 +238,13 @@ def test_a_growth_from_almost_nothing_reads_as_a_multiple_not_a_percentage():
     assert P.growth_word(None) == "n/d"
     level = P.build(_rows("range", "Lavande", _year(2.0, 40.0))).level("range")
     assert level.lines[0].growth_label == "×20" and level.lines[0].month_label == "×20"
+
+
+def test_the_hero_flag_is_the_house_key_bets_never_the_hard_coded_list():
+    from app.perf import queries
+
+    for text in (queries.KPI_READINGS, queries.PRODUCT_SALES):
+        assert "v_sl_d_products k on k.product_skey = f.product_skey" in text
+        assert "k.is_key_bets = 1" in text
+    assert "d_products.is_hero" not in queries.KPI_READINGS.split("heroes as (")[1].split("sales_keys as (")[0]
+    assert "from heroes" in queries.KPI_READINGS and "p.is_hero" not in queries.PRODUCT_SALES
