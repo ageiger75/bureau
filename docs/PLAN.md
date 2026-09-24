@@ -901,8 +901,17 @@ arbitrer avec l'équipe data avant de basculer. Le filtre de pertinence turnover
 inerte et sur la dimension produit, n'est pas repris. Le cache des factures se relit tout
 seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours.
 
-Suite, dans l'ordre : les héros sur `IS_KEY_BETS` ; la Chine sans identification client, un
-fait du marché ; le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
+Un marché sans client enregistré (la Chine : `VIP.WALKIN` vaut 1 partout, confirmé par
+l'équipe data) est dit comme un fait du marché, pas comme un retard d'entrepôt, et ne
+figure dans aucun classement de rattachement ou de recrutement.
+
+Les héros se lisent sur la définition de la maison, `V_SL_D_PRODUCTS.IS_KEY_BETS`, dans les
+KPI (`heroes_wob`, un CTE sur le fait joint à la dimension de la maison, la vue sémantique
+n'exposant pas le drapeau) et dans la lecture produit — jamais sur `IS_HERO`, une liste de
+huit familles en dur qui manque soixante-seize héros officiels. La clé de jointure
+`product_skey` attend la validation de l'agent entrepôt avant la poussée.
+
+Suite : le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
 
 ### Phase 5 — B6, les moteurs du plan
 

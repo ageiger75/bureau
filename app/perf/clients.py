@@ -603,9 +603,14 @@ def build(rows: Iterable[dict], scope: str = GROUP, note: str = "",
         #: Pas de clients enregistrés du tout : ce n'est pas l'an dernier qui manque, c'est
         #: le compte client. Une seule raison, la vraie, plutôt que trois qui décrivent
         #: chacune un bout de la même absence.
-        absent.append("aucun client enregistré dans la lecture : toutes les ventes sont des "
-                      "visites sans compte, et le pont, le flux et la part perdue ne se lisent "
-                      "pas tant que les comptes clients ne sont pas dans l'entrepôt")
+        #: Un fait du marché, pas un retard d'entrepôt : l'équipe data l'a confirmé en
+        #: septembre 2026, la Chine n'identifie aucun client à l'encaissement (`VIP.WALKIN`
+        #: y vaut 1 partout). Le pont, le flux et la part perdue n'y existent pas, et ce
+        #: marché ne figure dans aucun classement de rattachement ou de recrutement.
+        absent.append("aucun client enregistré dans la lecture : ce marché n'identifie pas ses "
+                      "clients à l'encaissement, toutes les ventes sont des visites sans compte ; "
+                      "le pont, le flux et la part perdue n'y existent pas, et il ne figure dans "
+                      "aucun classement de rattachement ou de recrutement")
         base = None
     elif not flow:
         absent.append("le flux — retenus, réactivés, nouveaux — n'est pas dans la lecture")
