@@ -110,6 +110,7 @@
       <p class="verdict-word is-absent">—</p>
     {% endif %}
     <p class="verdict-basis">{{ page.together.basis }}</p>
+    {% if page.together.book_sentence %}<p class="verdict-basis {{ 'is-en-retard' if page.together.book and page.together.book.late > page.together.book.month else '' }}">{{ page.together.book_sentence | ucfirst }}.</p>{% endif %}
   </div>
   {% endif %}
 </section>

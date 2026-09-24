@@ -275,7 +275,7 @@ def bulk_cache_forget() -> None:
 
 
 def supplychain_cache_forget() -> None:
-    for name in ("osa", "forecast", "orders"):
+    for name in ("osa", "forecast", "orders", "orderbook"):
         try:
             _cache_path(QUERY_CACHES[name][0]).unlink()
         except OSError:
@@ -302,6 +302,7 @@ QUERY_CACHES = {
     "osa": ("warehouse-osa.json", "OSA_MONTHLY"),
     "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
     "orders": ("warehouse-orders.json", "ORDER_FILL"),
+    "orderbook": ("warehouse-orderbook.json", "ORDER_BOOK"),
     "bulk": ("warehouse-bulk.json", "BULK_DETAIL"),
     "shadow": ("warehouse-shadow.json", "SHADOW_BULK"),
 }
@@ -386,6 +387,8 @@ QUERY_MAX_AGE = {
     "osa": 7 * 24 * 3600,
     "forecast": 7 * 24 * 3600,
     "orders": 7 * 24 * 3600,
+    # Le carnet ouvert bouge chaque jour : un jour, et sa date de lecture à l'écran.
+    "orderbook": 24 * 3600,
     # Le vrac bouge par commandes, au mois clos : une semaine aussi.
     "bulk": 7 * 24 * 3600,
     "shadow": 7 * 24 * 3600,
@@ -454,7 +457,7 @@ def bulk_stamp() -> str:
 
 def supplychain_stamp() -> str:
     """Les trois lectures supply en un horodatage : la page se recharge quand l'une atterrit."""
-    return "|".join(query_stamp(name) for name in ("osa", "forecast", "orders"))
+    return "|".join(query_stamp(name) for name in ("osa", "forecast", "orders", "orderbook"))
 
 
 #: Une lecture en arrière-plan à la fois par requête : la relecture du démarrage l'écrit
@@ -478,8 +481,8 @@ def behind_note(name: str) -> str:
 #: La commande qui relit chaque cache en attendant l'entrepôt — le nom de la lecture n'est
 #: pas celui de la commande, et « manage.py bulk » n'existe pas.
 REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
-                   "osa": "supply", "forecast": "supply", "orders": "supply", "bulk": "gris",
-                   "shadow": "gris"}
+                   "osa": "supply", "forecast": "supply", "orders": "supply",
+                   "orderbook": "supply", "bulk": "gris", "shadow": "gris"}
 
 
 #: Une lecture principale à la fois. Trois portes y mènent — la page qui sert une lecture
@@ -980,6 +983,11 @@ class MockSource:
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.order_rows()
 
+    orderbook_note = ""
+
+    def orderbook_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.orderbook_rows()
+
     bulk_note = shadow_note = ""
 
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
@@ -1455,7 +1463,8 @@ class SnowflakeSource:
         note_field = "%s_note" % {"products": "product", "clients": "client",
                                   "partners": "partner", "osa": "osa",
                                   "forecast": "forecast", "orders": "order",
-                                  "bulk": "bulk", "shadow": "shadow"}[name]
+                                  "orderbook": "orderbook", "bulk": "bulk",
+                                  "shadow": "shadow"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1498,8 +1507,14 @@ class SnowflakeSource:
         return self._query_rows("forecast", wait_for_warehouse, "de la prévision")
 
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
-        """Le sell-in livré sur commandé, par mois et par canal — ou rien."""
+        """Le sell-in servi sur commandé, par mois et par canal — ou rien."""
         return self._query_rows("orders", wait_for_warehouse, "des commandes sell-in")
+
+    orderbook_note = ""
+
+    def orderbook_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """Le carnet ouvert, vers l'avant, par pays et canal — ou rien."""
+        return self._query_rows("orderbook", wait_for_warehouse, "du carnet de commandes")
 
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le vrac ligne à ligne — mois, pays, drapeau, point de vente, gamme — ou rien."""

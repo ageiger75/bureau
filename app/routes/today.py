@@ -423,6 +423,23 @@ def _accounts(source, dataset=None, refresh: bool = False):
     return accounts_module.build(rows, names=names, channel_gaps=gaps, note=note)
 
 
+def _orderbook(source):
+    """Le carnet ouvert, de la lecture du jour ou d'hier sur le disque — jamais une requête
+    sous un lecteur — avec sa date de lecture."""
+    import datetime
+
+    from ..perf import orderbook as orderbook_module
+    from ..perf import source as source_module
+
+    reader = getattr(source, "orderbook_rows", None)
+    rows = reader(wait_for_warehouse=False) if reader is not None else []
+    stamp = source_module.query_stamp("orderbook")
+    read_at = (datetime.datetime.utcfromtimestamp(int(stamp)).strftime("%Y-%m-%d %H:%M UTC")
+               if stamp.isdigit() else "")
+    return orderbook_module.build(rows, read_at=read_at,
+                                  note=getattr(source, "orderbook_note", "") or "")
+
+
 def _supplychain(source, refresh: bool = False):
     """Ce que l'entrepôt voit de la supply, sur les trois dernières lectures : jamais une
     requête sous un lecteur."""
@@ -613,6 +630,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     products_module.check_coverage(products, inputs["product_rows"],
                                    getattr(inputs["source"], "kpi_rows", list)(), item["markets"])
     clients = _clients(inputs["source"], scope=label, markets=item["markets"])
+    orderbook = _guard("carnet", lambda: _orderbook(inputs["source"]), lambda exc: None)
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
@@ -622,7 +640,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
                               retail=inputs["retail"], prepared=inputs["prepared"],
                               products=products, elsewhere=inputs["elsewhere"],
-                              clients=clients)
+                              clients=clients, orderbook=orderbook)
     from ..perf import pledges as pledges_module
 
     #: Le gris de chaque marché du périmètre : marqué, plan, sans drapeau — le dossier de

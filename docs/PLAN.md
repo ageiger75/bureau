@@ -911,7 +911,17 @@ n'exposant pas le drapeau) et dans la lecture produit — jamais sur `IS_HERO`, 
 huit familles en dur qui manque soixante-seize héros officiels. La clé de jointure
 `product_skey` attend la validation de l'agent entrepôt avant la poussée.
 
-Suite : le carnet de commandes dans la carte « sell-in et sell-out ensemble ».
+Le carnet de commandes (`ORDER_BOOK`, `app/perf/orderbook.py`) se lit vers l'avant
+seulement, sur la seule colonne d'encours de la vue des commandes — ses « facturé » et
+« livré » sont des proxys du commandé, ses drapeaux des constantes (agent entrepôt, 23 et 24
+septembre 2026). Trois paquets sur la date de promesse au client : en retard, promis d'ici
+la fin du mois, au-delà ; par pays du point de vente facturé (la vue n'a pas de pays) et
+canal, filtres de la maison sur le type de point de vente et la marque produit, conversions
+de type explicites. La carte « sell-in et sell-out ensemble » dit ce que le mois de sell-in
+fait si tout ce qui est dû tombe — facturé plus promis plus retard — contre le plan entier,
+sans forme de mois empruntée, et la date de lecture du carnet. Cache d'un jour, `refresh
+--supply`. Le « livré sur commandé » d'Analyses est réécrit sans le proxy : servi, c'est
+commandé moins encours ; confirmé, c'est le statut de livraison.
 
 ### Phase 5 — B6, les moteurs du plan
 

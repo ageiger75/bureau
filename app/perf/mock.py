@@ -963,6 +963,21 @@ def shadow_rows() -> List[dict]:
     return rows
 
 
+def orderbook_rows() -> List[dict]:
+    """Le carnet ouvert, inventé : promis ce mois, en retard, au-delà — par pays et canal."""
+    import datetime
+
+    today = datetime.date.today().isoformat()
+    shapes = (("JAPAN", "WEBP", "month", 420_000.0, 0.0), ("JAPAN", "WEBP", "late", 90_000.0, 30_000.0),
+              ("JAPAN", "DIS", "beyond", 1_500_000.0, 0.0),
+              ("FRANCE", "DIS", "month", 260_000.0, 0.0), ("FRANCE", "DIS", "late", 40_000.0, 0.0),
+              ("CHINA", "TRA", "late", 900_000.0, 600_000.0), ("CHINA", "TRA", "month", 120_000.0, 0.0),
+              ("CHINA", "DIS", "beyond", 4_000_000.0, 0.0))
+    return [{"period": today, "market": market, "channel": channel, "bucket": bucket,
+             "open_eur": open_eur, "lines": 40, "blocked_eur": blocked}
+            for market, channel, bucket, open_eur, blocked in shapes]
+
+
 def sell_in_daily() -> List[dict]:
     """Le sell-in facturé au jour, inventé : trois pays, deux canaux, les jours ouvrés depuis
     le 1er du mois jusqu'à hier, et le même mois un an plus tôt en entier."""
