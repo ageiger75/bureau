@@ -1068,12 +1068,8 @@ def test_a_conversation_names_its_market_as_a_link_to_the_dossier(client):
     assert "le dossier du marché" in page
 
 
-def test_a_perimeter_page_still_renders_when_the_order_book_is_read(client, monkeypatch):
-    # Sans annuaire, aucun pays facturé n'est rangé dans un périmètre : la carte « ensemble »
-    # et le carnet n'ont pas de sell-in à côté duquel se poser, et la page se rend quand même.
-    from app.perf import page as page_module
-
-    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
-    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
-    response = client.get("/perimetre/nord")
-    assert response.status_code == 200 and "Le gris" in page_text(response)
+def test_the_day_screen_reads_the_open_order_book_beside_the_sell_in(client):
+    page = page_text(client.get("/"))
+    assert "Carnet ouvert : promis d'ici la fin du mois" in page
+    analyses = page_text(client.get("/analyses"))
+    assert "Le carnet ouvert, vers l'avant" in analyses and "Servi sur commandé" not in analyses

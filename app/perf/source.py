@@ -275,7 +275,7 @@ def bulk_cache_forget() -> None:
 
 
 def supplychain_cache_forget() -> None:
-    for name in ("osa", "forecast", "orders", "orderbook"):
+    for name in ("osa", "forecast", "orderbook"):
         try:
             _cache_path(QUERY_CACHES[name][0]).unlink()
         except OSError:
@@ -295,13 +295,16 @@ def _query_fingerprint(sql: str) -> str:
 #: `nom → (fichier, requête)`. La règle est la même pour chacune — jamais sous un lecteur,
 #: la lecture d'hier sinon, l'empreinte de la requête avec la lecture — et elle n'est
 #: écrite qu'une fois.
+#: Pourquoi le livré sur commandé n'est pas lu — la vue des commandes ne le mesure pas.
+ORDER_FILL_NOTE = ("le livré sur commandé ne se lit pas : la vue des commandes de l'entrepôt ne "
+                   "porte qu'un proxy du commandé en guise de livré, et son facturé n'est pas un "
+                   "taux de service ; elle se lit vers l'avant seulement, le carnet ouvert")
 QUERY_CACHES = {
     "products": (PRODUCT_CACHE_FILE, "PRODUCT_SALES"),
     "clients": ("warehouse-clients.json", "CLIENT_FLOW"),
     "partners": ("warehouse-partners.json", "PARTNER_SELL_IN"),
     "osa": ("warehouse-osa.json", "OSA_MONTHLY"),
     "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
-    "orders": ("warehouse-orders.json", "ORDER_FILL"),
     "orderbook": ("warehouse-orderbook.json", "ORDER_BOOK"),
     "bulk": ("warehouse-bulk.json", "BULK_DETAIL"),
     "shadow": ("warehouse-shadow.json", "SHADOW_BULK"),
@@ -386,7 +389,6 @@ QUERY_MAX_AGE = {
     # Des lectures au mois clos : une semaine, comme les clients.
     "osa": 7 * 24 * 3600,
     "forecast": 7 * 24 * 3600,
-    "orders": 7 * 24 * 3600,
     # Le carnet ouvert bouge chaque jour : un jour, et sa date de lecture à l'écran.
     "orderbook": 24 * 3600,
     # Le vrac bouge par commandes, au mois clos : une semaine aussi.
@@ -457,7 +459,7 @@ def bulk_stamp() -> str:
 
 def supplychain_stamp() -> str:
     """Les trois lectures supply en un horodatage : la page se recharge quand l'une atterrit."""
-    return "|".join(query_stamp(name) for name in ("osa", "forecast", "orders", "orderbook"))
+    return "|".join(query_stamp(name) for name in ("osa", "forecast", "orderbook"))
 
 
 #: Une lecture en arrière-plan à la fois par requête : la relecture du démarrage l'écrit
@@ -481,8 +483,8 @@ def behind_note(name: str) -> str:
 #: La commande qui relit chaque cache en attendant l'entrepôt — le nom de la lecture n'est
 #: pas celui de la commande, et « manage.py bulk » n'existe pas.
 REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
-                   "osa": "supply", "forecast": "supply", "orders": "supply",
-                   "orderbook": "supply", "bulk": "gris", "shadow": "gris"}
+                   "osa": "supply", "forecast": "supply", "orderbook": "supply",
+                   "bulk": "gris", "shadow": "gris"}
 
 
 #: Une lecture principale à la fois. Trois portes y mènent — la page qui sert une lecture
@@ -980,8 +982,10 @@ class MockSource:
     def forecast_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.forecast_rows()
 
+    order_note = ORDER_FILL_NOTE
+
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
-        return mock.order_rows()
+        return []
 
     orderbook_note = ""
 
@@ -1462,8 +1466,7 @@ class SnowflakeSource:
         query_name = QUERY_CACHES[name][1]
         note_field = "%s_note" % {"products": "product", "clients": "client",
                                   "partners": "partner", "osa": "osa",
-                                  "forecast": "forecast", "orders": "order",
-                                  "orderbook": "orderbook", "bulk": "bulk",
+                                  "forecast": "forecast", "orderbook": "orderbook", "bulk": "bulk",
                                   "shadow": "shadow"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
@@ -1506,9 +1509,12 @@ class SnowflakeSource:
         """La prévision à M-3 contre le réel, par mois et par marché — ou rien."""
         return self._query_rows("forecast", wait_for_warehouse, "de la prévision")
 
+    order_note = ORDER_FILL_NOTE
+
     def order_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
-        """Le sell-in servi sur commandé, par mois et par canal — ou rien."""
-        return self._query_rows("orders", wait_for_warehouse, "des commandes sell-in")
+        """Le livré sur commandé ne se mesure pas sur la vue des commandes : rien, et la
+        note le dit. Voir `queries.ORDER_FILL`."""
+        return []
 
     orderbook_note = ""
 

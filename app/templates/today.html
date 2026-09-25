@@ -328,6 +328,7 @@
       </tbody>
     </table>
     {% endif %}
+    {% if orderbook and orderbook.usable %}<p class="routed-why {{ 'is-en-retard' if orderbook.group.late_exceeds_month else '' }}">{{ orderbook.sentence | ucfirst }}. <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>{% endif %}
     {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
     {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
     {% for reason in invoiced.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}

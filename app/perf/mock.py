@@ -964,18 +964,18 @@ def shadow_rows() -> List[dict]:
 
 
 def orderbook_rows() -> List[dict]:
-    """Le carnet ouvert, inventé : promis ce mois, en retard, au-delà — par pays et canal."""
+    """Le carnet ouvert, inventé : promis d'ici la fin du mois, en retard, au-delà — par canal,
+    au niveau du groupe, comme la vue le permet."""
     import datetime
 
     today = datetime.date.today().isoformat()
-    shapes = (("JAPAN", "WEBP", "month", 420_000.0, 0.0), ("JAPAN", "WEBP", "late", 90_000.0, 30_000.0),
-              ("JAPAN", "DIS", "beyond", 1_500_000.0, 0.0),
-              ("FRANCE", "DIS", "month", 260_000.0, 0.0), ("FRANCE", "DIS", "late", 40_000.0, 0.0),
-              ("CHINA", "TRA", "late", 900_000.0, 600_000.0), ("CHINA", "TRA", "month", 120_000.0, 0.0),
-              ("CHINA", "DIS", "beyond", 4_000_000.0, 0.0))
-    return [{"period": today, "market": market, "channel": channel, "bucket": bucket,
-             "open_eur": open_eur, "lines": 40, "blocked_eur": blocked}
-            for market, channel, bucket, open_eur, blocked in shapes]
+    shapes = (("WEBP", "month", 420_000.0, 0.0), ("WEBP", "late", 90_000.0, 30_000.0),
+              ("DIS", "beyond", 5_500_000.0, 0.0), ("DIS", "month", 260_000.0, 0.0),
+              ("DIS", "late", 40_000.0, 0.0),
+              ("TRA", "late", 900_000.0, 600_000.0), ("TRA", "month", 120_000.0, 0.0))
+    return [{"period": today, "channel": channel, "bucket": bucket, "open_eur": open_eur,
+             "lines": 40, "blocked_eur": blocked}
+            for channel, bucket, open_eur, blocked in shapes]
 
 
 def sell_in_daily() -> List[dict]:

@@ -630,7 +630,6 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     products_module.check_coverage(products, inputs["product_rows"],
                                    getattr(inputs["source"], "kpi_rows", list)(), item["markets"])
     clients = _clients(inputs["source"], scope=label, markets=item["markets"])
-    orderbook = _guard("carnet", lambda: _orderbook(inputs["source"]), lambda exc: None)
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
                               inputs["month"], inputs["track"], week=inputs["week"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
@@ -640,7 +639,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
                               retail=inputs["retail"], prepared=inputs["prepared"],
                               products=products, elsewhere=inputs["elsewhere"],
-                              clients=clients, orderbook=orderbook)
+                              clients=clients)
     from ..perf import pledges as pledges_module
 
     #: Le gris de chaque marché du périmètre : marqué, plan, sans drapeau — le dossier de
@@ -983,6 +982,7 @@ def _screen(request: Request, session: Session):
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,
+            "orderbook": _guard("carnet", lambda: _orderbook(source), lambda exc: None),
             "gifting": gifting,
             "month_groups": month_groups,
             "stores": stores,

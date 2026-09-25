@@ -1875,41 +1875,32 @@ left join d on d.market = coalesce(f.market, a.market)
 #: aucune marque, la lecture est toutes marques ; les colonnes livrées sont reconstruites
 #: par la vue (« proxy ») ; les lignes rejetées sont exclues ; la date est la livraison
 #: demandée, et une autre date donnerait une autre valeur.
-#: Le carnet de commandes se lit vers l'avant seulement (agent entrepôt, 23 et 24 septembre
-#: 2026) : la colonne « livré » de cette vue est un proxy qui égale le commandé sur
-#: quatre-vingt-dix-neuf lignes sur cent, et des lignes encore ouvertes y portent un
-#: « livré ». Ce que la vue tient : `open_net_value_eur_annual`, égal à commandé moins
-#: facturé sans une exception, et le statut de livraison. Le « servi » est donc commandé
-#: moins encours — ce qui a été facturé —, et le « confirmé » le statut `C`, qui recoupe à
-#: l'euro le facturé et livré mesuré autrement. Les drapeaux `is_fully_*` sont des
-#: constantes : jamais lus.
-ORDER_FILL = """
-select to_char(date_trunc('month', requested_delivery_date), 'YYYY-MM')     as period,
-       coalesce(nullif(trim(profit_center_group_channel), ''), 'N/A')       as channel,
-       round(sum(net_value_eur_annual), 2)                                  as ordered_eur,
-       round(sum(net_value_eur_annual - coalesce(open_net_value_eur_annual, 0)), 2) as delivered_eur,
-       round(sum(iff(delivery_status_code = 'C', net_value_eur_annual, 0)), 2) as complete_eur,
-       count(*)                                                             as lines
-from dwh.semantic_layer.v_sl_f_sellin_order_item
-where requested_delivery_date >= %(from)s and requested_delivery_date < %(to)s
-  and not is_rejected
-group by 1, 2
-""" % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO}
+#: Le livré sur commandé n'est plus lu. La vue des commandes ne le mesure pas (agent
+#: entrepôt, 23 au 25 septembre 2026) : sa colonne « livré » est un proxy qui égale le
+#: commandé sur quatre-vingt-dix-neuf lignes sur cent, des lignes encore ouvertes y portent
+#: un « livré », et le commandé moins l'encours — le facturé — n'est pas un taux de service :
+#: sept canaux à cent pour cent pile, et le confirmé à la livraison qui contredit le facturé
+#: partout. Une requête vide dit à l'écran que la lecture n'existe pas, plutôt qu'un taux
+#: qui ne mesure rien. Retirée de l'inventaire des requêtes, pas « à écrire » : la vue se
+#: lit vers l'avant seulement, `ORDER_BOOK`.
+ORDER_FILL = ""
 
-#: Le carnet ouvert, vers l'avant : ce qui est commandé et pas encore facturé, par pays du
-#: point de vente facturé et canal de centre de profit, en trois paquets sur la date de
-#: promesse au client (`committed_delivery_date`, remplie partout) — `late`, promis avant
-#: aujourd'hui et toujours ouvert ; `month`, promis d'ici la fin du mois ; `beyond`, au-delà.
-#: `period · market · channel · bucket · open_eur · lines · blocked_eur`. Le pays n'est pas
-#: sur la vue : il vient de `V_SL_D_POS`, la décision de la maison, par `bill_to_skey`, texte
-#: ici et nombre sur la dimension, d'où la conversion explicite (aucune ligne ouverte ne la
-#: rate). La marque vit sur la dimension produit, même conversion ; le filtre kit de la
-#: maison n'existe pas ici. Même filtre que les factures sur le type de point de vente :
-#: `SELL IN` et `B2B`. Le carnet bouge chaque jour : jamais publié sans sa date de lecture.
+#: Le carnet ouvert, vers l'avant : ce qui est commandé et pas encore facturé, par canal de
+#: centre de profit, en trois paquets exclusifs sur la date de promesse au client
+#: (`committed_delivery_date`, remplie partout) — `late`, promis avant aujourd'hui et
+#: toujours ouvert ; `month`, promis d'aujourd'hui à la fin du mois ; `beyond`, au-delà.
+#: `period · channel · bucket · open_eur · lines · blocked_eur`. Au niveau du groupe
+#: seulement : la vue ne porte pas de pays de destination, et le pays de la dimension du
+#: point de vente est celui de l'entité facturante — la Suisse y recouvre vingt-neuf pays de
+#: facture, Hong Kong dix-huit — donc aucun axe marché n'en sort (validation du 25 septembre).
+#: La jointure au point de vente reste, pour le filtre de la maison sur son type (`SELL IN`
+#: et `B2B`), par `bill_to_skey`, texte ici et nombre sur la dimension ; la marque vit sur la
+#: dimension produit, même conversion ; le filtre kit de la maison n'existe pas ici. Le
+#: drapeau de blocage est un nombre 0/1 à nulles : une nulle compte comme non bloqué. Le
+#: carnet bouge chaque jour : jamais publié sans sa date de lecture.
 ORDER_BOOK = """
 select
     to_char(current_date, 'YYYY-MM-DD')                                   as period,
-    coalesce(nullif(trim(p.country_desc), ''), '(sans pays)')             as market,
     coalesce(nullif(trim(o.profit_center_group_channel), ''), '(vide)')   as channel,
     iff(o.committed_delivery_date < current_date, 'late',
         iff(o.committed_delivery_date < add_months(date_trunc('month', current_date), 1),
@@ -1925,7 +1916,7 @@ where o.open_net_value_eur_annual > 0
   and not o.is_rejected
   and p.channel_type_desc in ('SELL IN', 'B2B')
   and k.product_brand_id = 'OC'
-group by 1, 2, 3, 4
+group by 1, 2, 3
 """
 
 #: Le vrac de l'entrepôt ligne à ligne : ce que `KPI_READINGS` retire du sell-out pour lire
@@ -2062,7 +2053,6 @@ ALL = {
     "PARTNER_SELL_IN": PARTNER_SELL_IN,
     "OSA_MONTHLY": OSA_MONTHLY,
     "FORECAST_BIAS": FORECAST_BIAS,
-    "ORDER_FILL": ORDER_FILL,
     "BULK_DETAIL": BULK_DETAIL,
     "SHADOW_BULK": SHADOW_BULK,
 }

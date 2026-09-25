@@ -260,14 +260,11 @@ class Together:
     recoupent pas.
     """
 
-    def __init__(self, sell_out, billed, sell_in_plan: float, book=None, book_read: str = "") -> None:
+    def __init__(self, sell_out, billed, sell_in_plan: float) -> None:
         self.sell_out = sell_out
         self.billed = billed
         #: Le plan sell-in du mois, entier, sur les marchés du périmètre.
         self.sell_in_plan = float(sell_in_plan or 0.0)
-        #: Le carnet ouvert du périmètre (`orderbook.Book`), ou None, et sa date de lecture.
-        self.book = book
-        self.book_read = book_read
         self.absent = ""
         self.verdict = None
         share = getattr(billed, "share_by_now", None)
@@ -292,44 +289,6 @@ class Together:
     @property
     def usable(self) -> bool:
         return self.verdict is not None
-
-    # ---- le carnet : ce que le mois de sell-in devrait faire, sans hypothèse de forme
-    @property
-    def month_end_sell_in(self) -> Optional[float]:
-        """Facturé à date, plus ce que le carnet promet d'ici la fin du mois, plus ce qui
-        est déjà en retard : ce que le mois fait si tout ce qui est dû tombe."""
-        if self.book is None or self.billed is None or not getattr(self.billed, "current", 0.0):
-            return None
-        return float(self.billed.current) + self.book.due
-
-    @property
-    def month_end_verdict(self):
-        """Le mois de sell-in à fin de mois contre son plan, entier : un mot sans forme de
-        mois empruntée, puisque le carnet dit lui-même ce qui reste à tomber."""
-        expected = self.month_end_sell_in
-        if expected is None or self.sell_in_plan <= 0:
-            return None
-        return track_module.Verdict(expected, self.sell_in_plan, self.sell_in_plan,
-                                    basis="facturé à date et carnet dû, contre le plan sell-in du mois")
-
-    @property
-    def book_sentence(self) -> str:
-        from .analytics import format_eur
-
-        if self.book is None:
-            return ""
-        expected = self.month_end_sell_in
-        text = "avec le carnet : facturé %s, promis d'ici la fin du mois %s, en retard %s" % (
-            format_eur(float(self.billed.current)), self.book.month_label, self.book.late_label)
-        if expected is not None and self.sell_in_plan > 0:
-            verdict = self.month_end_verdict
-            text += ", soit %s à fin de mois contre %s au plan — %s" % (
-                format_eur(expected), format_eur(self.sell_in_plan), verdict.label)
-        if self.book.late > 0 and self.book.late > self.book.month:
-            text += " ; le retard dépasse le promis, c'est du sell-in qui manque au mois, pas un stock qui attend"
-        if self.book_read:
-            text += " · carnet lu le %s" % self.book_read
-        return text
 
     @property
     def share_label(self) -> str:
@@ -451,7 +410,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
           invoiced=None, gifting=None, retail=None, prepared=None, products=None,
-          elsewhere: Sequence = (), clients=None, orderbook=None) -> Page:
+          elsewhere: Sequence = (), clients=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -493,10 +452,8 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
     if scope is not None and billed is not None:
-        book = orderbook.for_markets(markets, name) if orderbook is not None and orderbook.usable else None
         together = Together(scope.month, billed,
-                            sell_in_plan_for(budget, markets, getattr(track, "period", "") or ""),
-                            book=book, book_read=getattr(orderbook, "read_at", "") if book else "")
+                            sell_in_plan_for(budget, markets, getattr(track, "period", "") or ""))
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,

@@ -418,6 +418,21 @@
   </table>
   {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
   {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
+  {% if orderbook and orderbook.usable %}
+    <h3 class="subject-heading">Le carnet ouvert, vers l'avant</h3>
+    <p class="{{ 'product-headline' if orderbook.group.late_exceeds_month else 'routed-why' }}">{{ orderbook.sentence | ucfirst }}.</p>
+    <table class="month-table mix-table">
+      <thead><tr><th>Canal</th><th>Promis d'ici la fin du mois</th><th>En retard</th><th>Bloqué à la livraison</th><th>Au-delà du mois</th></tr></thead>
+      <tbody>
+      {% for book in orderbook.shown %}
+        <tr><td>{{ book.channel_label }}</td><td class="num">{{ book.month_label }}</td><td class="num {{ 'is-en-retard' if book.late_exceeds_month else '' }}">{{ book.late_label }}</td><td class="num">{{ book.blocked_label }}</td><td class="num">{{ book.beyond_label }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <p class="cockpit-caveat">Commandé et pas encore facturé, sur la date de promesse au client, filtres de la maison sur le point de vente facturé et la marque. Au niveau du groupe seulement : la vue des commandes ne porte pas de pays de destination. Le retard est du sell-in qui manque au mois, pas un stock qui attend ; un carnet qui ne se purge pas n'est pas un carnet.</p>
+  {% elif orderbook and orderbook.note %}
+    <p class="cockpit-caveat">{{ orderbook.note | ucfirst }}.</p>
+  {% endif %}
 </section>
 {% endif %}
 
@@ -552,15 +567,8 @@
         {% if supplychain.bias.rest %}<tr class="month-rest"><td>{{ supplychain.bias.rest }} autres marchés</td><td></td><td></td><td></td></tr>{% endif %}</tbody>
       </table>
       {% endif %}
-      {% if supplychain.fill and supplychain.fill.usable %}
-      <table class="month-table product-table">
-        <thead><tr><th>Servi sur commandé, {{ supplychain.fill.month_label }}</th><th>Facturé</th><th>Livraison confirmée</th></tr></thead>
-        <tbody>{% for line in supplychain.fill.shown %}<tr><td>{{ line.channel_label }}</td><td class="num {{ 'is-en-retard' if line.below else '' }}">{{ line.label }}</td><td class="num">{{ '%.1f %%' | format(line.complete * 100) if line.complete is not none else '—' }}</td></tr>{% endfor %}
-        {% if supplychain.fill.rest %}<tr class="month-rest"><td>{{ supplychain.fill.rest }} autres canaux</td><td></td><td></td></tr>{% endif %}</tbody>
-      </table>
-      {% endif %}
     </div>
-    <p class="cockpit-caveat">Mesures du cockpit, pas celles de la supply : le service hors en-transit et toutes marques, définition de l'entrepôt ; le biais à M-3 en valeur par marché de prévision, prévision moins réel sur réel ; le servi sur commandé en valeur, toutes marques, lignes rejetées exclues — facturé, c'est commandé moins encours ; confirmé, c'est le statut de livraison ; la colonne « livré » de l'entrepôt est un proxy du commandé et n'est jamais lue. Un écart avec le mail est une question, pas une correction.</p>
+    <p class="cockpit-caveat">Mesures du cockpit, pas celles de la supply : le service hors en-transit et toutes marques, définition de l'entrepôt ; le biais à M-3 en valeur par marché de prévision, prévision moins réel sur réel ; le livré sur commandé ne se lit pas ici : la vue des commandes de l'entrepôt n'en porte qu'un proxy, et son facturé n'est pas un taux de service — le carnet ouvert, lui, se lit vers l'avant à côté du sell-in. Un écart avec le mail est une question, pas une correction.</p>
   {% else %}
     <p class="empty">{{ (supplychain.notes | join(" ; ") if supplychain and supplychain.notes else "les lectures supply de l'entrepôt n'ont pas encore eu lieu") | ucfirst }}.</p>
   {% endif %}

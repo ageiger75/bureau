@@ -913,15 +913,16 @@ huit familles en dur qui manque soixante-seize héros officiels. La clé de join
 
 Le carnet de commandes (`ORDER_BOOK`, `app/perf/orderbook.py`) se lit vers l'avant
 seulement, sur la seule colonne d'encours de la vue des commandes — ses « facturé » et
-« livré » sont des proxys du commandé, ses drapeaux des constantes (agent entrepôt, 23 et 24
-septembre 2026). Trois paquets sur la date de promesse au client : en retard, promis d'ici
-la fin du mois, au-delà ; par pays du point de vente facturé (la vue n'a pas de pays) et
-canal, filtres de la maison sur le type de point de vente et la marque produit, conversions
-de type explicites. La carte « sell-in et sell-out ensemble » dit ce que le mois de sell-in
-fait si tout ce qui est dû tombe — facturé plus promis plus retard — contre le plan entier,
-sans forme de mois empruntée, et la date de lecture du carnet. Cache d'un jour, `refresh
---supply`. Le « livré sur commandé » d'Analyses est réécrit sans le proxy : servi, c'est
-commandé moins encours ; confirmé, c'est le statut de livraison.
+« livré » sont des proxys du commandé, ses drapeaux des constantes (agent entrepôt, 23 au 25
+septembre 2026). Trois paquets exclusifs sur la date de promesse au client : en retard,
+promis d'aujourd'hui à la fin du mois, au-delà ; par canal, au niveau du groupe seulement,
+parce que la vue ne porte pas de pays de destination et que le pays de son point de vente
+est celui de l'entité facturante (la Suisse y recouvre vingt-neuf pays de facture). Sur
+l'écran du jour à côté du sell-in, et par canal sur Analyses, avec la date de lecture ; cache
+d'un jour, `refresh --supply`. Le « livré sur commandé » est retiré : la vue ne le mesure pas
+— sept canaux à cent pour cent pile, le confirmé qui contredit le facturé —, et un taux qui
+ne mesure rien ne se publie pas. La carte « sell-in et sell-out ensemble » garde la forme de
+l'an dernier tant qu'aucun pays de destination n'existe sur les commandes.
 
 ### Phase 5 — B6, les moteurs du plan
 
