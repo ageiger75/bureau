@@ -924,6 +924,12 @@ d'un jour, `refresh --supply`. Le « livré sur commandé » est retiré : la vu
 ne mesure rien ne se publie pas. La carte « sell-in et sell-out ensemble » garde la forme de
 l'an dernier tant qu'aucun pays de destination n'existe sur les commandes.
 
+`manage.py ensemble <périmètre>` décompose la carte « sell-in et sell-out ensemble » : les
+marchés du verdict avec leur attendu à date, les pays facturés et où l'annuaire les range
+(rangés, non rangés, sans marché), le sell-in intragroupe tenu hors total, les lignes
+sell-in du plan rencontrées et celles qu'aucun périmètre ne rencontre, la forme du mois de
+l'an dernier. Pour comprendre un « en retard » que le terrain conteste, sans deviner.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

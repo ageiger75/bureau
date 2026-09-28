@@ -176,3 +176,21 @@ def test_the_invoice_queries_apply_the_house_filters_and_read_the_bill_to_pos():
     assert "as pos_type" in queries.SELL_IN_DAILY and "left join" in queries.SELL_IN_DAILY
     assert "p.channel_type_desc in ('SELL IN', 'B2B')" in queries.PARTNER_SELL_IN
     assert queries.SELL_IN_POS_TYPES == ("SELL IN", "B2B")
+
+
+def test_the_ensemble_command_decomposes_the_card_and_names_the_unplaced_countries(monkeypatch, capsys):
+    """Un « en retard » que le terrain conteste se comprend en décomposant : les marchés du
+    verdict, les pays facturés et où ils sont rangés, les lignes du plan, la forme du mois."""
+    from app import cli
+    from app.perf import page as page_module
+
+    known = {"Nord": {"markets": ["Japan", "France"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    assert cli.cmd_ensemble(["Nulle"]) == 2
+    assert cli.cmd_ensemble(["nord"]) == 0
+    out = capsys.readouterr().out
+    for heading in ("ENSEMBLE — Nord", "SELL-OUT — le verdict du mois", "SELL-IN — facturé à date",
+                    "PLAN — les lignes sell-in du plan", "ENSEMBLE — la carte"):
+        assert heading in out
+    # Sans annuaire, les pays facturés du périmètre ne sont rangés nulle part : dit, pas caché.
+    assert "NON rangés" in out and "JP  Japan" in out

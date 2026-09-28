@@ -4263,6 +4263,164 @@ def cmd_marche(argv: List[str]) -> int:
     return 0
 
 
+def cmd_ensemble(argv: List[str]) -> int:
+    """La carte « sell-in et sell-out ensemble » d'un périmètre, décomposée : ce que le
+    verdict du mois compte, marché par marché ; ce que le sell-in facturé compte et d'où —
+    pays, périmètre, intragroupe, hors périmètre — ; la ligne du plan sell-in qu'il rencontre,
+    et celles du plan que personne ne rencontre ; la forme du mois empruntée à l'an dernier.
+    Pour comprendre un « en retard » que le terrain conteste, sans deviner."""
+    from .config import settings
+    from .db import SessionFactory, create_all
+    from .perf import owners
+    from .perf import page as page_module
+    from .perf import perimeter as perimeter_module
+    from .perf.analytics import format_eur, format_pct
+    from .perf.budget import normalise_market, perimeter_of
+    from .perf.invoiced import CODES, COMMERCIAL_POS_TYPES
+    from .perf.month import place_markets
+    from .routes.today import _perimeter_inputs
+
+    wanted = " ".join(arg for arg in argv if not arg.startswith("--")).strip()
+    create_all()
+    with SessionFactory() as session:
+        inputs = _perimeter_inputs(session)
+    known = inputs["known"]
+    label = next((name for name in known
+                  if name.lower() == wanted.lower() or page_module.slug(name) == page_module.slug(wanted)), None)
+    if label is None:
+        print("Périmètre inconnu : %r. Connus : %s" % (wanted, ", ".join(sorted(known)) or "aucun"),
+              file=sys.stderr)
+        return 2
+    markets = list(known[label]["markets"])
+    track, month, invoiced, budget = inputs["track"], inputs["month"], inputs["invoiced"], inputs["budget"]
+    period = getattr(track, "period", "") or ""
+    print("ENSEMBLE — %s · %s · jour %d" % (label, period, getattr(track, "day", 0)))
+    print("  marchés du périmètre : %s" % ", ".join(markets))
+
+    # 1. Le sell-out du mois, marché par marché : ce que le verdict compte.
+    scope = next((item for item in getattr(track, "perimeters", []) if item.name == label), None)
+    verdict = scope.month if scope is not None else None
+    print("SELL-OUT — le verdict du mois, sell-out seul")
+    if verdict is None or not verdict.usable:
+        print("  aucun verdict : %s" % (getattr(verdict, "absent", "") or "périmètre sans marché lisible"))
+    else:
+        print("  %s : %s réalisés, attendu %s à %s (%s), couverture %s · %s" % (
+            verdict.label, format_eur(verdict.actual), format_eur(verdict.low), format_eur(verdict.high),
+            verdict.gap_label, verdict.coverage_label, verdict.basis))
+    group = next((g for g in getattr(month, "groups", []) if g.name == label), None)
+    for line in (group.lines if group is not None else []):
+        through = getattr(line.progress, "through_month", None)
+        expected = ("%s à %s" % (format_eur(line.target * through.low), format_eur(line.target * through.high))
+                    if through is not None and line.target else "sans forme de mois")
+        print("    %-22s plan du mois %10s  réalisé %10s  attendu à date %s%s%s" % (
+            line.market[:22], format_eur(line.target) if line.target else "aucun",
+            format_eur(getattr(line.progress, "actual", 0.0) or 0.0), expected,
+            "" if line.readable else "  · hors verdict (pas lisible)",
+            "  · campagne le 1er, hors verdict" if getattr(line, "lumpy", False) else ""))
+
+    # 2. Le sell-in facturé : combien, d'où, et ce qui n'est pas dedans.
+    print("SELL-IN — facturé à date, et d'où il vient")
+    billed = invoiced.for_name(label) if invoiced is not None and invoiced.usable else None
+    if billed is None:
+        print("  aucune facture rangée dans ce périmètre : %s" % "; ".join(getattr(invoiced, "absent", []) or ["?"]))
+    else:
+        print("  %s facturés à date (%s sur l'an dernier à jours ouvrés égaux, %s à dates égales) ; "
+              "l'an dernier le mois entier faisait %s et %s en était facturé au même point — la forme du mois : %s" % (
+                  format_eur(billed.current), billed.growth_label, billed.same_dates_label,
+                  format_eur(billed.last_year_month), format_eur(billed.aligned),
+                  ("%.0f %%" % (billed.share_by_now * 100)) if billed.share_by_now is not None else "inconnue"))
+    source = inputs["source"]
+    try:
+        rows = source.sell_in_daily()
+    except Exception as exc:  # noqa: BLE001 — la ligne dit pourquoi
+        rows = []
+        print("  factures au jour illisibles : %s" % exc)
+    names = {}
+    try:
+        for row in source.daily_sales():
+            iso2 = str(row.get("iso2") or "").strip().upper()
+            if iso2 and iso2 not in names:
+                names[iso2] = normalise_market(str(row.get("market") or ""))
+    except Exception:  # noqa: BLE001
+        names = {}
+    org = perimeter_module.current() if settings.has_org_file else None
+    directory = owners.current() if settings.has_owners_file else None
+    by_iso2 = {}
+    for row in rows:
+        if str(row.get("window") or "").strip().lower() != "current":
+            continue
+        iso2 = str(row.get("iso2") or "").strip().upper() or "??"
+        pos = (str(row.get("pos_type") or "").strip().upper() if "pos_type" in row else "")
+        code = str(row.get("channel") or "").strip().lower()
+        amount = float(row.get("net_eur") or 0.0)
+        cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0})
+        if pos and pos not in COMMERCIAL_POS_TYPES:
+            cell["intragroup"] += amount
+        elif code not in CODES:
+            cell["other"] += amount
+        else:
+            cell["commercial"] += amount
+    placed, _leads = place_markets(sorted({names.get(i, i) for i in by_iso2}), org, directory)
+    mine = [(i, cell) for i, cell in by_iso2.items() if placed.get(names.get(i, i)) == label]
+    loose = [(i, cell) for i, cell in by_iso2.items()
+             if not placed.get(names.get(i, i)) and names.get(i, i) in set(markets)]
+    unnamed = [(i, cell) for i, cell in by_iso2.items()
+               if i not in names and not placed.get(i) and cell["commercial"] > 0]
+    print("  pays facturés rangés dans %s :" % label)
+    for iso2, cell in sorted(mine, key=lambda item: -item[1]["commercial"]):
+        print("    %-3s %-18s sell-in %10s   intragroupe hors total %10s   hors canaux %8s" % (
+            iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]), format_eur(cell["intragroup"]),
+            format_eur(cell["other"])))
+    if loose:
+        print("  pays de ce périmètre facturés mais NON rangés (l'annuaire ne place pas le marché) :")
+        for iso2, cell in loose:
+            print("    %-3s %-18s sell-in %10s" % (iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"])))
+    if unnamed:
+        print("  pays facturés sans marché connu du sell-out au jour, donc sans périmètre : %s" % ", ".join(
+            "%s %s" % (iso2, format_eur(cell["commercial"])) for iso2, cell in
+            sorted(unnamed, key=lambda item: -item[1]["commercial"])[:12]))
+
+    # 3. Le plan sell-in du mois : ce que le périmètre rencontre, et ce que personne ne rencontre.
+    print("PLAN — les lignes sell-in du plan pour %s" % (period or "le mois"))
+    every_market = {m for item in known.values() for m in item["markets"]}
+    met, orphan = [], []
+    for line in getattr(budget, "lines", None) or ():
+        if getattr(line, "period", "") != period or perimeter_of(str(getattr(line, "segment", "") or "")) != "sell-in":
+            continue
+        market = getattr(line, "market", "")
+        if market in set(markets):
+            met.append(line)
+        elif market not in every_market:
+            orphan.append(line)
+    for line in sorted(met, key=lambda l: -(getattr(l, "budget", 0.0) or 0.0)):
+        print("    %-22s %-28s %10s" % (line.market[:22], str(line.segment)[:28], format_eur(line.budget or 0.0)))
+    total = sum(float(getattr(l, "budget", 0.0) or 0.0) for l in met)
+    print("  plan sell-in du mois rencontré par %s : %s" % (label, format_eur(total)))
+    if orphan:
+        print("  lignes sell-in du plan qu'AUCUN périmètre ne rencontre (marché du plan inconnu de l'annuaire) :")
+        for line in sorted(orphan, key=lambda l: -(getattr(l, "budget", 0.0) or 0.0))[:15]:
+            print("    %-22s %-28s %10s" % (str(line.market)[:22], str(line.segment)[:28], format_eur(line.budget or 0.0)))
+    if budget is None:
+        print("  aucun classeur de plan lu")
+
+    # 4. La carte, telle que la page la calcule.
+    print("ENSEMBLE — la carte")
+    if verdict is not None and billed is not None:
+        together = page_module.Together(verdict, billed, total)
+        if together.usable:
+            print("  %s : %s contre %s à %s (%s)" % (
+                together.verdict.label, format_eur(together.verdict.actual), format_eur(together.verdict.low),
+                format_eur(together.verdict.high), together.verdict.gap_label))
+        print("  " + together.basis)
+    else:
+        print("  pas de carte : il manque %s" % ("le verdict sell-out" if verdict is None else "le sell-in facturé"))
+    print("  Le verdict du haut de page est sell-out seul ; la carte ajoute le sell-in facturé contre le plan "
+          "sell-in du mois pris à la forme de l'an dernier. Un « en retard » vient de l'un des quatre : "
+          "un marché hors verdict, un pays non rangé, une ligne de plan orpheline, ou une forme de mois "
+          "que l'an dernier ne reproduit pas.")
+    return 0
+
+
 def cmd_frontieres(argv: List[str]) -> int:
     """Les notes de reclassement datées contre les factures des partenaires, en clair :
     ce que la page fait en silence, montré ligne par ligne pour comprendre une date qui
@@ -5013,6 +5171,8 @@ def main(argv: List[str]) -> int:
         return cmd_frontieres(argv[1:])
     if command == "marche":
         return cmd_marche(argv[1:])
+    if command == "ensemble":
+        return cmd_ensemble(argv[1:])
     if command == "remplissage":
         return cmd_remplissage(argv[1:])
     if command == "supply":
