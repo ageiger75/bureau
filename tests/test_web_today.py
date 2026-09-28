@@ -1110,3 +1110,12 @@ def test_the_day_screen_computes_the_month_with_sell_in_for_each_perimeter_it_ca
     found = _togethers(_Track(), _Invoiced(), known, _Budget())
     assert list(found) == ["Nord"]
     assert found["Nord"].usable and found["Nord"].verdict.label == "en ligne"
+
+    # Une BU sans sell-out mais avec des factures rangées : une ligne quand même.
+    class _Canal(_Invoiced):
+        def for_name(self, name):
+            return _Billed() if name in ("Nord", "Canal") else None
+
+    known["Canal"] = {"markets": ["Northland"], "lead": ""}
+    found = _togethers(_Track(), _Canal(), known, _Budget())
+    assert "Canal" in found and found["Canal"].sell_in_only and found["Canal"].usable

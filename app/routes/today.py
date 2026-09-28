@@ -313,16 +313,20 @@ def _togethers(track, invoiced, known, budget):
     from ..perf import page as page_module
 
     period = getattr(track, "period", "") or ""
+    scopes = {scope.name: scope for scope in getattr(track, "perimeters", []) or []}
     found = {}
-    for scope in getattr(track, "perimeters", []) or []:
-        item = known.get(scope.name)
-        if item is None or invoiced is None or not getattr(invoiced, "usable", False):
-            continue
-        billed = invoiced.for_name(scope.name)
+    if invoiced is None or not getattr(invoiced, "usable", False):
+        return found
+    # Tous les périmètres de l'annuaire, pas seulement ceux qui ont un sell-out : une BU de
+    # canal comme le travel retail n'a pas de verdict sell-out et se lit sur son sell-in.
+    for name, item in known.items():
+        billed = invoiced.for_name(name)
         if billed is None:
             continue
-        found[scope.name] = page_module.Together(
-            scope.month, billed, page_module.sell_in_plan_for(budget, item["markets"], period))
+        scope = scopes.get(name)
+        found[name] = page_module.Together(
+            scope.month if scope is not None else None, billed,
+            page_module.sell_in_plan_for(budget, item["markets"], period))
     return found
 
 

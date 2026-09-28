@@ -177,6 +177,23 @@
             {% endif %}
           </tr>
         {% endfor %}
+        {% if togethers %}{% set seen = track.perimeters | map(attribute='name') | list %}
+        {% for name, both in togethers.items() if name not in seen %}
+          {# Un périmètre sans sell-out — une BU de canal — se lit sur son sell-in seul. #}
+          {% set land = landings.get(name) %}
+          <tr>
+            <td class="cell-name"><a href="/perimetre/{{ name | slug }}">{{ name }}</a></td>
+            <td class="absent">sans sell-out</td>
+            <td class="num">{% if land and land.usable %}{{ land.gap_at_pace | eur }}{% else %}—{% endif %}</td>
+            {% if pnl and pnl.usable %}{% set done = pnl.for_name(name) %}<td class="num{% if done and done.gap < 0 %} is-en-retard{% endif %}">{% if done %}{{ done.gap | eur }}{% else %}—{% endif %}</td>{% endif %}
+            <td class="absent">sans sell-out</td>
+            {% if both.usable %}
+              <td class="cell-verdict"><span class="chip is-{{ both.verdict.label | replace(' ', '-') }}">{{ both.verdict.label }}</span> <span class="cell-gap {{ 'is-en-retard' if both.verdict.direction == 'en retard' else ('is-en-avance' if both.verdict.direction == 'en avance' else '') }}" title="{{ both.basis }}">{{ both.verdict.gap_label }}</span></td>
+            {% else %}
+              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else 'sans sell-in lisible' }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}{% endif %}
         </tbody>
       </table>
 

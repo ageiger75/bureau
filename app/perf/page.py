@@ -268,15 +268,21 @@ class Together:
         self.absent = ""
         self.verdict = None
         share = getattr(billed, "share_by_now", None)
-        if sell_out is None or not sell_out.usable:
-            self.absent = "le sell-out du mois ne se lit pas : rien à additionner"
-        elif billed is None or not getattr(billed, "current", 0.0):
+        #: Un périmètre sans sell-out — le travel retail, une BU de canal — se lit sur son
+        #: seul sell-in contre son plan : rien à additionner, mais un mot quand même.
+        self.sell_in_only = sell_out is None or not sell_out.usable
+        if billed is None or not getattr(billed, "current", 0.0):
             self.absent = "aucune facture lue sur ce périmètre ce mois"
         elif self.sell_in_plan <= 0:
             self.absent = "le plan ne nomme aucune ligne sell-in sur ce périmètre pour ce mois"
         elif share is None:
             self.absent = ("l'an dernier ne porte aucune facture sur ce mois : le sell-in "
                            "n'a pas de forme de mois, et ne se compare pas au plan à date")
+        elif self.sell_in_only:
+            self.expected_sell_in = self.sell_in_plan * share
+            self.verdict = track_module.Verdict(
+                billed.current, self.expected_sell_in, self.expected_sell_in, 1.0,
+                basis="sell-in seul : aucun sell-out sur ce périmètre")
         else:
             self.expected_sell_in = self.sell_in_plan * share
             self.verdict = track_module.Verdict(
@@ -301,6 +307,11 @@ class Together:
 
         if not self.usable:
             return self.absent
+        if self.sell_in_only:
+            return ("sell-in seul, aucun sell-out sur ce périmètre : facturé %s contre %s attendus, "
+                    "soit %s du plan du mois (%s), la part que l'an dernier avait facturée à jours "
+                    "ouvrés égaux" % (format_eur(self.billed.current), format_eur(self.expected_sell_in),
+                                      self.share_label, format_eur(self.sell_in_plan)))
         return ("sell-out %s contre %s à %s attendus à ce jour ; sell-in facturé %s contre "
                 "%s attendus, soit %s du plan du mois (%s), la part que l'an dernier avait "
                 "facturée à jours ouvrés égaux · au niveau du périmètre, jamais par canal"
@@ -396,6 +407,11 @@ class Page:
             return getattr(self.fires[0], "question", "") or ""
         month = self.scope.month if self.scope else None
         both = self.together.verdict if self.together is not None and self.together.usable else None
+        if both is not None and self.together.sell_in_only:
+            if both.label != track_module.IN_LINE:
+                return "%s ce mois-ci sur le sell-in, %s : qui commande moins, et pourquoi ?" % (
+                    both.label.capitalize(), both.gap_label)
+            return ""
         if month is not None and month.usable and both is not None and both.label != month.label:
             # Deux mots pour un mois : le sell-out seul et le mois sell-in compris. La
             # question n'est plus « qu'est-ce qui l'explique », c'est où va ce sell-in.
@@ -461,8 +477,8 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     watch_lines = [item for item in getattr(prepared, "watch", ()) or ()
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
-    if scope is not None and billed is not None:
-        together = Together(scope.month, billed,
+    if billed is not None:
+        together = Together(scope.month if scope is not None else None, billed,
                             sell_in_plan_for(budget, markets, getattr(track, "period", "") or ""))
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],

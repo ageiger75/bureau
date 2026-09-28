@@ -223,3 +223,13 @@ def test_the_question_of_the_day_names_both_words_when_sell_in_flips_the_month()
                   None, None, [], [], [], [], together=P.Together(sell_out, _Billed(100.0, 0.46), 1_000.0))
     assert same.together.verdict.label == "en retard"
     assert same.question == "En retard ce mois-ci, sell-in compris, %s : qu'est-ce qui l'explique ?" % same.together.verdict.gap_label
+
+
+def test_a_perimeter_without_sell_out_reads_its_month_on_sell_in_alone():
+    # Une BU de canal, le travel retail : aucun sell-out, un plan sell-in, des factures.
+    together = P.Together(None, _Billed(560.0, 0.46), 1_000.0)
+    assert together.sell_in_only and together.usable
+    assert together.verdict.label == "en avance" and "sell-in seul" in together.basis
+    page = P.Page("Canal", "", ["Travel retail Asia"], None, P.landing([], None, None, "", ""),
+                  None, None, [], [], [], [], together=together)
+    assert page.question.startswith("En avance ce mois-ci sur le sell-in")
