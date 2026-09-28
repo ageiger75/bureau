@@ -395,6 +395,16 @@ class Page:
         if self.fires:
             return getattr(self.fires[0], "question", "") or ""
         month = self.scope.month if self.scope else None
+        both = self.together.verdict if self.together is not None and self.together.usable else None
+        if month is not None and month.usable and both is not None and both.label != month.label:
+            # Deux mots pour un mois : le sell-out seul et le mois sell-in compris. La
+            # question n'est plus « qu'est-ce qui l'explique », c'est où va ce sell-in.
+            return ("Sell-out %s ce mois-ci (%s), sell-in compris %s (%s) : ce que les partenaires "
+                    "ont acheté se vend-il en face, ou attend-il chez eux ?"
+                    % (month.label, month.gap_label, both.label, both.gap_label))
+        if both is not None and both.label != track_module.IN_LINE:
+            return "%s ce mois-ci, sell-in compris, %s : qu'est-ce qui l'explique ?" % (
+                both.label.capitalize(), both.gap_label)
         if month is not None and month.usable and month.label != track_module.IN_LINE:
             return "%s ce mois-ci, %s : qu'est-ce qui l'explique ?" % (
                 month.label.capitalize(), month.gap_label)

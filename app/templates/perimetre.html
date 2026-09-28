@@ -11,19 +11,31 @@
 
   <div class="verdicts">
     <div class="verdict">
-      <p class="verdict-title">{{ track.month_title }}</p>
+      <p class="verdict-title">{{ track.month_title }}, sell-out</p>
       {% if page.scope and page.scope.month.usable and page.scope.month.early %}
         <p class="verdict-word is-trop-tôt">{{ page.scope.month.label }}</p>
         <p class="verdict-basis">{{ track.days_label }}, revoir après une semaine pleine</p>
       {% elif page.scope and page.scope.month.usable %}
         <p class="verdict-word is-{{ page.scope.month.label | replace(' ', '-') }}">{{ page.scope.month.label }}</p>
         <p class="verdict-figures">{{ page.scope.month.actual | eur }} vendus · attendu {% if page.scope.month.narrow %}{{ page.scope.month.middle | eur }}{% else %}{{ page.scope.month.low | eur }} à {{ page.scope.month.high | eur }}{% endif %} · <strong>{{ page.scope.month.gap_label }}</strong></p>
-        <p class="verdict-basis">{{ page.scope.month.coverage_sentence }}</p>
+        <p class="verdict-basis">sell-out seul, à son rythme attendu · {{ page.scope.month.coverage_sentence }}</p>
       {% else %}
         <p class="verdict-word is-absent">—</p>
         <p class="verdict-basis">{{ page.scope.month.absent if page.scope else "mois non lu" }}</p>
       {% endif %}
     </div>
+    {% if page.together %}
+    <div class="verdict" id="ensemble">
+      <p class="verdict-title">{{ track.month_title }}, sell-in compris</p>
+      {% if page.together.usable %}
+        <p class="verdict-word is-{{ page.together.verdict.label | replace(' ', '-') }}">{{ page.together.verdict.label }}</p>
+        <p class="verdict-figures">{{ page.together.verdict.actual | eur }} · attendu {% if page.together.verdict.narrow %}{{ page.together.verdict.middle | eur }}{% else %}{{ page.together.verdict.low | eur }} à {{ page.together.verdict.high | eur }}{% endif %} · <strong>{{ page.together.verdict.gap_label }}</strong></p>
+      {% else %}
+        <p class="verdict-word is-absent">—</p>
+      {% endif %}
+      <p class="verdict-basis">{{ page.together.basis }}</p>
+    </div>
+    {% endif %}
     <div class="verdict">
       <p class="verdict-title">{{ track.year_title }}</p>
       {% if page.scope and page.scope.year.usable %}
@@ -100,18 +112,7 @@
     <p class="verdict-figures">{{ page.invoiced.growth_label }} sur l'an dernier à jours ouvrés égaux · {{ page.invoiced.same_dates_label }} à dates égales</p>
     <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
   </div>
-  {% if page.together %}
-  <div class="verdict" id="ensemble">
-    <p class="verdict-title">Sell-in et sell-out ensemble, {{ track.month_title | lower }}</p>
-    {% if page.together.usable %}
-      <p class="verdict-word is-{{ page.together.verdict.label | replace(' ', '-') }}">{{ page.together.verdict.label }}</p>
-      <p class="verdict-figures">{{ page.together.verdict.actual | eur }} · attendu {% if page.together.verdict.narrow %}{{ page.together.verdict.middle | eur }}{% else %}{{ page.together.verdict.low | eur }} à {{ page.together.verdict.high | eur }}{% endif %} · <strong>{{ page.together.verdict.gap_label }}</strong></p>
-    {% else %}
-      <p class="verdict-word is-absent">—</p>
-    {% endif %}
-    <p class="verdict-basis">{{ page.together.basis }}</p>
-  </div>
-  {% endif %}
+  {% if page.together %}<p class="cockpit-caveat">Sell-in et sell-out ensemble, contre le plan : la carte « sell-in compris », en tête de page.</p>{% endif %}
 </section>
 {% endif %}
 

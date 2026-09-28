@@ -203,3 +203,23 @@ def test_sell_in_and_sell_out_together_read_against_the_plan_at_last_years_shape
     assert not without_plan.usable and "aucune ligne sell-in" in without_plan.basis
     without_shape = P.Together(sell_out, _Billed(560.0, None), 1_000.0)
     assert not without_shape.usable and "forme de mois" in without_shape.basis
+
+
+def test_the_question_of_the_day_names_both_words_when_sell_in_flips_the_month():
+    from app.perf import track
+
+    class _Scope:
+        def __init__(self, month):
+            self.month, self.year = month, None
+
+    sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
+    page = P.Page("Nord", "", ["Northland"], _Scope(sell_out), P.landing([], None, None, "", ""),
+                  None, None, [], [], [], [], together=P.Together(sell_out, _Billed(560.0, 0.46), 1_000.0))
+    assert page.together.verdict.label == "en ligne" and sell_out.label == "en retard"
+    assert page.question.startswith("Sell-out en retard ce mois-ci")
+    assert "sell-in compris en ligne" in page.question and "se vend-il en face" in page.question
+
+    same = P.Page("Nord", "", ["Northland"], _Scope(sell_out), P.landing([], None, None, "", ""),
+                  None, None, [], [], [], [], together=P.Together(sell_out, _Billed(100.0, 0.46), 1_000.0))
+    assert same.together.verdict.label == "en retard"
+    assert same.question == "En retard ce mois-ci, sell-in compris, %s : qu'est-ce qui l'explique ?" % same.together.verdict.gap_label
