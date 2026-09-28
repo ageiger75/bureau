@@ -1073,3 +1073,40 @@ def test_the_day_screen_reads_the_open_order_book_beside_the_sell_in(client):
     assert "Carnet ouvert : promis d'ici la fin du mois" in page
     analyses = page_text(client.get("/analyses"))
     assert "Le carnet ouvert, vers l'avant" in analyses and "Servi sur commandé" not in analyses
+
+
+def test_the_day_screen_computes_the_month_with_sell_in_for_each_perimeter_it_can():
+    """La table des périmètres de l'écran du jour porte le mois sell-in compris, la même
+    carte que la page du périmètre — et rien pour un périmètre sans facture rangée."""
+    from app.perf import track as track_module
+    from app.routes.today import _togethers
+
+    class _Scope:
+        def __init__(self, name, month):
+            self.name, self.month = name, month
+
+    class _Track:
+        period = "2026-09"
+        perimeters = [_Scope("Nord", track_module.Verdict(440.0, 500.0, 580.0, 1.0)),
+                      _Scope("Sud", track_module.Verdict(100.0, 90.0, 95.0, 1.0))]
+
+    class _Billed:
+        current, share_by_now = 560.0, 0.46
+
+    class _Invoiced:
+        usable = True
+
+        def for_name(self, name):
+            return _Billed() if name == "Nord" else None
+
+    class _Line:
+        def __init__(self, market, segment, budget):
+            self.market, self.period, self.segment, self.budget = market, "2026-09", segment, budget
+
+    class _Budget:
+        lines = [_Line("Northland", "DIS - Distributors", 1_000.0)]
+
+    known = {"Nord": {"markets": ["Northland"], "lead": ""}, "Sud": {"markets": ["Southland"], "lead": ""}}
+    found = _togethers(_Track(), _Invoiced(), known, _Budget())
+    assert list(found) == ["Nord"]
+    assert found["Nord"].usable and found["Nord"].verdict.label == "en ligne"

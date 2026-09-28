@@ -143,7 +143,7 @@
     {% if track.perimeters %}
       <table class="table-clean perimeter-table">
         <thead>
-          <tr><th>Périmètre</th><th>Exercice à date</th><th class="num">Atterrissage à ce rythme</th>{% if pnl and pnl.usable %}<th class="num">Contribution vs budget</th>{% endif %}<th>Mois à date</th></tr>
+          <tr><th>Périmètre</th><th>Exercice à date</th><th class="num">Atterrissage à ce rythme</th>{% if pnl and pnl.usable %}<th class="num">Contribution vs budget</th>{% endif %}<th>Mois à date, sell-out</th><th>Mois à date, sell-in compris</th></tr>
         </thead>
         <tbody>
         {% for scope in track.perimeters %}
@@ -166,6 +166,14 @@
               <td class="cell-verdict"><span class="chip is-{{ scope.month.label | replace(' ', '-') }}">{{ scope.month.label }}</span>{% if scope.month.narrow %} <span class="cell-gap {{ 'is-en-retard' if scope.month.direction == 'en retard' else ('is-en-avance' if scope.month.direction == 'en avance' else '') }}" title="{{ scope.month.coverage_sentence }}">{{ scope.month.gap_label }}</span>{% else %} <span class="cell-gap muted" title="fourchette large · {{ scope.month.coverage_sentence }}">{{ scope.month.gap_label }}</span>{% endif %}</td>
             {% else %}
               <td class="absent">{{ scope.month.absent }}</td>
+            {% endif %}
+            {% set both = togethers.get(scope.name) if togethers else none %}
+            {% if both and both.usable %}
+              <td class="cell-verdict"><span class="chip is-{{ both.verdict.label | replace(' ', '-') }}">{{ both.verdict.label }}</span> <span class="cell-gap {{ 'is-en-retard' if both.verdict.direction == 'en retard' else ('is-en-avance' if both.verdict.direction == 'en avance' else '') }}" title="{{ both.basis }}">{{ both.verdict.gap_label }}</span></td>
+            {% elif both %}
+              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else 'sans sell-in lisible' }}</td>
+            {% else %}
+              <td class="absent">sans sell-in rangé</td>
             {% endif %}
           </tr>
         {% endfor %}

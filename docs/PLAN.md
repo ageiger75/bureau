@@ -942,6 +942,9 @@ L'annuaire peut ranger ces entités et ces pays (`owners.COUNTRY_ALIASES`, en fr
 anglais, dans une cellule « Pays couverts » qui les énumère avec `;`) : décision du 28
 septembre, Nordic, Middle East, Loi Distributors, Other et les distributeurs à l'export
 sous l'EMEA ; les deux travel retail sous la BU Travel Retail.
+L'écran du jour porte, dans sa table par périmètre, le mois à date sell-out et le mois à
+date sell-in compris, la même carte que la page du périmètre : un MD qui répond sur les deux
+ne doit pas lire « en retard » sur le seul sell-out.
 
 ### Phase 5 — B6, les moteurs du plan
 

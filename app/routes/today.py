@@ -303,7 +303,27 @@ def _landings(track, month):
     known = page_module.perimeters(directory, month)
     landings = {name: page_module.landing(item["markets"], published, budget, period, closed, calendar)
                 for name, item in known.items()}
-    return group, landings
+    return group, landings, known, budget
+
+
+def _togethers(track, invoiced, known, budget):
+    """Le mois, sell-in et sell-out ensemble, par périmètre : la même carte que la page du
+    périmètre, pour que l'écran du jour ne dise pas « en retard » sur le seul sell-out à
+    côté d'un MD qui répond sur les deux."""
+    from ..perf import page as page_module
+
+    period = getattr(track, "period", "") or ""
+    found = {}
+    for scope in getattr(track, "perimeters", []) or []:
+        item = known.get(scope.name)
+        if item is None or invoiced is None or not getattr(invoiced, "usable", False):
+            continue
+        billed = invoiced.for_name(scope.name)
+        if billed is None:
+            continue
+        found[scope.name] = page_module.Together(
+            scope.month, billed, page_module.sell_in_plan_for(budget, item["markets"], period))
+    return found
 
 
 def _perimeter_inputs(session):
@@ -821,7 +841,8 @@ def _screen(request: Request, session: Session):
     invoiced = _invoiced_review(source, weekly)
     gifting = _gifting_review()
     stores = _stores_review()
-    landing, landings = _landings(track, month)
+    landing, landings, known, budget = _landings(track, month)
+    togethers = _togethers(track, invoiced, known, budget)
     from ..perf import placements as placements_module
 
     placements = placements_module.current()
@@ -980,6 +1001,7 @@ def _screen(request: Request, session: Session):
             "track": track,
             "landing": landing,
             "landings": landings,
+            "togethers": togethers,
             "ebitda": ebitda,
             "pnl": pnl,
             "samestore": samestore,
