@@ -209,3 +209,33 @@ def test_a_billed_country_without_sell_out_is_named_by_the_standard_and_placed_b
     rows = [{"iso2": "JP"}, {"iso2": "LT"}, {"iso2": "ZZ"}]
     names = _invoice_country_names(_Source(), rows)
     assert names == {"JP": "Japan", "LT": "Lithuania"}
+
+
+def test_travel_retail_invoices_go_to_the_bu_that_carries_the_plans_entities(tmp_path):
+    """Le travel retail est une BU, pas une géographie : facturé depuis le Japon, il va au
+    périmètre qui porte « Travel retail Asia » dans l'annuaire, pas au Japon. Sans une telle
+    entité dans l'annuaire, il reste au pays, comme avant."""
+    from tests.test_perf_owners import HEADER, directory_file
+    from app.perf import owners
+
+    rows = _rows()
+    for day in (1, 2, 3, 4):
+        rows.append({"window": "current", "invoice_date": "2026-09-%02d" % day, "iso2": "JP",
+                     "channel": "tra", "pos_type": "SELL IN", "net_eur": 1_000.0})
+    with_tr = owners.load(directory_file(tmp_path, [
+        ["Annuaire"], HEADER,
+        ["Japon", "Aiko", "TANAKA", "General Manager, Japan", "Japon", "Patron de BU", "", "Tokyo"],
+        ["Travel Retail", "Eve", "LY", "MD Travel Retail",
+         "Travel retail Asia ; Travel retail international", "Patron de BU", "", ""],
+    ]))
+    review = I.build(rows, {"JP": "Japan", "FR": "France"}, directory=with_tr, today=TODAY)
+    assert review.for_name("Japon").current == 400.0
+    assert review.for_name("Travel Retail").current == 4_000.0
+    assert review.group.current == 4_600.0
+
+    without = owners.load(directory_file(tmp_path, [
+        ["Annuaire"], HEADER,
+        ["Japon", "Aiko", "TANAKA", "General Manager, Japan", "Japon", "Patron de BU", "", "Tokyo"],
+    ]))
+    review = I.build(rows, {"JP": "Japan", "FR": "France"}, directory=without, today=TODAY)
+    assert review.for_name("Japon").current == 4_400.0 and review.for_name("Travel Retail") is None

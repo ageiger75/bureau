@@ -945,6 +945,11 @@ sous l'EMEA ; les deux travel retail sous la BU Travel Retail.
 L'écran du jour porte, dans sa table par périmètre, le mois à date sell-out et le mois à
 date sell-in compris, la même carte que la page du périmètre : un MD qui répond sur les deux
 ne doit pas lire « en retard » sur le seul sell-out.
+Le travel retail est une BU, pas une géographie (`invoiced.TRAVEL_RETAIL_MARKETS`) : ses
+factures vont au périmètre qui porte « Travel retail Asia » et « Travel retail international »
+dans l'annuaire, jamais au pays de facturation — sinon le Japon et la Chine portaient le
+sell-in des aéroports contre un plan qui ne le contenait pas, et lisaient « en avance » de
+trente à soixante points. Sans entité travel retail dans l'annuaire, la facture reste au pays.
 
 ### Phase 5 — B6, les moteurs du plan
 

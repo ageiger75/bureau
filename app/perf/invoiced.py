@@ -43,6 +43,13 @@ MOST = 6
 #: qui revend à son propre réseau — est lu à part, nommé, et hors du total. Une ligne sans
 #: type (lecture écrite avant la colonne) compte comme du sell-in, comme avant.
 COMMERCIAL_POS_TYPES = ("SELL IN", "B2B")
+#: Le travel retail est une BU, pas une géographie : un canal tenu dans le monde entier, et
+#: le plan l'écrit sous deux entités — l'Asie, le reste — jamais sous le pays qui facture.
+#: Une facture de ce canal va donc au périmètre qui porte ces entités dans l'annuaire, pas
+#: au pays de facturation ; sans annuaire qui les place, elle reste au pays, comme avant.
+TRAVEL_RETAIL_CODE = "tra"
+TRAVEL_RETAIL_MARKETS = ("Travel retail Asia", "Travel retail international")
+TRAVEL_RETAIL_LINE = "Travel retail"
 
 #: Ce que l'écran appelle les factures dont le centre de profit n'est pas un canal
 #: commercial — HOLD, RET, ALLOCATE, PROD, un code vide. Tenues à part et nommées, hors du
@@ -289,6 +296,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
 
     channels: Dict[str, Line] = {}
     countries: Dict[str, Line] = {}
+    #: Le travel retail par pays de facturation, tenu à part jusqu'au rangement.
+    travel: Dict[str, Line] = {}
     group = Line("Groupe")
     other = Line(OTHER)
     other_codes: List[str] = []
@@ -313,7 +322,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
                     other_codes.append(shown)
                 continue
             label = CHANNEL_NAMES.get(CODES[code], code.upper())
-            for bucket, key in ((channels, label), (countries, entry["iso2"] or "??")):
+            by_country = travel if code == TRAVEL_RETAIL_CODE else countries
+            for bucket, key in ((channels, label), (by_country, entry["iso2"] or "??")):
                 line = bucket.setdefault(key, Line(key))
                 setattr(line, attribute, getattr(line, attribute) + entry["amount"])
             setattr(group, attribute, getattr(group, attribute) + entry["amount"])
@@ -332,24 +342,34 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
 
     names = markets_by_iso2 or {}
     market_lines: Dict[str, Line] = {}
+
+    def merge(into: Line, line: Line) -> None:
+        into.current += line.current
+        into.current_business += line.current_business
+        into.aligned += line.aligned
+        into.same_dates += line.same_dates
+        into.last_year_month += line.last_year_month
+
     for iso2, line in countries.items():
-        market = names.get(iso2, iso2)
-        merged = market_lines.setdefault(market, Line(market))
-        merged.current += line.current
-        merged.current_business += line.current_business
-        merged.aligned += line.aligned
-        merged.same_dates += line.same_dates
-        merged.last_year_month += line.last_year_month
-    placed, _leads = place_markets(list(market_lines), org, directory)
+        merge(market_lines.setdefault(names.get(iso2, iso2), Line(names.get(iso2, iso2))), line)
+    placed, _leads = place_markets(list(market_lines) + list(TRAVEL_RETAIL_MARKETS), org, directory)
+    # Le travel retail va au périmètre qui porte ses entités du plan ; sans lui, au pays.
+    travel_bu = next((placed[m] for m in TRAVEL_RETAIL_MARKETS if placed.get(m)), "")
+    if travel_bu:
+        travel_line = market_lines.setdefault(TRAVEL_RETAIL_LINE, Line(TRAVEL_RETAIL_LINE))
+        for line in travel.values():
+            merge(travel_line, line)
+        placed[TRAVEL_RETAIL_LINE] = travel_bu
+    else:
+        for iso2, line in travel.items():
+            merge(market_lines.setdefault(names.get(iso2, iso2), Line(names.get(iso2, iso2))), line)
+    for name in TRAVEL_RETAIL_MARKETS:
+        placed.pop(name, None)
     perimeters: Dict[str, Line] = {}
     loose = Line("Sans périmètre")
     for market, line in market_lines.items():
         target = perimeters.setdefault(placed[market], Line(placed[market])) if placed.get(market) else loose
-        target.current += line.current
-        target.current_business += line.current_business
-        target.aligned += line.aligned
-        target.same_dates += line.same_dates
-        target.last_year_month += line.last_year_month
+        merge(target, line)
     ordered = sorted(perimeters.values(), key=lambda line: -line.current)
     if not placed:
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")

@@ -4276,7 +4276,7 @@ def cmd_ensemble(argv: List[str]) -> int:
     from .perf import perimeter as perimeter_module
     from .perf.analytics import format_eur, format_pct
     from .perf.budget import normalise_market, perimeter_of
-    from .perf.invoiced import CODES, COMMERCIAL_POS_TYPES
+    from .perf.invoiced import CODES, COMMERCIAL_POS_TYPES, TRAVEL_RETAIL_CODE, TRAVEL_RETAIL_MARKETS
     from .perf.month import place_markets
     from .routes.today import _perimeter_inputs
 
@@ -4348,14 +4348,24 @@ def cmd_ensemble(argv: List[str]) -> int:
         pos = (str(row.get("pos_type") or "").strip().upper() if "pos_type" in row else "")
         code = str(row.get("channel") or "").strip().lower()
         amount = float(row.get("net_eur") or 0.0)
-        cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0})
+        cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0, "travel": 0.0})
         if pos and pos not in COMMERCIAL_POS_TYPES:
             cell["intragroup"] += amount
         elif code not in CODES:
             cell["other"] += amount
+        elif code == TRAVEL_RETAIL_CODE:
+            cell["travel"] += amount
         else:
             cell["commercial"] += amount
-    placed, _leads = place_markets(sorted({names.get(i, i) for i in by_iso2}), org, directory)
+    placed, _leads = place_markets(sorted({names.get(i, i) for i in by_iso2}) + list(TRAVEL_RETAIL_MARKETS),
+                                   org, directory)
+    travel_bu = next((placed[m] for m in TRAVEL_RETAIL_MARKETS if placed.get(m)), "")
+    travel_total = sum(cell["travel"] for cell in by_iso2.values())
+    if travel_total:
+        print("  travel retail facturé à date, tous pays : %s — rangé %s" % (
+            format_eur(travel_total),
+            ("chez « %s », la BU qui porte ses entités du plan" % travel_bu) if travel_bu
+            else "au pays de facturation, faute d'entité travel retail dans l'annuaire"))
     mine = [(i, cell) for i, cell in by_iso2.items() if placed.get(names.get(i, i)) == label]
     loose = [(i, cell) for i, cell in by_iso2.items()
              if not placed.get(names.get(i, i)) and names.get(i, i) in set(markets)]
@@ -4364,9 +4374,9 @@ def cmd_ensemble(argv: List[str]) -> int:
     print("  pays facturés rangés dans %s :" % label)
     known_by_name = {m: name for name, item in known.items() for m in item["markets"]}
     for iso2, cell in sorted(mine, key=lambda item: -item[1]["commercial"]):
-        print("    %-3s %-18s sell-in %10s   intragroupe hors total %10s   hors canaux %8s" % (
-            iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]), format_eur(cell["intragroup"]),
-            format_eur(cell["other"])))
+        print("    %-3s %-18s sell-in %10s   travel retail %10s   intragroupe hors total %10s" % (
+            iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]), format_eur(cell["travel"]),
+            format_eur(cell["intragroup"])))
     if loose:
         print("  pays de ce périmètre facturés mais NON rangés (l'annuaire ne place pas le marché) :")
         for iso2, cell in loose:
