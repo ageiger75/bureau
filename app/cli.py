@@ -4335,14 +4335,9 @@ def cmd_ensemble(argv: List[str]) -> int:
     except Exception as exc:  # noqa: BLE001 — la ligne dit pourquoi
         rows = []
         print("  factures au jour illisibles : %s" % exc)
-    names = {}
-    try:
-        for row in source.daily_sales():
-            iso2 = str(row.get("iso2") or "").strip().upper()
-            if iso2 and iso2 not in names:
-                names[iso2] = normalise_market(str(row.get("market") or ""))
-    except Exception:  # noqa: BLE001
-        names = {}
+    from .routes.today import _invoice_country_names
+
+    names = _invoice_country_names(source, rows)
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
     by_iso2 = {}
@@ -4367,6 +4362,7 @@ def cmd_ensemble(argv: List[str]) -> int:
     unnamed = [(i, cell) for i, cell in by_iso2.items()
                if i not in names and not placed.get(i) and cell["commercial"] > 0]
     print("  pays facturés rangés dans %s :" % label)
+    known_by_name = {m: name for name, item in known.items() for m in item["markets"]}
     for iso2, cell in sorted(mine, key=lambda item: -item[1]["commercial"]):
         print("    %-3s %-18s sell-in %10s   intragroupe hors total %10s   hors canaux %8s" % (
             iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]), format_eur(cell["intragroup"]),
@@ -4375,8 +4371,16 @@ def cmd_ensemble(argv: List[str]) -> int:
         print("  pays de ce périmètre facturés mais NON rangés (l'annuaire ne place pas le marché) :")
         for iso2, cell in loose:
             print("    %-3s %-18s sell-in %10s" % (iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"])))
+    elsewhere = [(i, cell) for i, cell in by_iso2.items()
+                 if i in names and not placed.get(names[i]) and names[i] not in set(markets)
+                 and names[i] not in known_by_name and cell["commercial"] > 0]
+    if elsewhere:
+        print("  pays facturés que l'annuaire ne range dans AUCUN périmètre (à déclarer dans l'annuaire, "
+              "sous la bonne BU, s'ils sont à quelqu'un) : %s" % ", ".join(
+                  "%s %s %s" % (iso2, names[iso2], format_eur(cell["commercial"])) for iso2, cell in
+                  sorted(elsewhere, key=lambda item: -item[1]["commercial"])[:15]))
     if unnamed:
-        print("  pays facturés sans marché connu du sell-out au jour, donc sans périmètre : %s" % ", ".join(
+        print("  pays facturés sans nom connu, donc sans périmètre : %s" % ", ".join(
             "%s %s" % (iso2, format_eur(cell["commercial"])) for iso2, cell in
             sorted(unnamed, key=lambda item: -item[1]["commercial"])[:12]))
 
@@ -4397,7 +4401,8 @@ def cmd_ensemble(argv: List[str]) -> int:
     total = sum(float(getattr(l, "budget", 0.0) or 0.0) for l in met)
     print("  plan sell-in du mois rencontré par %s : %s" % (label, format_eur(total)))
     if orphan:
-        print("  lignes sell-in du plan qu'AUCUN périmètre ne rencontre (marché du plan inconnu de l'annuaire) :")
+        print("  lignes sell-in du plan qu'AUCUN périmètre ne rencontre (le marché du plan n'est pas dans "
+              "l'annuaire : à y déclarer sous la bonne BU pour qu'un périmètre le compte) :")
         for line in sorted(orphan, key=lambda l: -(getattr(l, "budget", 0.0) or 0.0))[:15]:
             print("    %-22s %-28s %10s" % (str(line.market)[:22], str(line.segment)[:28], format_eur(line.budget or 0.0)))
     if budget is None:

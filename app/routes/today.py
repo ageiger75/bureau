@@ -152,21 +152,34 @@ def _invoiced_review(source, weekly):
     except Exception as why:  # pragma: no cover — l'entrepôt, pas le code
         return invoiced_module.Review(None, None, 0, None, [], [],
                                       ["lecture des factures au jour impossible : %s" % why])
-    names = {}
-    try:
-        for row in source.daily_sales():
-            iso2 = str(row.get("iso2") or "").strip().upper()
-            if iso2 and iso2 not in names:
-                from ..perf.budget import normalise_market
-
-                names[iso2] = normalise_market(str(row.get("market") or ""))
-    except Exception:  # noqa: BLE001 — sans sell-out au jour, les pays restent des codes
-        names = {}
+    names = _invoice_country_names(source, rows)
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
     review = invoiced_module.build(rows, names, org, directory)
     _say_if_stale(review, "invoiced")
     return review
+
+
+def _invoice_country_names(source, rows) -> dict:
+    """Le marché derrière chaque pays facturé : le nom que le sell-out au jour lui donne,
+    sinon celui de la norme. Un distributeur à l'export n'a pas de sell-out et tombait « sans
+    périmètre » quoi que dise l'annuaire ; nommé, c'est l'annuaire qui décide."""
+    from ..perf.budget import normalise_market
+    from ..perf.countries import country_name
+
+    names = {}
+    try:
+        for row in source.daily_sales():
+            iso2 = str(row.get("iso2") or "").strip().upper()
+            if iso2 and iso2 not in names:
+                names[iso2] = normalise_market(str(row.get("market") or ""))
+    except Exception:  # noqa: BLE001 — sans sell-out au jour, la norme nomme seule
+        names = {}
+    for row in rows or ():
+        iso2 = str(row.get("iso2") or "").strip().upper()
+        if iso2 and iso2 not in names and country_name(iso2) != iso2:
+            names[iso2] = country_name(iso2)
+    return names
 
 
 def _gifting_review():

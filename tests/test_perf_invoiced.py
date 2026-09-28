@@ -194,3 +194,18 @@ def test_the_ensemble_command_decomposes_the_card_and_names_the_unplaced_countri
         assert heading in out
     # Sans annuaire, les pays facturés du périmètre ne sont rangés nulle part : dit, pas caché.
     assert "NON rangés" in out and "JP  Japan" in out
+
+
+def test_a_billed_country_without_sell_out_is_named_by_the_standard_and_placed_by_the_directory():
+    from app.perf.countries import ISO_NAMES, country_name
+    from app.routes.today import _invoice_country_names
+
+    assert country_name("lt") == "Lithuania" and country_name("ZZ") == "ZZ" and len(ISO_NAMES) > 150
+
+    class _Source:
+        def daily_sales(self):
+            return [{"iso2": "JP", "market": "JAPAN"}]
+
+    rows = [{"iso2": "JP"}, {"iso2": "LT"}, {"iso2": "ZZ"}]
+    names = _invoice_country_names(_Source(), rows)
+    assert names == {"JP": "Japan", "LT": "Lithuania"}

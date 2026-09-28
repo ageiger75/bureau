@@ -930,6 +930,15 @@ marchés du verdict avec leur attendu à date, les pays facturés et où l'annua
 sell-in du plan rencontrées et celles qu'aucun périmètre ne rencontre, la forme du mois de
 l'an dernier. Pour comprendre un « en retard » que le terrain conteste, sans deviner.
 
+Un pays facturé sans sell-out — un distributeur à l'export — n'avait pas de nom et tombait
+« sans périmètre » quoi que dise l'annuaire : `app/perf/countries.py` le nomme par la norme,
+et l'annuaire seul décide du périmètre. Appris sur l'EMEA : le plan met le sell-in nordique,
+le Moyen-Orient et les distributeurs à l'export sur des entités qui ne sont pas des marchés
+(« Nordic », « Middle East », « Loi Distributors ») ; tant que l'annuaire ne les range pas
+sous une BU, aucun périmètre ne rencontre ces lignes, et la carte « ensemble » compare un
+facturé qui les contient à un plan qui ne les contient pas. `manage.py ensemble` nomme les
+deux listes : les lignes de plan orphelines, et les pays facturés rangés nulle part.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,
