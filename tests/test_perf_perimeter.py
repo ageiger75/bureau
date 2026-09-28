@@ -175,3 +175,19 @@ def test_the_travel_retail_perimeter_is_nameable_without_its_parenthesis():
     org = perimeter.Org([_person(zone="Travel Retail (monde)", kind=perimeter.MD)], [])
 
     assert perimeter.place(org, ["Travel Retail"]) == {"Travel Retail": "Northland"}
+
+
+def test_the_directory_can_claim_the_plans_non_country_entities_and_export_countries():
+    """Le plan met du sell-in sur des entités qui ne sont pas des pays — Nordic, Middle
+    East, Loi Distributors, le travel retail — et facture des distributeurs dans des pays
+    sans sell-out. L'annuaire doit pouvoir les ranger sous une BU, en français ou en
+    anglais, dans une cellule qui les énumère ; sinon aucun périmètre ne les rencontre."""
+    from app.perf import owners as O
+
+    zone = "Nordique ; Moyen-Orient ; Loi Distributors ; Other ; Lituanie ; Chile ; Afrique du Sud"
+    assert O._split_zone(zone) == ["Nordic", "Middle East", "Loi Distributors", "Other",
+                                   "Lithuania", "Chile", "South Africa"]
+    assert O._split_zone("Travel retail Asia ; Travel retail international") == [
+        "Travel retail Asia", "Travel retail international"]
+    # Sans séparateur, une zone qui se nomme sans énumérer ses membres ne place rien.
+    assert O._split_zone("Nordics") == []

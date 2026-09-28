@@ -938,6 +938,10 @@ le Moyen-Orient et les distributeurs à l'export sur des entités qui ne sont pa
 sous une BU, aucun périmètre ne rencontre ces lignes, et la carte « ensemble » compare un
 facturé qui les contient à un plan qui ne les contient pas. `manage.py ensemble` nomme les
 deux listes : les lignes de plan orphelines, et les pays facturés rangés nulle part.
+L'annuaire peut ranger ces entités et ces pays (`owners.COUNTRY_ALIASES`, en français ou en
+anglais, dans une cellule « Pays couverts » qui les énumère avec `;`) : décision du 28
+septembre, Nordic, Middle East, Loi Distributors, Other et les distributeurs à l'export
+sous l'EMEA ; les deux travel retail sous la BU Travel Retail.
 
 ### Phase 5 — B6, les moteurs du plan
 
