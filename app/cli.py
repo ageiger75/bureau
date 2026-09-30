@@ -4382,9 +4382,11 @@ def cmd_ensemble(argv: List[str]) -> int:
     print("  pays facturés rangés dans %s :" % label)
     known_by_name = {m: name for name, item in known.items() for m in item["markets"]}
     for iso2, cell in sorted(mine, key=lambda item: -item[1]["commercial"]):
-        print("    %-3s %-18s sell-in %10s   travel retail %10s   intragroupe hors total %10s" % (
-            iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]), format_eur(cell["travel"]),
-            format_eur(cell["intragroup"])))
+        print("    %-3s %-18s sell-in %10s   même mois l'an dernier %10s   travel retail %10s   "
+              "intragroupe hors total %10s" % (
+                  iso2, names.get(iso2, iso2)[:18], format_eur(cell["commercial"]),
+                  format_eur(cell["last_year"]) if cell["last_year"] else "aucune",
+                  format_eur(cell["travel"]), format_eur(cell["intragroup"])))
     if loose:
         print("  pays de ce périmètre facturés mais NON rangés (l'annuaire ne place pas le marché) :")
         for iso2, cell in loose:
