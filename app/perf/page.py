@@ -294,12 +294,31 @@ class Together:
                 basis="sell-in seul : aucun sell-out sur ce périmètre")
         else:
             self.expected_sell_in = self._expected(share)
+            #: Le sell-in seul, à côté du sell-out seul : la somme ne lisse pas un désaccord.
+            self.sell_in_verdict = track_module.Verdict(
+                billed.current, self.expected_sell_in, self.expected_sell_in, 1.0,
+                basis="sell-in seul")
             self.verdict = track_module.Verdict(
                 sell_out.actual + billed.current,
                 sell_out.low + self.expected_sell_in,
                 sell_out.high + self.expected_sell_in,
                 sell_out.coverage, basis="sell-in et sell-out, au niveau du périmètre",
                 early=sell_out.early)
+
+    @property
+    def diverging(self) -> bool:
+        """Le sell-out seul et le sell-in seul ne disent pas le même mot."""
+        inner = getattr(self, "sell_in_verdict", None)
+        return (self.usable and not self.sell_in_only and inner is not None
+                and inner.label != self.sell_out.label)
+
+    @property
+    def split_label(self) -> str:
+        if not self.diverging:
+            return ""
+        return "sell-out %s (%s), sell-in %s (%s) : deux mots, pas une somme" % (
+            self.sell_out.label, self.sell_out.gap_label,
+            self.sell_in_verdict.label, self.sell_in_verdict.gap_label)
 
     def _expected(self, share: float) -> float:
         """Le sell-in attendu à date. De préférence les factures de l'an dernier à jours
@@ -374,9 +393,10 @@ class Together:
             return ("sell-in seul, aucun sell-out sur ce périmètre : facturé %s contre %s attendus — %s"
                     % (format_eur(self.billed.current), format_eur(self.expected_sell_in),
                        self.expected_basis))
-        return ("sell-out %s contre %s à %s attendus à ce jour ; sell-in facturé %s contre "
+        return ("%ssell-out %s contre %s à %s attendus à ce jour ; sell-in facturé %s contre "
                 "%s attendus — %s · au niveau du périmètre, jamais par canal"
-                % (format_eur(self.sell_out.actual), format_eur(self.sell_out.low),
+                % ((self.split_label + " ; ") if self.diverging else "",
+                   format_eur(self.sell_out.actual), format_eur(self.sell_out.low),
                    format_eur(self.sell_out.high), format_eur(self.billed.current),
                    format_eur(self.expected_sell_in), self.expected_basis))
 

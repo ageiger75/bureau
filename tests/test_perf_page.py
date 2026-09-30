@@ -303,3 +303,23 @@ def test_the_expected_sell_in_never_exceeds_the_plan_when_the_source_sees_more_t
     _Bill.last_year_month = 800.0
     exact = P.Together(sell_out, _Bill(), 1_000.0, plan_last_year=800.0)
     assert exact.at_plan_pace and abs(exact.expected_sell_in - 625.0) < 1e-9
+
+
+def test_the_month_with_sell_in_says_two_words_when_sell_out_and_sell_in_disagree():
+    """Sell-out en retard, sell-in en avance : la somme dirait « en avance » et lisserait
+    le désaccord. La carte dit les deux mots, puis la somme."""
+    from app.perf import track
+
+    class _Bill:
+        current, share_by_now, aligned, last_year_month = 1_200.0, 0.5, 500.0, 900.0
+
+    behind = track.Verdict(400.0, 500.0, 520.0, 1.0)
+    both = P.Together(behind, _Bill(), 1_000.0, plan_last_year=1_000.0)
+    assert both.usable and both.diverging
+    assert both.sell_in_verdict.label == "en avance" and both.sell_out.label == "en retard"
+    assert both.split_label.startswith("sell-out en retard (")
+    assert "sell-in en avance (" in both.split_label and "deux mots, pas une somme" in both.split_label
+    assert both.basis.startswith(both.split_label)
+    agreed = P.Together(track.Verdict(600.0, 500.0, 520.0, 1.0), _Bill(), 1_000.0, plan_last_year=1_000.0)
+    assert agreed.usable and not agreed.diverging and agreed.split_label == ""
+    assert not agreed.basis.startswith("sell-out en")

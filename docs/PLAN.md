@@ -965,6 +965,12 @@ jamais plus que le plan, l'attendu redevient le plan à la forme du mois
 (`Together.over_plan`). `manage.py ensemble` montre, ligne du plan par ligne, l'an dernier
 du plan et les factures de l'an dernier sur ce marché : c'est là qu'on voit un marché que
 la source ne voyait pas l'an dernier (le Mexique) ou un plan qui a changé de périmètre.
+Quand le sell-out seul et le sell-in seul ne disent pas le même mot, la carte dit les
+deux avant la somme (`Together.diverging`, `split_label`) : l'EMEA en septembre lisait
+« en avance » sur une somme qui cachait un sell-out en retard et un sell-in porté par les
+e-retailers et une enseigne nouvelle, pendant que les grands magasins reculaient avec le
+sell-out. `manage.py ensemble` montre le mois à date par partenaire, contre le même mois
+entier l'an dernier, pour nommer qui porte l'écart.
 
 ### Phase 5 — B6, les moteurs du plan
 
