@@ -4263,6 +4263,67 @@ def cmd_marche(argv: List[str]) -> int:
     return 0
 
 
+def _print_ensemble_partners(source, period: str, iso2s, label: str) -> None:
+    """Le mois du plan par partenaire, sur les pays rangés dans le périmètre, contre le
+    même mois entier l'an dernier. Hors travel retail, qui est à la BU travel retail."""
+    import datetime as _dt
+
+    from .perf import accounts as accounts_module
+    from .perf.analytics import format_eur
+    from .perf.invoiced import TRAVEL_RETAIL_CODE
+    from .perf.source import partner_stamp
+
+    if not period or not iso2s:
+        return
+    try:
+        rows = source.partner_rows(wait_for_warehouse=False)
+    except Exception as exc:  # noqa: BLE001 — la ligne dit pourquoi
+        print("PARTENAIRES — factures par partenaire illisibles : %s" % exc)
+        return
+    names = {}
+    if settings.has_partners_file:
+        from .perf import partners as partners_module
+
+        names = accounts_module.names_from(partners_module.current())
+    before = accounts_module._shift(period, -12)
+    seen = {}
+    for row in rows:
+        when = str(row.get("period") or "")
+        if when not in (period, before):
+            continue
+        if str(row.get("iso2") or "").strip().upper() not in iso2s:
+            continue
+        if str(row.get("channel") or "").strip().lower() == TRAVEL_RETAIL_CODE:
+            continue
+        code = str(row.get("code") or "").strip().upper()
+        cell = seen.setdefault(code, {"label": str(row.get("label") or ""), "channel": str(row.get("channel") or ""),
+                                      "now": 0.0, "before": 0.0})
+        cell["now" if when == period else "before"] += float(row.get("net_eur") or 0.0)
+    stamp = partner_stamp()
+    read = (_dt.datetime.fromtimestamp(int(stamp)).strftime("%Y-%m-%d") if stamp else "jamais")
+    if not seen:
+        print("PARTENAIRES — aucune facture partenaire sur %s pour %s dans la lecture du %s" % (period, label, read))
+        return
+    now = sum(c["now"] for c in seen.values())
+    was = sum(c["before"] for c in seen.values())
+    print("PARTENAIRES — %s à date par partenaire facturé depuis les pays de %s, lecture du %s ; "
+          "hors travel retail" % (period, label, read))
+    print("  %s à date contre %s le même mois entier l'an dernier (%s)" % (
+        format_eur(now), format_eur(was), ("%+.1f %%" % (100 * (now / was - 1))) if was else "n/d"))
+    print("    %-28s %-6s %10s  %10s  %10s" % ("partenaire", "canal", "à date", "an dernier", "écart"))
+    ranked = sorted(seen.items(), key=lambda item: -abs(item[1]["now"] - item[1]["before"]))
+    for code, cell in ranked[:15]:
+        name, named = accounts_module._name_of(code, cell["label"], names)
+        print("    %-28s %-6s %10s  %10s  %10s%s" % (
+            name[:28], cell["channel"][:6], format_eur(cell["now"]), format_eur(cell["before"]),
+            format_eur(cell["now"] - cell["before"]), "" if named else "  (libellé de l'entrepôt)"))
+    if len(ranked) > 15:
+        rest_now = sum(c["now"] for _code, c in ranked[15:])
+        rest_was = sum(c["before"] for _code, c in ranked[15:])
+        print("    %-28s %-6s %10s  %10s  %10s" % ("%d autres" % (len(ranked) - 15), "", format_eur(rest_now),
+                                                 format_eur(rest_was), format_eur(rest_now - rest_was)))
+
+
 def cmd_ensemble(argv: List[str]) -> int:
     """La carte « sell-in et sell-out ensemble » d'un périmètre, décomposée : ce que le
     verdict du mois compte, marché par marché ; ce que le sell-in facturé compte et d'où —
@@ -4444,7 +4505,12 @@ def cmd_ensemble(argv: List[str]) -> int:
     if budget is None:
         print("  aucun classeur de plan lu")
 
-    # 4. La carte, telle que la page la calcule.
+    # 4. Qui porte le mois : les partenaires facturés depuis les pays du périmètre, le mois
+    # à date contre le même mois entier l'an dernier — de la dernière lecture partenaires,
+    # qui court jusqu'à la veille de son rafraîchissement, pas jusqu'à hier.
+    _print_ensemble_partners(source, period, {iso2 for iso2, _cell in mine}, label)
+
+    # 5. La carte, telle que la page la calcule.
     print("ENSEMBLE — la carte")
     if verdict is not None and billed is not None:
         together = page_module.Together(verdict, billed, total, plan_last_year)
