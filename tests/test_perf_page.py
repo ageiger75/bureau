@@ -264,3 +264,22 @@ def test_the_month_with_sell_in_refuses_a_word_when_the_invoices_do_not_cover_th
     budget = _Budget([_Line("Northland", "DIS - Distributors", 1_000.0, 800.0),
                       _Line("Northland", "RET - Retail", 5_000.0, 4_000.0)])
     assert P.sell_in_plan_lines(budget, ["Northland"], "2026-09") == (1_000.0, 800.0)
+
+
+def test_the_expected_sell_in_is_last_years_invoices_at_the_plans_pace_when_the_plan_has_a_last_year():
+    """Une source qui voyait les trois quarts du sell-in l'an dernier n'est pas sommée d'en
+    voir le tout : l'attendu est les factures de l'an dernier à jours ouvrés égaux, au rythme
+    du plan sur son an dernier. Sans an dernier au plan, la part du plan facturée l'an dernier."""
+    from app.perf import track
+
+    class _Bill:
+        current, share_by_now, aligned, last_year_month = 560.0, 0.46, 500.0, 950.0
+
+    sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
+    paced = P.Together(sell_out, _Bill(), 1_000.0, plan_last_year=800.0)
+    assert paced.at_plan_pace and abs(paced.expected_sell_in - 625.0) < 1e-9
+    assert paced.plan_growth_label == "+25.0 %"
+    assert "au rythme du plan" in paced.basis and "couvrait 119 %" in paced.basis
+    shaped = P.Together(sell_out, _Bill(), 1_000.0)
+    assert not shaped.at_plan_pace and abs(shaped.expected_sell_in - 460.0) < 1e-9
+    assert "46 % du plan du mois" in shaped.basis

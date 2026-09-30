@@ -288,18 +288,51 @@ class Together:
                            "périmètre : elles portent des factures qui sont au plan d'un autre, "
                            "pas de mot" % self.coverage_label)
         elif self.sell_in_only:
-            self.expected_sell_in = self.sell_in_plan * share
+            self.expected_sell_in = self._expected(share)
             self.verdict = track_module.Verdict(
                 billed.current, self.expected_sell_in, self.expected_sell_in, 1.0,
                 basis="sell-in seul : aucun sell-out sur ce périmètre")
         else:
-            self.expected_sell_in = self.sell_in_plan * share
+            self.expected_sell_in = self._expected(share)
             self.verdict = track_module.Verdict(
                 sell_out.actual + billed.current,
                 sell_out.low + self.expected_sell_in,
                 sell_out.high + self.expected_sell_in,
                 sell_out.coverage, basis="sell-in et sell-out, au niveau du périmètre",
                 early=sell_out.early)
+
+    def _expected(self, share: float) -> float:
+        """Le sell-in attendu à date. De préférence les factures de l'an dernier à jours
+        ouvrés égaux, au rythme du plan — plan sur son an dernier, mêmes lignes : la
+        couverture de la source et la forme du mois s'annulent d'elles-mêmes, une source qui
+        voyait les trois quarts du sell-in l'an dernier n'est pas sommée d'en voir le tout.
+        Sans an dernier au plan, la part du plan que l'an dernier avait facturée."""
+        aligned = float(getattr(self.billed, "aligned", 0.0) or 0.0)
+        if self.plan_last_year > 0 and aligned > 0:
+            self.at_plan_pace = True
+            return aligned * (self.sell_in_plan / self.plan_last_year)
+        self.at_plan_pace = False
+        return self.sell_in_plan * share
+
+    @property
+    def plan_growth_label(self) -> str:
+        from .analytics import format_pct
+
+        if self.plan_last_year <= 0:
+            return "n/d"
+        return format_pct(self.sell_in_plan / self.plan_last_year - 1.0)
+
+    @property
+    def expected_basis(self) -> str:
+        from .analytics import format_eur
+
+        if getattr(self, "at_plan_pace", False):
+            return ("les factures de l'an dernier à jours ouvrés égaux (%s) au rythme du plan, %s sur "
+                    "son an dernier, mêmes lignes ; la source couvrait %s de ce sell-in l'an dernier"
+                    % (format_eur(float(getattr(self.billed, "aligned", 0.0) or 0.0)),
+                       self.plan_growth_label, self.coverage_label))
+        return ("%s du plan du mois (%s), la part que l'an dernier avait facturée à jours ouvrés "
+                "égaux" % (self.share_label, format_eur(self.sell_in_plan)))
 
     @property
     def usable(self) -> bool:
@@ -329,17 +362,14 @@ class Together:
         if not self.usable:
             return self.absent
         if self.sell_in_only:
-            return ("sell-in seul, aucun sell-out sur ce périmètre : facturé %s contre %s attendus, "
-                    "soit %s du plan du mois (%s), la part que l'an dernier avait facturée à jours "
-                    "ouvrés égaux" % (format_eur(self.billed.current), format_eur(self.expected_sell_in),
-                                      self.share_label, format_eur(self.sell_in_plan)))
+            return ("sell-in seul, aucun sell-out sur ce périmètre : facturé %s contre %s attendus — %s"
+                    % (format_eur(self.billed.current), format_eur(self.expected_sell_in),
+                       self.expected_basis))
         return ("sell-out %s contre %s à %s attendus à ce jour ; sell-in facturé %s contre "
-                "%s attendus, soit %s du plan du mois (%s), la part que l'an dernier avait "
-                "facturée à jours ouvrés égaux · au niveau du périmètre, jamais par canal"
+                "%s attendus — %s · au niveau du périmètre, jamais par canal"
                 % (format_eur(self.sell_out.actual), format_eur(self.sell_out.low),
                    format_eur(self.sell_out.high), format_eur(self.billed.current),
-                   format_eur(self.expected_sell_in), self.share_label,
-                   format_eur(self.sell_in_plan)))
+                   format_eur(self.expected_sell_in), self.expected_basis))
 
 
 def sell_in_plan_for(budget, markets: Sequence[str], period: str) -> float:

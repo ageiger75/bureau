@@ -951,6 +951,15 @@ dans l'annuaire, jamais au pays de facturation — sinon le Japon et la Chine po
 sell-in des aéroports contre un plan qui ne le contenait pas, et lisaient « en avance » de
 trente à soixante points. Sans entité travel retail dans l'annuaire, la facture reste au pays.
 
+Le sell-in attendu à date, dans la carte « sell-in compris », est de préférence les factures
+de l'an dernier à jours ouvrés égaux au rythme du plan — plan sur son an dernier, mêmes
+lignes (`page.Together._expected`). La couverture de la source et la forme du mois
+s'annulent : une source qui voyait les trois quarts du sell-in d'un périmètre l'an dernier
+(l'EMEA, 75 %) n'est pas sommée d'en voir le tout, ce qui disait « en retard » à tort. Sans an
+dernier au plan, la part du plan facturée l'an dernier. Deux gardes restent : en deçà de
+`SELL_IN_COVERAGE_FLOOR` (l'APAC, 6 % — ses filiales facturent hors de la source, seul
+l'intragroupe s'y voit) ou au-delà du plafond, pas de mot, la raison et le taux.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,
