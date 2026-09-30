@@ -260,11 +260,12 @@ class Together:
     recoupent pas.
     """
 
-    def __init__(self, sell_out, billed, sell_in_plan: float) -> None:
+    def __init__(self, sell_out, billed, sell_in_plan: float, plan_last_year: float = 0.0) -> None:
         self.sell_out = sell_out
         self.billed = billed
-        #: Le plan sell-in du mois, entier, sur les marchés du périmètre.
+        #: Le plan sell-in du mois, entier, sur les marchés du périmètre — et son an dernier.
         self.sell_in_plan = float(sell_in_plan or 0.0)
+        self.plan_last_year = float(plan_last_year or 0.0)
         self.absent = ""
         self.verdict = None
         share = getattr(billed, "share_by_now", None)
@@ -278,6 +279,14 @@ class Together:
         elif share is None:
             self.absent = ("l'an dernier ne porte aucune facture sur ce mois : le sell-in "
                            "n'a pas de forme de mois, et ne se compare pas au plan à date")
+        elif self.coverage is not None and self.coverage < SELL_IN_COVERAGE_FLOOR:
+            self.absent = ("les factures lues ne couvrent que %s du sell-in de l'an dernier au plan "
+                           "de ce périmètre : sa facturation n'est pas dans la source, pas de mot"
+                           % self.coverage_label)
+        elif self.coverage is not None and self.coverage > SELL_IN_COVERAGE_CEILING:
+            self.absent = ("les factures lues font %s du sell-in de l'an dernier au plan de ce "
+                           "périmètre : elles portent des factures qui sont au plan d'un autre, "
+                           "pas de mot" % self.coverage_label)
         elif self.sell_in_only:
             self.expected_sell_in = self.sell_in_plan * share
             self.verdict = track_module.Verdict(
@@ -295,6 +304,18 @@ class Together:
     @property
     def usable(self) -> bool:
         return self.verdict is not None
+
+    @property
+    def coverage(self) -> Optional[float]:
+        """Les factures du même mois l'an dernier sur l'an dernier du plan, mêmes lignes."""
+        last = float(getattr(self.billed, "last_year_month", 0.0) or 0.0) if self.billed is not None else 0.0
+        if self.plan_last_year <= 0 or last <= 0:
+            return None
+        return last / self.plan_last_year
+
+    @property
+    def coverage_label(self) -> str:
+        return "%.0f %%" % (self.coverage * 100) if self.coverage is not None else "n/d"
 
     @property
     def share_label(self) -> str:
@@ -324,17 +345,34 @@ class Together:
 def sell_in_plan_for(budget, markets: Sequence[str], period: str) -> float:
     """Le plan sell-in du mois sur des marchés : les lignes du plan dont le segment est
     facturé à un partenaire. Zéro quand le plan ne les nomme pas."""
+    return sell_in_plan_lines(budget, markets, period)[0]
+
+
+def sell_in_plan_lines(budget, markets: Sequence[str], period: str):
+    """Le plan sell-in du mois et son an dernier, tels que le classeur les écrit sur les
+    marchés donnés : (plan, an dernier). L'an dernier du plan est ce qui dit si la source
+    des factures voit ce périmètre — un périmètre dont les factures de l'an dernier font
+    le tiers de l'an dernier du plan n'est pas dans la source, et son mot serait faux."""
     from .budget import perimeter_of
 
     wanted = set(markets)
-    total = 0.0
+    total = last_year = 0.0
     for line in getattr(budget, "lines", None) or ():
         if getattr(line, "period", "") != period or getattr(line, "market", "") not in wanted:
             continue
         if perimeter_of(str(getattr(line, "segment", "") or "")) != "sell-in":
             continue
         total += float(getattr(line, "budget", 0.0) or 0.0)
-    return total
+        last_year += float(getattr(line, "last_year", 0.0) or 0.0)
+    return total, last_year
+
+
+#: Les factures de l'an dernier contre l'an dernier du plan, sur les mêmes lignes : en deçà
+#: du plancher, la source des factures ne voit pas ce périmètre (une filiale hors du
+#: système de facturation lu) ; au-delà du plafond, elle lui attribue des factures qui
+#: sont au plan d'un autre. Dans les deux cas, pas de mot : la raison, avec le taux.
+SELL_IN_COVERAGE_FLOOR = 0.6
+SELL_IN_COVERAGE_CEILING = 1.5
 
 
 class Page:
@@ -478,8 +516,8 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
     if billed is not None:
-        together = Together(scope.month if scope is not None else None, billed,
-                            sell_in_plan_for(budget, markets, getattr(track, "period", "") or ""))
+        plan, plan_last_year = sell_in_plan_lines(budget, markets, getattr(track, "period", "") or "")
+        together = Together(scope.month if scope is not None else None, billed, plan, plan_last_year)
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,

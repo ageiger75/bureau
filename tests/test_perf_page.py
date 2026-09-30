@@ -233,3 +233,34 @@ def test_a_perimeter_without_sell_out_reads_its_month_on_sell_in_alone():
     page = P.Page("Canal", "", ["Travel retail Asia"], None, P.landing([], None, None, "", ""),
                   None, None, [], [], [], [], together=together)
     assert page.question.startswith("En avance ce mois-ci sur le sell-in")
+
+
+def test_the_month_with_sell_in_refuses_a_word_when_the_invoices_do_not_cover_the_perimeter():
+    from app.perf import track
+
+    class _Bill:
+        def __init__(self, current, last_year_month):
+            self.current, self.share_by_now, self.last_year_month = current, 0.9, last_year_month
+
+    sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
+    # L'an dernier, le plan disait 1 000 de sell-in sur ces lignes ; les factures lues n'en
+    # voyaient que 200 : ce périmètre facture hors de la source, le mot serait faux.
+    thin = P.Together(sell_out, _Bill(300.0, 200.0), 1_000.0, plan_last_year=1_000.0)
+    assert not thin.usable and thin.coverage == 0.2 and "ne couvrent que 20 %" in thin.absent
+    # Trois fois l'an dernier du plan : des factures qui sont au plan d'un autre périmètre.
+    fat = P.Together(sell_out, _Bill(3_000.0, 3_000.0), 1_000.0, plan_last_year=1_000.0)
+    assert not fat.usable and "au plan d'un autre" in fat.absent
+    fine = P.Together(sell_out, _Bill(900.0, 950.0), 1_000.0, plan_last_year=1_000.0)
+    assert fine.usable and fine.coverage_label == "95 %"
+    # Sans an dernier au plan, la couverture ne se juge pas et le mot reste.
+    blind = P.Together(sell_out, _Bill(900.0, 950.0), 1_000.0)
+    assert blind.usable and blind.coverage is None
+
+    class _Line:
+        def __init__(self, market, segment, budget, last_year):
+            self.market, self.period, self.segment = market, "2026-09", segment
+            self.budget, self.last_year = budget, last_year
+
+    budget = _Budget([_Line("Northland", "DIS - Distributors", 1_000.0, 800.0),
+                      _Line("Northland", "RET - Retail", 5_000.0, 4_000.0)])
+    assert P.sell_in_plan_lines(budget, ["Northland"], "2026-09") == (1_000.0, 800.0)

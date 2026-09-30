@@ -324,9 +324,9 @@ def _togethers(track, invoiced, known, budget):
         if billed is None:
             continue
         scope = scopes.get(name)
-        found[name] = page_module.Together(
-            scope.month if scope is not None else None, billed,
-            page_module.sell_in_plan_for(budget, item["markets"], period))
+        plan, plan_last_year = page_module.sell_in_plan_lines(budget, item["markets"], period)
+        found[name] = page_module.Together(scope.month if scope is not None else None, billed,
+                                           plan, plan_last_year)
     return found
 
 

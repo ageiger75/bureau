@@ -4409,7 +4409,15 @@ def cmd_ensemble(argv: List[str]) -> int:
     for line in sorted(met, key=lambda l: -(getattr(l, "budget", 0.0) or 0.0)):
         print("    %-22s %-28s %10s" % (line.market[:22], str(line.segment)[:28], format_eur(line.budget or 0.0)))
     total = sum(float(getattr(l, "budget", 0.0) or 0.0) for l in met)
-    print("  plan sell-in du mois rencontré par %s : %s" % (label, format_eur(total)))
+    plan_last_year = sum(float(getattr(l, "last_year", 0.0) or 0.0) for l in met)
+    print("  plan sell-in du mois rencontré par %s : %s ; l'an dernier du plan sur ces lignes : %s" % (
+        label, format_eur(total), format_eur(plan_last_year)))
+    if billed is not None and plan_last_year > 0 and billed.last_year_month > 0:
+        print("  couverture : les factures du même mois l'an dernier font %.0f %% de l'an dernier du plan "
+              "— en deçà de %.0f %% la source ne voit pas ce périmètre, au-delà de %.0f %% elle lui "
+              "attribue des factures au plan d'un autre" % (
+                  100 * billed.last_year_month / plan_last_year,
+                  100 * page_module.SELL_IN_COVERAGE_FLOOR, 100 * page_module.SELL_IN_COVERAGE_CEILING))
     if orphan:
         print("  lignes sell-in du plan qu'AUCUN périmètre ne rencontre (le marché du plan n'est pas dans "
               "l'annuaire : à y déclarer sous la bonne BU pour qu'un périmètre le compte) :")
@@ -4421,7 +4429,7 @@ def cmd_ensemble(argv: List[str]) -> int:
     # 4. La carte, telle que la page la calcule.
     print("ENSEMBLE — la carte")
     if verdict is not None and billed is not None:
-        together = page_module.Together(verdict, billed, total)
+        together = page_module.Together(verdict, billed, total, plan_last_year)
         if together.usable:
             print("  %s : %s contre %s à %s (%s)" % (
                 together.verdict.label, format_eur(together.verdict.actual), format_eur(together.verdict.low),

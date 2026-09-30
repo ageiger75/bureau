@@ -171,7 +171,7 @@
             {% if both and both.usable %}
               <td class="cell-verdict"><span class="chip is-{{ both.verdict.label | replace(' ', '-') }}">{{ both.verdict.label }}</span> <span class="cell-gap {{ 'is-en-retard' if both.verdict.direction == 'en retard' else ('is-en-avance' if both.verdict.direction == 'en avance' else '') }}" title="{{ both.basis }}">{{ both.verdict.gap_label }}</span></td>
             {% elif both %}
-              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else 'sans sell-in lisible' }}</td>
+              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else ('factures hors source, ' ~ both.coverage_label ~ " de l'an dernier" if 'ne couvrent que' in both.absent else ("factures d'un autre périmètre, " ~ both.coverage_label if "au plan d'un autre" in both.absent else 'sans sell-in lisible')) }}</td>
             {% else %}
               <td class="absent">sans sell-in rangé</td>
             {% endif %}
@@ -190,7 +190,7 @@
             {% if both.usable %}
               <td class="cell-verdict"><span class="chip is-{{ both.verdict.label | replace(' ', '-') }}">{{ both.verdict.label }}</span> <span class="cell-gap {{ 'is-en-retard' if both.verdict.direction == 'en retard' else ('is-en-avance' if both.verdict.direction == 'en avance' else '') }}" title="{{ both.basis }}">{{ both.verdict.gap_label }}</span></td>
             {% else %}
-              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else 'sans sell-in lisible' }}</td>
+              <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else ('factures hors source, ' ~ both.coverage_label ~ " de l'an dernier" if 'ne couvrent que' in both.absent else ("factures d'un autre périmètre, " ~ both.coverage_label if "au plan d'un autre" in both.absent else 'sans sell-in lisible')) }}</td>
             {% endif %}
           </tr>
         {% endfor %}{% endif %}
