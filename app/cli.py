@@ -4437,10 +4437,11 @@ def cmd_ensemble(argv: List[str]) -> int:
         print("  " + together.basis)
     else:
         print("  pas de carte : il manque %s" % ("le verdict sell-out" if verdict is None else "le sell-in facturé"))
-    print("  Le verdict du haut de page est sell-out seul ; la carte ajoute le sell-in facturé contre le plan "
-          "sell-in du mois pris à la forme de l'an dernier. Un « en retard » vient de l'un des quatre : "
-          "un marché hors verdict, un pays non rangé, une ligne de plan orpheline, ou une forme de mois "
-          "que l'an dernier ne reproduit pas.")
+    print("  Le verdict du haut de page est sell-out seul ; la carte ajoute le sell-in facturé contre les "
+          "factures de l'an dernier à jours ouvrés égaux, au rythme du plan sur son an dernier. Un "
+          "« en retard » vient de l'un des cinq : un marché hors verdict, un pays non rangé, une ligne de "
+          "plan orpheline, une source qui ne voit pas les factures du périmètre, ou un plan qui a changé "
+          "de périmètre entre les deux années.")
     return 0
 
 
