@@ -4342,13 +4342,21 @@ def cmd_ensemble(argv: List[str]) -> int:
     directory = owners.current() if settings.has_owners_file else None
     by_iso2 = {}
     for row in rows:
-        if str(row.get("window") or "").strip().lower() != "current":
+        window = str(row.get("window") or "").strip().lower()
+        if window not in ("current", "last_year"):
             continue
         iso2 = str(row.get("iso2") or "").strip().upper() or "??"
         pos = (str(row.get("pos_type") or "").strip().upper() if "pos_type" in row else "")
         code = str(row.get("channel") or "").strip().lower()
         amount = float(row.get("net_eur") or 0.0)
-        cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0, "travel": 0.0})
+        cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0, "travel": 0.0,
+                                         "last_year": 0.0})
+        if window == "last_year":
+            # Le mois entier de l'an dernier, sell-in commercial seulement : c'est ce que le
+            # plan devrait retrouver dans sa colonne « an dernier » pour ce marché.
+            if (not pos or pos in COMMERCIAL_POS_TYPES) and code in CODES and code != TRAVEL_RETAIL_CODE:
+                cell["last_year"] += amount
+            continue
         if pos and pos not in COMMERCIAL_POS_TYPES:
             cell["intragroup"] += amount
         elif code not in CODES:
@@ -4406,8 +4414,16 @@ def cmd_ensemble(argv: List[str]) -> int:
             met.append(line)
         elif market not in every_market:
             orphan.append(line)
+    ly_by_market = {}
+    for iso2, cell in by_iso2.items():
+        ly_by_market[names.get(iso2, iso2)] = ly_by_market.get(names.get(iso2, iso2), 0.0) + cell.get("last_year", 0.0)
+    print("    %-22s %-28s %10s  %10s  %s" % ("marché du plan", "segment", "plan", "an dernier", "factures l'an dernier, ce marché"))
     for line in sorted(met, key=lambda l: -(getattr(l, "budget", 0.0) or 0.0)):
-        print("    %-22s %-28s %10s" % (line.market[:22], str(line.segment)[:28], format_eur(line.budget or 0.0)))
+        seen_ly = ly_by_market.get(line.market)
+        print("    %-22s %-28s %10s  %10s  %s" % (
+            line.market[:22], str(line.segment)[:28], format_eur(line.budget or 0.0),
+            format_eur(getattr(line, "last_year", 0.0) or 0.0),
+            format_eur(seen_ly) if seen_ly else "aucune"))
     total = sum(float(getattr(l, "budget", 0.0) or 0.0) for l in met)
     plan_last_year = sum(float(getattr(l, "last_year", 0.0) or 0.0) for l in met)
     print("  plan sell-in du mois rencontré par %s : %s ; l'an dernier du plan sur ces lignes : %s" % (
