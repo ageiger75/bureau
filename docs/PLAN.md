@@ -958,7 +958,13 @@ s'annulent : une source qui voyait les trois quarts du sell-in d'un périmètre 
 (l'EMEA, 75 %) n'est pas sommée d'en voir le tout, ce qui disait « en retard » à tort. Sans an
 dernier au plan, la part du plan facturée l'an dernier. Deux gardes restent : en deçà de
 `SELL_IN_COVERAGE_FLOOR` (l'APAC, 6 % — ses filiales facturent hors de la source, seul
-l'intragroupe s'y voit) ou au-delà du plafond, pas de mot, la raison et le taux.
+l'intragroupe s'y voit) ou au-delà du plafond, pas de mot, la raison et le taux. Entre
+100 % et le plafond, le rythme du plan demanderait plus que le plan lui-même (l'Amérique du
+Nord, 112 % : un attendu du mois au-dessus du plan du mois) ; on ne demande
+jamais plus que le plan, l'attendu redevient le plan à la forme du mois
+(`Together.over_plan`). `manage.py ensemble` montre, ligne du plan par ligne, l'an dernier
+du plan et les factures de l'an dernier sur ce marché : c'est là qu'on voit un marché que
+la source ne voyait pas l'an dernier (le Mexique) ou un plan qui a changé de périmètre.
 
 ### Phase 5 — B6, les moteurs du plan
 

@@ -308,7 +308,11 @@ class Together:
         voyait les trois quarts du sell-in l'an dernier n'est pas sommée d'en voir le tout.
         Sans an dernier au plan, la part du plan que l'an dernier avait facturée."""
         aligned = float(getattr(self.billed, "aligned", 0.0) or 0.0)
-        if self.plan_last_year > 0 and aligned > 0:
+        #: Une source qui voyait l'an dernier plus que l'an dernier du plan verrait, au rythme
+        #: du plan, plus que le plan lui-même : on ne demande jamais plus que le plan. Elle se
+        #: lit alors contre le plan, à la forme du mois.
+        self.over_plan = self.coverage is not None and self.coverage > 1.0
+        if self.plan_last_year > 0 and aligned > 0 and not self.over_plan:
             self.at_plan_pace = True
             return aligned * (self.sell_in_plan / self.plan_last_year)
         self.at_plan_pace = False
@@ -331,8 +335,13 @@ class Together:
                     "son an dernier, mêmes lignes ; la source couvrait %s de ce sell-in l'an dernier"
                     % (format_eur(float(getattr(self.billed, "aligned", 0.0) or 0.0)),
                        self.plan_growth_label, self.coverage_label))
-        return ("%s du plan du mois (%s), la part que l'an dernier avait facturée à jours ouvrés "
-                "égaux" % (self.share_label, format_eur(self.sell_in_plan)))
+        shaped = ("%s du plan du mois (%s), la part que l'an dernier avait facturée à jours ouvrés "
+                  "égaux" % (self.share_label, format_eur(self.sell_in_plan)))
+        if getattr(self, "over_plan", False):
+            return ("%s ; la source voyait l'an dernier %s de l'an dernier du plan, au rythme du plan "
+                    "(%s) elle demanderait plus que le plan, donc le plan lui-même"
+                    % (shaped, self.coverage_label, self.plan_growth_label))
+        return shaped
 
     @property
     def usable(self) -> bool:

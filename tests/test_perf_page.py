@@ -273,13 +273,33 @@ def test_the_expected_sell_in_is_last_years_invoices_at_the_plans_pace_when_the_
     from app.perf import track
 
     class _Bill:
-        current, share_by_now, aligned, last_year_month = 560.0, 0.46, 500.0, 950.0
+        current, share_by_now, aligned, last_year_month = 560.0, 0.46, 500.0, 750.0
 
     sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
     paced = P.Together(sell_out, _Bill(), 1_000.0, plan_last_year=800.0)
     assert paced.at_plan_pace and abs(paced.expected_sell_in - 625.0) < 1e-9
     assert paced.plan_growth_label == "+25.0 %"
-    assert "au rythme du plan" in paced.basis and "couvrait 119 %" in paced.basis
+    assert "au rythme du plan" in paced.basis and "couvrait 94 %" in paced.basis
     shaped = P.Together(sell_out, _Bill(), 1_000.0)
     assert not shaped.at_plan_pace and abs(shaped.expected_sell_in - 460.0) < 1e-9
     assert "46 % du plan du mois" in shaped.basis
+
+
+def test_the_expected_sell_in_never_exceeds_the_plan_when_the_source_sees_more_than_the_plans_last_year():
+    """La source voyait 950 l'an dernier là où le plan n'en comptait que 800 : au rythme du
+    plan (+25 %) elle demanderait 625 à date, soit 1 190 sur le mois pour un plan de 1 000.
+    On ne demande jamais plus que le plan : l'attendu redevient le plan à la forme du mois."""
+    from app.perf import track
+
+    class _Bill:
+        current, share_by_now, aligned, last_year_month = 560.0, 0.46, 500.0, 950.0
+
+    sell_out = track.Verdict(440.0, 500.0, 580.0, 1.0)
+    capped = P.Together(sell_out, _Bill(), 1_000.0, plan_last_year=800.0)
+    assert capped.usable and capped.over_plan and not capped.at_plan_pace
+    assert abs(capped.expected_sell_in - 460.0) < 1e-9
+    assert "119 %" in capped.basis and "plus que le plan, donc le plan lui-même" in capped.basis
+    # À couverture exacte, le rythme du plan et le plan à la forme du mois se confondent.
+    _Bill.last_year_month = 800.0
+    exact = P.Together(sell_out, _Bill(), 1_000.0, plan_last_year=800.0)
+    assert exact.at_plan_pace and abs(exact.expected_sell_in - 625.0) < 1e-9
