@@ -13,7 +13,7 @@ des proxys faux, et ses drapeaux des constantes.
 
 from __future__ import annotations
 
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 from .analytics import format_eur
 
@@ -80,10 +80,39 @@ class Book:
 class Review:
     """Le carnet du groupe, par canal, avec sa date de lecture."""
 
-    def __init__(self, channels: Dict[str, Book], read_at: str = "", note: str = "") -> None:
+    def __init__(self, channels: Dict[str, Book], read_at: str = "", note: str = "",
+                 holds: Optional[Sequence] = None) -> None:
         self.channels = channels
         self.read_at = read_at
         self.note = note
+        #: Les notes « on_hold » du fichier de contexte qui portent un canal : un retard
+        #: tenu exprès — des livraisons qu'on a choisi de ne pas faire — n'est pas du
+        #: sell-in qui manque, et la question n'est plus « pourquoi le retard ».
+        self.holds = list(holds or [])
+
+    def hold_for(self, book: Book):
+        """La note qui tient ce canal, ou None."""
+        code = book.name.strip().lower()
+        label = book.channel_label.strip().lower()
+        for note in self.holds:
+            channel = str(getattr(note, "channel", "") or "").strip().lower()
+            if channel and channel in (code, label):
+                return note
+        return None
+
+    @property
+    def held_late(self) -> float:
+        return sum(b.late for b in self.channels.values() if self.hold_for(b) is not None)
+
+    @property
+    def free_late(self) -> float:
+        """Le retard que personne n'a choisi."""
+        return self.group.late - self.held_late
+
+    @property
+    def late_matters(self) -> bool:
+        """Le retard non tenu dépasse le promis du mois : du sell-in qui manque."""
+        return self.free_late > 0 and self.free_late > self.group.month
 
     @property
     def usable(self) -> bool:
@@ -122,16 +151,26 @@ class Review:
         if late and group.late > 0:
             text += " dont %s %s (%d %%)" % (late[0].channel_label, late[0].late_label,
                                              round(100 * late[0].late / group.late))
-        if group.late_exceeds_month:
-            text += " — le retard dépasse le promis du mois : du sell-in qui manque, pas un stock qui attend"
+            hold = self.hold_for(late[0])
+            if hold is not None:
+                text += ", retard tenu exprès : %s" % str(getattr(hold, "text", "") or "").strip().rstrip(".")
+                since = str(getattr(hold, "since", "") or "")
+                if since:
+                    text += " (depuis %s)" % since
+        if self.late_matters:
+            text += " — le retard %sdépasse le promis du mois : du sell-in qui manque, pas un stock qui attend" % (
+                "non tenu " if self.held_late > 0 else "")
+        elif self.held_late > 0 and group.late_exceeds_month:
+            text += " — hors le retard tenu, %s de retard sous le promis du mois" % format_eur(self.free_late)
         if group.blocked > 0:
             text += " ; bloqué à la livraison %s" % group.blocked_label
         text += " ; au-delà du mois %s · %s" % (group.beyond_label, self.read_label)
         return text
 
 
-def build(rows: Sequence[dict], read_at: str = "", note: str = "") -> Review:
-    """La lecture, sur les lignes de `ORDER_BOOK`."""
+def build(rows: Sequence[dict], read_at: str = "", note: str = "",
+          holds: Optional[Sequence] = None) -> Review:
+    """La lecture, sur les lignes de `ORDER_BOOK` ; `holds`, les notes « on_hold » à canal."""
     channels: Dict[str, Book] = {}
     periods: List[str] = []
     for row in rows or ():
@@ -148,4 +187,4 @@ def build(rows: Sequence[dict], read_at: str = "", note: str = "") -> Review:
     stamp = read_at or (max(periods) if periods else "")
     if not channels:
         return Review({}, stamp, note or "le carnet de commandes n'est pas lu")
-    return Review(channels, stamp, note)
+    return Review(channels, stamp, note, holds=holds)

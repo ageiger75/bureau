@@ -972,6 +972,13 @@ e-retailers et une enseigne nouvelle, pendant que les grands magasins reculaient
 sell-out. `manage.py ensemble` montre le mois à date par partenaire, contre le même mois
 entier l'an dernier, pour nommer qui porte l'écart.
 
+Le carnet ouvert lit les notes « on_hold » à canal du fichier de contexte
+(`orderbook.Review.holds`, `hold_for`, `late_matters`) : un retard tenu exprès — des
+livraisons qu'on a choisi de baisser parce que l'avance le permettait, le travel retail en
+septembre — n'est pas du sell-in qui manque, et seul le retard que personne n'a choisi se
+compare au promis du mois. La note dit la décision et sa date ; la question devient ce
+qui la lève, pas pourquoi le retard.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

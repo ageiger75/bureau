@@ -35,3 +35,29 @@ def test_the_order_queries_read_forward_only():
     assert "country" not in book and "market" not in book
     assert "proxy" not in book and "billed" not in book
     assert queries.ALL["ORDER_BOOK"] is book
+
+
+def test_a_channel_held_on_purpose_is_not_missing_sell_in():
+    """Une note « on_hold » sur le canal qui porte le retard : le carnet dit que le retard
+    est tenu exprès, et ne juge « du sell-in qui manque » que le retard que personne n'a
+    choisi. Sur TRA seul, le retard restant passe sous le promis du mois."""
+
+    class _Hold:
+        channel, text, since, kind = "TRA", "Livraisons baissées exprès, l'avance le permettait.", "2026-09", "on_hold"
+
+    review = O.build(mock.orderbook_rows(), read_at="2026-09-25 08:00 UTC", holds=[_Hold()])
+    tra = review.channels["TRA"]
+    assert review.hold_for(tra) is _Hold() or review.hold_for(tra).channel == "TRA"
+    assert review.hold_for(review.channels["WEBP"]) is None
+    assert review.held_late == tra.late and review.free_late == review.group.late - tra.late
+    assert review.group.late_exceeds_month and not review.late_matters
+    text = review.sentence
+    assert "retard tenu exprès : Livraisons baissées exprès, l'avance le permettait (depuis 2026-09)" in text
+    assert "hors le retard tenu" in text and "sell-in qui manque" not in text
+    # Le libellé du canal marche aussi bien que son code.
+    _Hold.channel = "travel retail"
+    assert O.build(mock.orderbook_rows(), holds=[_Hold()]).hold_for(tra) is not None
+    # Sans note, rien ne change.
+    plain = O.build(mock.orderbook_rows())
+    assert plain.late_matters and "le retard dépasse le promis du mois" in plain.sentence
+    assert "non tenu" not in plain.sentence

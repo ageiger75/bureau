@@ -473,8 +473,20 @@ def _orderbook(source):
     stamp = source_module.query_stamp("orderbook")
     read_at = (datetime.datetime.utcfromtimestamp(int(stamp)).strftime("%Y-%m-%d %H:%M UTC")
                if stamp.isdigit() else "")
+    from ..config import settings
+
+    holds = []
+    if settings.has_context_file:
+        from ..perf import context as context_module
+
+        # Les notes « on_hold » qui portent un canal, valables ce mois : un retard tenu
+        # exprès ne se lit pas comme du sell-in qui manque.
+        month = datetime.date.today().strftime("%Y-%m")
+        holds = [n for n in context_module.current().notes
+                 if n.kind == context_module.ON_HOLD and n.channel
+                 and n.applies_to(n.market, n.channel, month)]
     return orderbook_module.build(rows, read_at=read_at,
-                                  note=getattr(source, "orderbook_note", "") or "")
+                                  note=getattr(source, "orderbook_note", "") or "", holds=holds)
 
 
 def _supplychain(source, refresh: bool = False):
