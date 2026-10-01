@@ -10,11 +10,12 @@ la Chine à Hong Kong. Le carnet bouge chaque jour : rien ici ne se publie sans 
 lecture. Seule la colonne d'encours de la vue est lue ; ses « facturé » et « livré » sont
 des proxys faux, et ses drapeaux des constantes.
 
-Par périmètre, à une condition dite : le pays de l'entité qui facture. Exact là où chaque
-filiale facture chez elle — l'Amérique du Nord —, approximatif là où une entité facture
-vingt pays — la Hongrie pour l'EMEA. Le travel retail va à la BU qui le porte, comme les
-factures. Par partenaire, sur le centre de profit, nommé par `var/partners.csv` : « NA a
-tant de retard sur tel e-retailer », c'est la question qu'un MD peut rendre.
+Par périmètre, à une condition dite : le pays du client facturé, tel que la dimension le
+nomme, ramené au nom de marché et rangé par l'annuaire comme les factures. Un client
+facturé à Hong Kong et livré en Chine compte à Hong Kong. Le travel retail va à la BU qui
+le porte, comme les factures. Par partenaire, sur le centre de profit, nommé par
+`var/partners.csv` : « NA a tant de retard sur tel e-retailer », c'est la question qu'un
+MD peut rendre.
 """
 
 from __future__ import annotations
@@ -26,8 +27,8 @@ from .analytics import format_eur
 #: Les partenaires portés en clair dans le carnet d'un périmètre.
 PARTNERS_SHOWN = 8
 #: Ce que dit le carnet d'un périmètre tant que la lecture ne porte pas de pays.
-NO_COUNTRY_NOTE = ("le carnet n'est pas encore lu par pays ni par partenaire : la requête "
-                   "attend sa validation, puis manage.py refresh --supply la relit")
+NO_COUNTRY_NOTE = ("le carnet n'est pas encore lu par pays ni par partenaire : "
+                   "manage.py refresh --supply le relit avec le pays du client facturé")
 
 BUCKETS = ("late", "month", "beyond")
 #: Les canaux portés en clair avant de replier le reste.
@@ -185,36 +186,39 @@ class Review:
         return text
 
 
-def for_perimeter(rows: Sequence[dict], name: str, iso2s: Sequence[str], travel_bu: str = "",
+def for_perimeter(rows: Sequence[dict], name: str, iso2s: Sequence[str] = (), travel_bu: str = "",
                   names: Optional[Dict[str, str]] = None, read_at: str = "", note: str = "",
-                  holds: Optional[Sequence] = None) -> Review:
-    """Le carnet d'un périmètre : les lignes dont le pays de l'entité facturante est rangé
-    chez lui, plus le travel retail s'il le porte ; par canal, et par partenaire."""
+                  holds: Optional[Sequence] = None, markets: Sequence[str] = ()) -> Review:
+    """Le carnet d'un périmètre : les lignes dont le pays du client facturé, ramené au nom
+    de marché, est l'un des siens — ou dont l'ISO2 l'est, quand la lecture en porte un —,
+    plus le travel retail s'il le porte ; par canal, et par partenaire."""
     from .accounts import _name_of
+    from .budget import normalise_market
     from .invoiced import TRAVEL_RETAIL_CODE
 
     rows = list(rows or ())
-    if rows and not any("iso2" in row for row in rows):
+    if rows and not any("iso2" in row or "country" in row for row in rows):
         review = Review({}, read_at, NO_COUNTRY_NOTE, holds=holds)
         review.scope = name
         return review
     wanted = {str(i).strip().upper() for i in iso2s}
+    wanted_markets = {normalise_market(m) for m in markets}
     mine = []
     for row in rows:
         code = str(row.get("channel") or "").strip().lower()
         iso2 = str(row.get("iso2") or "").strip().upper()
+        market = normalise_market(str(row.get("country") or ""))
         if code == TRAVEL_RETAIL_CODE:
             if travel_bu and travel_bu == name:
                 mine.append(row)
             continue
-        if iso2 in wanted:
+        if (iso2 and iso2 in wanted) or (market and market in wanted_markets):
             mine.append(row)
     review = build(mine, read_at=read_at, note=note, holds=holds)
     review.scope = name
-    review.scope_note = ("sur le pays de l'entité qui facture, rangé comme les factures : exact "
-                         "quand chaque filiale facture chez elle, approximatif quand une entité "
-                         "facture plusieurs pays" + (" ; le travel retail est à %s" % travel_bu
-                                                     if travel_bu else ""))
+    review.scope_note = ("sur le pays du client facturé, rangé comme les factures : un client "
+                         "facturé dans un pays et livré dans un autre compte au premier"
+                         + (" ; le travel retail est à %s" % travel_bu if travel_bu else ""))
     partners: Dict[str, Book] = {}
     labels: Dict[str, str] = {}
     for row in mine:

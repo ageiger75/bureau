@@ -983,9 +983,14 @@ Le carnet se lit aussi par périmètre et par partenaire (`orderbook.for_perimet
 condition dite sur l'écran : le pays de l'entité qui facture, rangé comme les factures
 (`invoiced.Review.placed_countries`, `travel_bu`). Exact là où chaque filiale facture
 chez elle, approximatif là où une entité facture vingt pays. La page du périmètre et
-`manage.py ensemble` le montrent, partenaire par partenaire. La requête `ORDER_BOOK` doit
-porter `iso2 · code · label` pour cela : tant qu'elle ne les porte pas, le périmètre dit
-qu'il attend la lecture, jamais un chiffre faux.
+`manage.py ensemble` le montrent, partenaire par partenaire. La requête `ORDER_BOOK` porte
+pour cela `country · code · label` (validation Cortex du 1er octobre : la dimension du point
+de vente n'a pas d'ISO2, son pays est celui du client facturé, dit « USA » ; le groupe de
+centre de profit et son libellé sont les colonnes de la facture ; les totaux par canal et
+paquet sont inchangés à l'euro). Le cockpit ramène le pays au nom de marché et le range
+par l'annuaire. Avant la relecture, le périmètre dit qu'il attend, jamais un chiffre faux.
+Première lecture sur les États-Unis : le retard chez le premier e-retailer est petit,
+l'écart du mois n'est pas dans le carnet mais dans ce qu'il commande.
 
 ### Phase 5 — B6, les moteurs du plan
 

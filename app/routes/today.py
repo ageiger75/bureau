@@ -460,7 +460,7 @@ def _accounts(source, dataset=None, refresh: bool = False):
     return accounts_module.build(rows, names=names, channel_gaps=gaps, note=note)
 
 
-def _orderbook(source, perimeter: str = "", invoiced=None):
+def _orderbook(source, perimeter: str = "", invoiced=None, markets: Sequence[str] = ()):
     """Le carnet ouvert, de la lecture du jour ou d'hier sur le disque — jamais une requête
     sous un lecteur — avec sa date de lecture. Avec un périmètre et le mois facturé qui a
     rangé ses pays, le carnet de ce périmètre, par canal et par partenaire."""
@@ -497,7 +497,7 @@ def _orderbook(source, perimeter: str = "", invoiced=None):
 
             names = accounts_module.names_from(partners_module.current())
         return orderbook_module.for_perimeter(rows, perimeter, iso2s, travel_bu, names,
-                                              read_at=read_at, note=note, holds=holds)
+                                              read_at=read_at, note=note, holds=holds, markets=markets)
     return orderbook_module.build(rows, read_at=read_at, note=note, holds=holds)
 
 
@@ -709,7 +709,8 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                                    lambda market=market: _dossier(market, session, source=inputs["source"]),
                                    lambda exc: None) for market in item["markets"]) if d is not None]
     orderbook = _guard("carnet %s" % label,
-                       lambda: _orderbook(inputs["source"], perimeter=label, invoiced=inputs["invoiced"]),
+                       lambda: _orderbook(inputs["source"], perimeter=label, invoiced=inputs["invoiced"],
+                                          markets=item["markets"]),
                        lambda exc: None)
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],

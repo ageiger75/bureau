@@ -4514,7 +4514,7 @@ def cmd_ensemble(argv: List[str]) -> int:
     try:
         from .routes.today import _orderbook
 
-        book = _orderbook(source, perimeter=label, invoiced=invoiced)
+        book = _orderbook(source, perimeter=label, invoiced=invoiced, markets=markets)
     except Exception as exc:  # noqa: BLE001 — la ligne dit pourquoi
         book = None
         print("CARNET — illisible : %s" % exc)

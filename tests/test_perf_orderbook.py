@@ -32,7 +32,8 @@ def test_the_order_queries_read_forward_only():
     assert "try_to_number(o.bill_to_skey)" in book and "try_to_number(o.product_skey)" in book
     assert "committed_delivery_date" in book and "open_net_value_eur_annual > 0" in book
     assert "p.channel_type_desc in ('SELL IN', 'B2B')" in book and "k.product_brand_id = 'OC'" in book
-    assert "country" not in book and "market" not in book
+    # Le pays est celui du client facturé, dit tel quel ; jamais un axe « marché » bâti dessus.
+    assert "p.country_desc" in book and "market" not in book
     assert "proxy" not in book and "billed" not in book
     assert queries.ALL["ORDER_BOOK"] is book
 
@@ -67,17 +68,31 @@ def test_a_perimeter_reads_its_own_book_by_billing_country_and_by_partner():
     """Le carnet d'un périmètre : les pays de ses entités facturantes, le travel retail chez
     la BU qui le porte, et ses partenaires par retard décroissant, nommés par le fichier."""
     rows = mock.orderbook_rows()
-    north = O.for_perimeter(rows, "Nord", ["JP"], travel_bu="Voyage", names={"PC-WEB-1": "Un e-retailer"})
+    north = O.for_perimeter(rows, "Nord", markets=["Japan"], travel_bu="Voyage",
+                            names={"PC-WEB-1": "Un e-retailer"})
     assert north.usable and north.scope == "Nord" and "Voyage" in north.scope_note
     assert set(north.channels) == {"WEBP"} and north.group.late == 90_000.0
     assert [b.name for b in north.partners] == ["Un e-retailer"]
     assert north.partners[0].late == 90_000.0 and north.partners[0].month == 420_000.0
-    voyage = O.for_perimeter(rows, "Voyage", [], travel_bu="Voyage")
+    voyage = O.for_perimeter(rows, "Voyage", travel_bu="Voyage")
     assert set(voyage.channels) == {"TRA"} and voyage.partners[0].name == "Duty Free One"
-    west = O.for_perimeter(rows, "Ouest", ["FR"])
+    # Le pays de la dimension s'écrit comme elle veut : « USA », « FRANCE » — ramené au marché.
+    west = O.for_perimeter(rows, "Ouest", markets=["France"])
     assert [b.name for b in west.partners] == ["Distributor Two", "Distributor One"]
-    assert O.for_perimeter(rows, "Nulle", ["ZZ"]).usable is False
+    assert O.for_perimeter(rows, "Nulle", markets=["Nowhere"]).usable is False
+    # Une lecture qui porterait l'ISO2 se range aussi par lui.
+    with_iso = [dict(row, iso2="JP") for row in rows if row["channel"] == "WEBP"]
+    assert O.for_perimeter(with_iso, "Nord", iso2s=["JP"]).usable
     # Une lecture d'avant la requête par pays : le périmètre dit qu'il attend, rien de faux.
-    old = [{k: v for k, v in row.items() if k not in ("iso2", "code", "label")} for row in rows]
-    waiting = O.for_perimeter(old, "Nord", ["JP"])
+    old = [{k: v for k, v in row.items() if k not in ("country", "code", "label")} for row in rows]
+    waiting = O.for_perimeter(old, "Nord", markets=["Japan"])
     assert not waiting.usable and waiting.note == O.NO_COUNTRY_NOTE
+
+
+def test_the_order_book_query_carries_the_bill_to_country_and_the_profit_centre():
+    from app.perf import queries
+
+    text = queries.ORDER_BOOK
+    for column in ("as country", "as code", "as label", "p.country_desc", "o.profit_center_group_id",
+                   "o.profit_center_group_desc", "group by 1, 2, 3, 4, 6"):
+        assert column in text

@@ -1889,19 +1889,28 @@ ORDER_FILL = ""
 #: centre de profit, en trois paquets exclusifs sur la date de promesse au client
 #: (`committed_delivery_date`, remplie partout) — `late`, promis avant aujourd'hui et
 #: toujours ouvert ; `month`, promis d'aujourd'hui à la fin du mois ; `beyond`, au-delà.
-#: `period · channel · bucket · open_eur · lines · blocked_eur`. Au niveau du groupe
-#: seulement : la vue ne porte pas de pays de destination, et le pays de la dimension du
-#: point de vente est celui de l'entité facturante — la Suisse y recouvre vingt-neuf pays de
-#: facture, Hong Kong dix-huit — donc aucun axe marché n'en sort (validation du 25 septembre).
-#: La jointure au point de vente reste, pour le filtre de la maison sur son type (`SELL IN`
-#: et `B2B`), par `bill_to_skey`, texte ici et nombre sur la dimension ; la marque vit sur la
-#: dimension produit, même conversion ; le filtre kit de la maison n'existe pas ici. Le
-#: drapeau de blocage est un nombre 0/1 à nulles : une nulle compte comme non bloqué. Le
-#: carnet bouge chaque jour : jamais publié sans sa date de lecture.
+#: `period · channel · country · code · label · bucket · open_eur · lines · blocked_eur`.
+#: Le groupe se lit par canal ; le périmètre par `country`, le pays du client facturé tel
+#: que la dimension du point de vente le nomme (`country_desc`, « USA », jamais un ISO2 :
+#: la dimension n'en porte pas, validation du 1er octobre) — le cockpit le ramène au nom
+#: de marché par `normalise_market` et le range par l'annuaire, comme les factures. La
+#: vue ne porte pas de pays de destination : un client facturé à Hong Kong et livré en
+#: Chine compte à Hong Kong, et l'écran le dit. `code` et `label` sont le groupe de centre
+#: de profit et son libellé, mêmes colonnes que la facture ; le code est vide sur une part
+#: des lignes, dites « (vide) ». La jointure au point de vente sert au filtre de la maison
+#: sur son type (`SELL IN` et `B2B`), par `bill_to_skey`, texte ici et nombre sur la
+#: dimension ; la marque vit sur la dimension produit, même conversion ; le filtre kit de
+#: la maison n'existe pas ici. Le drapeau de blocage est un nombre 0/1 à nulles : une
+#: nulle compte comme non bloqué. Les totaux par canal et paquet sont les mêmes qu'avant
+#: les trois colonnes, à l'euro (validation du 1er octobre). Le carnet bouge chaque jour :
+#: jamais publié sans sa date de lecture.
 ORDER_BOOK = """
 select
     to_char(current_date, 'YYYY-MM-DD')                                   as period,
     coalesce(nullif(trim(o.profit_center_group_channel), ''), '(vide)')   as channel,
+    coalesce(nullif(trim(p.country_desc), ''), '(vide)')                  as country,
+    coalesce(nullif(trim(o.profit_center_group_id), ''), '(vide)')        as code,
+    max(o.profit_center_group_desc)                                       as label,
     iff(o.committed_delivery_date < current_date, 'late',
         iff(o.committed_delivery_date < add_months(date_trunc('month', current_date), 1),
             'month', 'beyond'))                                           as bucket,
@@ -1916,7 +1925,7 @@ where o.open_net_value_eur_annual > 0
   and not o.is_rejected
   and p.channel_type_desc in ('SELL IN', 'B2B')
   and k.product_brand_id = 'OC'
-group by 1, 2, 3
+group by 1, 2, 3, 4, 6
 """
 
 #: Le vrac de l'entrepôt ligne à ligne : ce que `KPI_READINGS` retire du sell-out pour lire

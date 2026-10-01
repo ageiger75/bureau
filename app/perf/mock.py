@@ -976,8 +976,9 @@ def orderbook_rows() -> List[dict]:
               ("DIS", "late", 40_000.0, 0.0, "FR", "PC-DIS-2", "DISTRIBUTOR TWO"),
               ("TRA", "late", 900_000.0, 600_000.0, "CN", "PC-TRA-1", "DUTY FREE ONE"),
               ("TRA", "month", 120_000.0, 0.0, "CN", "PC-TRA-1", "DUTY FREE ONE"))
+    country = {"JP": "JAPAN", "FR": "FRANCE", "CN": "CHINA"}
     return [{"period": today, "channel": channel, "bucket": bucket, "open_eur": open_eur,
-             "lines": 40, "blocked_eur": blocked, "iso2": iso2, "code": code, "label": label}
+             "lines": 40, "blocked_eur": blocked, "country": country[iso2], "code": code, "label": label}
             for channel, bucket, open_eur, blocked, iso2, code, label in shapes]
 
 
