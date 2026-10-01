@@ -353,7 +353,6 @@
       </tbody>
     </table>
     {% endif %}
-    {% if orderbook and orderbook.usable %}<p class="routed-why {{ 'is-en-retard' if orderbook.late_matters else '' }}">{{ orderbook.sentence | ucfirst }}. <a href="/analyses#sell-in-canaux">Par canal, sur Analyses</a>.</p>{% endif %}
     {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
     {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
     {% for reason in invoiced.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
@@ -361,6 +360,7 @@
     <h2>Le sell-in du mois</h2>
     <p class="empty">{% if invoiced %}{% for reason in invoiced.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les factures au jour ne sont pas lues{% endif %}</p>
   {% endif %}
+  {% if orderbook and orderbook.usable %}<p class="routed-why {{ 'is-en-retard' if orderbook.late_matters else '' }}">{{ orderbook.sentence | ucfirst }}. <a href="/analyses#carnet">Par canal, sur Analyses</a>.</p>{% endif %}
 </section>
 </div>
 

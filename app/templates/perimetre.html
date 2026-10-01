@@ -114,8 +114,13 @@
     <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
   </div>
   {% if page.together %}<p class="cockpit-caveat">Sell-in et sell-out ensemble, contre le plan : la carte « sell-in compris », en tête de page.</p>{% endif %}
+</section>
+{% endif %}
+
+{% if orderbook %}
+<section class="panel">
   {% if orderbook and orderbook.usable %}
-    <h3 class="subject-heading">Le carnet ouvert de {{ page.name }}, vers l'avant</h3>
+    <h2>Le carnet ouvert de {{ page.name }}, vers l'avant</h2>
     <p class="{{ 'product-headline' if orderbook.late_matters else 'routed-why' }}">{{ orderbook.sentence | ucfirst }}.</p>
     {% if orderbook.partners %}
     <table class="month-table mix-table">

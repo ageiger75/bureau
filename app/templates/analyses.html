@@ -418,8 +418,15 @@
   </table>
   {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
   {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ carnet ouvert #}
+
+{% if orderbook %}
+<section class="panel" id="carnet">
   {% if orderbook and orderbook.usable %}
-    <h3 class="subject-heading">Le carnet ouvert, vers l'avant</h3>
+    <h2>Le carnet ouvert, vers l'avant</h2>
     <p class="{{ 'product-headline' if orderbook.late_matters else 'routed-why' }}">{{ orderbook.sentence | ucfirst }}.</p>
     <table class="month-table mix-table">
       <thead><tr><th>Canal</th><th>Promis d'ici la fin du mois</th><th>En retard</th><th>Bloqué à la livraison</th><th>Au-delà du mois</th></tr></thead>
@@ -430,7 +437,7 @@
       {% endfor %}
       </tbody>
     </table>
-    <p class="cockpit-caveat">Commandé et pas encore facturé, sur la date de promesse au client, filtres de la maison sur le point de vente facturé et la marque. Au niveau du groupe seulement : la vue des commandes ne porte pas de pays de destination. Le retard est du sell-in qui manque au mois, pas un stock qui attend ; un carnet qui ne se purge pas n'est pas un carnet. Un canal « tenu exprès » porte une note on_hold du fichier de contexte : son retard est une décision, la question est ce qui le lève.</p>
+    <p class="cockpit-caveat">Commandé et pas encore facturé, sur la date de promesse au client, filtres de la maison sur le point de vente facturé et la marque. Par canal, au niveau du groupe ; par périmètre et par partenaire sur la page de chaque périmètre, sur le pays du client facturé. Le retard est du sell-in qui manque au mois, pas un stock qui attend ; un carnet qui ne se purge pas n'est pas un carnet. Un canal « tenu exprès » porte une note on_hold du fichier de contexte : son retard est une décision, la question est ce qui le lève.</p>
   {% elif orderbook and orderbook.note %}
     <p class="cockpit-caveat">{{ orderbook.note | ucfirst }}.</p>
   {% endif %}
