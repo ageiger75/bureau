@@ -114,6 +114,23 @@
     <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
   </div>
   {% if page.together %}<p class="cockpit-caveat">Sell-in et sell-out ensemble, contre le plan : la carte « sell-in compris », en tête de page.</p>{% endif %}
+  {% if orderbook and orderbook.usable %}
+    <h3 class="subject-heading">Le carnet ouvert de {{ page.name }}, vers l'avant</h3>
+    <p class="{{ 'product-headline' if orderbook.late_matters else 'routed-why' }}">{{ orderbook.sentence | ucfirst }}.</p>
+    {% if orderbook.partners %}
+    <table class="month-table mix-table">
+      <thead><tr><th>Partenaire</th><th>Promis d'ici la fin du mois</th><th>En retard</th><th>Bloqué à la livraison</th><th>Au-delà du mois</th></tr></thead>
+      <tbody>
+      {% for book in orderbook.partners %}
+        <tr><td>{{ book.name }}</td><td class="num">{{ book.month_label }}</td><td class="num {{ 'is-en-retard' if book.late_exceeds_month else '' }}">{{ book.late_label }}</td><td class="num">{{ book.blocked_label }}</td><td class="num">{{ book.beyond_label }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <p class="cockpit-caveat">Commandé et pas encore facturé, sur la date de promesse au client ; {{ orderbook.scope_note }}. Le partenaire est son centre de profit, nommé par var/partners.csv quand le fichier le nomme.</p>
+  {% elif orderbook and orderbook.note %}
+    <p class="cockpit-caveat">{{ orderbook.note | ucfirst }}.</p>
+  {% endif %}
 </section>
 {% endif %}
 

@@ -979,6 +979,14 @@ septembre — n'est pas du sell-in qui manque, et seul le retard que personne n'
 compare au promis du mois. La note dit la décision et sa date ; la question devient ce
 qui la lève, pas pourquoi le retard.
 
+Le carnet se lit aussi par périmètre et par partenaire (`orderbook.for_perimeter`), à une
+condition dite sur l'écran : le pays de l'entité qui facture, rangé comme les factures
+(`invoiced.Review.placed_countries`, `travel_bu`). Exact là où chaque filiale facture
+chez elle, approximatif là où une entité facture vingt pays. La page du périmètre et
+`manage.py ensemble` le montrent, partenaire par partenaire. La requête `ORDER_BOOK` doit
+porter `iso2 · code · label` pour cela : tant qu'elle ne les porte pas, le périmètre dit
+qu'il attend la lecture, jamais un chiffre faux.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

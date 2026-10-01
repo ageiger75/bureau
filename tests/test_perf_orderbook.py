@@ -61,3 +61,23 @@ def test_a_channel_held_on_purpose_is_not_missing_sell_in():
     plain = O.build(mock.orderbook_rows())
     assert plain.late_matters and "le retard dépasse le promis du mois" in plain.sentence
     assert "non tenu" not in plain.sentence
+
+
+def test_a_perimeter_reads_its_own_book_by_billing_country_and_by_partner():
+    """Le carnet d'un périmètre : les pays de ses entités facturantes, le travel retail chez
+    la BU qui le porte, et ses partenaires par retard décroissant, nommés par le fichier."""
+    rows = mock.orderbook_rows()
+    north = O.for_perimeter(rows, "Nord", ["JP"], travel_bu="Voyage", names={"PC-WEB-1": "Un e-retailer"})
+    assert north.usable and north.scope == "Nord" and "Voyage" in north.scope_note
+    assert set(north.channels) == {"WEBP"} and north.group.late == 90_000.0
+    assert [b.name for b in north.partners] == ["Un e-retailer"]
+    assert north.partners[0].late == 90_000.0 and north.partners[0].month == 420_000.0
+    voyage = O.for_perimeter(rows, "Voyage", [], travel_bu="Voyage")
+    assert set(voyage.channels) == {"TRA"} and voyage.partners[0].name == "Duty Free One"
+    west = O.for_perimeter(rows, "Ouest", ["FR"])
+    assert [b.name for b in west.partners] == ["Distributor Two", "Distributor One"]
+    assert O.for_perimeter(rows, "Nulle", ["ZZ"]).usable is False
+    # Une lecture d'avant la requête par pays : le périmètre dit qu'il attend, rien de faux.
+    old = [{k: v for k, v in row.items() if k not in ("iso2", "code", "label")} for row in rows]
+    waiting = O.for_perimeter(old, "Nord", ["JP"])
+    assert not waiting.usable and waiting.note == O.NO_COUNTRY_NOTE

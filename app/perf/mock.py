@@ -969,13 +969,16 @@ def orderbook_rows() -> List[dict]:
     import datetime
 
     today = datetime.date.today().isoformat()
-    shapes = (("WEBP", "month", 420_000.0, 0.0), ("WEBP", "late", 90_000.0, 30_000.0),
-              ("DIS", "beyond", 5_500_000.0, 0.0), ("DIS", "month", 260_000.0, 0.0),
-              ("DIS", "late", 40_000.0, 0.0),
-              ("TRA", "late", 900_000.0, 600_000.0), ("TRA", "month", 120_000.0, 0.0))
+    shapes = (("WEBP", "month", 420_000.0, 0.0, "JP", "PC-WEB-1", "WEB PARTNER ONE"),
+              ("WEBP", "late", 90_000.0, 30_000.0, "JP", "PC-WEB-1", "WEB PARTNER ONE"),
+              ("DIS", "beyond", 5_500_000.0, 0.0, "FR", "PC-DIS-1", "DISTRIBUTOR ONE"),
+              ("DIS", "month", 260_000.0, 0.0, "FR", "PC-DIS-1", "DISTRIBUTOR ONE"),
+              ("DIS", "late", 40_000.0, 0.0, "FR", "PC-DIS-2", "DISTRIBUTOR TWO"),
+              ("TRA", "late", 900_000.0, 600_000.0, "CN", "PC-TRA-1", "DUTY FREE ONE"),
+              ("TRA", "month", 120_000.0, 0.0, "CN", "PC-TRA-1", "DUTY FREE ONE"))
     return [{"period": today, "channel": channel, "bucket": bucket, "open_eur": open_eur,
-             "lines": 40, "blocked_eur": blocked}
-            for channel, bucket, open_eur, blocked in shapes]
+             "lines": 40, "blocked_eur": blocked, "iso2": iso2, "code": code, "label": label}
+            for channel, bucket, open_eur, blocked, iso2, code, label in shapes]
 
 
 def sell_in_daily() -> List[dict]:
@@ -984,6 +987,10 @@ def sell_in_daily() -> List[dict]:
     import datetime
 
     today = datetime.date.today()
+    if today.day == 1:
+        # Le 1er, le mois à date jusqu'à hier est vide, en vrai comme ici ; le jeu de
+        # démonstration se place au dernier jour du mois précédent pour rester lisible.
+        today = today - datetime.timedelta(days=1)
     first = today.replace(day=1)
     rows = []
     bases = {("JP", "webp", "SELL IN"): 60_000.0, ("FR", "dis", "SELL IN"): 35_000.0,

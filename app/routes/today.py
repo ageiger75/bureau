@@ -460,9 +460,10 @@ def _accounts(source, dataset=None, refresh: bool = False):
     return accounts_module.build(rows, names=names, channel_gaps=gaps, note=note)
 
 
-def _orderbook(source):
+def _orderbook(source, perimeter: str = "", invoiced=None):
     """Le carnet ouvert, de la lecture du jour ou d'hier sur le disque — jamais une requête
-    sous un lecteur — avec sa date de lecture."""
+    sous un lecteur — avec sa date de lecture. Avec un périmètre et le mois facturé qui a
+    rangé ses pays, le carnet de ce périmètre, par canal et par partenaire."""
     import datetime
 
     from ..perf import orderbook as orderbook_module
@@ -485,8 +486,19 @@ def _orderbook(source):
         holds = [n for n in context_module.current().notes
                  if n.kind == context_module.ON_HOLD and n.channel
                  and n.applies_to(n.market, n.channel, month)]
-    return orderbook_module.build(rows, read_at=read_at,
-                                  note=getattr(source, "orderbook_note", "") or "", holds=holds)
+    note = getattr(source, "orderbook_note", "") or ""
+    if perimeter:
+        iso2s = invoiced.countries_of(perimeter) if invoiced is not None and hasattr(invoiced, "countries_of") else []
+        travel_bu = getattr(invoiced, "travel_bu", "") or ""
+        names = {}
+        if settings.has_partners_file:
+            from ..perf import accounts as accounts_module
+            from ..perf import partners as partners_module
+
+            names = accounts_module.names_from(partners_module.current())
+        return orderbook_module.for_perimeter(rows, perimeter, iso2s, travel_bu, names,
+                                              read_at=read_at, note=note, holds=holds)
+    return orderbook_module.build(rows, read_at=read_at, note=note, holds=holds)
 
 
 def _supplychain(source, refresh: bool = False):
@@ -696,9 +708,12 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
     dossiers = [d for d in (_guard("gris %s" % market,
                                    lambda market=market: _dossier(market, session, source=inputs["source"]),
                                    lambda exc: None) for market in item["markets"]) if d is not None]
+    orderbook = _guard("carnet %s" % label,
+                       lambda: _orderbook(inputs["source"], perimeter=label, invoiced=inputs["invoiced"]),
+                       lambda exc: None)
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
-        "due_default": pledges_module.default_due(), "dossiers": dossiers,
+        "due_default": pledges_module.default_due(), "dossiers": dossiers, "orderbook": orderbook,
     })
 
 

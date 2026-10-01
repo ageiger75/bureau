@@ -4510,7 +4510,26 @@ def cmd_ensemble(argv: List[str]) -> int:
     # qui court jusqu'à la veille de son rafraîchissement, pas jusqu'à hier.
     _print_ensemble_partners(source, period, {iso2 for iso2, _cell in mine}, label)
 
-    # 5. La carte, telle que la page la calcule.
+    # 5. Le carnet ouvert du périmètre : ses pays facturants, ses partenaires.
+    try:
+        from .routes.today import _orderbook
+
+        book = _orderbook(source, perimeter=label, invoiced=invoiced)
+    except Exception as exc:  # noqa: BLE001 — la ligne dit pourquoi
+        book = None
+        print("CARNET — illisible : %s" % exc)
+    if book is not None and book.usable:
+        print("CARNET — %s, vers l'avant : %s" % (label, book.sentence))
+        print("    %-28s %10s  %10s  %10s  %10s" % ("partenaire", "promis", "en retard", "bloqué", "au-delà"))
+        for partner in book.partners:
+            print("    %-28s %10s  %10s  %10s  %10s" % (
+                partner.name[:28], format_eur(partner.month), format_eur(partner.late),
+                format_eur(partner.blocked), format_eur(partner.beyond)))
+        print("  %s" % book.scope_note)
+    elif book is not None:
+        print("CARNET — %s" % (book.note or "aucune commande ouverte"))
+
+    # 6. La carte, telle que la page la calcule.
     print("ENSEMBLE — la carte")
     if verdict is not None and billed is not None:
         together = page_module.Together(verdict, billed, total, plan_last_year)

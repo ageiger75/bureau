@@ -135,7 +135,8 @@ class Review:
                  perimeters: Sequence[Line], absent: Sequence[str],
                  loose: Optional[Line] = None, other: Optional[Line] = None,
                  other_codes: Sequence[str] = (), intragroup: Optional[Line] = None,
-                 intragroup_types: Sequence[str] = ()) -> None:
+                 intragroup_types: Sequence[str] = (), placed_countries=None,
+                 travel_bu: str = "") -> None:
         self.month = month
         self.through = through
         #: Les jours ouvrés depuis le 1er, cette année — le N de l'alignement.
@@ -151,6 +152,14 @@ class Review:
         #: Les factures aux filiales du groupe, à part : ce n'est pas du sell-in.
         self.intragroup = intragroup
         self.intragroup_types = list(intragroup_types)
+        #: Le périmètre où chaque pays facturé a été rangé (`iso2 → périmètre`), et la BU
+        #: qui porte le travel retail : le même rangement sert au carnet ouvert.
+        self.placed_countries = dict(placed_countries or {})
+        self.travel_bu = travel_bu
+
+    def countries_of(self, name: str) -> List[str]:
+        """Les pays facturés rangés dans ce périmètre."""
+        return sorted(iso2 for iso2, target in self.placed_countries.items() if target == name)
 
     @property
     def other_note(self) -> str:
@@ -373,7 +382,9 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     ordered = sorted(perimeters.values(), key=lambda line: -line.current)
     if not placed:
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")
+    placed_countries = {iso2: placed[names.get(iso2, iso2)] for iso2 in countries
+                        if iso2 != "??" and placed.get(names.get(iso2, iso2))}
     return Review(month, through, days, group, list(channels.values()), ordered, absent,
                   loose if loose.current else None, other if other.current else None,
                   sorted(other_codes), intragroup if intragroup.current else None,
-                  sorted(intragroup_types))
+                  sorted(intragroup_types), placed_countries=placed_countries, travel_bu=travel_bu)

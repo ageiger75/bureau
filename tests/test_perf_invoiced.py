@@ -239,3 +239,18 @@ def test_travel_retail_invoices_go_to_the_bu_that_carries_the_plans_entities(tmp
     ]))
     review = I.build(rows, {"JP": "Japan", "FR": "France"}, directory=without, today=TODAY)
     assert review.for_name("Japon").current == 4_400.0 and review.for_name("Travel Retail") is None
+
+
+def test_the_review_remembers_where_each_billed_country_was_placed(tmp_path):
+    """Le rangement des pays facturés sert aussi au carnet : le périmètre connaît ses pays."""
+    from tests.test_perf_owners import HEADER, directory_file
+    from app.perf import owners
+
+    directory = owners.load(directory_file(tmp_path, [
+        ["Annuaire"], HEADER,
+        ["Japon", "Aiko", "TANAKA", "General Manager, Japan", "Japon", "Patron de BU", "", "Tokyo"],
+    ]))
+    review = I.build(_rows(), {"JP": "Japan", "FR": "France"}, directory=directory, today=TODAY)
+    assert review.placed_countries == {"JP": "Japon"}
+    assert review.countries_of("Japon") == ["JP"] and review.countries_of("Ouest") == []
+    assert review.travel_bu == ""
