@@ -80,6 +80,9 @@ def test_a_perimeter_reads_its_own_book_by_billing_country_and_by_partner():
     west = O.for_perimeter(rows, "Ouest", markets=["France"])
     assert [b.name for b in west.partners] == ["Distributor Two", "Distributor One"]
     assert O.for_perimeter(rows, "Nulle", markets=["Nowhere"]).usable is False
+    # Une ligne sans groupe de centre de profit est dite, pas nommée.
+    blank = [dict(row, code="(vide)", label="") for row in rows if row["channel"] == "WEBP"]
+    assert O.for_perimeter(blank, "Nord", markets=["Japan"]).partners[0].name == "sans centre de profit"
     # Une lecture qui porterait l'ISO2 se range aussi par lui.
     with_iso = [dict(row, iso2="JP") for row in rows if row["channel"] == "WEBP"]
     assert O.for_perimeter(with_iso, "Nord", iso2s=["JP"]).usable

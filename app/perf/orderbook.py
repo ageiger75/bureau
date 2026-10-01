@@ -234,8 +234,11 @@ def for_perimeter(rows: Sequence[dict], name: str, iso2s: Sequence[str] = (), tr
                  int(row.get("lines") or 0))
     shown = []
     for code, book in sorted(partners.items(), key=lambda item: (-item[1].late, -item[1].due)):
-        label, _named = _name_of(code, labels.get(code, ""), names or {})
-        book.name = label
+        if code == "(VIDE)":
+            # Des lignes sans groupe de centre de profit : dites, jamais nommées.
+            book.name = "sans centre de profit"
+        else:
+            book.name, _named = _name_of(code, labels.get(code, ""), names or {})
         shown.append(book)
     review.partners = shown[:PARTNERS_SHOWN]
     return review
