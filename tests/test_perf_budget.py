@@ -1306,3 +1306,25 @@ def test_the_plan_says_which_maisons_it_summed():
 
     quiet = Budget([BudgetLine("Brazil", "BRAZIL", "RET", "retail", "2026-04", 10.0, 9.0)])
     assert quiet.brands == []
+
+
+def test_an_interval_of_the_consolidation_meets_the_plans_months_added_together():
+    """Two months a missing snapshot made inseparable read `2026-07..2026-08`; against one
+    month the plan was "not read", and two months of shipments sat beside a plan the screen
+    had refused to add up. The interval meets the plan's own months summed."""
+    def line(period, budget, last_year):
+        return BudgetLine(market="Northland", region="N", segment="WHOCH - Chains Wholesale",
+                          channel="whoch", period=period, budget=budget, last_year=last_year, entity="")
+
+    plan = Budget([line("2026-07", 1_000.0, 800.0), line("2026-08", 3_000.0, 1_200.0),
+                   line("2026-09", 500.0, None)])
+    assert plan.budget_for("Northland", "whoch", "2026-08") == 3_000.0
+    assert plan.budget_for("Northland", "whoch", "2026-07..2026-08") == 4_000.0
+    assert plan.last_year_for("Northland", "whoch", "2026-07..2026-08") == 2_000.0
+    # A month without last year does not turn the interval's last year into nothing.
+    assert plan.budget_for("Northland", "whoch", "2026-08..2026-09") == 3_500.0
+    assert plan.last_year_for("Northland", "whoch", "2026-08..2026-09") == 1_200.0
+    assert plan.budget_for("Northland", "whoch", "2026-10..2026-11") is None
+    assert plan.budget_for("Northland", "webp", "2026-07..2026-08") is None
+    assert budget_module.months_of("2026-11..2027-02") == ["2026-11", "2026-12", "2027-01", "2027-02"]
+    assert budget_module.months_of("2026-09") == ["2026-09"] and budget_module.months_of("n/a") == []

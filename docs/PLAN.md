@@ -1030,6 +1030,15 @@ succession que personne n'a nommée est dite (`Review.succession_note`), jamais 
 d'office. Les croissances par canal de la consolidation et des factures au jour restent
 brutes tant que la Finance ne retraite pas.
 
+Le dossier de visite lisait « plan non lu » sur tout le sell-in des États-Unis et
+additionnait deux mois de factures à un mois de tickets : la consolidation s'arrêtait sur un
+intervalle de deux mois, écrit `2026-07..2026-08` parce qu'un instantané manquant les rend
+inséparables, et le plan, écrit au mois, ne connaissait pas cette clé. Désormais un
+intervalle rencontre les mois du plan additionnés (`budget.Budget.line`, `months_of`),
+comme le fait la réconciliation ; et quand le sell-in lu n'est pas du mois du sell-out, le
+dossier le dit, ne l'additionne pas au mois, ne calcule pas de part et ne pose pas la
+question du ciseau (`visit.Dossier.sell_in_apart`, `period_phrase`).
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

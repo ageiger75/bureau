@@ -218,3 +218,26 @@ def test_a_market_without_a_validated_flag_says_method_not_absence():
 
     china = _dossier()
     assert china.flag_validated and "zéro de méthode" not in china.marked_sentence
+
+
+def test_sell_in_of_another_period_is_read_apart_and_never_added_to_the_month():
+    """La consolidation s'arrête sur un intervalle de deux mois quand le sell-out est au
+    mois suivant : le dossier le dit, ne l'additionne pas au mois, ne calcule pas de part,
+    et ne pose pas la question du ciseau sur deux périmètres de temps différents."""
+    units = [_Unit("Southland", "retail", 600.0, 500.0), _Unit("Southland", "wholesale", 900.0, 300.0, sell_in=True)]
+    units[0].period, units[1].period = "2026-09", "2026-07..2026-08"
+    dossier = visit.build("Southland", dataset=_Dataset(units))
+    assert dossier.sell_in_apart and dossier.sell_in_period_label == "juillet et août 2026"
+    assert dossier.month_sales == 600.0 and dossier.sell_in_share is None
+    assert dossier.sell_in_share_label == "aucun" and not dossier.scissors_open
+    assert "juillet et août 2026" in dossier.sell_in_apart_sentence and "septembre 2026" in dossier.sell_in_apart_sentence
+    sentence = dossier.sell_in_grey_sentence
+    assert "le sell-in lu est celui de juillet et août 2026" in sentence and "ne se lit pas" in sentence
+    assert "sur ses mois" in sentence
+    assert not any("des ventes du mois" in q for q in dossier.questions)
+    # Même mois des deux côtés : rien ne change.
+    units[1].period = "2026-09"
+    same = visit.build("Southland", dataset=_Dataset(units))
+    assert not same.sell_in_apart and same.month_sales == 1_500.0 and same.sell_in_share == 0.6
+    assert visit.period_phrase("2026-09") == "septembre 2026"
+    assert visit.period_phrase("2026-11..2027-01") == "de novembre 2026 à janvier 2027"

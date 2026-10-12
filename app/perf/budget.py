@@ -302,6 +302,25 @@ class BudgetLine:
         self.entity = entity
 
 
+def months_of(period: str) -> List[str]:
+    """The months an interval covers: `2026-07..2026-08` -> July and August. A single
+    month is itself; anything unreadable is nothing, never a guess."""
+    text = (period or "").strip()
+    if ".." not in text:
+        return [text] if len(text) == 7 and text[4] == "-" else []
+    first, last = (part.strip() for part in text.split("..", 1))
+    try:
+        year, month = int(first[:4]), int(first[5:7])
+        end_year, end_month = int(last[:4]), int(last[5:7])
+    except ValueError:
+        return []
+    months: List[str] = []
+    while (year, month) <= (end_year, end_month) and len(months) < 24:
+        months.append("%04d-%02d" % (year, month))
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return months
+
+
 def _add(first: Optional[float], second: Optional[float]) -> Optional[float]:
     """Sum two figures, where absent plus absent stays absent.
 
@@ -351,7 +370,24 @@ class Budget:
             existing.last_year = _add(existing.last_year, line.last_year)
 
     def line(self, market: str, channel: str, period: str) -> Optional[BudgetLine]:
-        return self._index.get((market, channel, period))
+        found = self._index.get((market, channel, period))
+        if found is not None or ".." not in (period or ""):
+            return found
+        # An interval of the consolidation — two months a missing snapshot made inseparable,
+        # written `2026-07..2026-08` — meets the plan's own months added together, as the
+        # reconciliation does. Read against one month it was "plan non lu", and the screen
+        # showed two months of shipments beside a plan it had refused to add up.
+        parts = [self._index.get((market, channel, month)) for month in months_of(period)]
+        parts = [part for part in parts if part is not None]
+        if not parts:
+            return None
+        budget = last_year = None
+        for part in parts:
+            budget = _add(budget, part.budget)
+            last_year = _add(last_year, part.last_year)
+        return BudgetLine(market=market, region=parts[0].region, segment=parts[0].segment,
+                          channel=channel, period=period, budget=budget, last_year=last_year,
+                          entity=parts[0].entity)
 
     def budget_for(self, market: str, channel: str, period: str) -> Optional[float]:
         found = self.line(market, channel, period)

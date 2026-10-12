@@ -22,7 +22,8 @@
 <section class="panel" id="canaux">
   <h2>Les canaux, le mois contre le plan</h2>
   {% if dossier.channels %}
-    <p class="product-headline">{{ dossier.month_sales | eur }} ce mois, {{ dossier.month_gap | eur }} contre le plan, tous canaux.</p>
+    <p class="product-headline">{{ dossier.month_sales | eur }} ce mois, {{ dossier.month_gap | eur }} contre le plan, {% if dossier.sell_in_apart %}sell-out seul{% else %}tous canaux{% endif %}.</p>
+    {% if dossier.sell_in_apart %}<p class="cockpit-caveat">{{ dossier.sell_in_apart_sentence | ucfirst }}.</p>{% endif %}
     <table class="month-table product-table">
       <thead><tr><th>Canal</th><th>Ventes</th><th>vs plan</th><th>vs l'an dernier</th><th></th></tr></thead>
       <tbody>

@@ -41,15 +41,35 @@ LEAST_SELL_IN_SHARE = 0.15
 DUTY_FREE_JUMP = 0.25
 
 
+def period_phrase(period: str) -> str:
+    """« septembre 2026 », ou « juillet et août 2026 » pour un intervalle de la consolidation."""
+    from .budget import months_of
+    from .invoiced import MONTHS_FR
+
+    months = months_of(period)
+    if not months:
+        return period or ""
+    names = [MONTHS_FR[int(month[5:7]) - 1] for month in months]
+    years = sorted({month[:4] for month in months})
+    if len(names) == 1:
+        return "%s %s" % (names[0], years[0])
+    if len(years) == 1:
+        return "%s et %s %s" % (", ".join(names[:-1]), names[-1], years[0])
+    return "de %s %s à %s %s" % (names[0], months[0][:4], names[-1], months[-1][:4])
+
+
 class Channel:
     __slots__ = ("label", "channel_label", "sales", "gap", "last_year", "is_sell_in",
-                 "reason", "question", "budget_known")
+                 "reason", "question", "budget_known", "period")
 
     def __init__(self, unit) -> None:
         from .mapping import _channel_label
 
         self.label = unit.label
         self.channel_label = _channel_label(getattr(unit, "channel", ""))
+        #: Le mois de la ligne — ou l'intervalle de la consolidation, « 2026-07..2026-08 »,
+        #: quand un instantané manquant a rendu deux mois inséparables.
+        self.period = str(getattr(unit, "period", "") or "")
         self.sales = float(unit.sales_actual or 0.0)
         #: Sans plan connu, pas d'écart : un écart égal aux ventes dirait que le plan est
         #: zéro, ce qui n'est jamais ce qu'un plan absent veut dire.
@@ -182,13 +202,43 @@ class Dossier:
 
         return slug(self.name)
 
+    # ---- le mois du sell-out, et celui du sell-in quand la consolidation en est ailleurs
+    @property
+    def sell_out_period(self) -> str:
+        periods = [item.period for item in self.channels if not item.is_sell_in and item.period]
+        return max(periods, key=periods.count) if periods else ""
+
+    @property
+    def sell_in_period(self) -> str:
+        periods = [item.period for item in self.channels if item.is_sell_in and item.period]
+        return max(periods, key=periods.count) if periods else ""
+
+    @property
+    def sell_in_apart(self) -> bool:
+        """Vrai quand le sell-in lu n'est pas du mois du sell-out : un autre mois, ou un
+        intervalle de la consolidation. Il se lit alors à part, jamais additionné."""
+        return bool(self.sell_in_period) and bool(self.sell_out_period) and (
+            self.sell_in_period != self.sell_out_period)
+
+    @property
+    def sell_in_period_label(self) -> str:
+        return period_phrase(self.sell_in_period)
+
+    @property
+    def sell_in_apart_sentence(self) -> str:
+        if not self.sell_in_apart:
+            return ""
+        return ("le sell-in ci-dessous est celui de %s, le dernier que la consolidation "
+                "connaisse : il ne s'additionne pas aux ventes de %s et ne s'y compare pas"
+                % (self.sell_in_period_label, period_phrase(self.sell_out_period)))
+
     @property
     def month_gap(self) -> float:
-        return sum(item.gap for item in self.channels)
+        return sum(item.gap for item in self.channels if not (self.sell_in_apart and item.is_sell_in))
 
     @property
     def month_sales(self) -> float:
-        return sum(item.sales for item in self.channels)
+        return sum(item.sales for item in self.channels if not (self.sell_in_apart and item.is_sell_in))
 
     @property
     def budget_total(self) -> float:
@@ -232,6 +282,10 @@ class Dossier:
 
     @property
     def sell_in_share(self) -> Optional[float]:
+        """La part du sell-in dans les ventes du mois — du même mois seulement : deux mois
+        de factures sur un mois de tickets ne font pas une part."""
+        if self.sell_in_apart:
+            return None
         total = self.month_sales
         return self.sell_in_sales / total if total > 0 and self.sell_in_channels else None
 
@@ -265,12 +319,20 @@ class Dossier:
         if not self.sell_in_channels:
             return ("aucun canal sell-in sur %s ce mois : le gris de ce marché passe par ses "
                     "tickets, que la lecture couvre" % self.name)
-        text = ("le sell-in fait %s des ventes du mois de %s (%s), hors de toute lecture du "
-                "gris : les factures aux partenaires ne portent pas de drapeau vrac"
-                % (self.sell_in_share_label, self.name, format_eur(self.sell_in_sales)))
+        if self.sell_in_apart:
+            text = ("le sell-in lu est celui de %s (%s), le dernier que la consolidation "
+                    "connaisse, hors de toute lecture du gris : sa part des ventes de %s ne se "
+                    "lit pas" % (self.sell_in_period_label, format_eur(self.sell_in_sales),
+                                 period_phrase(self.sell_out_period)))
+        else:
+            text = ("le sell-in fait %s des ventes du mois de %s (%s), hors de toute lecture du "
+                    "gris : les factures aux partenaires ne portent pas de drapeau vrac"
+                    % (self.sell_in_share_label, self.name, format_eur(self.sell_in_sales)))
         if self.sell_in_growth is not None and self.sell_out_growth is not None:
-            text += " ; il fait %s sur l'an dernier quand le sell-out fait %s" % (
-                format_pct(self.sell_in_growth), format_pct(self.sell_out_growth))
+            text += " ; il fait %s sur l'an dernier%s quand le sell-out fait %s" % (
+                format_pct(self.sell_in_growth),
+                " sur ses mois" if self.sell_in_apart else "",
+                format_pct(self.sell_out_growth))
             if self.scissors_open:
                 text += (" — ce que les partenaires achètent ne se vend pas en face : du stock "
                          "chez eux, ou un flux qui ressort ailleurs")
