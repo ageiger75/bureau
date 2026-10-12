@@ -143,3 +143,42 @@ def test_a_centre_that_stopped_and_the_newcomers_that_relay_it_are_read_side_by_
     assert "1 centre arrêté cette année" in review.relay_sentence
     assert "Old Operator" in review.relay_sentence and "New One" in review.relay_sentence
     assert "la relève couvre 60 %" in review.relay_sentence
+
+
+def _months(first, last, value):
+    months, year, month = {}, int(first[:4]), int(first[5:7])
+    while "%04d-%02d" % (year, month) <= last:
+        months["%04d-%02d" % (year, month)] = value
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return months
+
+
+def test_codes_named_the_same_partner_read_as_one_line_at_constant_perimeter():
+    """A partner moved to a new profit centre in another channel: two lines, the old one
+    "stopped", the new one at several times nothing, and the relay covering itself. Named
+    the same in the reader's file, the codes read as one partner, on the channel of the
+    code invoicing last, with last year kept."""
+    import datetime
+
+    old = _rows("PC_OLD", "ORBIS", "webp", _months("2025-04", "2026-04", 100_000.0), iso2="US")
+    new = _rows("PC_NEW", "Orbis", "whoch", _months("2026-05", "2026-08", 300_000.0), iso2="US")
+    other = _rows("PC_ELSE", "Other Shop", "dpt", _months("2025-04", "2026-08", 50_000.0), iso2="FR")
+    today = datetime.date(2026, 9, 15)
+
+    review = A.build(old + new + other, names={"PC_OLD": "Orbis", "PC_NEW": "Orbis"}, today=today)
+    assert [p.name for p in review.partners] == ["Orbis", "Other Shop"]
+    orbis = review.partners[0]
+    assert orbis.named and orbis.channel == "whoch" and "PC_OLD" in orbis.code and "PC_NEW" in orbis.code
+    assert orbis.ytd == 100_000.0 + 4 * 300_000.0 and orbis.ytd_ly == 5 * 100_000.0
+    assert round(orbis.growth_ytd, 2) == 1.6
+    assert [c.country for c in orbis.countries] == ["US"] and orbis.countries[0].ytd == orbis.ytd
+    assert review.stopped == [] and review.newcomers == [] and review.succession_note == ""
+    # The channel reads the whole partner on its current channel, both years.
+    assert orbis.channel_ytd == orbis.ytd
+
+    # Unnamed, the two codes stay two lines and the succession is said, never merged.
+    plain = A.build(old + new + other, today=today)
+    assert sorted(p.name for p in plain.partners) == ["Orbis", "Orbis", "Other Shop"]
+    assert [p.name for p in plain.stopped] == ["Orbis"] and [p.name for p in plain.newcomers] == ["Orbis"]
+    assert plain.succession_note.startswith("1 centre arrêté dont la relève porte le même libellé")
+    assert "Orbis puis Orbis" in plain.succession_note

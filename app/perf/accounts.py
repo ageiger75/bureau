@@ -277,6 +277,33 @@ class Review:
         return text
 
     @property
+    def succession_note(self) -> str:
+        """Un centre arrêté dont un nouveau porte le même libellé, et qu'aucun nom du fichier
+        ne relie : dit, pas fusionné. Le cockpit ne décide pas qu'un code en suit un autre ;
+        il montre ce qu'il faudrait écrire pour que les deux se lisent en une ligne."""
+        from .boundary import same_partner
+
+        pairs = []
+        for old in self.stopped:
+            if old.named:
+                continue
+            for new in self.newcomers:
+                if new.named or new is old or not same_partner(old.name, new.name):
+                    continue
+                shared = ({c.country for c in old.countries} & {c.country for c in new.countries})
+                if old.countries and new.countries and not shared:
+                    continue
+                pairs.append((old, new))
+        if not pairs:
+            return ""
+        return ("%d centre%s arrêté%s dont la relève porte le même libellé, sans nom dans "
+                "var/partners.csv : %s ; nommés d'un même nom dans le fichier, ils se lisent en "
+                "une ligne, à périmètre constant, et la croissance du partenaire et de son canal "
+                "cesse d'être gonflée par le changement de code"
+                % (len(pairs), "s" if len(pairs) > 1 else "", "s" if len(pairs) > 1 else "",
+                   " ; ".join("%s puis %s" % (old.name, new.name) for old, new in pairs[:3])))
+
+    @property
     def shown(self) -> List[Partner]:
         return self.partners[:MOST]
 
@@ -397,6 +424,7 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
             line.months[period] = line.months.get(period, 0.0) + value
     if not by_code:
         return Review([], note=note or "aucune facture de partenaire dans la lecture")
+    _merge_named(by_code, by_country)
 
     through = max(periods)
     start = fiscal_start(through)
@@ -419,6 +447,48 @@ def build(rows: Sequence[dict], names: Optional[Dict[str, str]] = None,
                         "et gardent le libellé de leur centre de profit : %s"
                         % (len(unnamed), ", ".join(item.name for item in unnamed)))
     return Review(partners, through, start, note, unnamed_note)
+
+
+def _merge_named(by_code: Dict[str, Partner], by_country: Dict[tuple, Partner]) -> None:
+    """Les codes que le fichier du lecteur nomme d'un même nom sont un seul partenaire.
+
+    Un partenaire qui change de centre de profit en cours d'année — reclassé d'un canal
+    à l'autre — se lisait en deux lignes : l'ancien code « arrêté », le nouveau « sans an
+    dernier » ou à six fois l'an dernier, et la relève se couvrait elle-même. Nommés d'un
+    même nom, les codes se lisent en une ligne, à périmètre constant, sur le canal du code
+    qui facture en dernier : le partenaire est là où il est. La décision est celle du
+    lecteur, dans son fichier ; le cockpit ne devine jamais qu'un code en suit un autre.
+    """
+    groups: Dict[str, List[Partner]] = {}
+    for partner in by_code.values():
+        if partner.named:
+            groups.setdefault(partner.name.strip().lower(), []).append(partner)
+
+    def last_active(partner: Partner) -> str:
+        active = [m for m, v in partner.months.items() if v > 0]
+        return max(active) if active else ""
+
+    for group in groups.values():
+        if len(group) < 2:
+            continue
+        lead = max(group, key=lambda p: (last_active(p), sum(p.months.values())))
+        merged = Partner(" + ".join(sorted(p.code for p in group)), lead.name, True, lead.channel)
+        lines: Dict[str, Partner] = {}
+        for partner in group:
+            for month, value in partner.months.items():
+                merged.months[month] = merged.months.get(month, 0.0) + value
+            for line in partner.countries:
+                by_country.pop((partner.code, line.country), None)
+                held = lines.get(line.country)
+                if held is None:
+                    held = lines[line.country] = Partner(merged.code, merged.name, True,
+                                                         merged.channel, country=line.country)
+                    merged.countries.append(held)
+                    by_country[(merged.code, line.country)] = held
+                for month, value in line.months.items():
+                    held.months[month] = held.months.get(month, 0.0) + value
+            del by_code[partner.code]
+        by_code[merged.code] = merged
 
 
 def _windows(partner: Partner, ytd_months, recent_months, periods) -> None:

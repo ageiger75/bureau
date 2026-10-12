@@ -1015,6 +1015,21 @@ un reclassement américain de l'an dernier non retraité dans la consolidation, 
 la croissance affichée des chaînes et de leur premier partenaire ; le Brésil, où la
 Finance retire l'effet de la nouvelle fiscalité qu'aucune colonne ne porte.
 
+Ce que les trois vérifications Cortex du 12 octobre ont établi (`var/cortex-finance-*.md`) :
+l'écart Chine et Hong Kong n'est ni le parc ni le vrac — la Finance sort le vrac sur sa
+propre ligne, à l'euro près — mais une règle uniforme, magasin par magasin, de l'ordre de
+cinq points, présente aussi au Brésil les deux années ; la piste la plus forte est le taux
+de change constant, qui n'explique pas le saut de Hong Kong en septembre. Le Brésil ajoute
+depuis mai 2026 six à dix points de fiscalité que la Finance déduit sans retraiter l'an
+dernier : sa croissance mélange deux bases, la croissance à base constante est celle de
+l'entrepôt. Aux États-Unis, un seul client bascule de canal en mai 2026, sans retraitement
+de l'an dernier dans la consolidation. D'où la fusion des codes d'un même partenaire
+(`accounts._merge_named`) : les codes que `var/partners.csv` nomme d'un même nom se lisent
+en une ligne, à périmètre constant, sur le canal du code qui facture en dernier, et une
+succession que personne n'a nommée est dite (`Review.succession_note`), jamais fusionnée
+d'office. Les croissances par canal de la consolidation et des factures au jour restent
+brutes tant que la Finance ne retraite pas.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,
