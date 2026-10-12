@@ -48,12 +48,16 @@ def test_the_reread_follows_the_refresh_order_and_waits_for_the_warehouse(monkey
         dataset=lambda refresh=False, wait_for_warehouse=False: calls.append(("dataset", refresh, wait_for_warehouse)),
         client_kpis=lambda wait_for_warehouse=False: calls.append(("kpis", wait_for_warehouse)),
         product_rows=lambda wait_for_warehouse=False: calls.append(("products", wait_for_warehouse)),
+        # Le carnet ouvert, et non le livré sur commandé retiré : onze jours sans relecture
+        # du carnet, parce que le fil nommait l'ancienne lecture.
+        orderbook_rows=lambda wait_for_warehouse=False: calls.append(("orderbook", wait_for_warehouse)),
+        order_rows=lambda wait_for_warehouse=False: calls.append(("order-fill", wait_for_warehouse)),
     )
     monkeypatch.setattr(R.source, "current_source", lambda: fake)
 
     R.reread_all()
 
-    assert calls == [("dataset", True, True), ("kpis", True), ("products", True)]
+    assert calls == [("dataset", True, True), ("kpis", True), ("products", True), ("orderbook", True)]
 
 
 def test_the_age_setting_is_read_in_hours_and_zero_disables(monkeypatch):

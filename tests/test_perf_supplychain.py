@@ -112,3 +112,19 @@ def test_every_query_of_the_registry_chains_its_ctes_with_a_comma():
     broken = re.compile(r"\)\s*\n\s*[a-z_]+ as \(")
     for name, sql in queries.ALL.items():
         assert not broken.search(sql), name
+
+
+def test_a_forecast_market_whose_actual_bears_no_relation_to_its_forecast_is_set_apart():
+    """Un marché de prévision au réel presque nul rendait un biais de seize mille pour cent
+    et une précision négative sur tout le groupe : la ligne est hors lecture, nommée, et le
+    groupe se lit sur les autres. La précision ne descend jamais sous zéro."""
+    rows = [_fc("2026-09", "Northland", 108.0, 100.0), _fc("2026-09", "Eastland", 90.0, 100.0),
+            _fc("2026-09", "Ghostland", 500.0, 3.0)]
+    review = S.build(forecast_rows=rows)
+    block = review.bias
+    assert [line.name for line in block.excluded] == ["Ghostland"]
+    assert sorted(line.name for line in block.lines) == ["Eastland", "Northland"]
+    assert round(block.group.bias, 4) == -0.01
+    assert "hors lecture, un réel sans rapport avec la prévision : Ghostland (" in review.bias_sentence
+    ghost = block.excluded[0]
+    assert ghost.unreadable and ghost.accuracy == 0.0

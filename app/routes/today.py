@@ -486,6 +486,8 @@ def _orderbook(source, perimeter: str = "", invoiced=None, markets: Sequence[str
         holds = [n for n in context_module.current().notes
                  if n.kind == context_module.ON_HOLD and n.channel
                  and n.applies_to(n.market, n.channel, month)]
+        # Le carnet décide lui-même de la portée d'une note : sans marché, tout le canal ;
+        # avec un marché, le seul périmètre qui le porte.
     note = getattr(source, "orderbook_note", "") or ""
     if perimeter:
         iso2s = invoiced.countries_of(perimeter) if invoiced is not None and hasattr(invoiced, "countries_of") else []

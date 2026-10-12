@@ -99,3 +99,26 @@ def test_the_order_book_query_carries_the_bill_to_country_and_the_profit_centre(
     for column in ("as country", "as code", "as label", "p.country_desc", "o.profit_center_group_id",
                    "o.profit_center_group_desc", "group by 1, 2, 3, 4, 6"):
         assert column in text
+
+
+def test_a_hold_with_a_market_marks_only_the_perimeter_that_carries_it_and_subtracts_nothing():
+    """Une note « on_hold » posée sur un marché et un canal : le carnet du groupe ne la
+    voit pas — un seul marché ne tient pas tout un canal —, le carnet du périmètre qui
+    porte ce marché marque le canal « tenu exprès sur ce marché » sans en retirer le
+    retard. Sans marché, la note tient le canal partout et le retard est retiré."""
+
+    class _Hold:
+        channel, text, since, kind, market = "TRA", "Un client en litige, livraisons suspendues.", "2026-09", "on_hold", "China"
+
+    rows = mock.orderbook_rows()
+    group = O.build(rows, holds=[_Hold()])
+    assert group.hold_for(group.channels["TRA"]) is None and group.held_late == 0.0
+    assert group.late_matters and "tenu exprès" not in group.sentence
+    china = O.for_perimeter(rows, "Chine", markets=["China"], travel_bu="Chine", holds=[_Hold()])
+    assert china.hold_for(china.channels["TRA"]) is not None
+    assert china.held_late == 0.0 and "retard tenu exprès sur China :" in china.sentence
+    elsewhere = O.for_perimeter(rows, "Nord", markets=["Japan"], travel_bu="Nord", holds=[_Hold()])
+    assert elsewhere.hold_for(elsewhere.channels["TRA"]) is None
+    _Hold.market = ""
+    whole = O.build(rows, holds=[_Hold()])
+    assert whole.held_late == whole.channels["TRA"].late and "retard tenu exprès :" in whole.sentence

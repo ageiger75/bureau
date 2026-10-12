@@ -992,6 +992,16 @@ par l'annuaire. Avant la relecture, le périmètre dit qu'il attend, jamais un c
 Première lecture sur les États-Unis : le retard chez le premier e-retailer est petit,
 l'écart du mois n'est pas dans le carnet mais dans ce qu'il commande.
 
+Trois défauts vus le 12 octobre sur la vraie page. Le fil de relecture à l'âge nommait
+`order_rows`, la lecture retirée, et jamais `orderbook_rows` : onze jours sans relecture
+du carnet (`reread.reread_all`, test). Une note « on_hold » posée sur un marché tenait
+tout le canal au niveau du groupe : une note sans marché tient le canal partout, une note
+à marché ne marque que le carnet du périmètre qui porte ce marché, sans en retirer le
+retard (`orderbook.Review.hold_for`, `whole_channel`). Un marché de prévision au réel
+presque nul rendait un biais de seize mille pour cent et une précision négative sur le
+groupe : au-delà de `supplychain.BIAS_UNREADABLE`, la ligne est hors lecture, nommée, et
+le groupe se lit sur les autres ; la précision ne descend jamais sous zéro.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

@@ -42,6 +42,11 @@ FILL_SETTLING_MONTHS = 1
 #: Ce que la vue écrit quand une ligne de commande n'a pas de canal.
 NO_CHANNEL = ("N/A", "", "(SANS CANAL)")
 
+#: Au-delà de ce biais, la prévision et le réel ne parlent pas du même périmètre — un
+#: marché de prévision dont le réel est presque nul — et la ligne ne se lit pas : hors du
+#: groupe, nommée à part. Une précision de -16 000 % n'est pas une mesure.
+BIAS_UNREADABLE = 2.0
+
 
 def _number(value) -> Optional[float]:
     if value is None or value == "":
@@ -126,7 +131,12 @@ class Bias(Ratio):
 
     @property
     def accuracy(self) -> Optional[float]:
-        return None if self.bias is None else 1.0 - abs(self.bias)
+        """Jamais sous zéro : un biais au-delà du double est une précision nulle, pas négative."""
+        return None if self.bias is None else max(0.0, 1.0 - abs(self.bias))
+
+    @property
+    def unreadable(self) -> bool:
+        return self.bias is not None and abs(self.bias) > BIAS_UNREADABLE
 
     @property
     def over(self) -> bool:
@@ -189,6 +199,8 @@ class Block:
         self.lines = list(lines)
         self.series = list(series)
         self.note = note
+        #: Les lignes écartées du groupe parce qu'elles ne se lisent pas, nommées.
+        self.excluded: List = []
 
     @property
     def usable(self) -> bool:
@@ -254,6 +266,9 @@ class Review:
         if under:
             text += " ; en dessous : %s" % ", ".join(
                 "%s %s" % (line.market_label, line.label) for line in under[:4])
+        if block.excluded:
+            text += " ; hors lecture, un réel sans rapport avec la prévision : %s" % ", ".join(
+                "%s (%s)" % (line.market_label, line.label) for line in block.excluded[:4])
         return text
 
     @property
@@ -352,6 +367,15 @@ def build(osa_rows: Sequence[dict] = (), forecast_rows: Sequence[dict] = (), ord
     bias = _block("bias", forecast, "market", "forecast_eur", "actual_eur", Bias,
                   lambda rate: None if rate is None else rate - 1.0,
                   sort_key=lambda line: -abs((line.bias or 0.0) * line.den))
+    if bias is not None:
+        unreadable = [line for line in bias.lines if line.unreadable]
+        if unreadable:
+            bias.excluded = unreadable
+            bias.lines = [line for line in bias.lines if not line.unreadable]
+            group = Bias(bias.group.name)
+            for line in bias.lines:
+                group.add(line.num, line.den)
+            bias.group = group
     fill = _block("fill", order_rows, "channel", "delivered_eur", "ordered_eur", Fill,
                   lambda rate: rate, extra_field="complete_eur",
                   sort_key=lambda line: -line.den, back=FILL_SETTLING_MONTHS,

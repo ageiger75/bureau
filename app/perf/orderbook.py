@@ -107,20 +107,35 @@ class Review:
         self.scope = ""
         self.partners: List[Book] = []
         self.scope_note = ""
+        #: Les marchés du périmètre, quand le carnet en est un ; vide pour le groupe.
+        self.markets: List[str] = []
 
     def hold_for(self, book: Book):
-        """La note qui tient ce canal, ou None."""
+        """La note qui tient ce canal, ou None. Une note sans marché tient le canal
+        partout ; une note à marché ne tient que le carnet d'un périmètre qui porte ce
+        marché — et jamais celui du groupe, où un seul marché ne tient pas tout un canal."""
         code = book.name.strip().lower()
         label = book.channel_label.strip().lower()
         for note in self.holds:
             channel = str(getattr(note, "channel", "") or "").strip().lower()
-            if channel and channel in (code, label):
+            if not channel or channel not in (code, label):
+                continue
+            market = str(getattr(note, "market", "") or "").strip()
+            if not market or market in self.markets:
                 return note
         return None
 
+    @staticmethod
+    def whole_channel(note) -> bool:
+        """Vrai quand la note tient tout le canal : sans marché."""
+        return not str(getattr(note, "market", "") or "").strip()
+
     @property
     def held_late(self) -> float:
-        return sum(b.late for b in self.channels.values() if self.hold_for(b) is not None)
+        """Le retard tenu exprès sur tout un canal. Une note à marché marque le canal
+        sans en retirer le retard : le reste du canal n'est pas tenu."""
+        return sum(b.late for b in self.channels.values()
+                   if self.hold_for(b) is not None and self.whole_channel(self.hold_for(b)))
 
     @property
     def free_late(self) -> float:
@@ -171,7 +186,9 @@ class Review:
                                              round(100 * late[0].late / group.late))
             hold = self.hold_for(late[0])
             if hold is not None:
-                text += ", retard tenu exprès : %s" % str(getattr(hold, "text", "") or "").strip().rstrip(".")
+                text += ", retard tenu exprès%s : %s" % (
+                    "" if self.whole_channel(hold) else " sur %s" % str(getattr(hold, "market", "")).strip(),
+                    str(getattr(hold, "text", "") or "").strip().rstrip("."))
                 since = str(getattr(hold, "since", "") or "")
                 if since:
                     text += " (depuis %s)" % since
@@ -216,6 +233,7 @@ def for_perimeter(rows: Sequence[dict], name: str, iso2s: Sequence[str] = (), tr
             mine.append(row)
     review = build(mine, read_at=read_at, note=note, holds=holds)
     review.scope = name
+    review.markets = [normalise_market(m) for m in markets]
     review.scope_note = ("sur le pays du client facturé, rangé comme les factures : un client "
                          "facturé dans un pays et livré dans un autre compte au premier"
                          + (" ; le travel retail est à %s" % travel_bu if travel_bu else ""))
