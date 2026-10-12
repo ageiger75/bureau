@@ -470,3 +470,27 @@ def test_the_cfo_extract_declares_its_month_from_its_own_cells(tmp_path):
     assert (read.year, read.month) == (2026, 8)
     # FY27 opens in April 2026: a January would belong to 2027.
     assert actuals._dataset_period([[None, "Scenario", "FY27_ACT"], [None, "Period", "10 - January"]]) == (2027, 1)
+
+
+def test_a_published_file_of_another_month_is_never_put_beside_a_line(monkeypatch):
+    """September's lines showed August's published figures beside them — China retail
+    at half its size — because only the headline checked the file's month. A line now
+    takes the file's terms only when both speak of the same month."""
+    from app.perf import mapping
+
+    def file_of(month):
+        line = actuals.Line("France", "EMEA", "retail", "SOLD", 980.0, 900.0, 1000.0)
+        return actuals.Actuals([line], [], year=2026, month=month)
+
+    rows = [{"market": "France", "channel": "RETAIL", "period": "2026-09",
+             "sales_actual": 950.0}]
+
+    monkeypatch.setattr(actuals, "current", lambda month=True: file_of(8))
+    stale = mapping.units_from_rows(rows).units[0]
+    assert not stale.is_reported
+    assert stale.reported_actual is None
+
+    monkeypatch.setattr(actuals, "current", lambda month=True: file_of(9))
+    fresh = mapping.units_from_rows(rows).units[0]
+    assert fresh.is_reported
+    assert fresh.reported_actual == 980.0

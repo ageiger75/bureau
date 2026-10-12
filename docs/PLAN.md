@@ -1002,6 +1002,19 @@ presque nul rendait un biais de seize mille pour cent et une précision négativ
 groupe : au-delà de `supplychain.BIAS_UNREADABLE`, la ligne est hors lecture, nommée, et
 le groupe se lit sur les autres ; la précision ne descend jamais sous zéro.
 
+Rapprochement Finance de septembre (Cortex, 12 octobre, consigné dans `var/entrepot.md`
+§5.11) : la consolidation d'avril à août retombe sur la Finance à quelques milliers
+d'euros, le sell-in au millier d'euros canal par canal, le sell-out de septembre à un
+demi-point, le parc à cinq magasins près. Deux défauts corrigés au passage, repris ici
+depuis le poste : le chiffre publié n'est posé à côté d'une ligne que si le fichier parle
+du mois de la ligne (`mapping.units_from_rows`, septembre affichait les chiffres d'août) ;
+le Luxembourg se range sous la Belgique, l'entité qui le porte (`budget.MARKET_ALIASES`).
+Restent pour la Finance : l'entrepôt dépasse la Finance de trois à quatre points tous les
+mois sur la Chine et Hong Kong, les deux marchés où le budget nomme un nettoyage gris ;
+un reclassement américain de l'an dernier non retraité dans la consolidation, qui gonfle
+la croissance affichée des chaînes et de leur premier partenaire ; le Brésil, où la
+Finance retire l'effet de la nouvelle fiscalité qu'aucune colonne ne porte.
+
 ### Phase 5 — B6, les moteurs du plan
 
 Un fichier des moteurs nommés du plan (owner, montant embarqué sur l'année, livré à date,

@@ -870,3 +870,15 @@ def test_the_month_headline_is_the_published_figure_and_the_cards_are_not():
     assert published.headline_budget == pytest.approx(4_010_000.0)
     # The cards are untouched: their arithmetic is the warehouse's and stays that way.
     assert published.units[0].sales_actual == pytest.approx(sold)
+
+
+def test_luxembourg_folds_into_the_belgian_entity_that_carries_it():
+    """Its stores belong to the Belgian entity, and neither the plan nor the accounts know
+    a market of that name. Kept apart, it was counted beside a Belgium that already held it."""
+    rows = [
+        {"market": "BELGIUM", "channel": "MALL STORE", "period": "2026-09", "sales_actual": 177.0},
+        {"market": "LUXEMBOURG", "channel": "MALL STORE", "period": "2026-09", "sales_actual": 57.0},
+    ]
+    units = mapping.units_from_rows(rows).units
+    assert [unit.market for unit in units] == ["Belgium"]
+    assert units[0].sales_actual == pytest.approx(234.0)

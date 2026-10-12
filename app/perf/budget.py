@@ -72,6 +72,10 @@ MARKET_ALIASES = {
     "NEW ZEALAND": "New Zealand",
     "CZECH REPUBLIC": "Czech Republic",
     "EXPORT MIDDLE EAST": "Middle East",
+    # Not a market of the plan nor of the accounts: its two stores and its site belong to
+    # the Belgian entity. Shown apart, it was counted twice beside Finance's Belgium,
+    # which already carries it, and Belgium's own line read a fifth short of the accounts.
+    "LUXEMBOURG": "Belgium",
 }
 
 

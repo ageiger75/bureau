@@ -521,7 +521,12 @@ def units_from_rows(
     # warehouse plan is a ratio across two perimeters.
     from . import actuals as actuals_module
 
-    published = actuals_module.by_scope(actuals_module.current())
+    read = actuals_module.current()
+    published = actuals_module.by_scope(read)
+    # Only beside a line of the month the file speaks of. Unchecked, September's lines
+    # carried August's published figures — China retail at half its size — while the
+    # headline, which does check, said the file was of another month.
+    published_period = read.period
 
     # How far each market's warehouse reading sits from the accounts, graded over the
     # published months. Absent or faulty, every market grades as not measured — which is
@@ -617,6 +622,8 @@ def units_from_rows(
                 "l'évolution ne s'attribue à aucun levier."
             )
 
+        reported = published if published_period and published_period == period else {}
+
         months_below, gap_history, chronic, vs_record, gap_ytd = _history_for(
             history, market, channel, budget, period
         )
@@ -651,9 +658,9 @@ def units_from_rows(
                 budget=Drivers.sales_only(budget_value if budget_value is not None else 0.0),
                 strategic_weight=weights.weight_for(market, channel),
                 divergence_grade=grades.grade_of(market),
-                reported_actual=_reported(published, market, channel, "actual"),
-                reported_budget=_reported(published, market, channel, "budget"),
-                reported_last_year=_reported(published, market, channel, "last_year"),
+                reported_actual=_reported(reported, market, channel, "actual"),
+                reported_budget=_reported(reported, market, channel, "budget"),
+                reported_last_year=_reported(reported, market, channel, "last_year"),
                 budget_known=budget_value is not None,
                 reads_actual=not_read_reason(market, channel) == "",
                 not_read_reason=not_read_reason(market, channel),
