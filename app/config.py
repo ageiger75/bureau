@@ -171,6 +171,11 @@ DEFAULT_PNL_FILE = "var/pnl_bu.csv"
 #: décidée plutôt que calculée, et donc la seule qu'aucune règle ne devinera.
 DEFAULT_ACTUALS_FOLDER = "var/actuals"
 
+#: Où `manage.py cabinet` dépose la lecture du jour pour le cabinet. Dans `var/` par
+#: défaut : c'est l'endroit où les chiffres quittent l'instrument, et un dossier hors du
+#: cockpit ne se choisit qu'exprès, une fois la question du compte qui les lira tranchée.
+DEFAULT_CABINET_FOLDER = "var/cabinet"
+
 #: The KPI tracker the business maintains: definitions, targets, cadence, owners. Beside
 #: the plan workbook and gitignored with it, because it names people and states targets.
 #: The warehouse supplies values; nothing there says what good is.
@@ -210,6 +215,7 @@ class Settings:
     pnl_file: str = DEFAULT_PNL_FILE
     org_file: str = DEFAULT_ORG_FILE
     kpi_file: str = DEFAULT_KPI_FILE
+    cabinet_folder: str = DEFAULT_CABINET_FOLDER
     #: Nom d'une connexion déclarée dans ~/.snowflake/connections.toml — le fichier que
     #: la CLI Snowflake et Cortex Code utilisent déjà. Aucun identifiant n'est lu, stocké
     #: ni transporté par l'application, et aucun n'a sa place dans ce dépôt.
@@ -440,6 +446,11 @@ class Settings:
         return self.pnl_path.exists()
 
     @property
+    def cabinet_path(self) -> Path:
+        path = Path(self.cabinet_folder).expanduser()
+        return path if path.is_absolute() else ROOT / path
+
+    @property
     def actuals_folder(self) -> Path:
         path = Path(self.actuals_folder_name)
         return path if path.is_absolute() else ROOT / path
@@ -538,6 +549,7 @@ def load_settings() -> Settings:
         markets_file=_env("CEOOS_MARKETS_FILE") or DEFAULT_MARKETS_FILE,
         org_file=_env("CEOOS_ORG_FILE") or DEFAULT_ORG_FILE,
         supply_file=_env("CEOOS_SUPPLY_FILE") or DEFAULT_SUPPLY_FILE,
+        cabinet_folder=_env("CEOOS_CABINET_DIR") or DEFAULT_CABINET_FOLDER,
         snowflake_connection=snowflake_connection,
         reread_hours=_hours(_env("CEOOS_REREAD_HOURS"), 6.0),
         store_closed_statuses=_codes(_env("CEOOS_STORE_CLOSED_STATUSES")),

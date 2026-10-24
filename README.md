@@ -120,6 +120,13 @@ Tester la connexion à l'entrepôt sans lire aucune donnée métier :
 .venv/bin/python manage.py warehouse
 ```
 
+Écrire la lecture du jour pour le cabinet d'agents du lecteur — ce que l'écran dit déjà, en
+un fichier daté, rien de recalculé, rien de placé au registre (voir `docs/CABINET.md`) :
+
+```bash
+.venv/bin/python manage.py cabinet
+```
+
 ---
 
 ## Ce que le produit ne fait pas

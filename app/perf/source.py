@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+import contextlib
 import logging
 import threading
 import time
@@ -512,11 +513,32 @@ def dataset_behind_note() -> str:
     return ""
 
 
+#: Vrai le temps d'un bloc `disk_only()`. Une commande du terminal meurt avant qu'un fil
+#: ait fini de lire : la requête partait pour rien, et elle pouvait croiser celle du
+#: serveur ouvert dans l'autre fenêtre, qu'aucun verrou ne voit d'un processus à l'autre.
+_disk_only = {"on": False}
+
+
+@contextlib.contextmanager
+def disk_only():
+    """Le temps d'un bloc, servir ce qui est sur le disque sans lancer aucune lecture
+    derrière l'écran. La lecture pour le cabinet s'en sert : le serveur tient déjà ses
+    caches à jour, c'est lui qui relit, jamais elle."""
+    previous = _disk_only["on"]
+    _disk_only["on"] = True
+    try:
+        yield
+    finally:
+        _disk_only["on"] = previous
+
+
 def read_dataset_behind() -> bool:
     """Relire le jeu de données principal dans un fil, une fois, et rendre vrai si le fil
     est parti. La page qui a servi une lecture expirée l'appelle : le lecteur a sa page,
     le fil écrit le cache, la page se recharge quand l'horodatage bouge."""
     state = _dataset_behind
+    if _disk_only["on"]:
+        return False
     if state["running"] or _DATASET_LOCK.locked():
         return False
     if state["error"] and time.time() - state["started"] < RETRY_BEHIND_SECONDS:
@@ -544,7 +566,7 @@ def read_behind(name: str) -> bool:
     tard, et la page, qui guette l'horodatage, se recharge d'elle-même.
     """
     state = _behind[name]
-    if state["running"]:
+    if state["running"] or _disk_only["on"]:
         return False
     if state["error"] and time.time() - state["started"] < RETRY_BEHIND_SECONDS:
         return False

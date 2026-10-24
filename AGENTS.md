@@ -17,6 +17,8 @@ Non négociables, elles viennent du poste et du brief :
 - **Aucune ressource externe.** La CSP est `default-src 'self'` : pas de CDN, pas de police
   distante, pas de `<style>` ni de `onclick` en ligne. Classes CSS et `addEventListener`.
 - **Aucun appel réseau sortant.** Ni Microsoft 365, ni fournisseur d'IA, ni service tiers.
+  Le cabinet d'agents du lecteur ne change rien à cette règle : le cockpit lui écrit un
+  fichier (`manage.py cabinet`), il ne l'appelle pas, et le cabinet vit hors du dépôt.
 - **Écoute sur 127.0.0.1 uniquement.** L'hôte est la constante `SERVE_HOST` de
   `app/cli.py`, jamais un argument de ligne de commande. Le port, lui, suit la variable
   `PORT` pour que l'environnement puisse en assigner un libre.
@@ -44,6 +46,7 @@ standard plutôt qu'avec trois paquets tiers.
 | Un calcul de performance | `app/perf/analytics.py` — déterministe, jamais un modèle de langage pour de l'arithmétique |
 | Une règle de lecture d'un KPI | `app/perf/kpi.py` — cadence, sens, définition arrêtée ou non |
 | D'où viennent les chiffres | `app/perf/source.py` — seul module à le savoir |
+| Ce que lit le cabinet (les agents de `~/cabinet`) | `app/cli.py::cmd_cabinet` — chaque section est la sortie d'une commande existante, jamais un calcul ; contrat dans `docs/CABINET.md` |
 
 Une route qui contient un `if` métier est au mauvais endroit : deux écrans finiraient par
 juger différemment le même dossier.

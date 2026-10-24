@@ -1065,6 +1065,20 @@ seulement après les phases 1 à 3 : la couche déterministe doit être complèt
 lecture rédigée se pose dessus. Chaque phrase générée référence les champs numériques
 qu'elle décrit ; une phrase non traçable ne s'affiche pas.
 
+**Première pièce, le 24 octobre 2026 : le cabinet lit le cockpit.** Le lecteur a fait
+construire, hors de ce dépôt, un cabinet d'agents Claude Code (`~/cabinet`) qui prépare ses
+lundis, ses décisions, ses rendez-vous et ses textes. Tel qu'il arrivait, il lisait un
+« export du cockpit » que rien ne produisait, demandait au lecteur de le déposer à la main
+chaque lundi — le terminal collé cent fois, une seconde fois —, tenait un second registre
+d'engagements à côté de celui du cockpit, et prévoyait d'interroger l'entrepôt sur ses vues
+sémantiques, c'est-à-dire un second chiffre sans les règles de la maison. `manage.py cabinet`
+(`docs/CABINET.md`) ferme ces quatre portes : un fichier daté dont chaque section est la
+sortie d'une commande existante, ce qui est tranché compris, sans placement au registre et
+sans lecture lancée derrière l'écran. La règle de la phase tient : la couche déterministe
+reste la seule à compter, le cabinet cite avec la section, et son contrôle retrouve chaque
+chiffre à l'identique dans l'export. Décision du lecteur, à prendre avant d'écrire
+`CEOOS_CABINET_DIR` : le compte sous lequel le cabinet lira des chiffres réels.
+
 ### En attente, sans date
 
 PostgreSQL ; annuaire d'entreprise et audit — nécessaires avant tout usage à plusieurs.
