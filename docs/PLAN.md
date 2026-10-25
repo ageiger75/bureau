@@ -894,12 +894,18 @@ comptés une fois, et le type du point de vente facturé (`V_SL_D_POS.channel_ty
 groupe qui revend à son propre réseau, près de la moitié du facturé lu avant, dont un seul
 client en travel retail les trois quarts — est lu à part, nommé, avec sa croissance, sur
 l'écran du jour et sur Analyses (`invoiced.intragroup_note`). La zone rouge Travel Retail et
-la carte « sell-in et sell-out ensemble » en héritent. Le montant reste
-`net_invoice_amount_eur_annual` : la mesure désignée par la maison, `billed_net_value`, est
-trois pour cent en dessous sur le commercial et trois fois au-dessus sur l'intragroupe — à
-arbitrer avec l'équipe data avant de basculer. Le filtre de pertinence turnover du produit,
-inerte et sur la dimension produit, n'est pas repris. Le cache des factures se relit tout
-seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours.
+la carte « sell-in et sell-out ensemble » en héritent. Le montant est la mesure que la
+maison désigne, `billed_net_value_eur_annual`, depuis le 25 octobre 2026 : l'agent entrepôt
+a mesuré que `net_invoice_amount_eur_annual` applique aux factures du hub de Hong Kong
+émises dans une autre devise que la sienne le taux de cette autre devise — le travel retail
+ressortait très au-dessus de la consolidation, les distributeurs très en dessous, sur tous
+les mois lus ; la mesure de la maison retrouve la consolidation canal par canal, et hors du
+hub les deux colonnes sont égales à l'euro près. Le carnet n'a pas ce défaut. Les lectures
+courtes (mois, jour, factures) portent l'empreinte de leur requête : une colonne qui change
+rend la lecture d'hier caduque, même en dernier recours. Le filtre de pertinence turnover du
+produit, inerte et sur la dimension produit, n'est pas repris. Le cache des factures se
+relit tout seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours,
+sauf quand sa requête a changé.
 
 Un marché sans client enregistré (la Chine : `VIP.WALKIN` vaut 1 partout, confirmé par
 l'équipe data) est dit comme un fait du marché, pas comme un retard d'entrepôt, et ne

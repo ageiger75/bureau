@@ -629,13 +629,16 @@ def _rows_or_last(key: str, cache_file: str, query: str, label: str) -> List[dic
     """
     from . import warehouse
 
-    stored = _read_disk_cache(cache_file)
+    # La lecture d'une autre requête — une colonne, une fenêtre — n'est pas cette lecture,
+    # même toute fraîche, même en dernier recours : un chiffre faux daté reste faux.
+    fingerprint = _query_fingerprint(query)
+    stored = _read_disk_cache(cache_file, fingerprint=fingerprint)
     if stored is not None:
         return stored[0]
     try:
         rows = warehouse.rows(query, label=label)
     except Exception as exc:  # noqa: BLE001 — l'entrepôt, pas le code
-        last = _read_disk_cache(cache_file, max_age=float("inf"))
+        last = _read_disk_cache(cache_file, max_age=float("inf"), fingerprint=fingerprint)
         if last is None:
             _stale[key] = ""
             raise
@@ -646,7 +649,7 @@ def _rows_or_last(key: str, cache_file: str, query: str, label: str) -> List[dic
                     label, why, last[2])
         return last[0]
     _stale[key] = ""
-    _write_disk_cache(rows, time.time(), read_at(), cache_file)
+    _write_disk_cache(rows, time.time(), read_at(), cache_file, fingerprint=fingerprint)
     return rows
 
 

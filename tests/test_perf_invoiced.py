@@ -167,12 +167,16 @@ def test_invoices_to_group_subsidiaries_are_kept_apart_and_named():
 
 
 def test_the_invoice_queries_apply_the_house_filters_and_read_the_bill_to_pos():
+    """Le montant est la mesure de la maison, `billed_net_value_eur_annual`, arbitrée par la
+    mesure : l'autre colonne applique aux factures du hub de Hong Kong émises dans une
+    autre devise le taux de cette devise, et gonflait le travel retail en creusant les
+    distributeurs. Revenir en arrière rendrait ces croissances au jour et par partenaire."""
     from app.perf import queries
 
     for text in (queries.SELL_IN_DAILY, queries.PARTNER_SELL_IN):
         assert "v_sl_d_pos p on p.pos_skey = i.bill_to_skey" in text
         assert "i.kit_flag in (0, 2)" in text
-        assert "net_invoice_amount_eur_annual" in text and "billed_net_value" not in text
+        assert "billed_net_value_eur_annual" in text and "net_invoice_amount" not in text
     assert "as pos_type" in queries.SELL_IN_DAILY and "left join" in queries.SELL_IN_DAILY
     assert "p.channel_type_desc in ('SELL IN', 'B2B')" in queries.PARTNER_SELL_IN
     assert queries.SELL_IN_POS_TYPES == ("SELL IN", "B2B")

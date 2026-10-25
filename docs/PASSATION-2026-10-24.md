@@ -169,6 +169,12 @@ sous sa propre BU, les pays d'export sous EMEA.
   le navigateur qu'après : relancer avec une fenêtre déjà ouverte ne bloque plus.
 - Les pages APAC et EMEA tombaient en erreur interne : le plan sell-in du mois écrasait le
   plan EBITDA dans `page.build`. Corrigé, deux tests.
+- Le montant des factures au jour et par partenaire est passé à la mesure de la maison,
+  `billed_net_value_eur_annual` : Cortex a mesuré que l'autre colonne applique aux factures
+  du hub de Hong Kong émises dans une autre devise le taux de cette devise, sur tous les
+  mois lus — travel retail gonflé, distributeurs creusés, au jour et par partenaire. Le
+  consolidé et le carnet n'ont pas ce défaut. À signaler à l'équipe data : le cockpit n'est
+  sûrement pas le seul lecteur de cette colonne.
 
 ## 4. Les fichiers de `var/` que le lecteur tient
 
