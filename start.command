@@ -49,10 +49,44 @@ else
 fi
 echo
 
+# --------------------------------------------------------------- serveur
+
+# Un serveur resté ouvert dans une autre fenêtre servirait l'ancien code, et le nouveau
+# refuserait de démarrer : c'est exactement le cas où le lecteur « n'arrive plus à ouvrir
+# l'app ». Le port est le nôtre, on libère avant de démarrer, et on le dit.
+#
+# Libérer, c'est arrêter les deux processus et non le seul qui tient le port : le serveur
+# tourne avec rechargement automatique, donc un superviseur relance l'ouvrier dès qu'il
+# meurt. Arrêter l'ouvrier seul rendait le port occupé à nouveau la seconde suivante, et le
+# nouveau serveur s'arrêtait sur « port déjà occupé » — il fallait fermer le Terminal pour
+# relancer. Le superviseur d'abord, l'ouvrier ensuite, puis on attend que le port soit libre.
+OLD="$(lsof -ti tcp:"${PORT}" 2>/dev/null || true)"
+if [ -n "${OLD}" ]; then
+  PARENTS=""
+  for pid in ${OLD}; do
+    ppid="$(ps -o ppid= -p "${pid}" 2>/dev/null | tr -d ' ')"
+    if [ -n "${ppid}" ] && ps -o command= -p "${ppid}" 2>/dev/null | grep -q "app.cli serve"; then
+      PARENTS="${PARENTS} ${ppid}"
+    fi
+  done
+  echo "→ Un ancien serveur tournait encore sur le port ${PORT} : arrêté, le nouveau prend sa place."
+  kill ${PARENTS} ${OLD} 2>/dev/null || true
+  for _ in $(seq 1 20); do
+    [ -z "$(lsof -ti tcp:"${PORT}" 2>/dev/null || true)" ] && break
+    sleep 0.5
+  done
+  STILL="$(lsof -ti tcp:"${PORT}" 2>/dev/null || true)"
+  if [ -n "${STILL}" ]; then
+    kill -9 ${STILL} ${PARENTS} 2>/dev/null || true
+    sleep 1
+  fi
+fi
+
 # --------------------------------------------------------------- navigateur
 
 # Ouvert en tâche de fond : `run.sh` ne rend jamais la main, puisqu'il devient le serveur.
-# On attend que le port réponde plutôt que de deviner un délai.
+# On attend que le port réponde plutôt que de deviner un délai — et on n'attend qu'après
+# avoir libéré le port, sinon c'est l'ancien serveur qui répondait et qu'on ouvrait.
 # Deux gestes une fois le serveur debout, dans cet ordre précis.
 #
 # D'abord ouvrir l'écran, qui s'affiche instantanément sur la dernière lecture. Puis
@@ -77,18 +111,6 @@ echo
     sleep 0.5
   done
 ) &
-
-# --------------------------------------------------------------- serveur
-
-# Un serveur resté ouvert dans une autre fenêtre servirait l'ancien code, et le nouveau
-# refuserait de démarrer : c'est exactement le cas où le lecteur « n'arrive plus à ouvrir
-# l'app ». Le port est le nôtre, on libère avant de démarrer, et on le dit.
-OLD="$(lsof -ti tcp:"${PORT}" 2>/dev/null || true)"
-if [ -n "${OLD}" ]; then
-  echo "→ Un ancien serveur tournait encore sur le port ${PORT} : arrêté, le nouveau prend sa place."
-  kill ${OLD} 2>/dev/null || true
-  sleep 1
-fi
 
 echo "→ Démarrage · ${URL}"
 echo
