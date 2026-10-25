@@ -1506,6 +1506,10 @@ class SnowflakeSource:
                 return []
             LOG.info("warehouse: %s reading from an expired cache rather than making the "
                      "reader wait", name)
+            # Et relue derrière l'écran, comme la lecture principale : sans ça, le carnet
+            # et les partenaires restaient à leur dernière lecture tant que le fil de
+            # relecture à l'âge ne tombait pas, douze jours sur un poste qu'on ferme le soir.
+            read_behind(name)
         if rows is None:
             from . import warehouse
 

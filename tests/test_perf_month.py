@@ -289,3 +289,18 @@ def test_a_reading_without_the_first_day_column_says_nothing_about_it(tmp_path):
                      _phasing(tmp_path))
 
     assert review.lines[0].first_day_share is None and not review.lines[0].lumpy
+
+
+def test_two_warehouse_markets_that_normalise_to_one_name_are_one_market(tmp_path):
+    """Un pays et l'entité qui le porte arrivent en deux lignes de l'entrepôt que la norme
+    ramène au même nom : un seul marché, un seul plan, les ventes additionnées. Lus en
+    deux lignes, chacune rencontrait le plan entier et le périmètre le comptait deux fois."""
+    rows = _rows() + [{"market": "LUXEMBOURG", "iso2": "LU", "sales_to_date": 100_000.0,
+                       "read_through": "2026-09-17"},
+                      {"market": "BELGIUM", "iso2": "BE", "sales_to_date": 300_000.0,
+                       "read_through": "2026-09-17"}]
+    review = M.build(rows, {"Japan": 4_000_000.0, "Belgium": 1_000_000.0}, _phasing(tmp_path))
+    names = [line.market for line in review.loose.lines] if review.loose else []
+    assert names.count("Belgium") == 1
+    belgium = next(line for line in review.loose.lines if line.market == "Belgium")
+    assert belgium.progress.actual == 400_000.0 and belgium.progress.target == 1_000_000.0

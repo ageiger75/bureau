@@ -388,17 +388,32 @@ def build(rows: Sequence[dict], targets: Dict[str, Optional[float]],
     if not targets:
         absent.append("aucun objectif sell-out au plan pour %s" % month)
 
-    lines: List[Line] = []
+    # Deux marchés de l'entrepôt que la norme ramène à un seul nom — un pays et l'entité
+    # qui le porte — sont un seul marché : un plan, les ventes additionnées. Lus en deux
+    # lignes du même nom, chacune rencontrait le plan entier, et le périmètre le comptait
+    # deux fois. La forme du mois est celle du plus gros des deux.
+    merged: Dict[str, dict] = {}
     for row in rows:
         raw = str(row.get("market") or "").strip()
         if not raw:
             continue
         market = normalise_market(raw)
         actual = _number(row.get("sales_to_date")) or 0.0
+        first_day = _number(row.get("first_day_sales"))
+        held = merged.setdefault(market, {"raw": raw, "largest": actual, "actual": 0.0,
+                                          "first_day": None})
+        held["actual"] += actual
+        if actual >= held["largest"]:
+            held["raw"], held["largest"] = raw, actual
+        if first_day is not None:
+            held["first_day"] = (held["first_day"] or 0.0) + first_day
+
+    lines: List[Line] = []
+    for market, held in merged.items():
         target = targets.get(market)
-        progress = pace_module.progress(raw, month, week, actual, target, phasing,
-                                        within=within)
-        lines.append(Line(market, progress, first_day=_number(row.get("first_day_sales"))))
+        progress = pace_module.progress(held["raw"], month, week, held["actual"], target,
+                                        phasing, within=within)
+        lines.append(Line(market, progress, first_day=held["first_day"]))
 
     placed, leads = place_markets([line.market for line in lines], org, directory)
     if not placed:

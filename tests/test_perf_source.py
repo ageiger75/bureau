@@ -229,6 +229,9 @@ def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
     caches["any"] = [("yesterday",)]
     assert source.product_rows() == [("yesterday",)]
     assert source.product_note == "" and calls == []
+    # Une lecture expirée est servie, et relue derrière l'écran : le carnet et les
+    # partenaires restaient douze jours à leur dernière lecture sur un poste fermé le soir.
+    assert started == ["products", "products"]
 
     assert source.product_rows(wait_for_warehouse=True) == [("fresh",)]
     assert calls == ["PRODUCT_SALES"] and written == [[("fresh",)]]

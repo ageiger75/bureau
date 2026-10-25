@@ -4315,6 +4315,14 @@ def _print_ensemble_partners(source, period: str, iso2s, label: str) -> None:
         return
     now = sum(c["now"] for c in seen.values())
     was = sum(c["before"] for c in seen.values())
+    latest = max((str(row.get("period") or "") for row in rows), default="")
+    if now == 0 and latest < period:
+        # La lecture partenaires s'arrête avant le mois : rien d'octobre dedans n'est pas
+        # « moins cent pour cent », c'est une lecture qui date.
+        print("PARTENAIRES — la lecture partenaires du %s s'arrête à %s : rien de %s n'y est "
+              "encore ; elle se relit derrière l'écran à la prochaine page, ou tout de suite "
+              "par manage.py refresh --partners" % (read, latest or "rien", period))
+        return
     print("PARTENAIRES — %s à date par partenaire facturé depuis les pays de %s, lecture du %s ; "
           "hors travel retail" % (period, label, read))
     print("  %s à date contre %s le même mois entier l'an dernier (%s)" % (
