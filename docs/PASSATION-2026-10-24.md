@@ -83,6 +83,13 @@ seul. `manage.py ensemble <périmètre>` décompose tout : marchés du verdict, 
 avec l'an dernier et où l'annuaire les range, lignes du plan avec leur an dernier et les
 factures de l'an dernier du marché, partenaires du mois à date, carnet, carte.
 
+Deux règles de plus le 25 octobre. Un pays qui facture ce mois-ci sans une seule facture
+l'an dernier dans la source reste dans le facturé à date, sort de la croissance et est
+nommé avec son montant (`invoiced.Line.unseen`, `unseen_note`) : au groupe, par périmètre,
+par canal, dans `manage.py ensemble`. Et quand le classeur de la consolidation ferme deux
+mois à la fois, le dossier de visite dit que le sell-in est lu sur cet intervalle, à part,
+et somme le plan sur ses mois (`budget.months_of`, `visit.period_phrase`).
+
 ### 3.3 Le carnet de commandes ouvert
 
 Au niveau du groupe par canal, en trois paquets sur la date de promesse au client. Par
@@ -144,6 +151,24 @@ pays d'export et le travel retail. Les factures sont nommées par la norme ISO q
 sell-out ne nomme pas le pays (`perf/countries.py`). Les placements décidés par le lecteur :
 les distributeurs d'Amérique du Sud et d'Afrique du Sud sous la BU EMEA, le travel retail
 sous sa propre BU, les pays d'export sous EMEA.
+
+### 3.9 Le 25 octobre, en plus
+
+- Une session Claude Code locale sur le poste a ajouté `manage.py cabinet` (la lecture du
+  jour en un fichier pour les agents de `~/cabinet`, contrat dans `docs/CABINET.md`) sur sa
+  propre branche ; fusionnée ici sans réécriture, pour que le poste avance en avance rapide.
+  Règle : une session locale pousse sur notre branche, ou le dit pour que l'on fusionne.
+- Les lectures expirées du cache sont servies et relues derrière l'écran, le carnet compris
+  (`source._query_rows`, `reread.reread_all`) : il était resté onze à vingt-trois jours sans
+  relecture.
+- Un pays et son entité voisine lus sous deux noms par l'entrepôt sont un seul marché
+  (`month.build` fusionne par nom normalisé).
+- Le bloc partenaires de `manage.py ensemble` dit quand sa lecture date d'avant le mois, au
+  lieu d'afficher une chute entière.
+- `start.command` arrête le superviseur puis l'ouvrier d'uvicorn, attend le port, et n'ouvre
+  le navigateur qu'après : relancer avec une fenêtre déjà ouverte ne bloque plus.
+- Les pages APAC et EMEA tombaient en erreur interne : le plan sell-in du mois écrasait le
+  plan EBITDA dans `page.build`. Corrigé, deux tests.
 
 ## 4. Les fichiers de `var/` que le lecteur tient
 
@@ -211,7 +236,9 @@ grands magasins européens contre les e-retailers ; l'engagement japonais sur le
 - Le carnet par pays de destination, si l'équipe data l'ajoute à la vue.
 - Le coefficient brésilien sur la note, et le net Finance à côté du net entrepôt pour la
   Chine et Hong Kong, quand la Finance aura répondu.
-- Les lignes du plan dont la source n'a jamais vu l'an dernier, marché par marché.
+- Les lignes du plan dont la source n'a jamais vu l'an dernier, marché par marché : le
+  facturé des pays sans an dernier est déjà mis à part de la croissance ; reste à le
+  rapprocher des lignes du plan qu'il devrait rencontrer.
 - Une façon de nommer un code dans le fichier des partenaires sans inventer un chiffre de
   douze mois.
 

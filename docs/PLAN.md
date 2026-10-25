@@ -938,6 +938,23 @@ le Moyen-Orient et les distributeurs à l'export sur des entités qui ne sont pa
 sous une BU, aucun périmètre ne rencontre ces lignes, et la carte « ensemble » compare un
 facturé qui les contient à un plan qui ne les contient pas. `manage.py ensemble` nomme les
 deux listes : les lignes de plan orphelines, et les pays facturés rangés nulle part.
+
+Un pays qui facture ce mois-ci sans une seule facture le même mois l'an dernier dans la
+source — une entité nouvelle, ou un pays que la source ne voyait pas — faisait lire à son
+périmètre une croissance à trois chiffres. Ce n'est pas une croissance, c'est l'arrivée d'un
+pays dans la source. Appris sur l'APAC, le 25 octobre 2026 : la quasi-totalité du facturé du
+périmètre venait d'un tel pays. Règle (`invoiced.Line.unseen`) : le pays reste dans le
+facturé à date, sort de la croissance à jours ouvrés égaux et à dates égales, et la carte
+nomme le pays et le montant mis à part, puis sur quoi la croissance se lit — au groupe, par
+périmètre, par canal, et dans `manage.py ensemble`. Quand tout le facturé vient de tels pays,
+pas de croissance, la raison. La carte « sell-in et sell-out ensemble » n'en a pas besoin :
+elle refuse déjà le mot quand les factures de l'an dernier couvrent trop peu du plan.
+
+Le même jour, les pages APAC et EMEA tombaient en erreur interne quand NA s'affichait : dans
+`page.build`, la variable du plan sell-in du mois écrasait celle du plan EBITDA, et la carte
+« EBITDA au budget » lisait un montant comme un plan — seulement sur les périmètres qui
+portent des factures, que la suite ne construisait jamais avec un plan EBITDA. Deux tests
+font maintenant les deux à la fois, en unitaire et par la vraie page.
 L'annuaire peut ranger ces entités et ces pays (`owners.COUNTRY_ALIASES`, en français ou en
 anglais, dans une cellule « Pays couverts » qui les énumère avec `;`) : décision du 28
 septembre, Nordic, Middle East, Loi Distributors, Other et les distributeurs à l'export

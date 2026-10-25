@@ -4407,6 +4407,8 @@ def cmd_ensemble(argv: List[str]) -> int:
                   format_eur(billed.current), billed.growth_label, billed.same_dates_label,
                   format_eur(billed.last_year_month), format_eur(billed.aligned),
                   ("%.0f %%" % (billed.share_by_now * 100)) if billed.share_by_now is not None else "inconnue"))
+        if billed.unseen_note:
+            print("  %s (%.0f %% du facturé à date)" % (billed.unseen_note, (billed.unseen_share or 0.0) * 100))
     source = inputs["source"]
     try:
         rows = source.sell_in_daily()

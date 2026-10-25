@@ -416,6 +416,8 @@
     {% endif %}
     </tbody>
   </table>
+  {% if invoiced.group.unseen_note %}<p class="cockpit-caveat">{{ invoiced.group.unseen_note | ucfirst }}.</p>{% endif %}
+  {% for line in invoiced.shown_channels if line.unseen_note %}<p class="cockpit-caveat">{{ line.name }} : {{ line.unseen_note }}.</p>{% endfor %}
   {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
   {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
 </section>

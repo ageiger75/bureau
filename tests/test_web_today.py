@@ -1156,3 +1156,29 @@ def test_a_region_with_invoices_and_an_ebitda_plan_renders_both(client, monkeypa
     assert "EBITDA au budget" in page
     assert "%s de %s de ventes au plan" % (line.rate_label, format_eur(line.sales)) in page
     assert "Le sell-in du mois" in page and "sell-in compris" in page
+
+
+def test_a_country_without_last_year_is_named_beside_the_sell_in_growth(client, monkeypatch):
+    """Une entité nouvelle dans la source gonflerait la croissance du sell-in de son périmètre
+    à plusieurs centaines de pour cent. L'écran la laisse dans le facturé, la sort de la
+    croissance et la nomme — sur l'écran du jour, et par canal sur Analyses."""
+    import datetime
+
+    from app.perf import mock
+
+    genuine = mock.sell_in_daily
+
+    def with_newcomer():
+        rows = genuine()
+        first = datetime.date.today().replace(day=1)
+        rows.append({"window": "current", "invoice_date": first.isoformat(), "iso2": "AU",
+                     "channel": "dpt", "pos_type": "SELL IN", "net_eur": 1_000.0})
+        return rows
+
+    monkeypatch.setattr(mock, "sell_in_daily", with_newcomer)
+    page = page_text(client.get("/"))
+    assert "sans aucune facture l'an dernier dans la source : hors de la croissance" in page
+    assert "Australia" in page
+
+    analyses = page_text(client.get("/analyses"))
+    assert "Australia" in analyses and "pas de croissance à lire" in analyses

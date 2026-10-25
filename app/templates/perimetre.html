@@ -111,6 +111,7 @@
   <div class="verdict">
     <p class="verdict-word {{ 'is-en-retard' if page.invoiced.growth is not none and page.invoiced.growth < -0.02 else ('is-en-avance' if page.invoiced.growth is not none and page.invoiced.growth > 0.02 else '') }}">{{ page.invoiced.current | eur }}</p>
     <p class="verdict-figures">{{ page.invoiced.growth_label }} sur l'an dernier à jours ouvrés égaux · {{ page.invoiced.same_dates_label }} à dates égales</p>
+    {% if page.invoiced.unseen_note %}<p class="verdict-basis">{{ page.invoiced.unseen_note }}</p>{% endif %}
     <p class="verdict-basis">factures contre factures, jamais contre le plan</p>
   </div>
   {% if page.together %}<p class="cockpit-caveat">Sell-in et sell-out ensemble, contre le plan : la carte « sell-in compris », en tête de page.</p>{% endif %}

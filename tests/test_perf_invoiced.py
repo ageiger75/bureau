@@ -254,3 +254,37 @@ def test_the_review_remembers_where_each_billed_country_was_placed(tmp_path):
     assert review.placed_countries == {"JP": "Japon"}
     assert review.countries_of("Japon") == ["JP"] and review.countries_of("Ouest") == []
     assert review.travel_bu == ""
+
+
+def test_a_country_without_last_year_in_the_source_counts_in_the_total_never_in_the_growth():
+    """Un pays qui facture ce mois-ci sans une seule facture l'an dernier dans la source —
+    une entité nouvelle, ou un pays que la source ne voyait pas — ferait lire une croissance
+    à trois chiffres à son périmètre. Ce n'est pas une croissance, c'est son arrivée : il reste dans le
+    facturé à date, sort de la croissance, et la carte dit lequel, pour combien."""
+    from app.perf.analytics import format_eur
+
+    rows = _rows()
+    for day in (1, 2, 3, 4):
+        rows.append({"window": "current", "invoice_date": "2026-09-%02d" % day, "iso2": "AU",
+                     "channel": "dpt", "net_eur": 1_000.0})
+    review = I.build(rows, {"JP": "Japan", "FR": "France", "AU": "Australia"}, today=TODAY)
+
+    group = review.group
+    assert group.current == 4_600.0 and group.unseen == 4_000.0
+    assert group.unseen_names == ["Australia"] and abs(group.unseen_share - 4_000.0 / 4_600.0) < 1e-9
+    # La croissance est celle des pays vus les deux années : 600 contre 520, comme sans l'Australie.
+    assert group.growth_label == "+15 %" and group.comparable == 600.0
+    assert ("%s facturés par Australia, sans aucune facture l'an dernier dans la source"
+            % format_eur(4_000.0)) in group.unseen_note
+    assert "hors de la croissance, qui se lit sur les %s restants" % format_eur(600.0) in group.unseen_note
+    # Sans annuaire, tout est « sans périmètre » : la ligne porte la même mise à part.
+    assert review.loose is not None and review.loose.unseen == 4_000.0
+    assert review.loose.growth_label == "+15 %" and "Australia" in review.loose.unseen_note
+    # Le canal qu'elle seule facture n'a pas de croissance à lire, et le dit.
+    department = next(line for line in review.channels if line.name == I.CHANNEL_NAMES[I.CODES["dpt"]])
+    assert department.without_last_year and department.growth_label == "—"
+    assert department.unseen_note.startswith(
+        "tout le facturé à date (%s) vient de pays sans aucune facture" % format_eur(4_000.0))
+    assert "pas de croissance à lire" in department.unseen_note
+    # Un pays vu l'an dernier ne change rien : pas de note.
+    assert I.build(_rows(), {"JP": "Japan", "FR": "France"}, today=TODAY).group.unseen_note == ""
