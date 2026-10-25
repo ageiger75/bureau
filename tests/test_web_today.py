@@ -1119,3 +1119,40 @@ def test_the_day_screen_computes_the_month_with_sell_in_for_each_perimeter_it_ca
     known["Canal"] = {"markets": ["Northland"], "lead": ""}
     found = _togethers(_Track(), _Canal(), known, _Budget())
     assert "Canal" in found and found["Canal"].sell_in_only and found["Canal"].usable
+
+
+def test_a_region_with_invoices_and_an_ebitda_plan_renders_both(client, monkeypatch, tmp_path):
+    """Les deux régions facturées tombaient en erreur interne : la carte « EBITDA au budget »
+    lisait le plan sell-in du mois à la place du plan EBITDA. Un périmètre qui porte des
+    factures ET une ligne EBITDA au budget rend ses deux cartes."""
+    from app.config import settings
+    from app.perf import ebitda as ebitda_module, page as page_module
+    from app.perf.analytics import format_eur
+    from app.routes import today
+    from tests.test_perf_owners import HEADER, directory_file
+
+    # L'annuaire range le Japon sous « Nord » : les factures JP du jeu de démonstration
+    # deviennent le sell-in de ce périmètre.
+    directory_file(tmp_path, [
+        ["Annuaire"], HEADER,
+        ["Nord", "Aiko", "TANAKA", "General Manager", "Japon", "Patron de BU", "", "Tokyo"],
+    ])
+    (tmp_path / "owners.xlsx").replace(settings.owners_path)
+    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+
+    line = ebitda_module.Line("Nord", 10_000.0, 1_000.0)
+
+    class _Ebitda:
+        plan, absent, usable = None, [], True
+
+        def for_name(self, name):
+            return ebitda_module.Perimeter("Nord", line, None) if name == "Nord" else None
+
+    monkeypatch.setattr(today, "_ebitda_review", lambda names: _Ebitda())
+    response = client.get("/perimetre/nord")
+    assert response.status_code == 200
+    page = page_text(response)
+    assert "EBITDA au budget" in page
+    assert "%s de %s de ventes au plan" % (line.rate_label, format_eur(line.sales)) in page
+    assert "Le sell-in du mois" in page and "sell-in compris" in page

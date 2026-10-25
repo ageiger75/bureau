@@ -575,8 +575,12 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
     if billed is not None:
-        plan, plan_last_year = sell_in_plan_lines(budget, markets, getattr(track, "period", "") or "")
-        together = Together(scope.month if scope is not None else None, billed, plan, plan_last_year)
+        # Le plan sell-in du mois a son propre nom : « plan » est le plan EBITDA du
+        # périmètre, et la page le rend tel quel.
+        sell_in_plan, sell_in_last_year = sell_in_plan_lines(
+            budget, markets, getattr(track, "period", "") or "")
+        together = Together(scope.month if scope is not None else None, billed,
+                            sell_in_plan, sell_in_last_year)
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
