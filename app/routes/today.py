@@ -472,8 +472,8 @@ def _orderbook(source, perimeter: str = "", invoiced=None, markets: Sequence[str
     reader = getattr(source, "orderbook_rows", None)
     rows = reader(wait_for_warehouse=False) if reader is not None else []
     stamp = source_module.query_stamp("orderbook")
-    read_at = (datetime.datetime.utcfromtimestamp(int(stamp)).strftime("%Y-%m-%d %H:%M UTC")
-               if stamp.isdigit() else "")
+    read_at = (datetime.datetime.fromtimestamp(int(stamp), datetime.timezone.utc)
+               .strftime("%Y-%m-%d %H:%M UTC") if stamp.isdigit() else "")
     from ..config import settings
 
     holds = []

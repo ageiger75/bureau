@@ -65,6 +65,8 @@
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
+    python -m app.cli cabinet        la lecture du jour pour le cabinet, en un fichier daté : ce que l'écran dit, rien de recalculé
+                                     --vers DOSSIER (défaut CEOOS_CABINET_DIR, sinon var/cabinet/) · --marche MARCHÉ
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
@@ -811,15 +813,21 @@ def _write_notes(path, rows) -> None:
             writer.writerow(row)
 
 
-def _print_notes(rows, path) -> int:
+def _print_notes(rows, path, affordances: bool = True) -> int:
+    """Les notes telles qu'elles sont écrites. Sans `affordances`, ni le chemin du fichier
+    ni le mode d'emploi : la lecture pour le cabinet ne garde que ce que les notes disent."""
     from .perf import context
 
     if not rows:
-        print("Aucune note. Pour en ajouter une :")
-        print('  manage.py note "Brazil" "Les taxes ont changé en juin."')
+        if affordances:
+            print("Aucune note. Pour en ajouter une :")
+            print('  manage.py note "Brazil" "Les taxes ont changé en juin."')
+        else:
+            print("Aucune note de contexte.")
         return 0
-    print("Fichier             %s" % path)
-    print("")
+    if affordances:
+        print("Fichier             %s" % path)
+        print("")
     for index, row in enumerate(rows, start=1):
         scope = row["market"] or "tous marchés"
         if row["channel"]:
@@ -840,7 +848,8 @@ def _print_notes(rows, path) -> int:
             print("   Action pour : %s (pas le responsable du marché)"
                   % row["action_owner"])
         print("")
-    print("Pour en retirer une : manage.py note --forget N")
+    if affordances:
+        print("Pour en retirer une : manage.py note --forget N")
     return 0
 
 
@@ -5211,6 +5220,214 @@ def cmd_track(argv: List[str]) -> int:
     return 0
 
 
+def _captured(call) -> str:
+    """Ce qu'une commande imprime, sortie et erreurs ensemble, sans jamais tomber.
+
+    Les commandes disent sur la sortie d'erreur ce qui manque, « fichier absent », « pas
+    encore lu » : c'est une partie de la lecture, pas un bruit, et cela va dans la section.
+    Un bloc qui tombe se dit et l'export continue, comme `_guard` sur la page.
+    """
+    import contextlib
+    import io
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer), contextlib.redirect_stderr(buffer):
+        try:
+            call()
+        except Exception as exc:  # noqa: BLE001 — un bloc qui tombe ne tait pas les autres
+            print("bloc en erreur : %s" % exc)
+    return buffer.getvalue().rstrip()
+
+
+def _stamp_label(stamp: str) -> str:
+    """Un horodatage de cache en clair. Plusieurs lectures sous un même horodatage se
+    datent par la plus ancienne, et une lecture jamais faite parmi elles se dit."""
+    import datetime
+
+    parts = str(stamp or "").split("|")
+    read = [int(part) for part in parts if part.isdigit()]
+    if not read:
+        return "pas encore lu"
+    label = datetime.datetime.fromtimestamp(min(read), datetime.timezone.utc).strftime(
+        "%Y-%m-%d %H:%M UTC")
+    if len(read) < len(parts):
+        label += ", en partie seulement"
+    return label
+
+
+def _print_changes() -> int:
+    """Ce qui a changé depuis lundi dernier, tel que l'écran du jour le rend."""
+    from datetime import date
+
+    from .db import SessionFactory, create_all
+    from .perf import changes as changes_module
+    from .perf import memory
+    from .perf.commitments import board
+    from .perf.source import current_source
+    from .routes.today import _all_commitments
+
+    create_all()
+    with SessionFactory() as session:
+        register = memory.load(session)
+        commitments = board(_all_commitments(current_source(), session)).items
+    week = changes_module.build(register, commitments, date.today())
+    print("Du %s au %s : %s." % (week.since.isoformat(), week.today.isoformat(), week.sentence))
+    for change in week.shown:
+        print("  %s  %-16s %s" % (change.when, change.kind, change.text))
+    if week.hidden:
+        print("  et %d autre%s" % (week.hidden, "s" if week.hidden > 1 else ""))
+    for reason in week.absent:
+        print(reason)
+    return 0
+
+
+def _print_settled() -> int:
+    """Ce que le lecteur a déjà tranché : les notes de contexte, les placements, les écarts
+    acceptés et les lectures portées. Le cabinet ne relitige rien de ce qui est ici sans un
+    fait nouveau, la faute que l'agent entrepôt faisait faute de lire les notes."""
+    from datetime import date
+
+    from .db import SessionFactory, create_all
+    from .perf import memory
+
+    print("Notes de contexte")
+    _print_notes(_read_notes(settings.context_path), settings.context_path, affordances=False)
+    print("")
+    print("Placements décidés")
+    cmd_placements([])
+    create_all()
+    with SessionFactory() as session:
+        register = memory.load(session)
+    accepted = [issue for issue in register.issues if issue.is_open and issue.arbitration is not None]
+    print("")
+    print("Écarts acceptés")
+    if not accepted:
+        print("  aucun")
+    for issue in accepted:
+        arbitration = issue.arbitration
+        print("  %s · %s" % (issue.issue_id, issue.title))
+        print("     accepté par %s le %s : %s" % (arbitration.decided_by, arbitration.at,
+                                                 arbitration.reason))
+        print("     %s" % (("à revoir le %s" % arbitration.review_on) if arbitration.review_on
+                           else "sans date de réexamen : ne reviendra que sur un fait nouveau"))
+    due = register.due_for_review(date.today().isoformat())
+    if due:
+        print("")
+        print("Réexamens échus : un écart accepté n'est pas un écart oublié")
+        for issue in due:
+            print("  %s  à revoir depuis le %s" % (issue.issue_id, issue.arbitration.review_on))
+    read = [issue for issue in register.issues if issue.is_open and issue.readings]
+    print("")
+    print("Lectures portées")
+    if not read:
+        print("  aucune")
+    for issue in read:
+        last = issue.readings[-1]
+        print("  %s · %s" % (issue.issue_id, issue.title))
+        print("     le %s : %s" % (str(last.at)[:10], last.conclusion))
+        if len(issue.readings) > 1:
+            print("     avant : %s%s" % (issue.readings[-2].conclusion,
+                                         " (remplacée parce que %s)" % last.because
+                                         if last.because else ""))
+    return 0
+
+
+def _cabinet_header(source, dataset, today: str) -> List[str]:
+    """L'en-tête : d'où viennent les chiffres, de quand date chaque lecture, comment les lire."""
+    from .perf import source as source_module
+
+    lines = ["# Cockpit · lecture pour le cabinet · %s" % today, "",
+             "Écrit par `manage.py cabinet`, en lecture seule. Chaque section est la sortie "
+             "d'une commande du cockpit, telle que l'écran la rend : rien n'est recalculé ici, "
+             "aucun sujet n'est placé au registre, aucune lecture de l'entrepôt n'est lancée "
+             "derrière.", ""]
+    lines.append("Source : %s." % getattr(source, "label", getattr(source, "name", "")))
+    if getattr(source, "caveat", ""):
+        lines.append(source.caveat)
+    lines += ["", "Lectures :",
+              "- principale : %s" % (getattr(dataset, "as_of", "") or "pas encore lu"),
+              "- KPI : %s" % _stamp_label(source_module.kpi_stamp()),
+              "- produits : %s" % _stamp_label(source_module.product_stamp()),
+              "- clients : %s" % _stamp_label(source_module.client_stamp()),
+              "- partenaires : %s" % _stamp_label(source_module.partner_stamp()),
+              "- supply et carnet : %s" % _stamp_label(source_module.supplychain_stamp()),
+              "- gris : %s" % _stamp_label(source_module.bulk_stamp()),
+              "", "Pour qui lit ce fichier :",
+              "- Un chiffre se cite tel quel, avec sa section. Il ne se recalcule pas.",
+              "- Une absence n'est pas un zéro : « pas encore lu », « absent », « — » disent "
+              "qu'on ne sait pas.",
+              "- Le verdict du mois est en sell-out ; le sell-in se lit à part, et la carte "
+              "le dit quand les deux divergent.",
+              "- Ce qui est tranché ne se relitige pas sans fait nouveau.",
+              "- Les références ISS- et les numéros d'engagement sont ceux du cockpit."]
+    if getattr(source, "name", "") == "mock":
+        lines.append("- Données de démonstration : aucun chiffre de ce fichier n'est réel.")
+    else:
+        lines.append("- Ce fichier porte des chiffres réels de la maison. Il ne se dépose que là "
+                     "où le compte qui le lira a le droit de les voir.")
+    return lines
+
+
+def cmd_cabinet(argv: List[str]) -> int:
+    """La lecture du jour pour le cabinet, en un fichier daté.
+
+    Le cabinet raisonne, le cockpit mesure. Pour que le premier ne recalcule jamais ce que
+    le second tient, chaque section est la sortie d'une commande qui existe déjà : aucun
+    calcul ici, aucun sujet placé au registre, aucune lecture lancée derrière l'écran.
+
+        manage.py cabinet                         dans CEOOS_CABINET_DIR, sinon var/cabinet/
+        manage.py cabinet --vers ~/cabinet/entrees/cockpit
+        manage.py cabinet --marche China          ajoute le dossier de visite du marché
+
+    Les titres des sections sont une interface : le cabinet les cite, docs/CABINET.md les
+    nomme, et en changer un se fait des deux côtés à la fois.
+    """
+    from datetime import date
+
+    from .perf import source as source_module
+
+    chosen = _option(argv, "--vers")
+    folder = Path(chosen).expanduser() if chosen else settings.cabinet_path
+    markets = [argv[index + 1] for index, flag in enumerate(argv)
+               if flag == "--marche" and index + 1 < len(argv)
+               and not argv[index + 1].startswith("--")]
+    today = date.today().isoformat()
+    sections = [
+        ("Où on atterrit, sommes-nous en ligne", "manage.py track", lambda: cmd_track([])),
+        ("Les trois sujets de la semaine, et la surveillance", "manage.py conversations",
+         lambda: cmd_conversations([])),
+        ("Zones rouges", "manage.py zones", lambda: cmd_zones([])),
+        ("Ce qui a changé depuis lundi dernier", "le bloc de l'écran du jour", _print_changes),
+        ("Engagements", "manage.py engagements", lambda: cmd_engagements([])),
+        ("Ce qui est tranché", "manage.py note --list, placements et issues", _print_settled),
+        ("La semaine", "manage.py semaine", lambda: cmd_semaine([])),
+        ("Le sell-in du mois", "manage.py sellin", lambda: cmd_sellin([])),
+        ("Ce qui arrive", "manage.py tempsforts", lambda: cmd_tempsforts([])),
+        ("Le mois, marché par marché", "manage.py month", lambda: cmd_month([])),
+    ]
+    for market in markets:
+        sections.append(("Dossier de visite · %s" % market, "manage.py marche %s" % market,
+                         lambda market=market: cmd_marche([market])))
+
+    with source_module.disk_only():
+        source = source_module.current_source()
+        try:
+            dataset = source.dataset(wait_for_warehouse=False)
+        except NotImplementedError as incomplete:
+            print("Source incomplète, rien n'est écrit : %s" % incomplete, file=sys.stderr)
+            return 2
+        lines = _cabinet_header(source, dataset, today)
+        for title, origin, call in sections:
+            lines += ["", "## %s" % title, "", "Même lecture que %s." % origin, "", "```text",
+                      _captured(call) or "(la commande n'a rien imprimé)", "```"]
+
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / ("%s-cockpit.md" % today)
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("Lecture pour le cabinet : %s" % target)
+    return 0
+
+
 def cmd_serve(argv: List[str]) -> int:
     """Démarre le serveur. `--reload` pour le développement."""
     import uvicorn
@@ -5290,6 +5507,8 @@ def main(argv: List[str]) -> int:
         return cmd_whitespaces(argv[1:])
     if command == "engagements":
         return cmd_engagements(argv[1:])
+    if command == "cabinet":
+        return cmd_cabinet(argv[1:])
     if command == "partenaires":
         return cmd_partenaires(argv[1:])
     if command == "gris":

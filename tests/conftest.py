@@ -115,6 +115,7 @@ def fresh_warehouse_cache(monkeypatch):
         ("red_zones_path", "red_zones.csv"),
         ("supply_path", "supply.csv"),
         ("pnl_path", "pnl_bu.csv"),
+        ("cabinet_path", "cabinet"),
     ):
         monkeypatch.setattr(
             type(settings), name,
