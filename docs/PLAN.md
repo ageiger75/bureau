@@ -1188,8 +1188,20 @@ axes à total constant. Un mois « ACT/REF2 » est un figé à la date du refore
 réel publié. Le taux de change est hors de cause dans les écarts Chine et Brésil : le
 « constant » de la Finance est le taux annuel de l'entrepôt, les écarts sont des montants
 locaux. Ce que le cockpit n'a pas, c'est la prévision d'octobre à mars par entité et canal,
-où la Finance phase l'année autrement que le cumul ne le laisse croire ; elle se lira comme
+où la Finance phase l'année autrement que le cumul ne le laisse croire ; elle se lit comme
 un millésime à côté du budget, jamais à sa place — décision prise dans `provenance.py`.
+
+**Construit le 26 octobre : le millésime.** `app/perf/reforecast.py` lit la feuille
+`DATABASE REF2` de `var/reforecast.xlsx` avec sa propre grammaire de colonnes — trois formes
+de mois et deux irrégularités, apprises sur le vrai classeur par l'agent entrepôt — et pose
+lui-même le partage que l'en-tête ne fait pas : un reforecast numéro n couvre 3n mois
+réalisés, dont le dernier est figé à la date du reforecast et n'est pas le réel publié ; le
+reste est prévision. La règle est imprimée en tête de `manage.py reforecast` et dans la
+note de l'écran, pour être contestée là. L'écran du jour porte l'écart attendu par la
+Finance à côté des trois hypothèses d'atterrissage, la page du périmètre sa phrase
+(exercice attendu, prévision du reste contre l'an dernier, les deux semestres, le sell-in
+à part), Analyses le découpe par périmètre et nomme la part que les périmètres de l'écran ne
+portent pas. Rien ici n'est un plan. Reste à faire : `manage.py compare` sur ce format.
 
 ## 7. Ce qui attend l'équipe data
 

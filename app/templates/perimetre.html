@@ -59,6 +59,9 @@
         <p class="verdict-word is-absent">—</p>
         <p class="verdict-basis">{{ page.landing.absent }}</p>
       {% endif %}
+      {# L'avis de la Finance se lit même quand l'atterrissage du cockpit manque : c'est un
+         autre chiffre, d'une autre source, jamais le plan. #}
+      {% if page.reforecast and page.reforecast.usable %}<p class="verdict-basis" title="{{ page.reforecast_note }}">selon la Finance ({{ page.reforecast.all.vintage.vintage }}) : {{ page.reforecast.all.sentence }}{% if page.reforecast.all.halves_sentence %} · {{ page.reforecast.all.halves_sentence }}{% endif %}{% if page.reforecast.sell_in.usable and page.reforecast.sell_in.halves_sentence %} · sell-in : {{ page.reforecast.sell_in.halves_sentence }}{% endif %}</p>{% endif %}
     </div>
     <div class="verdict">
       <p class="verdict-title">EBITDA au budget</p>

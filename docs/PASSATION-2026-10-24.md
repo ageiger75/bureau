@@ -188,6 +188,13 @@ rangement, jamais de données :
   cockpit comparent un plan annuel à un cumul ; elles sont justes sur le passé, et la
   question est le second semestre. Décision produit déjà prise (`provenance.py`) : le plan
   reste le budget, un reforecast se lit comme un millésime, jamais à sa place.
+- **Le millésime est construit** (`app/perf/reforecast.py`, `manage.py reforecast`,
+  `var/reforecast.xlsx`) : grammaire des colonnes du fichier, partage réalisé / figé /
+  prévision posé par le lecteur (3n mois pour un reforecast n, le dernier figé), écart
+  attendu par la Finance sur l'écran du jour, phrase sur la page du périmètre, table par
+  périmètre sur Analyses avec les deux semestres et le sell-in à part, et la part des
+  lignes qu'aucun périmètre ne porte. `--structure` imprime chaque colonne telle que le
+  lecteur l'a comprise ; `--markets` retrouve un chiffre du fichier marché par marché.
 
 ### 3.10 Le 25 octobre, en plus
 
@@ -228,6 +235,8 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
   doublon ou un montant illisible rend le fichier entier inutilisable, d'où les blocs qui
   relisent le fichier avec le cockpit après l'avoir écrit.
 - `actuals.xlsx` : le fichier Finance de septembre ; `var/actuals/` garde les mois.
+- `reforecast.xlsx` : le classeur du dernier reforecast de la Finance, tel qu'elle le
+  diffuse, copié sans modification ; sa feuille `DATABASE REF…` est lue.
 - `cortex-*.md` : les comptes rendus des étapes sept à onze ; `entrepot.md` : la mémoire de
   Cortex, dont le rapprochement Finance.
 - `warehouse-*.json` : les caches de lecture. `warehouse-rows.json` tient la lecture
@@ -286,10 +295,11 @@ grands magasins européens contre les e-retailers ; l'engagement japonais sur le
 - Le carnet par pays de destination, si l'équipe data l'ajoute à la vue.
 - Le coefficient brésilien sur la note, et le net Finance à côté du net entrepôt pour la
   Chine et Hong Kong, quand la Finance aura répondu.
-- Le reforecast comme millésime : lire la feuille `DATABASE REF2` avec le lecteur du
-  budget (une colonne « dernier reforecast » par entité et canal, les mois figés dits
-  figés), faire lire ce format à `manage.py compare`, et poser le second semestre de la
-  Finance à côté de chaque alerte « plan à recaler ». Le plan reste le budget.
+- `manage.py compare` sur le format du reforecast 2 : le lecteur du millésime sait lire la
+  feuille, il reste à lui faire produire le trimestre clos que `compare` attend, en tenant
+  le mois figé à part.
+- Les alertes « plan à recaler » de `manage.py history` avec, à côté de chacune, ce que la
+  Finance attend du reste de l'exercice sur le même périmètre.
 - Les lignes du plan dont la source n'a jamais vu l'an dernier, marché par marché : le
   facturé des pays sans an dernier est déjà mis à part de la croissance ; reste à le
   rapprocher des lignes du plan qu'il devrait rencontrer.

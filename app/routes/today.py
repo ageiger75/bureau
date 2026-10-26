@@ -225,6 +225,23 @@ def _stores_review():
     return stores_module.build(sales, register)
 
 
+def _reforecast_review(known):
+    """Le dernier reforecast de la Finance, découpé sur les périmètres de l'écran, ou
+    pourquoi il manque. Un millésime posé à côté du plan, jamais à sa place."""
+    from ..config import settings
+    from ..perf import reforecast as reforecast_module
+
+    vintage = None
+    if settings.has_reforecast_file:
+        try:
+            vintage = reforecast_module.current()
+        except Exception as why:  # noqa: BLE001 — un classeur illisible ne fait pas tomber la page
+            review = reforecast_module.build(None, known)
+            review.absent = ["%s illisible : %s" % (settings.reforecast_path, why)]
+            return review
+    return reforecast_module.build(vintage, known)
+
+
 def _ebitda_review(names):
     """Le plan EBITDA par périmètre, ou pourquoi il manque. Un plan, jamais un réel."""
     from ..config import settings
@@ -380,6 +397,7 @@ def _perimeter_inputs(session):
         "incremental": incremental,
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
+        "reforecast": _reforecast_review(known),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
         "weekly": weekly, "invoiced": invoiced, "gifting": gifting,
         "retail": _retail_margin(), "prepared": prepared,
@@ -699,6 +717,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
+                              reforecast=inputs["reforecast"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
                               retail=inputs["retail"], prepared=inputs["prepared"],
                               products=products, elsewhere=inputs["elsewhere"],
@@ -877,6 +896,7 @@ def _screen(request: Request, session: Session):
     stores = _stores_review()
     landing, landings, known, budget = _landings(track, month)
     togethers = _togethers(track, invoiced, known, budget)
+    reforecast = _reforecast_review(known)
     from ..perf import placements as placements_module
 
     placements = placements_module.current()
@@ -1036,6 +1056,7 @@ def _screen(request: Request, session: Session):
             "landing": landing,
             "landings": landings,
             "togethers": togethers,
+            "reforecast": reforecast,
             "ebitda": ebitda,
             "pnl": pnl,
             "samestore": samestore,

@@ -1182,3 +1182,33 @@ def test_a_country_without_last_year_is_named_beside_the_sell_in_growth(client, 
 
     analyses = page_text(client.get("/analyses"))
     assert "Australia" in analyses and "pas de croissance à lire" in analyses
+
+
+def test_the_finance_reforecast_is_a_vintage_beside_the_plan_never_the_plan(client, monkeypatch, tmp_path):
+    """Sans le fichier, l'écran nomme ce qu'il attend. Avec, l'atterrissage porte ce que la
+    Finance attend à côté des trois hypothèses, la page du périmètre aussi, et Analyses le
+    découpe par périmètre — le plan de l'écran reste le budget."""
+    import shutil
+
+    from app.config import settings
+    from app.perf import page as page_module
+    from tests.test_perf_reforecast import ROWS, workbook
+
+    page = page_text(client.get("/"))
+    assert "var/reforecast.xlsx absent" in page
+    assert "le dernier reforecast de la Finance n'est pas lu" in page_text(client.get("/analyses"))
+
+    shutil.copy(workbook(tmp_path / "ref.xlsx", {"DATABASE REF2": ROWS}), settings.reforecast_path)
+    known = {"Nord": {"markets": ["Northland"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    try:
+        analyses = page_text(client.get("/analyses"))
+        assert "Ce que la Finance attend (REF2)" in analyses
+        assert "Millésime REF2 de la Finance" in analyses and "septembre figé" in analyses
+        assert "Nord" in analyses and "+12.9 %" in analyses
+        assert "aucun périmètre de l'écran ne porte" in analyses
+        region = page_text(client.get("/perimetre/nord"))
+        assert "selon la Finance (REF2)" in region and "second semestre" in region
+        assert "sell-in : premier semestre" in region
+    finally:
+        settings.reforecast_path.unlink()
