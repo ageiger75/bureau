@@ -1201,7 +1201,12 @@ note de l'écran, pour être contestée là. L'écran du jour porte l'écart att
 Finance à côté des trois hypothèses d'atterrissage, la page du périmètre sa phrase
 (exercice attendu, prévision du reste contre l'an dernier, les deux semestres, le sell-in
 à part), Analyses le découpe par périmètre et nomme la part que les périmètres de l'écran ne
-portent pas. Rien ici n'est un plan. Reste à faire : `manage.py compare` sur ce format.
+portent pas. Rien ici n'est un plan. Les marchés du fichier que le mois n'a pas rencontrés
+— sans sell-out, une ligne du plan sans ticket — rejoignent leur périmètre par l'annuaire
+puis l'organigramme (`reforecast.complete_known`), la règle du mois ; ce que ni l'un ni
+l'autre ne range reste nommé. `manage.py org --markets` ne lit que l'organigramme, qui
+nomme des zones : sa liste de non-rattachés n'est pas celle de l'écran, l'annuaire place
+pays par pays avant lui. Reste à faire : `manage.py compare` sur ce format.
 
 ## 7. Ce qui attend l'équipe data
 

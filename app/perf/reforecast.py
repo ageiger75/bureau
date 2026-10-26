@@ -609,5 +609,28 @@ class Review:
                 "l'écran ne porte : %s" % (share * 100, names))
 
 
+def complete_known(known: Dict[str, dict], markets: Sequence[str], org=None,
+                   directory=None) -> Dict[str, dict]:
+    """Les périmètres de l'écran, complétés des marchés du reforecast que l'annuaire,
+    l'organigramme ou les placements décidés rangent et que l'écran n'avait pas encore
+    rencontrés — un marché sans sell-out dans le mois, une ligne du plan sans ticket.
+    Même règle que le mois : l'annuaire d'abord, l'organigramme ensuite, rien de deviné."""
+    from .month import place_markets
+
+    completed: Dict[str, dict] = {name: {"lead": item.get("lead", ""),
+                                         "markets": list(item.get("markets", []) or [])}
+                                  for name, item in known.items()}
+    seen = {market for item in completed.values() for market in item["markets"]}
+    missing = [market for market in markets if market not in seen]
+    if not missing:
+        return completed
+    placed, leads = place_markets(missing, org, directory)
+    for market, name in placed.items():
+        item = completed.setdefault(name, {"lead": leads.get(name, ""), "markets": []})
+        if market not in item["markets"]:
+            item["markets"].append(market)
+    return completed
+
+
 def build(vintage: Optional[Reforecast], known: Dict[str, dict]) -> Review:
     return Review(vintage, dict(known))

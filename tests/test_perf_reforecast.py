@@ -195,3 +195,35 @@ def test_the_command_prints_the_split_the_perimeters_and_the_structure(vintage_p
         assert "Other" in capsys.readouterr().out
     finally:
         settings.reforecast_path.unlink()
+
+
+def test_the_markets_the_screen_has_not_met_join_their_perimeter_by_the_directory(vintage_path):
+    """Un marché du reforecast sans sell-out dans le mois n'est dans aucun groupe de
+    l'écran ; l'annuaire le range pourtant. Il rejoint son périmètre, comme le mois le
+    ferait, et ce que personne ne range reste nommé à part — jamais deviné."""
+
+    class _Entry:
+        def __init__(self, bu, name):
+            self.bu, self.name = bu, name
+
+    class _Directory:
+        def __len__(self):
+            return 1
+
+        def entry_for(self, market, region=""):
+            return _Entry("Sud", "Une dirigeante") if market == "Southland" else None
+
+    known = {"Nord": {"markets": ["Northland"], "lead": "Un dirigeant"}}
+    vintage = R.load(vintage_path)
+    completed = R.complete_known(known, vintage.markets, None, _Directory())
+
+    assert completed["Nord"]["markets"] == ["Northland"]
+    assert completed["Sud"] == {"lead": "Une dirigeante", "markets": ["Southland"]}
+    assert "Other" not in {m for item in completed.values() for m in item["markets"]}
+    # Le dictionnaire d'entrée n'est pas modifié : il sert aussi à d'autres revues.
+    assert known == {"Nord": {"markets": ["Northland"], "lead": "Un dirigeant"}}
+    review = R.build(vintage, completed)
+    assert [line.name for line in review.lines] == ["Nord", "Sud"]
+    assert review.unplaced == [("Other", 21_000.0)]
+    # Sans annuaire ni organigramme, rien ne bouge.
+    assert R.complete_known(known, vintage.markets, None, None) == known

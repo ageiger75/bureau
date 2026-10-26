@@ -195,6 +195,11 @@ rangement, jamais de données :
   périmètre sur Analyses avec les deux semestres et le sell-in à part, et la part des
   lignes qu'aucun périmètre ne porte. `--structure` imprime chaque colonne telle que le
   lecteur l'a comprise ; `--markets` retrouve un chiffre du fichier marché par marché.
+  Vérifié sur le vrai classeur : toutes les colonnes de mois comprises, le groupe retrouve
+  les chiffres de Cortex à l'euro. Les marchés du fichier que le mois n'a pas rencontrés
+  rejoignent leur périmètre par l'annuaire puis l'organigramme, comme le mois ;
+  `manage.py org --markets` ne lit que l'organigramme et sa liste de non-rattachés n'est
+  pas celle de l'écran.
 
 ### 3.10 Le 25 octobre, en plus
 

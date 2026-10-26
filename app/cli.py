@@ -5144,6 +5144,7 @@ def cmd_reforecast(argv: List[str]) -> int:
     from .config import settings
     from .perf import owners
     from .perf import page as page_module
+    from .perf import perimeter as perimeter_module
     from .perf import reforecast as reforecast_module
     from .perf.analytics import format_eur
     from .perf.xlsx import WorkbookError
@@ -5177,7 +5178,11 @@ def cmd_reforecast(argv: List[str]) -> int:
                 print("    %-28s %s %s%s" % (name, kind, period, (" · " + word) if word else ""))
         return 0
     directory = owners.current() if settings.has_owners_file else None
-    known = page_module.perimeters(directory, None)
+    org = perimeter_module.current() if settings.has_org_file else None
+    # L'annuaire d'abord, l'organigramme ensuite, les placements décidés par-dessus :
+    # la même règle que l'écran, sur les marchés du fichier.
+    known = reforecast_module.complete_known(page_module.perimeters(directory, None),
+                                             vintage.markets, org, directory)
     review = reforecast_module.build(vintage, known)
     if not review.usable:
         for reason in review.absent:

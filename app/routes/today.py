@@ -239,6 +239,16 @@ def _reforecast_review(known):
             review = reforecast_module.build(None, known)
             review.absent = ["%s illisible : %s" % (settings.reforecast_path, why)]
             return review
+    if vintage is not None:
+        # Les marchés du fichier que le mois n'a pas rencontrés — sans sell-out, ou une
+        # ligne du plan sans ticket — rejoignent leur périmètre par l'annuaire et
+        # l'organigramme, comme le mois le ferait.
+        from ..perf import owners
+        from ..perf import perimeter as perimeter_module
+
+        org = perimeter_module.current() if settings.has_org_file else None
+        directory = owners.current() if settings.has_owners_file else None
+        known = reforecast_module.complete_known(known, vintage.markets, org, directory)
     return reforecast_module.build(vintage, known)
 
 
