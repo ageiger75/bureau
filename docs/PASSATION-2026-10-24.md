@@ -228,8 +228,11 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 - `context.csv` : une note `on_hold` sur le canal travel retail, sans marché, depuis
   septembre (livraisons baissées exprès, l'avance sur le plan le permettait) ; une note
   `on_hold` sur les grands magasins d'un marché d'Océanie, client qui ne règle plus ; une
-  note `basis_change` sur le retail brésilien, à compléter de la règle fiscale quand la
-  Finance la donnera ; deux notes `reclassified` sur les canaux américains, antérieures.
+  note `basis_change` sur le Brésil et une sur son e-commerce, depuis mai, action pour la
+  Finance, la règle fiscale restant à obtenir ; trois notes `basis_change` sur la Chine,
+  Hong Kong et Macao depuis septembre, le passage des deux sous la Chine chez la Finance au
+  reforecast 2 ; une note `one_off` sur la Chine, un café fermé ; deux notes `reclassified`
+  sur les canaux américains, antérieures. Dix notes au 26 octobre, sans doublon.
 - `partners.csv` : les deux codes du partenaire américain reclassé, nommés d'un même nom.
   Une ligne exige une base, un centre de profit, un nom et un chiffre de douze mois ; un
   doublon ou un montant illisible rend le fichier entier inutilisable, d'où les blocs qui
