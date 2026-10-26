@@ -119,8 +119,10 @@ si le fichier parle du mois de la ligne (`mapping.units_from_rows`), et le Luxem
 range sous l'entité belge (`budget.MARKET_ALIASES`). Trois vérifications supplémentaires
 (`var/cortex-finance-*.md`) ont établi : en Chine et à Hong Kong l'écart est une règle
 uniforme magasin par magasin, de l'ordre de cinq points, ni le parc ni le vrac, présente
-aussi au Brésil les deux années, la piste la plus forte étant le taux de change constant,
-qui n'explique pas le saut de Hong Kong en septembre ; au Brésil, la Finance déduit depuis
+aussi au Brésil les deux années, la piste la plus forte étant le taux de change constant ;
+le saut de Hong Kong en septembre est expliqué depuis (lecteur, 26 octobre) : la Finance
+range Hong Kong et Macao sous la Chine depuis le reforecast 2, et les trois se comparent
+ensemble, par des notes de contexte, sans fusion des marchés dans le cockpit ; au Brésil, la Finance déduit depuis
 mai la nouvelle structure fiscale sans retraiter l'an dernier, et sa croissance mélange
 deux bases ; aux États-Unis, un seul client a changé de canal en mai, sans retraitement de
 l'an dernier dans la consolidation, ce qui gonfle la croissance affichée des chaînes et
@@ -217,12 +219,15 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 **Pour la Finance**, un message a été préparé en conversation : quel taux constant pour
 le yuan, le dollar de Hong Kong, la pataca et le réal ; quelle déduction uniforme, magasin
 par magasin, sépare le net caisse du net publié en Chine et à Hong Kong, le vrac étant déjà
-sur sa propre ligne ; pourquoi Hong Kong saute en septembre ; la règle de déduction fiscale
-brésilienne depuis mai et le retraitement de l'an dernier ; le retraitement de l'an dernier
-du partenaire américain reclassé dans la consolidation.
+sur sa propre ligne ; la règle de déduction fiscale brésilienne depuis mai et le
+retraitement de l'an dernier ; le retraitement de l'an dernier du partenaire américain
+reclassé dans la consolidation. Le saut de Hong Kong en septembre n'est plus une question :
+Hong Kong et Macao sont passés sous la Chine au reforecast 2. La question des taux est
+d'abord posée à Cortex, qui tient la table des taux de l'entrepôt.
 
 **Pour l'équipe data** : le droit de lecture de la vue sémantique pour le rôle du cockpit ;
-l'arbitrage de la colonne de montant du sell-in (taux annuel contre valeur nette facturée) ;
+le défaut de change de la colonne de montant des factures sur le hub de Hong Kong, tranché
+côté cockpit par la mesure de la maison, à signaler parce que d'autres lecteurs la lisent ;
 les défauts de la vue des commandes (livré en proxy, pas de pays de destination, lignes
 sans centre de profit) ; les entités APAC qui facturent hors de la source ; le volume
 intragroupe hongrois ; la consolidation qui livre des intervalles et n'a pas septembre.

@@ -1171,6 +1171,12 @@ seul contre trois en fixe, quand deux grands marchés européens n'ont aucune bo
 variable. Le marché nord-américain, lui, est massivement en mixte — minimum garanti plus
 pourcentage — ce qu'aucune règle à deux valeurs n'aurait dit.
 
+**Tranchée le 26 octobre, par le lecteur.** La Finance range Hong Kong et Macao sous la
+Chine depuis le reforecast 2 ; l'entrepôt et le plan les lisent à part. Le cockpit ne
+fusionne pas les marchés : des notes de contexte sur les trois disent que la comparaison au
+consolidé se fait ensemble, et la question posée change. C'est ce qui expliquait le saut de
+Hong Kong dans le rapprochement de septembre.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :
