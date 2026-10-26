@@ -705,6 +705,13 @@ order by market, channel, period
 #:   than an adjustment.
 #:
 #: Validate with `manage.py budget --spec` and `manage.py reconcile` before wiring it in.
+#:
+#: Les comptes. Au grain pays, les ventes nettes de la Finance tiennent sur cinq comptes
+#: (`PPL101`, `PPL102`, `PPL111`, `PPL112`, `PPL121`) : café, spa et une part du retail
+#: vivent sur les trois derniers. Cette requête et `SALES_HISTORY` ne lisent que les huit
+#: canaux de sell-in, où ces trois comptes sont nuls — mesuré le 26 octobre 2026 contre le
+#: reforecast de la Finance, à l'euro par entité et canal. Lire la consolidation pour le
+#: réseau en propre exigerait les cinq, jamais deux comptes choisis.
 SELL_IN = """
 with usable as (
     -- The freshest exchange year that actually carries figures. The newest

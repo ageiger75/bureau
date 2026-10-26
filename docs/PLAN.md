@@ -1177,6 +1177,20 @@ fusionne pas les marchés : des notes de contexte sur les trois disent que la co
 consolidé se fait ensemble, et la question posée change. C'est ce qui expliquait le saut de
 Hong Kong dans le rapprochement de septembre.
 
+**Mesuré le 26 octobre, par l'agent entrepôt, sur le reforecast 2 de la Finance.** Le
+budget et l'an dernier du classeur du cockpit sont ceux de la Finance à l'euro ; le réalisé
+d'avril à août de la consolidation et le sell-in des huit canaux aussi. Quatre règles en
+sortent. Les ventes nettes au grain pays tiennent sur cinq comptes, et le cockpit n'en lit
+que deux : sans effet tant qu'il ne lit la consolidation que sur le sell-in, où les trois
+autres sont nuls, et interdit d'en lire le réseau en propre sans les cinq. La Finance se
+joint sur le code d'entité, jamais sur le libellé pays, parce qu'un reforecast renomme ses
+axes à total constant. Un mois « ACT/REF2 » est un figé à la date du reforecast, jamais le
+réel publié. Le taux de change est hors de cause dans les écarts Chine et Brésil : le
+« constant » de la Finance est le taux annuel de l'entrepôt, les écarts sont des montants
+locaux. Ce que le cockpit n'a pas, c'est la prévision d'octobre à mars par entité et canal,
+où la Finance phase l'année autrement que le cumul ne le laisse croire ; elle se lira comme
+un millésime à côté du budget, jamais à sa place — décision prise dans `provenance.py`.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :

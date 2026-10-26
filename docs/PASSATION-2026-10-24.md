@@ -119,7 +119,11 @@ si le fichier parle du mois de la ligne (`mapping.units_from_rows`), et le Luxem
 range sous l'entité belge (`budget.MARKET_ALIASES`). Trois vérifications supplémentaires
 (`var/cortex-finance-*.md`) ont établi : en Chine et à Hong Kong l'écart est une règle
 uniforme magasin par magasin, de l'ordre de cinq points, ni le parc ni le vrac, présente
-aussi au Brésil les deux années, la piste la plus forte étant le taux de change constant ;
+aussi au Brésil les deux années. La piste du taux de change est fermée depuis (Cortex,
+`var/cortex-taux.md`, 26 octobre) : le « constant » du fichier Finance est le taux annuel,
+le même que l'entrepôt, et le « publié » le taux moyen du mois ; les écarts de Chine avec
+Hong Kong et Macao et du Brésil sont des écarts de montant local, entre le net caisse et le
+net publié, et la question va à la Finance ;
 le saut de Hong Kong en septembre est expliqué depuis (lecteur, 26 octobre) : la Finance
 range Hong Kong et Macao sous la Chine depuis le reforecast 2, et les trois se comparent
 ensemble, par des notes de contexte, sans fusion des marchés dans le cockpit ; au Brésil, la Finance déduit depuis
@@ -154,7 +158,38 @@ sell-out ne nomme pas le pays (`perf/countries.py`). Les placements décidés pa
 les distributeurs d'Amérique du Sud et d'Afrique du Sud sous la BU EMEA, le travel retail
 sous sa propre BU, les pays d'export sous EMEA.
 
-### 3.9 Le 25 octobre, en plus
+### 3.9 Le reforecast 2 de la Finance, confronté au cockpit (Cortex, 26 octobre)
+
+Rapport dans `var/ref2-rapport.md`, mémoire dans `var/entrepot.md` §5.12. Ce qui tient à
+l'euro : le budget et l'an dernier du classeur du cockpit sont ceux du REF2 ; le réalisé
+d'avril à août de la consolidation retrouve le REF2 par entité et canal ; le sell-in
+consolidé des huit canaux est identique, et les croissances américaines et britanniques qui
+semblaient folles sont réelles. Les différences sont de périmètre, de calendrier et de
+rangement, jamais de données :
+
+- **Comptes.** Les ventes nettes au grain pays tiennent sur cinq comptes ; le cockpit n'en
+  lit que deux, ce qui laisse dehors café, spa et une part du retail. Sans effet sur le
+  cockpit aujourd'hui : ses requêtes consolidées ne lisent que les huit canaux de sell-in,
+  où les trois autres comptes sont nuls (dit dans `queries.py`). Règle pour la suite.
+- **Septembre du REF2** est un « ACT/REF2 » figé à la date du reforecast, pas le réel
+  publié : le cockpit a raison de lire le fichier FS, et un écart REF2 sur septembre n'est
+  pas un écart de performance.
+- **Rangement.** Mêmes totaux, axes renommés : l'export Europe devient une ligne
+  distributeurs, la Suède une ligne nordique, les distributeurs du travel retail de Hong
+  Kong passent sous un pays « autre », la Finlande est éteinte, Hong Kong et Macao sont sous
+  la Chine. Joindre la Finance sur le code d'entité, jamais sur le libellé pays.
+- **L'an dernier américain** est retraité par le REF2 (le partenaire reclassé) et pas par
+  la consolidation ; le cockpit prend l'an dernier au plan et n'est pas touché.
+- **Format.** `manage.py compare` cherche la feuille du format REF1 et refuse le REF2 ; la
+  feuille `DATABASE REF2` a le format du classeur du plan, que le lecteur du budget sait lire.
+- **Ce que le cockpit n'a pas : la prévision d'octobre à mars**, par entité et canal. La
+  Finance phase l'année : un second semestre de sell-in presque plat après un premier
+  semestre fort, et quelques lignes qui s'inversent. Les alertes « plan à recaler » du
+  cockpit comparent un plan annuel à un cumul ; elles sont justes sur le passé, et la
+  question est le second semestre. Décision produit déjà prise (`provenance.py`) : le plan
+  reste le budget, un reforecast se lit comme un millésime, jamais à sa place.
+
+### 3.10 Le 25 octobre, en plus
 
 - Une session Claude Code locale sur le poste a ajouté `manage.py cabinet` (la lecture du
   jour en un fichier pour les agents de `~/cabinet`, contrat dans `docs/CABINET.md`) sur sa
@@ -216,21 +251,25 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 
 ## 6. Questions ouvertes
 
-**Pour la Finance**, un message a été préparé en conversation : quel taux constant pour
-le yuan, le dollar de Hong Kong, la pataca et le réal ; quelle déduction uniforme, magasin
-par magasin, sépare le net caisse du net publié en Chine et à Hong Kong, le vrac étant déjà
-sur sa propre ligne ; la règle de déduction fiscale brésilienne depuis mai et le
-retraitement de l'an dernier ; le retraitement de l'an dernier du partenaire américain
-reclassé dans la consolidation. Le saut de Hong Kong en septembre n'est plus une question :
-Hong Kong et Macao sont passés sous la Chine au reforecast 2. La question des taux est
-d'abord posée à Cortex, qui tient la table des taux de l'entrepôt.
+**Pour la Finance** : quelle écriture uniforme, magasin par magasin, sépare le net caisse
+du net publié en Chine réunifiée avec Hong Kong et Macao, et au Brésil avant la fiscalité,
+le vrac étant déjà sur sa propre ligne (le taux de change est hors de cause, voir 3.5) ; la
+règle de déduction fiscale brésilienne depuis mai et le retraitement de l'an dernier ; le
+retraitement de l'an dernier du partenaire américain reclassé dans la consolidation. Du
+REF2 (Cortex, 26 octobre) : quels canaux portent le ralentissement du sell-in au second
+semestre, phasage des commandes ou recul attendu ; qui est la ligne distributeurs sans pays
+et pourquoi sans pays ; la définition exacte des comptes de café, spa et autre chiffre
+d'affaires retail ; à quelle date septembre a été figé dans le REF2. Le saut de Hong Kong
+en septembre n'est plus une question : Hong Kong et Macao sont passés sous la Chine au
+reforecast 2.
 
 **Pour l'équipe data** : le droit de lecture de la vue sémantique pour le rôle du cockpit ;
 le défaut de change de la colonne de montant des factures sur le hub de Hong Kong, tranché
 côté cockpit par la mesure de la maison, à signaler parce que d'autres lecteurs la lisent ;
-les défauts de la vue des commandes (livré en proxy, pas de pays de destination, lignes
-sans centre de profit) ; les entités APAC qui facturent hors de la source ; le volume
-intragroupe hongrois ; la consolidation qui livre des intervalles et n'a pas septembre.
+les instantanés de consolidation d'avril, juillet et septembre, absents de l'exercice
+courant ; les défauts de la vue des commandes (livré en proxy, pas de pays de destination,
+lignes sans centre de profit) ; les entités APAC qui facturent hors de la source ; le
+volume intragroupe hongrois ; la consolidation qui livre des intervalles.
 
 **Pour le management**, les questions que le cockpit a produites : pourquoi le premier
 e-retailer américain commande moins ; ce qu'une enseigne américaine a acheté se vend-il ;
@@ -247,6 +286,10 @@ grands magasins européens contre les e-retailers ; l'engagement japonais sur le
 - Le carnet par pays de destination, si l'équipe data l'ajoute à la vue.
 - Le coefficient brésilien sur la note, et le net Finance à côté du net entrepôt pour la
   Chine et Hong Kong, quand la Finance aura répondu.
+- Le reforecast comme millésime : lire la feuille `DATABASE REF2` avec le lecteur du
+  budget (une colonne « dernier reforecast » par entité et canal, les mois figés dits
+  figés), faire lire ce format à `manage.py compare`, et poser le second semestre de la
+  Finance à côté de chaque alerte « plan à recaler ». Le plan reste le budget.
 - Les lignes du plan dont la source n'a jamais vu l'an dernier, marché par marché : le
   facturé des pays sans an dernier est déjà mis à part de la croissance ; reste à le
   rapprocher des lignes du plan qu'il devrait rencontrer.
