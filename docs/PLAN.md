@@ -1177,6 +1177,12 @@ fusionne pas les marchés : des notes de contexte sur les trois disent que la co
 consolidé se fait ensemble, et la question posée change. C'est ce qui expliquait le saut de
 Hong Kong dans le rapprochement de septembre.
 
+**Tranchée le 29 octobre, par le lecteur.** Hong Kong et Macao se lisent sous la Grande
+Chine, les distributeurs de Hong Kong sous APAC : c'est la ligne hiérarchique d'aujourd'hui
+et le rangement de la Finance. Dit par les placements décidés (`var/placements.csv`), qui
+passent par-dessus l'annuaire sur tous les écrans jusqu'à la fin de l'exercice ; l'annuaire
+lui-même range encore les trois sous APAC et sera corrigé à sa prochaine mise à jour.
+
 **Mesuré le 26 octobre, par l'agent entrepôt, sur le reforecast 2 de la Finance.** Le
 budget et l'an dernier du classeur du cockpit sont ceux de la Finance à l'euro ; le réalisé
 d'avril à août de la consolidation et le sell-in des huit canaux aussi. Quatre règles en

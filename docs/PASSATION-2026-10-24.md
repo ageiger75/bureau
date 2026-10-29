@@ -245,6 +245,9 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 - `actuals.xlsx` : le fichier Finance de septembre ; `var/actuals/` garde les mois.
 - `reforecast.xlsx` : le classeur du dernier reforecast de la Finance, tel qu'elle le
   diffuse, copié sans modification ; sa feuille `DATABASE REF…` est lue.
+- `placements.csv` : trois placements décidés jusqu'à la fin de l'exercice — Hong Kong et
+  Macao sous la Grande Chine, les distributeurs de Hong Kong sous APAC (29 octobre) ;
+  l'annuaire range encore les trois sous APAC, à corriger à sa prochaine mise à jour.
 - `cortex-*.md` : les comptes rendus des étapes sept à onze ; `entrepot.md` : la mémoire de
   Cortex, dont le rapprochement Finance.
 - `warehouse-*.json` : les caches de lecture. `warehouse-rows.json` tient la lecture
