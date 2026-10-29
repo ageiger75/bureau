@@ -5193,6 +5193,12 @@ def cmd_reforecast(argv: List[str]) -> int:
         print("  %-24s %12s %12s %12s  %s" % ("Marché", "exercice", "plan", "écart", "prévision vs an dernier (plan)"))
         for market in vintage.markets:
             item = vintage.outlook(market, [market])
+            if not item.full_year and not item.full_budget:
+                # Une entité éteinte : le fichier la garde, à zéro partout. Dire « −100 % »
+                # en ferait une chute ; c'est une ligne qui n'existe plus.
+                print("  %-24s %12s %12s %12s  ligne éteinte : rien au plan ni au reforecast"
+                      % (market[:24], "—", "—", "—"))
+                continue
             print("  %-24s %12s %12s %12s  %s (%s)" % (
                 market[:24], format_eur(item.full_year), format_eur(item.full_budget),
                 format_eur(item.gap), item.ahead_growth_label, item.ahead_plan_growth_label))
