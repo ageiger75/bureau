@@ -43,7 +43,10 @@ sans rien écrire : un dossier vide se citerait comme un vrai.
 
 Trois propriétés, gardées par `tests/test_cabinet_export.py` :
 
-1. **Rien n'est recalculé.** Une section dit mot pour mot ce que sa commande imprime.
+1. **Rien n'est recalculé.** Une section dit mot pour mot ce que sa commande imprime, à deux
+   retouches près qui protègent le lecteur : la clôture du bloc est plus longue que toute suite
+   d'accents graves du texte, et une ligne du texte qui commence par « # » recule d'une espace,
+   pour qu'un nom venu de l'entrepôt ne puisse ni fermer le bloc ni forger un titre de section.
 2. **Rien n'est placé au registre.** Seul l'écran place un sujet en attention ; regarder
    par-dessus l'épaule n'en fait pas un sujet porté.
 3. **Aucune lecture ne part derrière l'écran** (`source.disk_only`). Le serveur, ouvert dans

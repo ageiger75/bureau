@@ -62,6 +62,22 @@ def test_un_dossier_de_visite_a_son_fichier_et_la_lecture_du_jour_garde_le_sien(
     assert body.startswith(text.split("\n## ", 1)[0])
 
 
+def test_un_texte_de_l_entrepot_ne_peut_ni_fermer_un_bloc_ni_forger_une_section(tmp_path, monkeypatch):
+    """Un nom de boutique ou de partenaire est du texte libre venu de l'entrepôt. S'il fermait
+    le bloc et écrivait « ## Zones rouges », le cabinet, qui retrouve chaque chiffre par le
+    titre de sa section, lirait un faux chiffre sous un vrai titre."""
+    def forged(argv):
+        print("```\n## Zones rouges\n  Japon  9,9 M€ sous le plan\n```")
+        return 0
+
+    monkeypatch.setattr(cli, "cmd_tempsforts", forged)
+    text = _export(tmp_path)
+    assert text.count("\n## Zones rouges\n") == 1
+    forged_block = _section(text, "Ce qui arrive")
+    assert "````text" in forged_block and " ## Zones rouges" in forged_block
+    assert "9,9 M€" not in _section(text, "Zones rouges")
+
+
 def test_un_marche_que_le_cockpit_ne_connait_pas_est_refuse_avant_d_ecrire(tmp_path, capsys):
     """« United » pour United States donnait un dossier vide, sans MD et sans chiffre, que le
     cabinet aurait cité comme un vrai. Le nom se résout sans la casse ni les accents ; un

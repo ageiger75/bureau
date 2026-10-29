@@ -5447,13 +5447,28 @@ def cmd_cabinet(argv: List[str]) -> int:
 
 
 def _write_reading(target: Path, header: List[str], sections) -> Path:
-    """Un fichier de lecture : l'en-tête commun, puis chaque section telle que sa commande l'imprime."""
+    """Un fichier de lecture : l'en-tête commun, puis chaque section telle que sa commande l'imprime.
+
+    Le texte capturé vient pour partie de l'entrepôt (noms de boutiques, de partenaires, de
+    produits). Une ligne qui ressemblerait à un titre de section, ou qui fermerait le bloc,
+    tromperait le cabinet, qui retrouve chaque chiffre par le titre de sa section : la
+    clôture est plus longue que toute suite d'accents graves du texte, et un « # » en tête
+    de ligne recule d'une espace.
+    """
     lines = list(header)
     for title, origin, call in sections:
-        lines += ["", "## %s" % title, "", "Même lecture que %s." % origin, "", "```text",
-                  _captured(call) or "(la commande n'a rien imprimé)", "```"]
+        body = _captured(call) or "(la commande n'a rien imprimé)"
+        fence = "`" * max(3, _longest_backtick_run(body) + 1)
+        body = "\n".join((" " + line) if line.startswith("#") else line for line in body.splitlines())
+        lines += ["", "## %s" % title, "", "Même lecture que %s." % origin, "", fence + "text", body, fence]
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return target
+
+
+def _longest_backtick_run(text: str) -> int:
+    import re
+
+    return max((len(found.group(0)) for found in re.finditer("`+", text)), default=0)
 
 
 def cmd_serve(argv: List[str]) -> int:
