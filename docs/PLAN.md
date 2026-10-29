@@ -1076,8 +1076,12 @@ sémantiques, c'est-à-dire un second chiffre sans les règles de la maison. `ma
 sortie d'une commande existante, ce qui est tranché compris, sans placement au registre et
 sans lecture lancée derrière l'écran. La règle de la phase tient : la couche déterministe
 reste la seule à compter, le cabinet cite avec la section, et son contrôle retrouve chaque
-chiffre à l'identique dans l'export. Décision du lecteur, à prendre avant d'écrire
-`CEOOS_CABINET_DIR` : le compte sous lequel le cabinet lira des chiffres réels.
+chiffre à l'identique dans l'export. Le 29 octobre, le dossier de visite demandé par
+`--marche` a reçu son propre fichier (`AAAA-MM-JJ-cockpit-<marché>.md`), pour que deux
+dossiers dans la journée ne s'écrasent pas, et un marché que le cockpit ne connaît pas est
+refusé avant d'écrire : un dossier vide se citait comme un vrai. Décision du lecteur, à
+prendre avant d'écrire `CEOOS_CABINET_DIR` : le compte sous lequel le cabinet lira des
+chiffres réels.
 
 ### En attente, sans date
 
