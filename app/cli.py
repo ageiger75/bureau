@@ -66,7 +66,7 @@
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
     python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
     python -m app.cli cabinet        la lecture du jour pour le cabinet, en un fichier daté : ce que l'écran dit, rien de recalculé
-                                     --vers DOSSIER (défaut CEOOS_CABINET_DIR, sinon var/cabinet/) · --marche MARCHÉ
+                                     --vers DOSSIER (défaut CEOOS_CABINET_DIR, sinon var/cabinet/) · --marche MARCHÉ (un fichier de plus par dossier de visite)
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
     python -m app.cli supply         le rapport supply du mois et ce que l'entrepôt en voit : service, biais, livré sur commandé [--refresh]
     python -m app.cli partenaires    le sell-in par partenaire nommé (e-retailers, enseignes, opérateurs de voyage) : exercice à date, trois mois, plan du canal [--refresh]
@@ -5377,13 +5377,20 @@ def cmd_cabinet(argv: List[str]) -> int:
 
         manage.py cabinet                         dans CEOOS_CABINET_DIR, sinon var/cabinet/
         manage.py cabinet --vers ~/cabinet/entrees/cockpit
-        manage.py cabinet --marche China          ajoute le dossier de visite du marché
+        manage.py cabinet --marche China          écrit aussi le dossier de visite du marché,
+                                                  dans son propre fichier AAAA-MM-JJ-cockpit-china.md
+
+    Un dossier de visite a son fichier : deux `--marche` dans la même journée ne s'écrasent
+    pas, et la lecture du jour garde le même nom quoi qu'on lui demande. Un marché que le
+    cockpit ne connaît pas est refusé avant d'écrire : un dossier vide, « sans MD » et sans
+    chiffre, se citerait comme un vrai.
 
     Les titres des sections sont une interface : le cabinet les cite, docs/CABINET.md les
     nomme, et en changer un se fait des deux côtés à la fois.
     """
     from datetime import date
 
+    from .perf import page as page_module
     from .perf import source as source_module
 
     chosen = _option(argv, "--vers")
@@ -5405,9 +5412,6 @@ def cmd_cabinet(argv: List[str]) -> int:
         ("Ce qui arrive", "manage.py tempsforts", lambda: cmd_tempsforts([])),
         ("Le mois, marché par marché", "manage.py month", lambda: cmd_month([])),
     ]
-    for market in markets:
-        sections.append(("Dossier de visite · %s" % market, "manage.py marche %s" % market,
-                         lambda market=market: cmd_marche([market])))
 
     with source_module.disk_only():
         source = source_module.current_source()
@@ -5416,16 +5420,40 @@ def cmd_cabinet(argv: List[str]) -> int:
         except NotImplementedError as incomplete:
             print("Source incomplète, rien n'est écrit : %s" % incomplete, file=sys.stderr)
             return 2
-        lines = _cabinet_header(source, dataset, today)
-        for title, origin, call in sections:
-            lines += ["", "## %s" % title, "", "Même lecture que %s." % origin, "", "```text",
-                      _captured(call) or "(la commande n'a rien imprimé)", "```"]
+        known = list(dict.fromkeys(getattr(unit, "market", "") for unit in getattr(dataset, "units", []) or []
+                                   if getattr(unit, "market", "")))
+        resolved = []
+        for market in markets:
+            match = next((name for name in known
+                          if name == market or page_module.slug(name) == page_module.slug(market)), None)
+            if match is None:
+                print("Marché inconnu du cockpit : %s. Rien n'est écrit. Il connaît : %s. Un nom en deux "
+                      "mots s'écrit entre guillemets : --marche \"United States\"."
+                      % (market, ", ".join(sorted(known)) or "aucun marché"), file=sys.stderr)
+                return 2
+            resolved.append(match)
+        header = _cabinet_header(source, dataset, today)
+        folder.mkdir(parents=True, exist_ok=True)
+        written = [_write_reading(folder / ("%s-cockpit.md" % today), header, sections)]
+        for market in resolved:
+            dossier = [("Dossier de visite · %s" % market, "manage.py marche %s" % market,
+                        lambda market=market: cmd_marche([market]))]
+            written.append(_write_reading(folder / ("%s-cockpit-%s.md" % (today, page_module.slug(market))),
+                                          header, dossier))
 
-    folder.mkdir(parents=True, exist_ok=True)
-    target = folder / ("%s-cockpit.md" % today)
-    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("Lecture pour le cabinet : %s" % target)
+    for target in written:
+        print("Lecture pour le cabinet : %s" % target)
     return 0
+
+
+def _write_reading(target: Path, header: List[str], sections) -> Path:
+    """Un fichier de lecture : l'en-tête commun, puis chaque section telle que sa commande l'imprime."""
+    lines = list(header)
+    for title, origin, call in sections:
+        lines += ["", "## %s" % title, "", "Même lecture que %s." % origin, "", "```text",
+                  _captured(call) or "(la commande n'a rien imprimé)", "```"]
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return target
 
 
 def cmd_serve(argv: List[str]) -> int:

@@ -20,7 +20,12 @@ contredire devant un MD, et c'est le lecteur qui paie l'écart.
 
 Un fichier par jour, `AAAA-MM-JJ-cockpit.md`, dans `CEOOS_CABINET_DIR`, sinon dans
 `var/cabinet/`. L'en-tête dit la source, la date de chaque lecture et la façon de lire. Chaque
-section est la sortie d'une commande qui existe déjà, telle que l'écran la rend :
+section est la sortie d'une commande qui existe déjà, telle que l'écran la rend. Un dossier de
+visite demandé par `--marche` s'écrit à côté, dans son propre fichier
+`AAAA-MM-JJ-cockpit-<marché>.md` (`--marche China` donne `-cockpit-china.md`, `--marche "United
+States"` donne `-cockpit-united-states.md`) : deux dossiers dans la journée ne s'écrasent pas,
+et la lecture du jour garde son nom. Un marché que le cockpit ne connaît pas est refusé, code 2,
+sans rien écrire : un dossier vide se citerait comme un vrai.
 
 | Section | Même lecture que |
 | --- | --- |
@@ -34,7 +39,7 @@ section est la sortie d'une commande qui existe déjà, telle que l'écran la re
 | Le sell-in du mois | `manage.py sellin` |
 | Ce qui arrive | `manage.py tempsforts` |
 | Le mois, marché par marché | `manage.py month` |
-| Dossier de visite · marché | `manage.py marche <marché>`, avec `--marche <marché>` |
+| Dossier de visite · marché | `manage.py marche <marché>`, avec `--marche <marché>`, dans `AAAA-MM-JJ-cockpit-<marché>.md` |
 
 Trois propriétés, gardées par `tests/test_cabinet_export.py` :
 

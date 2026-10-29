@@ -46,6 +46,36 @@ def _section(text: str, title: str) -> str:
     return text.split("\n## %s\n" % title, 1)[1].split("\n## ", 1)[0]
 
 
+def test_un_dossier_de_visite_a_son_fichier_et_la_lecture_du_jour_garde_le_sien(tmp_path):
+    """Deux `--marche` dans la journée ne s'écrasent pas, et le cabinet retrouve chaque
+    section dans un export du jour : la lecture du jour d'un côté, un dossier par marché."""
+    text = _export(tmp_path, "--marche", "Japan")
+    assert "## Dossier de visite" not in text
+    for title in SECTIONS:
+        assert "\n## %s\n" % title in text
+    dossier = tmp_path / ("%s-cockpit-japan.md" % datetime.date.today().isoformat())
+    assert dossier.is_file()
+    body = dossier.read_text(encoding="utf-8")
+    assert "\n## Dossier de visite · Japan\n" in body
+    assert "Même lecture que manage.py marche Japan." in body
+    assert "## Les trois sujets" not in body
+    assert body.startswith(text.split("\n## ", 1)[0])
+
+
+def test_un_marche_que_le_cockpit_ne_connait_pas_est_refuse_avant_d_ecrire(tmp_path, capsys):
+    """« United » pour United States donnait un dossier vide, sans MD et sans chiffre, que le
+    cabinet aurait cité comme un vrai. Le nom se résout sans la casse ni les accents ; un
+    inconnu arrête tout, et rien n'est écrit."""
+    assert cli.main(["cabinet", "--vers", str(tmp_path), "--marche", "United"]) == 2
+    assert list(tmp_path.glob("*.md")) == []
+    err = capsys.readouterr().err
+    assert "Marché inconnu du cockpit : United" in err
+    assert "Japan" in err
+
+    assert cli.main(["cabinet", "--vers", str(tmp_path), "--marche", "japan"]) == 0
+    assert (tmp_path / ("%s-cockpit-japan.md" % datetime.date.today().isoformat())).is_file()
+
+
 def test_la_lecture_est_un_fichier_date_qui_porte_chaque_section(tmp_path):
     """Les titres sont une interface : le lundi du cabinet les cherche par leur nom."""
     text = _export(tmp_path)
