@@ -131,6 +131,10 @@ DEFAULT_STORE_SALES_FILE = "var/stores-sales.xlsx"
 #: mois, et le cockpit le dit plutôt que de le déduire d'un taux moyen.
 DEFAULT_EBITDA_FILE = "var/ebitda-budget.xlsx"
 
+#: Le dernier reforecast de la Finance, le classeur tel qu'elle le diffuse : lu comme un
+#: millésime posé à côté du plan, jamais à sa place.
+DEFAULT_REFORECAST_FILE = "var/reforecast.xlsx"
+
 #: La marge incrémentale par canal, mesurée au compte de gestion par l'agent entrepôt : le
 #: taux du prochain euro, là où la série est stable, et un statut nommé partout ailleurs.
 DEFAULT_INCREMENTAL_FILE = "var/incremental_margin_channels.csv"
@@ -205,6 +209,7 @@ class Settings:
     stores_file: str = DEFAULT_STORES_FILE
     store_sales_file: str = DEFAULT_STORE_SALES_FILE
     ebitda_file: str = DEFAULT_EBITDA_FILE
+    reforecast_file: str = DEFAULT_REFORECAST_FILE
     incremental_file: str = DEFAULT_INCREMENTAL_FILE
     retail_margin_file: str = DEFAULT_RETAIL_MARGIN_FILE
     pnl_file: str = DEFAULT_PNL_FILE
@@ -372,6 +377,15 @@ class Settings:
     @property
     def has_ebitda_file(self) -> bool:
         return self.ebitda_path.exists()
+
+    @property
+    def reforecast_path(self) -> Path:
+        path = Path(self.reforecast_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_reforecast_file(self) -> bool:
+        return self.reforecast_path.exists()
 
     @property
     def incremental_path(self) -> Path:

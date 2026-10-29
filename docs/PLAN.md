@@ -894,12 +894,18 @@ comptés une fois, et le type du point de vente facturé (`V_SL_D_POS.channel_ty
 groupe qui revend à son propre réseau, près de la moitié du facturé lu avant, dont un seul
 client en travel retail les trois quarts — est lu à part, nommé, avec sa croissance, sur
 l'écran du jour et sur Analyses (`invoiced.intragroup_note`). La zone rouge Travel Retail et
-la carte « sell-in et sell-out ensemble » en héritent. Le montant reste
-`net_invoice_amount_eur_annual` : la mesure désignée par la maison, `billed_net_value`, est
-trois pour cent en dessous sur le commercial et trois fois au-dessus sur l'intragroupe — à
-arbitrer avec l'équipe data avant de basculer. Le filtre de pertinence turnover du produit,
-inerte et sur la dimension produit, n'est pas repris. Le cache des factures se relit tout
-seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours.
+la carte « sell-in et sell-out ensemble » en héritent. Le montant est la mesure que la
+maison désigne, `billed_net_value_eur_annual`, depuis le 25 octobre 2026 : l'agent entrepôt
+a mesuré que `net_invoice_amount_eur_annual` applique aux factures du hub de Hong Kong
+émises dans une autre devise que la sienne le taux de cette autre devise — le travel retail
+ressortait très au-dessus de la consolidation, les distributeurs très en dessous, sur tous
+les mois lus ; la mesure de la maison retrouve la consolidation canal par canal, et hors du
+hub les deux colonnes sont égales à l'euro près. Le carnet n'a pas ce défaut. Les lectures
+courtes (mois, jour, factures) portent l'empreinte de leur requête : une colonne qui change
+rend la lecture d'hier caduque, même en dernier recours. Le filtre de pertinence turnover du
+produit, inerte et sur la dimension produit, n'est pas repris. Le cache des factures se
+relit tout seul (court) ; celui des partenaires attend `refresh --partners` ou sept jours,
+sauf quand sa requête a changé.
 
 Un marché sans client enregistré (la Chine : `VIP.WALKIN` vaut 1 partout, confirmé par
 l'équipe data) est dit comme un fait du marché, pas comme un retard d'entrepôt, et ne
@@ -938,6 +944,23 @@ le Moyen-Orient et les distributeurs à l'export sur des entités qui ne sont pa
 sous une BU, aucun périmètre ne rencontre ces lignes, et la carte « ensemble » compare un
 facturé qui les contient à un plan qui ne les contient pas. `manage.py ensemble` nomme les
 deux listes : les lignes de plan orphelines, et les pays facturés rangés nulle part.
+
+Un pays qui facture ce mois-ci sans une seule facture le même mois l'an dernier dans la
+source — une entité nouvelle, ou un pays que la source ne voyait pas — faisait lire à son
+périmètre une croissance à trois chiffres. Ce n'est pas une croissance, c'est l'arrivée d'un
+pays dans la source. Appris sur l'APAC, le 25 octobre 2026 : la quasi-totalité du facturé du
+périmètre venait d'un tel pays. Règle (`invoiced.Line.unseen`) : le pays reste dans le
+facturé à date, sort de la croissance à jours ouvrés égaux et à dates égales, et la carte
+nomme le pays et le montant mis à part, puis sur quoi la croissance se lit — au groupe, par
+périmètre, par canal, et dans `manage.py ensemble`. Quand tout le facturé vient de tels pays,
+pas de croissance, la raison. La carte « sell-in et sell-out ensemble » n'en a pas besoin :
+elle refuse déjà le mot quand les factures de l'an dernier couvrent trop peu du plan.
+
+Le même jour, les pages APAC et EMEA tombaient en erreur interne quand NA s'affichait : dans
+`page.build`, la variable du plan sell-in du mois écrasait celle du plan EBITDA, et la carte
+« EBITDA au budget » lisait un montant comme un plan — seulement sur les périmètres qui
+portent des factures, que la suite ne construisait jamais avec un plan EBITDA. Deux tests
+font maintenant les deux à la fois, en unitaire et par la vraie page.
 L'annuaire peut ranger ces entités et ces pays (`owners.COUNTRY_ALIASES`, en français ou en
 anglais, dans une cellule « Pays couverts » qui les énumère avec `;`) : décision du 28
 septembre, Nordic, Middle East, Loi Distributors, Other et les distributeurs à l'export
@@ -1151,6 +1174,49 @@ façon franche : un marché asiatique majeur porte plus de deux cents boutiques 
 seul contre trois en fixe, quand deux grands marchés européens n'ont aucune boutique en
 variable. Le marché nord-américain, lui, est massivement en mixte — minimum garanti plus
 pourcentage — ce qu'aucune règle à deux valeurs n'aurait dit.
+
+**Tranchée le 26 octobre, par le lecteur.** La Finance range Hong Kong et Macao sous la
+Chine depuis le reforecast 2 ; l'entrepôt et le plan les lisent à part. Le cockpit ne
+fusionne pas les marchés : des notes de contexte sur les trois disent que la comparaison au
+consolidé se fait ensemble, et la question posée change. C'est ce qui expliquait le saut de
+Hong Kong dans le rapprochement de septembre.
+
+**Tranchée le 29 octobre, par le lecteur.** Hong Kong et Macao se lisent sous la Grande
+Chine, les distributeurs de Hong Kong sous APAC : c'est la ligne hiérarchique d'aujourd'hui
+et le rangement de la Finance. Dit par les placements décidés (`var/placements.csv`), qui
+passent par-dessus l'annuaire sur tous les écrans jusqu'à la fin de l'exercice ; l'annuaire
+lui-même range encore les trois sous APAC et sera corrigé à sa prochaine mise à jour.
+
+**Mesuré le 26 octobre, par l'agent entrepôt, sur le reforecast 2 de la Finance.** Le
+budget et l'an dernier du classeur du cockpit sont ceux de la Finance à l'euro ; le réalisé
+d'avril à août de la consolidation et le sell-in des huit canaux aussi. Quatre règles en
+sortent. Les ventes nettes au grain pays tiennent sur cinq comptes, et le cockpit n'en lit
+que deux : sans effet tant qu'il ne lit la consolidation que sur le sell-in, où les trois
+autres sont nuls, et interdit d'en lire le réseau en propre sans les cinq. La Finance se
+joint sur le code d'entité, jamais sur le libellé pays, parce qu'un reforecast renomme ses
+axes à total constant. Un mois « ACT/REF2 » est un figé à la date du reforecast, jamais le
+réel publié. Le taux de change est hors de cause dans les écarts Chine et Brésil : le
+« constant » de la Finance est le taux annuel de l'entrepôt, les écarts sont des montants
+locaux. Ce que le cockpit n'a pas, c'est la prévision d'octobre à mars par entité et canal,
+où la Finance phase l'année autrement que le cumul ne le laisse croire ; elle se lit comme
+un millésime à côté du budget, jamais à sa place — décision prise dans `provenance.py`.
+
+**Construit le 26 octobre : le millésime.** `app/perf/reforecast.py` lit la feuille
+`DATABASE REF2` de `var/reforecast.xlsx` avec sa propre grammaire de colonnes — trois formes
+de mois et deux irrégularités, apprises sur le vrai classeur par l'agent entrepôt — et pose
+lui-même le partage que l'en-tête ne fait pas : un reforecast numéro n couvre 3n mois
+réalisés, dont le dernier est figé à la date du reforecast et n'est pas le réel publié ; le
+reste est prévision. La règle est imprimée en tête de `manage.py reforecast` et dans la
+note de l'écran, pour être contestée là. L'écran du jour porte l'écart attendu par la
+Finance à côté des trois hypothèses d'atterrissage, la page du périmètre sa phrase
+(exercice attendu, prévision du reste contre l'an dernier, les deux semestres, le sell-in
+à part), Analyses le découpe par périmètre et nomme la part que les périmètres de l'écran ne
+portent pas. Rien ici n'est un plan. Les marchés du fichier que le mois n'a pas rencontrés
+— sans sell-out, une ligne du plan sans ticket — rejoignent leur périmètre par l'annuaire
+puis l'organigramme (`reforecast.complete_known`), la règle du mois ; ce que ni l'un ni
+l'autre ne range reste nommé. `manage.py org --markets` ne lit que l'organigramme, qui
+nomme des zones : sa liste de non-rattachés n'est pas celle de l'écran, l'annuaire place
+pays par pays avant lui. Reste à faire : `manage.py compare` sur ce format.
 
 ## 7. Ce qui attend l'équipe data
 

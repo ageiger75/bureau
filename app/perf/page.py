@@ -442,7 +442,8 @@ class Page:
                  fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
                  retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = (),
-                 products=None, elsewhere: Sequence = (), clients=None, together=None) -> None:
+                 products=None, elsewhere: Sequence = (), clients=None, together=None,
+                 reforecast=None, reforecast_note: str = "") -> None:
         self.name = name
         self.lead = lead
         self.markets = list(markets)
@@ -489,6 +490,10 @@ class Page:
         self.pnl_breakdown = ""
         #: Le mois à date, sell-in et sell-out ensemble, contre le plan — ou None.
         self.together = together
+        #: Ce que la Finance attend de l'exercice sur ce périmètre, au dernier reforecast :
+        #: un millésime à côté du plan, jamais à sa place — ou None. Et le partage des mois.
+        self.reforecast = reforecast
+        self.reforecast_note = reforecast_note
 
     @property
     def slug(self) -> str:
@@ -533,7 +538,7 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
           week=None, fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
           invoiced=None, gifting=None, retail=None, prepared=None, products=None,
-          elsewhere: Sequence = (), clients=None) -> Page:
+          elsewhere: Sequence = (), clients=None, reforecast=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
     from .model import Dataset
@@ -575,8 +580,13 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                    if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
     if billed is not None:
-        plan, plan_last_year = sell_in_plan_lines(budget, markets, getattr(track, "period", "") or "")
-        together = Together(scope.month if scope is not None else None, billed, plan, plan_last_year)
+        # Le plan sell-in du mois a son propre nom : « plan » est le plan EBITDA du
+        # périmètre, et la page le rend tel quel.
+        sell_in_plan, sell_in_last_year = sell_in_plan_lines(
+            budget, markets, getattr(track, "period", "") or "")
+        together = Together(scope.month if scope is not None else None, billed,
+                            sell_in_plan, sell_in_last_year)
+    outlook = reforecast.for_name(name) if reforecast is not None and reforecast.usable else None
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
                  subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
@@ -584,7 +594,8 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                  talks=talks, watch_lines=watch_lines, products=products, clients=clients,
                  elsewhere=[fire for fire in elsewhere
                             if getattr(getattr(fire, "unit", None), "market", "") in wanted],
-                 together=together)
+                 together=together, reforecast=outlook,
+                 reforecast_note=getattr(reforecast, "note", "") if outlook is not None else "")
     if pnl is not None and done is not None:
         built.pnl_breakdown = pnl.breakdown(name)
     return built

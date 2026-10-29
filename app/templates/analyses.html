@@ -338,6 +338,29 @@
   {% endif %}
 </section>
 
+{# ------------------------------------------------------------------ le reforecast #}
+
+<section class="panel" id="reforecast">
+  <h2>Ce que la Finance attend{% if reforecast and reforecast.usable %} ({{ reforecast.vintage.vintage }}){% endif %}</h2>
+  {% if reforecast and reforecast.usable %}
+  <p class="lede">{{ reforecast.note | ucfirst }}.</p>
+  <table class="month-table mix-table">
+    <thead><tr><th>Périmètre</th><th>Exercice attendu</th><th>contre le plan</th><th>sur l'an dernier (plan)</th><th>{{ reforecast.vintage.months_label(reforecast.vintage.ahead) | ucfirst }}, prévision vs an dernier (plan)</th><th>Sell-in : semestres vs an dernier (plan)</th></tr></thead>
+    <tbody>
+    {% for line in reforecast.lines %}
+      <tr><td>{{ line.name }}</td><td class="num">{{ line.all.full_year | eur }}</td><td class="num {{ 'is-en-retard' if line.all.gap < 0 else ('is-en-avance' if line.all.gap > 0 else '') }}">{{ line.all.gap | eur }}</td><td class="num">{{ line.all.growth_label }} ({{ line.all.plan_growth_label }})</td><td class="num">{{ line.all.ahead_growth_label }} ({{ line.all.ahead_plan_growth_label }})</td><td class="num">{% if line.sell_in.usable %}{{ line.sell_in.first_half_label }} puis {{ line.sell_in.second_half_label }} ({{ line.sell_in.first_half_plan_label }} puis {{ line.sell_in.second_half_plan_label }}){% else %}—{% endif %}</td></tr>
+    {% endfor %}
+      <tr class="month-rest"><td>Groupe</td><td class="num">{{ reforecast.group.full_year | eur }}</td><td class="num {{ 'is-en-retard' if reforecast.group.gap < 0 else ('is-en-avance' if reforecast.group.gap > 0 else '') }}">{{ reforecast.group.gap | eur }}</td><td class="num">{{ reforecast.group.growth_label }} ({{ reforecast.group.plan_growth_label }})</td><td class="num">{{ reforecast.group.ahead_growth_label }} ({{ reforecast.group.ahead_plan_growth_label }})</td><td class="num">{% if reforecast.group_sell_in and reforecast.group_sell_in.usable %}{{ reforecast.group_sell_in.first_half_label }} puis {{ reforecast.group_sell_in.second_half_label }} ({{ reforecast.group_sell_in.first_half_plan_label }} puis {{ reforecast.group_sell_in.second_half_plan_label }}){% else %}—{% endif %}</td></tr>
+    </tbody>
+  </table>
+  {% if reforecast.unplaced_note %}<p class="cockpit-caveat">{{ reforecast.unplaced_note | ucfirst }}.</p>{% endif %}
+  {% for reason in reforecast.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
+  <p class="cockpit-caveat">Un semestre qui s'inverse derrière un cumul fort est la lecture que le plan annuel ne donne pas : les alertes « plan à recaler » du cockpit sont justes sur le passé, et la question est ce que la Finance attend du reste de l'exercice.</p>
+  {% else %}
+  <p class="empty">{% if reforecast %}{% for reason in reforecast.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}le dernier reforecast de la Finance n'est pas lu{% endif %}</p>
+  {% endif %}
+</section>
+
 {# ------------------------------------------------------------------ white spaces #}
 
 <section class="panel" id="white-spaces">
@@ -416,6 +439,8 @@
     {% endif %}
     </tbody>
   </table>
+  {% if invoiced.group.unseen_note %}<p class="cockpit-caveat">{{ invoiced.group.unseen_note | ucfirst }}.</p>{% endif %}
+  {% for line in invoiced.shown_channels if line.unseen_note %}<p class="cockpit-caveat">{{ line.name }} : {{ line.unseen_note }}.</p>{% endfor %}
   {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
   {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
 </section>

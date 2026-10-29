@@ -22,7 +22,7 @@ vide quatre fois sur cinq ; le montant est au taux fixe, jamais au taux de la fa
 from __future__ import annotations
 
 import datetime
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from .mapping import CHANNEL_NAMES
 
@@ -88,11 +88,18 @@ class Line:
     facturés égaux et à dates égales."""
 
     __slots__ = ("name", "current", "current_business", "aligned", "same_dates",
-                 "last_year_month")
+                 "last_year_month", "unseen", "unseen_business", "unseen_names")
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.current = 0.0
+        #: Ce que facturent les pays sans aucune facture l'an dernier dans la source — une
+        #: entité nouvelle, ou un pays que la source ne voyait pas. Dans le facturé à date,
+        #: jamais dans la croissance : une croissance à trois chiffres portée par un pays sans
+        #: an dernier n'est pas une croissance, c'est l'arrivée d'un pays dans la source.
+        self.unseen = 0.0
+        self.unseen_business = 0.0
+        self.unseen_names: List[str] = []
         #: La part du facturé à date tombée un jour ouvré : ce qui se compare à l'an dernier
         #: à jours ouvrés égaux. Le week-end reste dans `current`, jamais dans la croissance.
         self.current_business = 0.0
@@ -111,12 +118,42 @@ class Line:
         return min(1.0, self.aligned / self.last_year_month)
 
     @property
+    def without_last_year(self) -> bool:
+        """Facture ce mois-ci, et pas une facture sur le même mois l'an dernier."""
+        return self.current > 0 and self.last_year_month <= 0
+
+    @property
+    def comparable(self) -> float:
+        """Le facturé à date des pays que la source voyait déjà l'an dernier."""
+        return self.current - self.unseen
+
+    @property
+    def unseen_share(self) -> Optional[float]:
+        return self.unseen / self.current if self.current > 0 else None
+
+    @property
     def growth(self) -> Optional[float]:
-        return _pct(self.current_business, self.aligned)
+        return _pct(self.current_business - self.unseen_business, self.aligned)
 
     @property
     def growth_same_dates(self) -> Optional[float]:
-        return _pct(self.current, self.same_dates)
+        return _pct(self.comparable, self.same_dates)
+
+    @property
+    def unseen_note(self) -> str:
+        """Pourquoi la croissance ne porte pas sur tout le facturé, quand c'est le cas."""
+        from .analytics import format_eur
+
+        if self.unseen <= 0:
+            return ""
+        names = ", ".join(self.unseen_names) or "pays non nommés"
+        if self.comparable <= 0:
+            return ("tout le facturé à date (%s) vient de pays sans aucune facture l'an "
+                    "dernier dans la source (%s) : pas de croissance à lire"
+                    % (format_eur(self.current), names))
+        return ("%s facturés par %s, sans aucune facture l'an dernier dans la source : "
+                "hors de la croissance, qui se lit sur les %s restants"
+                % (format_eur(self.unseen), names, format_eur(self.comparable)))
 
     @property
     def growth_label(self) -> str:
@@ -312,6 +349,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     other_codes: List[str] = []
     intragroup = Line("Intragroupe")
     intragroup_types: List[str] = []
+    #: Le canal croisé avec le pays : ce qui dit, par canal, quels pays n'ont pas d'an dernier.
+    cells: Dict[Tuple[str, str], Line] = {}
 
     def pour(entries, attribute):
         for entry in entries:
@@ -335,6 +374,8 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
             for bucket, key in ((channels, label), (by_country, entry["iso2"] or "??")):
                 line = bucket.setdefault(key, Line(key))
                 setattr(line, attribute, getattr(line, attribute) + entry["amount"])
+            cell = cells.setdefault((label, entry["iso2"] or "??"), Line(label))
+            setattr(cell, attribute, getattr(cell, attribute) + entry["amount"])
             setattr(group, attribute, getattr(group, attribute) + entry["amount"])
 
     for day, entries in current.items():
@@ -359,6 +400,14 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
         into.same_dates += line.same_dates
         into.last_year_month += line.last_year_month
 
+    def set_apart(into: Line, line: Line, shown: str) -> None:
+        """Un pays sans an dernier compte dans le facturé de `into`, pas dans sa croissance."""
+        if line.without_last_year:
+            into.unseen += line.current
+            into.unseen_business += line.current_business
+            if shown not in into.unseen_names:
+                into.unseen_names.append(shown)
+
     for iso2, line in countries.items():
         merge(market_lines.setdefault(names.get(iso2, iso2), Line(names.get(iso2, iso2))), line)
     placed, _leads = place_markets(list(market_lines) + list(TRAVEL_RETAIL_MARKETS), org, directory)
@@ -379,6 +428,10 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     for market, line in market_lines.items():
         target = perimeters.setdefault(placed[market], Line(placed[market])) if placed.get(market) else loose
         merge(target, line)
+        set_apart(target, line, market)
+        set_apart(group, line, market)
+    for (label, iso2), cell in sorted(cells.items(), key=lambda item: -item[1].current):
+        set_apart(channels[label], cell, names.get(iso2, iso2))
     ordered = sorted(perimeters.values(), key=lambda line: -line.current)
     if not placed:
         absent.append("ni annuaire ni organigramme : les pays facturés ne sont pas rangés par périmètre")

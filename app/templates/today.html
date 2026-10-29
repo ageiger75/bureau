@@ -57,12 +57,20 @@
         <li><span class="fact-value {{ 'is-en-retard' if landing.gap_at_growth < 0 else 'is-en-avance' }}">{{ landing.gap_at_growth | eur }}</span><span class="fact-label">à la croissance tenue ({{ landing.growth_label }})</span></li>
         {% endif %}
         <li><span class="fact-value">{{ landing.gap_at_plan | eur }}</span><span class="fact-label">si le reste tient le plan</span></li>
+        {% if reforecast and reforecast.usable %}
+        <li><span class="fact-value {{ 'is-en-retard' if reforecast.group.gap < 0 else 'is-en-avance' }}" title="{{ reforecast.group.sentence }}">{{ reforecast.group.gap | eur }}</span><span class="fact-label">selon la Finance ({{ reforecast.vintage.vintage }}), {{ reforecast.group.full_year | eur }}</span></li>
+        {% endif %}
         <li><span class="fact-value">{{ landing.months_left }}</span><span class="fact-label">mois restent</span></li>
       </ul>
       {% if landing.weighted_usable %}<p class="hero-note">L'écart entre les deux hypothèses est le phasage du plan.{% if landing.moved_events %} Temps forts qui changent de mois : {{ landing.moved_events | join(" · ") }}.{% endif %}</p>{% elif landing.moved_events %}<p class="hero-note">Temps forts qui changent de mois : {{ landing.moved_events | join(" · ") }}.</p>{% endif %}
     </div>
   {% elif landing %}
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
+  {% endif %}
+  {% if reforecast and reforecast.usable %}
+    <p class="cockpit-caveat">{{ reforecast.note | ucfirst }}.{% if reforecast.group.halves_sentence %} Groupe : {{ reforecast.group.halves_sentence }}.{% endif %}{% if reforecast.group_sell_in and reforecast.group_sell_in.halves_sentence %} Sell-in : {{ reforecast.group_sell_in.halves_sentence }}.{% endif %} <a href="/analyses#reforecast">Par périmètre, sur Analyses</a>.</p>
+  {% elif reforecast %}
+    {% for reason in reforecast.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}
   {% endif %}
 
   {# ---------------------------------------------------------------- les cartes #}
@@ -353,6 +361,8 @@
       </tbody>
     </table>
     {% endif %}
+    {% if invoiced.group.unseen_note %}<p class="cockpit-caveat">{{ invoiced.group.unseen_note | ucfirst }}.</p>{% endif %}
+    {% for line in invoiced.perimeters if line.unseen_note %}<p class="cockpit-caveat">{{ line.name }} : {{ line.unseen_note }}.</p>{% endfor %}
     {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
     {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
     {% for reason in invoiced.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}

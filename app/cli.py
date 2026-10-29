@@ -54,6 +54,7 @@
                                      moyens de var/contribution.csv — un calcul, pas un résultat
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
+    python -m app.cli reforecast     le dernier reforecast de la Finance, un millésime à côté du plan : par périmètre, et --structure pour les colonnes lues
     python -m app.cli retail         l'euro suivant en boutique, pays par pays, pente et précision
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
     python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
@@ -238,6 +239,8 @@ def cmd_check() -> int:
     others = (
         ("Divergence", settings.divergence_path,
          "les marchés ne seront pas notés en vitesse"),
+        ("Reforecast", settings.reforecast_path,
+         "l'atterrissage n'aura pas l'avis de la Finance à côté du plan"),
         ("Partenaires", settings.partners_path,
          "le digital non détenu restera un total sans noms"),
         ("Signaux distribution", settings.distribution_path,
@@ -4315,6 +4318,14 @@ def _print_ensemble_partners(source, period: str, iso2s, label: str) -> None:
         return
     now = sum(c["now"] for c in seen.values())
     was = sum(c["before"] for c in seen.values())
+    latest = max((str(row.get("period") or "") for row in rows), default="")
+    if now == 0 and latest < period:
+        # La lecture partenaires s'arrête avant le mois : rien d'octobre dedans n'est pas
+        # « moins cent pour cent », c'est une lecture qui date.
+        print("PARTENAIRES — la lecture partenaires du %s s'arrête à %s : rien de %s n'y est "
+              "encore ; elle se relit derrière l'écran à la prochaine page, ou tout de suite "
+              "par manage.py refresh --partners" % (read, latest or "rien", period))
+        return
     print("PARTENAIRES — %s à date par partenaire facturé depuis les pays de %s, lecture du %s ; "
           "hors travel retail" % (period, label, read))
     print("  %s à date contre %s le même mois entier l'an dernier (%s)" % (
@@ -4399,6 +4410,8 @@ def cmd_ensemble(argv: List[str]) -> int:
                   format_eur(billed.current), billed.growth_label, billed.same_dates_label,
                   format_eur(billed.last_year_month), format_eur(billed.aligned),
                   ("%.0f %%" % (billed.share_by_now * 100)) if billed.share_by_now is not None else "inconnue"))
+        if billed.unseen_note:
+            print("  %s (%.0f %% du facturé à date)" % (billed.unseen_note, (billed.unseen_share or 0.0) * 100))
     source = inputs["source"]
     try:
         rows = source.sell_in_daily()
@@ -5118,6 +5131,100 @@ def cmd_ebitda(argv: List[str]) -> int:
     return 0
 
 
+def cmd_reforecast(argv: List[str]) -> int:
+    """Le dernier reforecast de la Finance, lu comme un millésime à côté du plan.
+
+        manage.py reforecast               par périmètre : exercice attendu, écart au plan, prévision
+        manage.py reforecast --structure   les colonnes telles que le lecteur les a comprises
+        manage.py reforecast --markets     marché par marché, pour retrouver un chiffre du fichier
+
+    Le partage réalisé / figé / prévision est une règle de ce lecteur, pas du fichier, et
+    il est imprimé en tête : c'est lui qu'il faut contester si un mois est mal rangé.
+    """
+    from .config import settings
+    from .perf import owners
+    from .perf import page as page_module
+    from .perf import perimeter as perimeter_module
+    from .perf import reforecast as reforecast_module
+    from .perf.analytics import format_eur
+    from .perf.xlsx import WorkbookError
+
+    if not settings.has_reforecast_file:
+        print("%s absent : déposer le classeur du reforecast de la Finance à cet endroit."
+              % settings.reforecast_path, file=sys.stderr)
+        return 2
+    try:
+        vintage = reforecast_module.current()
+    except WorkbookError as exc:
+        print("%s" % exc, file=sys.stderr)
+        return 2
+    print("REFORECAST — %s, feuille « %s »" % (settings.reforecast_path, vintage.sheet))
+    print("  %s" % vintage.split_sentence)
+    if vintage.brands:
+        print("  marques sommées : %s" % ", ".join(vintage.brands))
+    for fault in vintage.faults:
+        print("  ! %s" % fault)
+    if "--structure" in argv:
+        print("")
+        print("  colonnes lues :")
+        for name in vintage.header:
+            meaning = reforecast_module.column_meaning(name)
+            if name.upper() in ("ENTITY", "COUNTRY", "REGION", "SEGMENT") or name.lower() in reforecast_module.BRAND_COLUMNS:
+                print("    %-28s clé" % name)
+            elif meaning is None:
+                print("    %-28s ignorée (pas un mois)" % name)
+            else:
+                kind, period, word = meaning
+                print("    %-28s %s %s%s" % (name, kind, period, (" · " + word) if word else ""))
+        return 0
+    directory = owners.current() if settings.has_owners_file else None
+    org = perimeter_module.current() if settings.has_org_file else None
+    # L'annuaire d'abord, l'organigramme ensuite, les placements décidés par-dessus :
+    # la même règle que l'écran, sur les marchés du fichier.
+    known = reforecast_module.complete_known(page_module.perimeters(directory, None),
+                                             vintage.markets, org, directory)
+    review = reforecast_module.build(vintage, known)
+    if not review.usable:
+        for reason in review.absent:
+            print(reason, file=sys.stderr)
+        return 2
+    if "--markets" in argv:
+        print("")
+        print("  %-24s %12s %12s %12s  %s" % ("Marché", "exercice", "plan", "écart", "prévision vs an dernier (plan)"))
+        for market in vintage.markets:
+            item = vintage.outlook(market, [market])
+            if not item.full_year and not item.full_budget:
+                # Une entité éteinte : le fichier la garde, à zéro partout. Dire « −100 % »
+                # en ferait une chute ; c'est une ligne qui n'existe plus.
+                print("  %-24s %12s %12s %12s  ligne éteinte : rien au plan ni au reforecast"
+                      % (market[:24], "—", "—", "—"))
+                continue
+            print("  %-24s %12s %12s %12s  %s (%s)" % (
+                market[:24], format_eur(item.full_year), format_eur(item.full_budget),
+                format_eur(item.gap), item.ahead_growth_label, item.ahead_plan_growth_label))
+        return 0
+    print("")
+    print("  %-18s %12s %12s  %-18s %-18s  %s" % (
+        "Périmètre", "exercice", "écart plan", "an dernier (plan)",
+        "prévision (plan)", "sell-in : semestres (plan)"))
+    rows = list(review.lines) + [reforecast_module.PerimeterLine("Groupe", review.group, review.group_sell_in)]
+    for line in rows:
+        sell_in = ("%s puis %s (%s puis %s)" % (
+            line.sell_in.first_half_label, line.sell_in.second_half_label,
+            line.sell_in.first_half_plan_label, line.sell_in.second_half_plan_label)
+            if line.sell_in is not None and line.sell_in.usable else "—")
+        print("  %-18s %12s %12s  %-18s %-18s  %s" % (
+            line.name[:18], format_eur(line.all.full_year), format_eur(line.all.gap),
+            "%s (%s)" % (line.all.growth_label, line.all.plan_growth_label),
+            "%s (%s)" % (line.all.ahead_growth_label, line.all.ahead_plan_growth_label), sell_in))
+    if review.unplaced_note:
+        print("")
+        print("  %s" % review.unplaced_note)
+    print("")
+    print("Le plan reste le budget. %s" % vintage.split_sentence)
+    return 0
+
+
 def cmd_stores(argv: List[str]) -> int:
     """La part loyer du prochain euro, boutique par boutique, telle que l'écran la rendra.
 
@@ -5536,6 +5643,8 @@ def main(argv: List[str]) -> int:
         return cmd_retail(argv[1:])
     if command == "ebitda":
         return cmd_ebitda(argv[1:])
+    if command == "reforecast":
+        return cmd_reforecast(argv[1:])
     if command == "pnl":
         return cmd_pnl(argv[1:])
     if command == "placements":

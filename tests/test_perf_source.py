@@ -229,6 +229,9 @@ def test_the_product_reading_never_waits_and_says_why_it_is_empty(monkeypatch):
     caches["any"] = [("yesterday",)]
     assert source.product_rows() == [("yesterday",)]
     assert source.product_note == "" and calls == []
+    # Une lecture expirée est servie, et relue derrière l'écran : le carnet et les
+    # partenaires restaient douze jours à leur dernière lecture sur un poste fermé le soir.
+    assert started == ["products", "products"]
 
     assert source.product_rows(wait_for_warehouse=True) == [("fresh",)]
     assert calls == ["PRODUCT_SALES"] and written == [[("fresh",)]]
@@ -359,6 +362,7 @@ def test_a_short_reading_the_warehouse_refuses_is_served_from_its_last_reading(t
     d'une page qui dit « impossible ». Sans lecture derrière, l'erreur remonte."""
     import time
 
+    from app.perf import queries
     from app.perf import source as source_module
     from app.perf import warehouse
 
@@ -369,8 +373,10 @@ def test_a_short_reading_the_warehouse_refuses_is_served_from_its_last_reading(t
 
     monkeypatch.setattr(warehouse, "rows", refuse)
     rows = [{"market": "Northland", "iso2": "NL", "read_through": "2026-09-16"}]
+    # La lecture d'hier, faite par la requête d'aujourd'hui : c'est elle qui se sert.
     source_module._write_disk_cache(rows, time.time() - 10 ** 7, "2026-09-16 08:03 UTC",
-                                    source_module.MONTH_CACHE_FILE)
+                                    source_module.MONTH_CACHE_FILE,
+                                    fingerprint=source_module._query_fingerprint(queries.MONTH_TO_DATE))
 
     served = source_module.SnowflakeSource().month_to_date()
     assert served == rows
@@ -391,3 +397,44 @@ def test_a_short_reading_the_warehouse_refuses_is_served_from_its_last_reading(t
     source_module._cache_path(source_module.MONTH_CACHE_FILE).unlink()
     assert source_module.SnowflakeSource().month_to_date() == rows
     assert source_module.stale_note("month") == ""
+
+
+def test_a_short_reading_made_by_another_query_is_reread_and_never_served_in_last_resort(tmp_path, monkeypatch):
+    """Une colonne change dans la requête des factures — le montant, le 25 octobre : la
+    lecture d'hier, même fraîche, n'est plus cette lecture. Elle se relit ; et quand
+    l'entrepôt refuse, elle ne se sert pas non plus en dernier recours, parce qu'un chiffre
+    faux daté reste faux."""
+    import time
+
+    from app.perf import queries
+    from app.perf import source as source_module
+    from app.perf import warehouse
+
+    monkeypatch.setattr(source_module, "_cache_path", lambda name=source_module.CACHE_FILE: tmp_path / name)
+    old_rows = [{"window": "current", "invoice_date": "2026-10-01", "iso2": "JP", "net_eur": "1"}]
+    new_rows = [{"window": "current", "invoice_date": "2026-10-01", "iso2": "JP", "net_eur": "2"}]
+    source_module._write_disk_cache(old_rows, time.time(), "hier", source_module.INVOICED_CACHE_FILE,
+                                    fingerprint="une autre colonne")
+
+    asked = []
+    monkeypatch.setattr(warehouse, "rows", lambda query, label="": asked.append(label) or new_rows)
+    assert source_module.SnowflakeSource().sell_in_daily() == new_rows
+    assert asked == ["SELL_IN_DAILY"]
+    stored = source_module._read_disk_cache(source_module.INVOICED_CACHE_FILE,
+                                            fingerprint=source_module._query_fingerprint(queries.SELL_IN_DAILY))
+    assert stored is not None and stored[0] == new_rows
+
+    source_module._write_disk_cache(old_rows, time.time() - 10 ** 7, "hier", source_module.INVOICED_CACHE_FILE,
+                                    fingerprint="une autre colonne")
+
+    def refuse(query, label=""):
+        raise RuntimeError("refus")
+
+    monkeypatch.setattr(warehouse, "rows", refuse)
+    try:
+        source_module.SnowflakeSource().sell_in_daily()
+    except RuntimeError as exc:
+        assert "refus" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("une lecture d'une autre requête ne se sert pas en dernier recours")
+    assert source_module.stale_note("invoiced") == ""

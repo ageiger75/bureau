@@ -1119,3 +1119,96 @@ def test_the_day_screen_computes_the_month_with_sell_in_for_each_perimeter_it_ca
     known["Canal"] = {"markets": ["Northland"], "lead": ""}
     found = _togethers(_Track(), _Canal(), known, _Budget())
     assert "Canal" in found and found["Canal"].sell_in_only and found["Canal"].usable
+
+
+def test_a_region_with_invoices_and_an_ebitda_plan_renders_both(client, monkeypatch, tmp_path):
+    """Les deux régions facturées tombaient en erreur interne : la carte « EBITDA au budget »
+    lisait le plan sell-in du mois à la place du plan EBITDA. Un périmètre qui porte des
+    factures ET une ligne EBITDA au budget rend ses deux cartes."""
+    from app.config import settings
+    from app.perf import ebitda as ebitda_module, page as page_module
+    from app.perf.analytics import format_eur
+    from app.routes import today
+    from tests.test_perf_owners import HEADER, directory_file
+
+    # L'annuaire range le Japon sous « Nord » : les factures JP du jeu de démonstration
+    # deviennent le sell-in de ce périmètre.
+    directory_file(tmp_path, [
+        ["Annuaire"], HEADER,
+        ["Nord", "Aiko", "TANAKA", "General Manager", "Japon", "Patron de BU", "", "Tokyo"],
+    ])
+    (tmp_path / "owners.xlsx").replace(settings.owners_path)
+    known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+
+    line = ebitda_module.Line("Nord", 10_000.0, 1_000.0)
+
+    class _Ebitda:
+        plan, absent, usable = None, [], True
+
+        def for_name(self, name):
+            return ebitda_module.Perimeter("Nord", line, None) if name == "Nord" else None
+
+    monkeypatch.setattr(today, "_ebitda_review", lambda names: _Ebitda())
+    response = client.get("/perimetre/nord")
+    assert response.status_code == 200
+    page = page_text(response)
+    assert "EBITDA au budget" in page
+    assert "%s de %s de ventes au plan" % (line.rate_label, format_eur(line.sales)) in page
+    assert "Le sell-in du mois" in page and "sell-in compris" in page
+
+
+def test_a_country_without_last_year_is_named_beside_the_sell_in_growth(client, monkeypatch):
+    """Une entité nouvelle dans la source gonflerait la croissance du sell-in de son périmètre
+    à plusieurs centaines de pour cent. L'écran la laisse dans le facturé, la sort de la
+    croissance et la nomme — sur l'écran du jour, et par canal sur Analyses."""
+    import datetime
+
+    from app.perf import mock
+
+    genuine = mock.sell_in_daily
+
+    def with_newcomer():
+        rows = genuine()
+        first = datetime.date.today().replace(day=1)
+        rows.append({"window": "current", "invoice_date": first.isoformat(), "iso2": "AU",
+                     "channel": "dpt", "pos_type": "SELL IN", "net_eur": 1_000.0})
+        return rows
+
+    monkeypatch.setattr(mock, "sell_in_daily", with_newcomer)
+    page = page_text(client.get("/"))
+    assert "sans aucune facture l'an dernier dans la source : hors de la croissance" in page
+    assert "Australia" in page
+
+    analyses = page_text(client.get("/analyses"))
+    assert "Australia" in analyses and "pas de croissance à lire" in analyses
+
+
+def test_the_finance_reforecast_is_a_vintage_beside_the_plan_never_the_plan(client, monkeypatch, tmp_path):
+    """Sans le fichier, l'écran nomme ce qu'il attend. Avec, l'atterrissage porte ce que la
+    Finance attend à côté des trois hypothèses, la page du périmètre aussi, et Analyses le
+    découpe par périmètre — le plan de l'écran reste le budget."""
+    import shutil
+
+    from app.config import settings
+    from app.perf import page as page_module
+    from tests.test_perf_reforecast import ROWS, workbook
+
+    page = page_text(client.get("/"))
+    assert "var/reforecast.xlsx absent" in page
+    assert "le dernier reforecast de la Finance n'est pas lu" in page_text(client.get("/analyses"))
+
+    shutil.copy(workbook(tmp_path / "ref.xlsx", {"DATABASE REF2": ROWS}), settings.reforecast_path)
+    known = {"Nord": {"markets": ["Northland"], "lead": "Une dirigeante"}}
+    monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    try:
+        analyses = page_text(client.get("/analyses"))
+        assert "Ce que la Finance attend (REF2)" in analyses
+        assert "Millésime REF2 de la Finance" in analyses and "septembre figé" in analyses
+        assert "Nord" in analyses and "+12.9 %" in analyses
+        assert "aucun périmètre de l'écran ne porte" in analyses
+        region = page_text(client.get("/perimetre/nord"))
+        assert "selon la Finance (REF2)" in region and "second semestre" in region
+        assert "sell-in : premier semestre" in region
+    finally:
+        settings.reforecast_path.unlink()

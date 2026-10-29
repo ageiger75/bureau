@@ -323,3 +323,33 @@ def test_the_month_with_sell_in_says_two_words_when_sell_out_and_sell_in_disagre
     agreed = P.Together(track.Verdict(600.0, 500.0, 520.0, 1.0), _Bill(), 1_000.0, plan_last_year=1_000.0)
     assert agreed.usable and not agreed.diverging and agreed.split_label == ""
     assert not agreed.basis.startswith("sell-out en")
+
+
+def test_the_ebitda_plan_of_the_perimeter_survives_the_sell_in_plan():
+    """Deux plans se croisent sur la page : le plan EBITDA du périmètre et le plan sell-in du
+    mois. Le second a écrasé le premier dès qu'un périmètre portait des factures, et la page
+    tentait de lire un montant comme un plan : écran noir sur les régions facturées, et
+    aucune sur celles qui ne le sont pas — la suite ne voyait rien."""
+    from app.perf import ebitda as E
+
+    ebitda_plan = E.Perimeter("Nord", E.Line("Nord", 10_000.0, 1_000.0), None)
+
+    class _Ebitda:
+        plan = None
+
+        def for_name(self, name):
+            return ebitda_plan if name == "Nord" else None
+
+    class _Invoiced:
+        usable = True
+
+        def for_name(self, name):
+            return _Billed(560.0, 0.46) if name == "Nord" else None
+
+    budget = _Budget([_Segment("Northland", "2026-09", "DIS - Distributors", 1_000.0)])
+    page = P.build("Nord", "", ["Northland"], _Dataset(), None, _Track(),
+                   budget=budget, ebitda=_Ebitda(), invoiced=_Invoiced())
+
+    assert page.ebitda is ebitda_plan and page.ebitda.ebitda == 1_000.0
+    assert page.together is not None and page.together.sell_in_plan == 1_000.0
+    assert "aucune ligne EBITDA" not in " ".join(page.absent)

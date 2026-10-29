@@ -705,6 +705,13 @@ order by market, channel, period
 #:   than an adjustment.
 #:
 #: Validate with `manage.py budget --spec` and `manage.py reconcile` before wiring it in.
+#:
+#: Les comptes. Au grain pays, les ventes nettes de la Finance tiennent sur cinq comptes
+#: (`PPL101`, `PPL102`, `PPL111`, `PPL112`, `PPL121`) : café, spa et une part du retail
+#: vivent sur les trois derniers. Cette requête et `SALES_HISTORY` ne lisent que les huit
+#: canaux de sell-in, où ces trois comptes sont nuls — mesuré le 26 octobre 2026 contre le
+#: reforecast de la Finance, à l'euro par entité et canal. Lire la consolidation pour le
+#: réseau en propre exigerait les cinq, jamais deux comptes choisis.
 SELL_IN = """
 with usable as (
     -- The freshest exchange year that actually carries figures. The newest
@@ -1379,10 +1386,13 @@ from semantic_view(
 #: canal du centre de profit et le type du point de vente ne mesurent pas la même chose :
 #: l'un dit par quel canal la facture part, l'autre à qui elle est adressée. Le filtre de la
 #: maison sur la pertinence turnover du produit vit sur la dimension produit et ne retirait
-#: rien de mesurable : non repris. Le montant reste `net_invoice_amount_eur_annual` : la
-#: maison désigne `billed_net_value_eur_annual`, trois pour cent en dessous sur le
-#: commercial et trois fois au-dessus sur l'intragroupe, incertain — à arbitrer avec
-#: l'équipe data avant de basculer. `window` est un mot réservé, d'où les guillemets.
+#: rien de mesurable : non repris. Le montant est `billed_net_value_eur_annual`, la mesure
+#: que la maison désigne — arbitré par la mesure le 25 octobre 2026 (agent entrepôt) :
+#: `net_invoice_amount_eur_annual` applique aux factures du hub de Hong Kong émises dans
+#: une autre devise que la sienne le taux de cette autre devise, et le travel retail en
+#: ressortait très au-dessus de la consolidation, les distributeurs très en dessous ; la
+#: mesure de la maison retrouve la consolidation canal par canal, et hors du hub les deux
+#: colonnes sont égales à l'euro près. `window` est un mot réservé, d'où les guillemets.
 SELL_IN_POS_TYPES = ("SELL IN", "B2B")
 SELL_IN_DAILY = """
 select
@@ -1391,7 +1401,7 @@ select
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
-    round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
+    round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
@@ -1406,7 +1416,7 @@ select
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
-    round(sum(i.net_invoice_amount_eur_annual), 2)  as net_eur
+    round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
@@ -1756,7 +1766,7 @@ group by ly.scope, pr.through, ly.last_channel
 #:     label       text     -- PROFIT_CENTER_GROUP_DESC, le libellé de l'entrepôt, à défaut de nom
 #:     channel     text     -- PROFIT_CENTER_GROUP_CHANNEL, le code du canal (WEBP, DPT, TRA…)
 #:     iso2        text     -- le pays de facturation, jamais un marché : un e-retailer mondial y a un seul pays
-#:     net_eur     number   -- le net au taux fixe, comme SELL_IN_DAILY
+#:     net_eur     number   -- le net facturé au taux fixe, la mesure de la maison, comme SELL_IN_DAILY
 #:
 #: Le nom commercial n'est pas dans l'entrepôt : il vient de var/partners.csv, écrit à la
 #: main (`profit_centre → partner`). Ce que le fichier ne nomme pas garde le libellé du
@@ -1774,7 +1784,7 @@ select
     max(i.profit_center_group_desc)                         as label,
     i.profit_center_group_channel                           as channel,
     i.country                                               as iso2,
-    round(sum(i.net_invoice_amount_eur_annual), 2)          as net_eur
+    round(sum(i.billed_net_value_eur_annual), 2)            as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
