@@ -20,7 +20,12 @@ contredire devant un MD, et c'est le lecteur qui paie l'écart.
 
 Un fichier par jour, `AAAA-MM-JJ-cockpit.md`, dans `CEOOS_CABINET_DIR`, sinon dans
 `var/cabinet/`. L'en-tête dit la source, la date de chaque lecture et la façon de lire. Chaque
-section est la sortie d'une commande qui existe déjà, telle que l'écran la rend :
+section est la sortie d'une commande qui existe déjà, telle que l'écran la rend. Un dossier de
+visite demandé par `--marche` s'écrit à côté, dans son propre fichier
+`AAAA-MM-JJ-cockpit-<marché>.md` (`--marche China` donne `-cockpit-china.md`, `--marche "United
+States"` donne `-cockpit-united-states.md`) : deux dossiers dans la journée ne s'écrasent pas,
+et la lecture du jour garde son nom. Un marché que le cockpit ne connaît pas est refusé, code 2,
+sans rien écrire : un dossier vide se citerait comme un vrai.
 
 | Section | Même lecture que |
 | --- | --- |
@@ -34,11 +39,14 @@ section est la sortie d'une commande qui existe déjà, telle que l'écran la re
 | Le sell-in du mois | `manage.py sellin` |
 | Ce qui arrive | `manage.py tempsforts` |
 | Le mois, marché par marché | `manage.py month` |
-| Dossier de visite · marché | `manage.py marche <marché>`, avec `--marche <marché>` |
+| Dossier de visite · marché | `manage.py marche <marché>`, avec `--marche <marché>`, dans `AAAA-MM-JJ-cockpit-<marché>.md` |
 
 Trois propriétés, gardées par `tests/test_cabinet_export.py` :
 
-1. **Rien n'est recalculé.** Une section dit mot pour mot ce que sa commande imprime.
+1. **Rien n'est recalculé.** Une section dit mot pour mot ce que sa commande imprime, à deux
+   retouches près qui protègent le lecteur : la clôture du bloc est plus longue que toute suite
+   d'accents graves du texte, et une ligne du texte qui commence par « # » recule d'une espace,
+   pour qu'un nom venu de l'entrepôt ne puisse ni fermer le bloc ni forger un titre de section.
 2. **Rien n'est placé au registre.** Seul l'écran place un sujet en attention ; regarder
    par-dessus l'épaule n'en fait pas un sujet porté.
 3. **Aucune lecture ne part derrière l'écran** (`source.disk_only`). Le serveur, ouvert dans
