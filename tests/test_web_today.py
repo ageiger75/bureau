@@ -770,9 +770,12 @@ def test_the_week_is_on_the_screen_in_full_weeks_never_against_the_plan(client):
     assert "vs précédente" in page
 
 
-def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(client):
+def test_the_sell_in_of_the_month_is_on_the_screen_invoices_against_invoices(client, monkeypatch):
     """Priorité 3 : le sell-in facturé depuis le 1er, contre les mêmes premiers jours
     facturés l'an dernier, jamais contre le plan."""
+    from app.perf import mock
+
+    monkeypatch.setattr(mock, "sell_in_daily", _month_invoices(mock.sell_in_daily))
     page = page_text(client.get("/"))
 
     assert "Sell-in facturé du 1er au" in page
@@ -1121,6 +1124,27 @@ def test_the_day_screen_computes_the_month_with_sell_in_for_each_perimeter_it_ca
     assert "Canal" in found and found["Canal"].sell_in_only and found["Canal"].usable
 
 
+def _month_invoices(genuine, extra=()):
+    """Le jeu de démonstration n'a aucune facture du mois quand le 1er tombe un week-end :
+    les tests qui ont besoin d'un sell-in du mois écrivent ici les premiers jours ouvrés du
+    mois pour un pays vu l'an dernier, gardent l'an dernier du jeu, et ne dépendent pas du
+    calendrier."""
+    import datetime
+
+    def rows():
+        kept = [row for row in genuine() if str(row.get("window") or "").lower() != "current"]
+        first = datetime.date.today().replace(day=1)
+        for offset in range(14):
+            day = first + datetime.timedelta(days=offset)
+            if day.weekday() < 5:
+                kept.append({"window": "current", "invoice_date": day.isoformat(), "iso2": "JP",
+                             "channel": "webp", "pos_type": "SELL IN", "net_eur": 1_000.0})
+        kept.extend(extra)
+        return kept
+
+    return rows
+
+
 def test_a_region_with_invoices_and_an_ebitda_plan_renders_both(client, monkeypatch, tmp_path):
     """Les deux régions facturées tombaient en erreur interne : la carte « EBITDA au budget »
     lisait le plan sell-in du mois à la place du plan EBITDA. Un périmètre qui porte des
@@ -1140,6 +1164,9 @@ def test_a_region_with_invoices_and_an_ebitda_plan_renders_both(client, monkeypa
     (tmp_path / "owners.xlsx").replace(settings.owners_path)
     known = {"Nord": {"markets": ["Japan"], "lead": "Une dirigeante"}}
     monkeypatch.setattr(page_module, "perimeters", lambda directory, month: known)
+    from app.perf import mock
+
+    monkeypatch.setattr(mock, "sell_in_daily", _month_invoices(mock.sell_in_daily))
 
     line = ebitda_module.Line("Nord", 10_000.0, 1_000.0)
 
@@ -1166,16 +1193,10 @@ def test_a_country_without_last_year_is_named_beside_the_sell_in_growth(client, 
 
     from app.perf import mock
 
-    genuine = mock.sell_in_daily
-
-    def with_newcomer():
-        rows = genuine()
-        first = datetime.date.today().replace(day=1)
-        rows.append({"window": "current", "invoice_date": first.isoformat(), "iso2": "AU",
-                     "channel": "dpt", "pos_type": "SELL IN", "net_eur": 1_000.0})
-        return rows
-
-    monkeypatch.setattr(mock, "sell_in_daily", with_newcomer)
+    first = datetime.date.today().replace(day=1)
+    newcomer = {"window": "current", "invoice_date": first.isoformat(), "iso2": "AU",
+                "channel": "dpt", "pos_type": "SELL IN", "net_eur": 1_000.0}
+    monkeypatch.setattr(mock, "sell_in_daily", _month_invoices(mock.sell_in_daily, [newcomer]))
     page = page_text(client.get("/"))
     assert "sans aucune facture l'an dernier dans la source : hors de la croissance" in page
     assert "Australia" in page

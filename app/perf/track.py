@@ -77,6 +77,28 @@ def _fiscal_start(period: str) -> str:
     return "%04d-%02d" % (year if month >= FISCAL_OPENS else year - 1, FISCAL_OPENS)
 
 
+def _next(period: str) -> str:
+    year, month = int(period[:4]), int(period[5:7])
+    return "%04d-%02d" % ((year + 1, 1) if month == 12 else (year, month + 1))
+
+
+def _months_between(after: str, before: str) -> List[str]:
+    """Les mois strictement entre deux mois : ceux que personne n'a encore publiés."""
+    found: List[str] = []
+    cursor = _next(after)
+    while cursor < before and len(found) < 12:
+        found.append(cursor)
+        cursor = _next(cursor)
+    return found
+
+
+def _listed(periods: Sequence[str]) -> str:
+    names = [_month_name(p) for p in periods]
+    if len(names) <= 1:
+        return "".join(names)
+    return "%s et %s" % (", ".join(names[:-1]), names[-1])
+
+
 class Verdict:
     """Un réalisé contre une fourchette d'attendu, et le mot qui en sort."""
 
@@ -197,11 +219,15 @@ class Track:
 
     def __init__(self, period: str, day: int, closed_through: str, group: Scope,
                  perimeters: Sequence[Scope], caveats: Sequence[str],
-                 absent: Sequence[str]) -> None:
+                 absent: Sequence[str], year_through: str = "") -> None:
         self.period = period
         self.day = day
         #: Le dernier mois que la consolidation a publié, ou vide.
         self.closed_through = closed_through
+        #: Le dernier mois que le verdict de l'exercice contient : le mois en cours quand
+        #: la consolidation va jusqu'au mois précédent, sinon le dernier mois publié — les
+        #: mois entre les deux ne sont pas inventés, et le titre le dit.
+        self.year_through = year_through or (period if closed_through else "")
         self.group = group
         self.perimeters = list(perimeters)
         self.caveats = list(caveats)
@@ -218,7 +244,14 @@ class Track:
     @property
     def year_title(self) -> str:
         start = _month_name(_fiscal_start(self.period))
+        if self.year_through and self.year_through != self.period:
+            return "Exercice à fin %s" % _month_name(self.year_through)
         return "Exercice à date, %s à %s" % (start, _month_name(self.period))
+
+    @property
+    def year_stops_early(self) -> bool:
+        """L'exercice s'arrête avant le mois en cours : un ou des mois ne sont pas publiés."""
+        return bool(self.year_through) and self.year_through != self.period
 
     @property
     def tolerance_label(self) -> str:
@@ -382,27 +415,46 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
     caveats.append("Le sell-in n'entre pas dans le mois en cours : une facture tombe quand "
                    "elle tombe, et aucun calendrier d'expédition n'est connecté.")
 
-    # Les mois clos : le fichier publié s'il parle du mois précédent, sinon rien.
+    # Les mois clos : le fichier publié jusqu'au mois qu'il déclare. S'il va jusqu'au mois
+    # précédent, le mois en cours s'y ajoute ; s'il s'arrête avant, l'exercice s'arrête
+    # avec lui et le dit — les mois manquants ne sont pas inventés, le mois en cours se
+    # lit à part. Les premiers jours d'un mois, la Finance n'a jamais publié le mois
+    # précédent : un écran muet deux semaines sur quatre n'était pas plus vrai, juste vide.
     closed_through = ""
     closed_basis = ""
     closed_actual = closed_budget = 0.0
     year_absent = ""
+    month_in_year = True
     if published is not None and getattr(published, "lines", None):
         declared = published.period
         if not declared:
             year_absent = ("le fichier de consolidation ne déclare pas son mois : nommez-le "
                            "dans son nom de fichier, « … 2026 08.xlsx », et l'exercice se lira")
-        elif declared != _previous(period):
-            year_absent = ("la consolidation s'arrête à %s et l'entrepôt lit %s : les mois "
-                           "entre les deux manquent, et ne sont pas inventés"
-                           % (_month_name(declared), _month_name(period)))
+        elif declared > _previous(period):
+            year_absent = ("la consolidation déclare %s, que l'entrepôt n'a pas encore lu en "
+                           "entier : rien n'est assemblé" % _month_name(declared))
         else:
             closed_through = declared
             closed_actual, closed_budget = _closed_for(published, None)
-            closed_basis = ("consolidation d'%s à %s, tous canaux, à taux budget · entrepôt "
-                            "sur %s à date, sell-out des deux côtés"
-                            % (_month_name(_fiscal_start(period)), _month_name(declared),
-                               _month_name(period)))
+            missing = _months_between(declared, period)
+            if not missing:
+                closed_basis = ("consolidation d'%s à %s, tous canaux, à taux budget · entrepôt "
+                                "sur %s à date, sell-out des deux côtés"
+                                % (_month_name(_fiscal_start(period)), _month_name(declared),
+                                   _month_name(period)))
+            else:
+                month_in_year = False
+                closed_basis = ("consolidation d'%s à %s, tous canaux, à taux budget · %s pas "
+                                "encore publié%s par la Finance ; %s à date se lit à part, pas "
+                                "ajouté"
+                                % (_month_name(_fiscal_start(period)), _month_name(declared),
+                                   _listed(missing), "s" if len(missing) > 1 else "",
+                                   _month_name(period)))
+                caveats.append("L'exercice s'arrête à fin %s : %s n'%s pas encore publié%s par la "
+                               "Finance, et le mois en cours se lit à part, sans être ajouté à "
+                               "l'exercice. Rien n'est inventé entre les deux."
+                               % (_month_name(declared), _listed(missing),
+                                  "est" if len(missing) == 1 else "ont", "" if len(missing) == 1 else "s"))
     elif warehouse_year is not None and getattr(warehouse_year, "budget", 0):
         last = getattr(warehouse_year, "last_period", "")
         if last == _previous(period):
@@ -421,7 +473,14 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
                        "de l'entrepôt")
     if year_absent:
         absent.append("Exercice à date : %s." % year_absent)
-    group_year = (year_verdict(group_month, closed_actual, closed_budget, closed_basis)
+    #: Le mois en cours n'entre dans l'exercice que si la consolidation va jusqu'au mois
+    #: précédent ; sinon l'exercice est publié seul, et le mois reste son propre verdict.
+    apart = Verdict(absent="le mois en cours se lit à part")
+
+    def in_year(month: Verdict) -> Verdict:
+        return month if month_in_year else apart
+
+    group_year = (year_verdict(in_year(group_month), closed_actual, closed_budget, closed_basis)
                   if not year_absent else Verdict(absent=year_absent))
     # Les deux morceaux de l'exercice sont au même taux : l'entrepôt convertit chaque
     # devise au taux budget FY27, figé, celui du classeur de plan et de la consolidation
@@ -454,7 +513,7 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
         if closed_through and published is not None:
             mine = [market for market, name in published_markets.items() if name == group.name]
             actual, budget = _closed_for(published, mine)
-            year = year_verdict(month, actual, budget, closed_basis)
+            year = year_verdict(in_year(month), actual, budget, closed_basis)
         elif closed_through:
             year = Verdict(absent="l'exercice par périmètre attend le fichier de consolidation")
         else:
@@ -466,4 +525,5 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
                                 Verdict(absent="marchés qu'aucun périmètre ne place")))
 
     return Track(period, review.day, closed_through,
-                 Scope("Groupe", "", group_month, group_year), perimeters, caveats, absent)
+                 Scope("Groupe", "", group_month, group_year), perimeters, caveats, absent,
+                 year_through=(period if month_in_year else closed_through) if closed_through else "")

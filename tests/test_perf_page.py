@@ -353,3 +353,18 @@ def test_the_ebitda_plan_of_the_perimeter_survives_the_sell_in_plan():
     assert page.ebitda is ebitda_plan and page.ebitda.ebitda == 1_000.0
     assert page.together is not None and page.together.sell_in_plan == 1_000.0
     assert "aucune ligne EBITDA" not in " ".join(page.absent)
+
+
+def test_the_landing_reads_on_the_last_published_month_when_the_previous_one_is_not_yet_out():
+    """Le 2 du mois, la Finance n'a jamais publié le mois précédent : l'atterrissage se lit
+    sur les mois publiés, avec un mois de plus devant, au lieu de disparaître deux semaines
+    sur quatre. Rien n'est inventé : octobre est dans les mois restants, au plan."""
+    budget = _Budget([_Line("Northland", "2026-%02d" % m, 100.0) for m in range(4, 13)]
+                     + [_Line("Northland", "2027-%02d" % m, 100.0) for m in range(1, 4)])
+    published = _published([_pl("Northland", 570.0, 600.0)])
+    land = P.landing(["Northland"], published, budget, "2026-11", "2026-09")
+
+    assert land.usable and land.closed_through == "2026-09"
+    assert land.months_left == 6 and land.full_plan == 1200.0
+    assert abs(land.at_plan - (570.0 + 600.0)) < 1e-9
+    assert abs(land.at_pace - (570.0 + 600.0 * 0.95)) < 1e-9

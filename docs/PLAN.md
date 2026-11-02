@@ -1197,6 +1197,16 @@ locaux. Ce que le cockpit n'a pas, c'est la prévision d'octobre à mars par ent
 où la Finance phase l'année autrement que le cumul ne le laisse croire ; elle se lit comme
 un millésime à côté du budget, jamais à sa place — décision prise dans `provenance.py`.
 
+**Changé le 2 novembre : l'exercice ne se tait plus les premiers jours du mois.** La règle
+disait : si la consolidation ne va pas jusqu'au mois précédent, pas d'exercice à date. Or
+la Finance ne publie jamais le mois précédent avant la deuxième semaine : l'écran était
+muet deux semaines sur quatre, atterrissage compris, et ce silence n'était pas plus vrai,
+juste vide. Désormais l'exercice se lit jusqu'au dernier mois publié, le titre le dit
+(« Exercice à fin septembre »), la base nomme les mois non publiés, le mois en cours garde
+son propre verdict sans être ajouté, et l'atterrissage suit avec un mois de plus devant.
+Rien n'est inventé entre les deux (`track.build`, `Track.year_through`). Un fichier qui
+déclarerait un mois que l'entrepôt n'a pas fini de lire reste refusé.
+
 **Construit le 26 octobre : le millésime.** `app/perf/reforecast.py` lit la feuille
 `DATABASE REF2` de `var/reforecast.xlsx` avec sa propre grammaire de colonnes — trois formes
 de mois et deux irrégularités, apprises sur le vrai classeur par l'agent entrepôt — et pose

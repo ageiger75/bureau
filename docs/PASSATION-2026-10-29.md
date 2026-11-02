@@ -262,6 +262,12 @@ relecture.
 - Un pays et son entité voisine lus sous deux noms par l'entrepôt sont un seul marché
   (`month.build` fusionne par nom normalisé) ; sinon le pays comptait deux fois.
 - `start.command` relançait l'ouvrier sous un superviseur encore vivant : voir section 1.
+- Le 2 novembre, l'écran du jour se taisait presque partout : pas d'atterrissage, pas
+  d'exercice à date, parce que la règle exigeait la consolidation jusqu'au mois précédent,
+  que la Finance ne publie jamais avant la deuxième semaine. L'exercice se lit désormais
+  jusqu'au dernier mois publié, titré « Exercice à fin septembre », les mois non publiés
+  nommés, le mois en cours à part ; l'atterrissage suit. « Trop tôt » sur le mois au jour 1
+  et « factures du mois non lues » un dimanche 1er restent voulus.
 
 ## 4. Les fichiers de `var/` que le lecteur tient
 

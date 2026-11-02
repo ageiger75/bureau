@@ -125,7 +125,8 @@ def test_the_year_adds_the_published_closed_months_to_the_month_in_progress(tmp_
     track = T.build(review, published=published, directory=DIRECTORY)
 
     year = track.group.year
-    assert track.closed_through == "2026-08"
+    assert track.closed_through == "2026-08" and track.year_through == "2026-09"
+    assert not track.year_stops_early and track.year_title == "Exercice à date, avril à septembre"
     assert year.usable
     assert year.actual == 7_500_000.0 + 675_000.0
     assert abs(year.low - (7_500_000.0 + 1_500_000.0 * 0.45)) < 1e-6
@@ -136,16 +137,43 @@ def test_the_year_adds_the_published_closed_months_to_the_month_in_progress(tmp_
     assert north.year.actual == 5_000_000.0 + 450_000.0
 
 
-def test_a_stale_published_file_never_fills_the_missing_months(tmp_path):
+def test_a_published_file_that_stops_early_gives_the_year_to_its_month_never_filled(tmp_path):
     """La consolidation s'arrête à juin, l'entrepôt lit septembre : juillet et août
-    manquent. L'exercice est absent avec la raison, jamais assemblé sur un trou."""
+    manquent. L'exercice se lit à fin juin, publié seul, le titre le dit, les mois
+    manquants sont nommés, le mois en cours garde son propre verdict — rien n'est
+    assemblé sur un trou, et l'écran ne se tait plus deux semaines par mois."""
     review = _review(tmp_path, north=450_000.0, south=225_000.0)
     published = _published(2026, 6, [_line("Northland", 3_000_000.0, 3_000_000.0)])
     track = T.build(review, published=published, directory=DIRECTORY)
 
-    assert not track.group.year.usable
-    assert "juin" in track.group.year.absent and "septembre" in track.group.year.absent
+    year = track.group.year
+    assert track.closed_through == "2026-06" and track.year_through == "2026-06"
+    assert track.year_stops_early and track.year_title == "Exercice à fin juin"
+    assert year.usable and year.actual == 3_000_000.0 and year.low == year.high == 3_000_000.0
+    assert "consolidation d'avril à juin" in year.basis
+    assert "juillet et août pas encore publiés par la Finance" in year.basis
+    assert "septembre à date se lit à part, pas ajouté" in year.basis
+    assert any("L'exercice s'arrête à fin juin" in caveat for caveat in track.caveats)
     assert track.group.month.usable
+    north = next(scope for scope in track.perimeters if scope.name == "Nord")
+    assert north.year.usable and north.year.actual == 3_000_000.0
+    # Un seul mois manquant : la phrase s'accorde.
+    track = T.build(_review(tmp_path, north=450_000.0, south=225_000.0),
+                    published=_published(2026, 7, [_line("Northland", 3_000_000.0, 3_000_000.0)]),
+                    directory=DIRECTORY)
+    assert "août pas encore publié par la Finance" in track.group.year.basis
+    assert any("août n'est pas encore publié" in caveat for caveat in track.caveats)
+
+
+def test_a_published_file_ahead_of_the_warehouse_is_refused_with_the_reason(tmp_path):
+    """Un fichier qui déclare le mois en cours, que l'entrepôt n'a pas fini de lire : rien
+    n'est assemblé."""
+    review = _review(tmp_path, north=450_000.0, south=225_000.0)
+    published = _published(2026, 9, [_line("Northland", 3_000_000.0, 3_000_000.0)])
+    track = T.build(review, published=published, directory=DIRECTORY)
+
+    assert not track.group.year.usable and "septembre" in track.group.year.absent
+    assert track.year_title == "Exercice à date, avril à septembre"
 
 
 def test_a_file_that_does_not_declare_its_month_is_named_not_trusted(tmp_path):

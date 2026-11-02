@@ -181,7 +181,7 @@
             {% elif both %}
               <td class="absent" title="{{ both.absent }}">{{ 'plan sans ligne sell-in' if 'aucune ligne sell-in' in both.absent else ('factures hors source, ' ~ both.coverage_label ~ " de l'an dernier" if 'ne couvrent que' in both.absent else ("factures d'un autre périmètre, " ~ both.coverage_label if "au plan d'un autre" in both.absent else 'sans sell-in lisible')) }}</td>
             {% else %}
-              <td class="absent">sans sell-in rangé</td>
+              <td class="absent">{% if invoiced and not invoiced.usable %}factures du mois non lues{% else %}sans sell-in rangé{% endif %}</td>
             {% endif %}
           </tr>
         {% endfor %}

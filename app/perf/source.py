@@ -935,12 +935,17 @@ def _published_for(period: str):
     except (TypeError, ValueError):
         wanted = None
     if declared and wanted and declared != wanted:
-        return None, ("Le fichier publié parle de %s, l'écran de %s : ses chiffres ne sont "
+        return None, ("Le fichier publié parle %s, l'écran %s : ses chiffres ne sont "
                       "pas sur cette ligne. Déposer le fichier du mois dans var/ pour lire "
                       "le mois tel que la Finance l'a clos."
-                      % (published.get("month_label") or "un autre mois",
-                         _MONTHS[wanted - 1]))
+                      % (_of(published.get("month_label") or "un autre mois"),
+                         _of(_MONTHS[wanted - 1])))
     return published, ""
+
+
+def _of(name: str) -> str:
+    """« d'octobre », « de septembre » : l'élision devant une voyelle."""
+    return ("d'%s" if name[:1].lower() in "aeiouyâéèêîôû" else "de %s") % name
 
 
 def _published_year():
