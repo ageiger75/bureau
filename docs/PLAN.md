@@ -1236,9 +1236,18 @@ deux objets certifiés seulement, aucune mention « obsolète » lisible, aucune
 sémantique sell-in nouvelle, et le taux budgétaire de la vue facture porte encore deux
 valeurs par devise. Nouveau : une colonne corrigée de remise produit absurde sur les
 documents en yens, et un instantané de consolidation daté du 1er mars 2027, à la fin de
-l'exercice, sans explication ; juillet manque toujours. Les requêtes de la consolidation
-n'ancrent plus jamais sur un instantané daté dans le futur (`queries.SELL_IN`,
-`SELL_IN_HISTORY`), à faire valider par l'agent entrepôt sur les totaux de septembre.
+l'exercice ; juillet manque toujours. Le lendemain, l'agent entrepôt a identifié cet
+instantané : c'est le reforecast 2 chargé dans la consolidation, année de change de
+l'exercice, réel à zéro, an dernier et budget remplis, et une colonne de reforecast propre ;
+son total sur les cinq comptes de ventes nettes est celui du classeur REF2. Deux
+conséquences. Les requêtes de la consolidation n'ancrent plus jamais sur un instantané daté
+dans le futur (`queries.SELL_IN`, `SELL_IN_HISTORY`, test dans `test_perf_queries.py`) :
+sans la garde, le jour où ce réel porterait un montant, le cockpit prendrait une prévision
+pour l'exercice clos. Et le millésime pourrait un jour se lire dans l'entrepôt plutôt que
+dans le classeur, par cette colonne, après validation par l'agent entrepôt ; le lecteur du
+fichier reste la référence tant que la colonne n'est pas documentée. La colonne corrigée de
+remise produit, elle, est une reprise d'une colonne amont : en yens c'est le défaut de
+change du hub, en yuans le montant est déjà faux en devise locale.
 
 ## 7. Ce qui attend l'équipe data
 

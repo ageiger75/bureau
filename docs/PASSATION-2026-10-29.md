@@ -343,9 +343,12 @@ est cette ligne sans pays et pourquoi sans pays ; pourquoi la ligne Chine est at
 exactement au plan avec un phasage différent ; la définition exacte des comptes de café,
 spa et autre chiffre d'affaires retail ; à quelle date septembre a été figé.
 
-**Pour l'équipe data** (vérifié par Cortex le 3 novembre, `var/cortex-it.md`) : l'instantané
-de consolidation daté du 1er mars 2027, à expliquer, et juillet FY27 toujours absent ; la
-colonne corrigée de remise produit absurde sur les documents en yens de la vue facture ; le
+**Pour l'équipe data** (vérifié par Cortex le 3 novembre, `var/cortex-it.md` et
+`var/cortex-garde.md`) : l'instantané de consolidation daté du 1er mars 2027 est le
+reforecast 2 chargé comme un instantané, réel à zéro, à marquer comme tel parce qu'un
+lecteur qui prend le plus récent prendrait une prévision pour l'exercice clos ; juillet FY27
+toujours absent ; la colonne corrigée de remise produit de la vue facture, défaut de change
+du hub sur les yens et montant local déjà faux sur les yuans ; le
 taux budgétaire de la vue facture à deux valeurs par devise ; la certification et la
 mention « obsolète » invisibles depuis le rôle du cockpit ; la couche sémantique sell-in
 annoncée, invisible aussi ; le droit de lecture de la vue sémantique pour le rôle du cockpit ;
