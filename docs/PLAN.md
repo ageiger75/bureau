@@ -1250,6 +1250,32 @@ fichier reste la référence tant que la colonne n'est pas documentée. La colon
 remise produit, elle, est une reprise d'une colonne amont : en yens c'est le défaut de
 change du hub, en yuans le montant est déjà faux en devise locale.
 
+**Trouvé le 3 novembre, par l'agent entrepôt, sur le fichier Finance d'octobre.** Trois
+choses. La balance comptable de l'entrepôt (table des montants réels, lue par sa vue
+« full actual budget amounts ») porte le réalisé du mois, le budget et le reforecast par
+entité, canal et compte, et donne le chiffre de la Finance trois semaines avant la
+consolidation : septembre y était figé le 7 octobre quand le fichier FS est arrivé vers le
+10 et la consolidation le 28 ; octobre y retombe à moins d'un demi pour cent du fichier,
+l'Inde et la Thaïlande absentes, les deux entités aéroport nouvelles aussi, des écritures
+tardives possibles après publication, et des colonnes en euros à taux flottant qu'il faut
+ignorer au profit du montant local converti au taux annuel. Elle porte aussi avril et
+juillet, que la consolidation n'a jamais. Candidate pour un « mois clos provisoire » à J+3,
+à décider ; le code s'écrira ici sur le contrat que l'agent entrepôt documente, et sera
+validé par lui. Ensuite, l'écart uniforme entre la caisse et la Finance en Chine et à Hong
+Kong est fermé : c'est la remise « points de fidélité », comptabilisée par la Finance et
+absente de la caisse, qui ramène le rapport caisse sur Finance à l'unité magasin par
+magasin ; elle varie fort d'un mois à l'autre, sept pour cent du net en septembre,
+vingt-six en octobre avec le 11.11, dont la moitié passée dans les trois derniers jours.
+Conséquence : le verdict du mois en cours de la Grande Chine, lu en caisse contre un plan
+en base Finance, est surestimé tant que le mois n'est pas clos, et aucun coefficient fixe ne
+le corrige — à dire, pas à corriger ; la balance à J+3 referme l'écart. Le Brésil a une
+autre cause, sans points, à préciser avec la Finance. Enfin, les comptes de ventes nettes
+sont nommés : le compte 111 est le spa, le 121 le café. La vue sémantique sell-out a été
+reconstruite le 2 novembre, de trente-huit tables à sept et de cinquante-huit métriques à
+treize ; les sept requêtes du cockpit compilent encore, leur relecture sur un mois reste à
+faire valider. Le « weekly retail report » de l'équipe data vit dans une zone fermée au
+rôle du cockpit.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :

@@ -332,9 +332,10 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 
 ## 6. Questions ouvertes
 
-**Pour la Finance** : quelle écriture uniforme, magasin par magasin, sépare le net caisse
-du net publié en Chine réunifiée et au Brésil avant la fiscalité, le vrac étant déjà sur
-sa propre ligne, le taux de change étant hors de cause ; la règle de déduction fiscale
+**Pour la Finance** : l'écriture uniforme entre net caisse et net publié en Chine et à
+Hong Kong est fermée depuis le 3 novembre, c'est la remise points de fidélité (voir
+`docs/PLAN.md`, section 6) ; reste le Brésil avant la fiscalité, sans points, cause à
+préciser ; la règle de déduction fiscale
 brésilienne depuis mai et le retraitement de l'an dernier ; le retraitement de l'an dernier
 du partenaire américain reclassé dans la consolidation. Du reforecast : quels canaux
 portent le ralentissement du sell-in au second semestre, phasage des commandes ou recul
@@ -344,7 +345,9 @@ exactement au plan avec un phasage différent ; la définition exacte des compte
 spa et autre chiffre d'affaires retail ; à quelle date septembre a été figé.
 
 **Pour l'équipe data** (vérifié par Cortex le 3 novembre, `var/cortex-it.md` et
-`var/cortex-garde.md`) : l'instantané de consolidation daté du 1er mars 2027 est le
+`var/cortex-garde.md`) : l'accès du rôle du cockpit à la zone qui porte le « weekly retail
+report », pour comparer les définitions ; les objectifs magasin au jour absents dans sept
+marchés ; la colonne préliminaire de la consolidation vide partout ; l'instantané de consolidation daté du 1er mars 2027 est le
 reforecast 2 chargé comme un instantané, réel à zéro, à marquer comme tel parce qu'un
 lecteur qui prend le plus récent prendrait une prévision pour l'exercice clos ; juillet FY27
 toujours absent ; la colonne corrigée de remise produit de la vue facture, défaut de change
@@ -370,6 +373,13 @@ mémoire avec la nouvelle colonne, en dix lignes, et rien d'autre.
 
 ## 7. Pistes suivantes
 
+- La balance comptable comme « mois clos provisoire » à J+3, entre la fin du mois et le
+  fichier FS : contrat documenté par Cortex, requête écrite ici, validée par lui, étiquette
+  « provisoire » à l'écran avec les absents nommés (Inde, Thaïlande, entités aéroport), le
+  montant local au taux annuel, jamais les colonnes en euros de la vue ; remplacée par le
+  fichier FS dès qu'il est déposé. Ensuite seulement, avril et juillet pour l'historique.
+- Le verdict du mois de la Grande Chine avec la réserve des points de fidélité, dite à
+  côté du chiffre, jamais appliquée.
 - `manage.py compare` sur le format du reforecast 2 : le lecteur du millésime sait lire la
   feuille, il reste à lui faire produire le trimestre clos que `compare` attend, en tenant
   le mois figé à part.
