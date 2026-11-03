@@ -716,7 +716,9 @@ SELL_IN = """
 with usable as (
     -- The freshest exchange year that actually carries figures. The newest
     -- snapshot of all is the budget cut, whose current-year column is still
-    -- empty; anchoring on it would return a screen of blanks.
+    -- empty; anchoring on it would return a screen of blanks. A snapshot dated
+    -- in the future is never a closed month either: one appeared on 2026-11-03,
+    -- dated at the fiscal year's end, and nobody could say what it carried.
     select
         exchange_year,
         snapshot_date,
@@ -724,6 +726,7 @@ with usable as (
     from dwh.public.f_management_operating_profit_country
     where brand_code = 'OC'
       and account_code in ('PPL101', 'PPL102')
+      and snapshot_date <= current_date
     group by 1, 2
     having sum(abs(coalesce(actual_ty, 0))) > 0
 ),
@@ -886,6 +889,8 @@ month_ytd as (
     join years y on y.data_year = f.exchange_year
     where f.brand_code = 'OC'
       and f.snapshot_date between y.fiscal_start and add_months(y.fiscal_end, 1)
+      -- A snapshot dated in the future is not a closed reading (see SELL_IN).
+      and f.snapshot_date <= current_date
       and f.channel in ('WEB PARTNERS', 'TRAVEL RETAIL', 'DISTRIBUTORS',
                         'DEPARTMENT STORES', 'CHAINS WHOLESALE', 'WHOLESALE INDEP',
                         'WHOLESALES SPA', 'TV CHANNELS')
@@ -915,7 +920,10 @@ plan_year_annual as (
           select max(snapshot_date)
           from dwh.public.f_management_operating_profit_country g
           join years z on z.plan_year = g.exchange_year
-          where g.brand_code = 'OC')
+          where g.brand_code = 'OC'
+            -- Never a snapshot dated in the future: every closed snapshot of the
+            -- plan year carries the prior-year column, the latest past one will do.
+            and g.snapshot_date <= current_date)
     group by 1
 ),
 rate as (

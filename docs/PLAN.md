@@ -1228,6 +1228,18 @@ l'autre ne range reste nommé. `manage.py org --markets` ne lit que l'organigram
 nomme des zones : sa liste de non-rattachés n'est pas celle de l'écran, l'annuaire place
 pays par pays avant lui. Reste à faire : `manage.py compare` sur ce format.
 
+**Le 3 novembre, par l'agent entrepôt, sur ce que l'équipe data dit avoir corrigé.** Corrigé :
+le panier moyen de la vue sémantique sell-out exclut les tickets à zéro et retrouve la
+requête vérifiée ; la mesure de conversion fausse a été retirée ; la colonne de montant des
+factures est revenue au niveau du facturé sur le hub de Hong Kong en septembre. Inchangé :
+deux objets certifiés seulement, aucune mention « obsolète » lisible, aucune couche
+sémantique sell-in nouvelle, et le taux budgétaire de la vue facture porte encore deux
+valeurs par devise. Nouveau : une colonne corrigée de remise produit absurde sur les
+documents en yens, et un instantané de consolidation daté du 1er mars 2027, à la fin de
+l'exercice, sans explication ; juillet manque toujours. Les requêtes de la consolidation
+n'ancrent plus jamais sur un instantané daté dans le futur (`queries.SELL_IN`,
+`SELL_IN_HISTORY`), à faire valider par l'agent entrepôt sur les totaux de septembre.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :
