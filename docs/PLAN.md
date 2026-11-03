@@ -1272,8 +1272,10 @@ le corrige — à dire, pas à corriger ; la balance à J+3 referme l'écart. Le
 autre cause, sans points, à préciser avec la Finance. Enfin, les comptes de ventes nettes
 sont nommés : le compte 111 est le spa, le 121 le café. La vue sémantique sell-out a été
 reconstruite le 2 novembre, de trente-huit tables à sept et de cinquante-huit métriques à
-treize ; les sept requêtes du cockpit compilent encore, leur relecture sur un mois reste à
-faire valider. Le « weekly retail report » de l'équipe data vit dans une zone fermée au
+treize ; les sept requêtes du cockpit compilent encore, et la principale, exécutée sur la
+vue reconstruite, rend les mêmes lignes et les mêmes chiffres au centime pour l'an dernier
+et le budget ; seul le mois encore ouvert bouge, de quelques centièmes, par des écritures
+arrivées entre-temps, pas par une définition. Validé le 3 novembre. Le « weekly retail report » de l'équipe data vit dans une zone fermée au
 rôle du cockpit.
 
 ## 7. Ce qui attend l'équipe data
