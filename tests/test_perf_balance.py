@@ -105,6 +105,9 @@ def test_the_check_against_the_reference_is_at_the_cent_month_by_month():
     # Octobre a bougé depuis l'extrait : une entité en plus côté cockpit, un montant qui diffère.
     rows.append({"month": "2026-10", "entity": "M_904", "channel": "DIS", "currency": "EUR",
                  "amount_local": 7.0, "amount_eur": 7.0, "loaded_at": ""})
+    # Un couple à zéro côté cockpit n'est pas « lu seul » : la référence ne garde que le non nul.
+    rows.append({"month": "2026-09", "entity": "M_906", "channel": "WHOIN", "currency": "EUR",
+                 "amount_local": 0.0, "amount_eur": 0.0, "loaded_at": ""})
     for item in reference:
         if item["month"] == "2026-10" and item["entity"] == "M_901" and item["channel"] == "RET":
             item["amount_eur"] = 109.99

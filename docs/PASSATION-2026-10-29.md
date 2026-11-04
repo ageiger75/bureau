@@ -261,8 +261,9 @@ cache de six heures, `manage.py balance` et `--check FICHIER.csv`. Le mois préc
 dans le fichier publié s'il en parle, sinon dans la balance, provisoire jusqu'au septième
 jour ouvré, datée du dernier rechargement, les marchés absents nommés avec leur plan ; le
 suivi de l'exercice et l'atterrissage n'ont pas changé de forme, la lecture dit d'où elle
-vient. Validation attendue du lecteur : `--check` doit rendre septembre identique au
-centime ; octobre diffère par construction, la balance ayant bougé depuis l'extrait.
+vient. Validée le 4 novembre sur le poste : septembre identique au centime, octobre
+différent sur les couples que la balance avait fait bouger depuis l'extrait. Le venv du
+poste tourne sous Python 3.13 depuis ce jour, connecteur Snowflake réinstallé.
 
 ### 3.12 Robustesse, apprise sur le poste
 

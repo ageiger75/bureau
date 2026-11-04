@@ -1291,7 +1291,9 @@ que la balance range sous une autre du même marché est comptée, pas déclaré
 mois est « provisoire » jusqu'au septième jour ouvré du mois suivant, règle mesurée sur
 un seul mois clos et écrite pour être contestée, l'heure du dernier rechargement à côté.
 L'écran du jour porte la note, le suivi de l'exercice et l'atterrissage lisent la balance
-comme ils lisaient le fichier. Corrections apprises avec le contrat : les entités aéroport
+comme ils lisaient le fichier. Validée sur le poste le 4 novembre : septembre identique au
+centime à l'extrait de référence sur tous ses couples ; octobre différent sur huit couples,
+les mêmes mouvements que l'agent entrepôt avait vus arriver après son extrait. Corrections apprises avec le contrat : les entités aéroport
 ne sont pas absentes, elles sont sous leur société mère ; les ventes nettes se lisent au
 compte parent, qui a huit sous-comptes et non cinq ; « J+3 » ne tient pas, septembre ne
 s'est figé qu'au soir du sixième jour ouvré, octobre bougeait encore au troisième.

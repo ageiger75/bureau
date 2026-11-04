@@ -296,6 +296,10 @@ def compare_reference(rows: Sequence[dict], reference: Sequence[dict]) -> Check:
         return found
 
     here, there = keyed(rows), keyed(reference)
+    # Un couple dont la somme est nulle n'est porté par aucun extrait de référence, qui
+    # ne garde que les lignes non nulles : rien à comparer, d'un côté comme de l'autre.
+    here = {key: amount for key, amount in here.items() if abs(amount) >= 0.005}
+    there = {key: amount for key, amount in there.items() if abs(amount) >= 0.005}
     check = Check()
     # La référence est un extrait de quelques mois ; la comparaison porte sur ces mois-là,
     # jamais sur ce que le cockpit lit en plus.
