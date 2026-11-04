@@ -11,7 +11,9 @@ phases à venir. Ce fichier-ci dit *comment* contribuer ; le plan dit *quoi* fai
 Non négociables, elles viennent du poste et du brief :
 
 - **Python 3.9 strict.** Pas de `X | None` (utiliser `Optional[X]`), pas de `match`/`case`,
-  pas de `dict | dict`. Le poste n'a que CPython 3.9.6.
+  pas de `dict | dict`. Le Python système du poste est CPython 3.9.6 ; depuis novembre 2026
+  son venv tourne sous 3.13, et la suite doit passer sous les deux — `pytest.ini` fait des
+  `DeprecationWarning` du paquet des erreurs, ce qui attrape ce que 3.13 retire.
 - **Aucun Node, npm, bundler, React ni Docker.** Gabarits Jinja2 côté serveur, CSS local,
   JavaScript vanilla.
 - **Aucune ressource externe.** La CSP est `default-src 'self'` : pas de CDN, pas de police

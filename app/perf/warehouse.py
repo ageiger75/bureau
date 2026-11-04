@@ -123,10 +123,16 @@ def _open():
     try:
         import snowflake.connector  # noqa: WPS433 — deliberate lazy import
     except ImportError as exc:  # pragma: no cover — depends on the local install
+        import sys
+
+        hint = ("    .venv/bin/python -m pip install snowflake-connector-python"
+                if sys.version_info >= (3, 10) else
+                "    .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0'\n"
+                "Versions from 4.7 onwards require Python 3.10 or later.")
         raise RuntimeError(
-            "The Snowflake connector is not installed. On Python 3.9 use:\n"
-            "    .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0'\n"
-            "Versions from 4.7 onwards require Python 3.10 or later."
+            "The Snowflake connector is not installed in this virtual environment "
+            "(Python %d.%d). Install it with:\n%s"
+            % (sys.version_info[0], sys.version_info[1], hint)
         ) from exc
 
     if not settings.snowflake_connection:

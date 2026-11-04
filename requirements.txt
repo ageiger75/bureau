@@ -31,9 +31,12 @@ httpx==0.28.1                  # requis par starlette.testclient
 # Volontairement absent de l'installation par défaut. Le cockpit tourne, et toute sa
 # suite de tests passe, sur une machine qui n'a jamais entendu parler de Snowflake.
 #
-#   .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0'
+#   .venv/bin/python -m pip install snowflake-connector-python        # venv en 3.10 ou plus
+#   .venv/bin/python -m pip install 'snowflake-connector-python==4.5.0' # venv en 3.9
 #
-# La version est épinglée : à partir de 4.7, le connecteur exige Python 3.10, alors que
-# le poste est en 3.9.6. Aucun identifiant n'accompagne cette dépendance — la connexion
-# est nommée dans ~/.snowflake/connections.toml, le fichier que la CLI Snowflake et
-# Cortex Code entretiennent déjà.
+# À partir de 4.7, le connecteur exige Python 3.10. Le code, lui, reste écrit pour 3.9 :
+# le Python système du poste est toujours 3.9.6, et la suite passe sous 3.9 comme sous
+# 3.13. Aucun identifiant n'accompagne cette dépendance — la connexion est nommée dans
+# ~/.snowflake/connections.toml, le fichier que la CLI Snowflake et Cortex Code
+# entretiennent déjà. Un venv recréé sous une autre version repart sans le connecteur :
+# le réinstaller est la première chose à faire.
