@@ -152,6 +152,9 @@ DEFAULT_PNL_FILE = "var/pnl_bu.csv"
 #: Les placements décidés : un marché rangé sous un périmètre par décision du CEO, pour un
 #: temps — par-dessus l'annuaire, jamais à sa place.
 DEFAULT_PLACEMENTS_FILE = "var/placements.csv"
+#: Les distributeurs déclarés par le lecteur, que l'entrepôt type comme des filiales :
+#: leurs centres de profit, comptés dans le sell-in en le disant.
+DEFAULT_DISTRIBUTORS_FILE = "var/distributors.csv"
 
 #: Les temps forts de gifting, par marché, avec leur fenêtre de cette année et le poids mesuré
 #: l'an dernier par l'agent entrepôt. Ce qui arrive, jamais un objectif.
@@ -214,6 +217,7 @@ class Settings:
     retail_margin_file: str = DEFAULT_RETAIL_MARGIN_FILE
     pnl_file: str = DEFAULT_PNL_FILE
     placements_file: str = DEFAULT_PLACEMENTS_FILE
+    distributors_file: str = DEFAULT_DISTRIBUTORS_FILE
     gifting_file: str = DEFAULT_GIFTING_FILE
     red_zones_file: str = DEFAULT_RED_ZONES_FILE
     supply_file: str = DEFAULT_SUPPLY_FILE
@@ -422,6 +426,15 @@ class Settings:
     @property
     def has_placements_file(self) -> bool:
         return self.placements_path.exists()
+
+    @property
+    def distributors_path(self) -> Path:
+        path = Path(self.distributors_file)
+        return path if path.is_absolute() else ROOT / path
+
+    @property
+    def has_distributors_file(self) -> bool:
+        return self.distributors_path.exists()
 
     @property
     def gifting_path(self) -> Path:

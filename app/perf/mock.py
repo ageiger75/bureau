@@ -1015,6 +1015,7 @@ def sell_in_daily() -> List[dict]:
                     factor = 0.9 if window == INVOICED_LAST_YEAR else 1.0
                     rows.append({"window": window, "invoice_date": day.isoformat(), "iso2": iso2,
                                  "channel": channel, "pos_type": pos_type,
+                                 "code": "PC-%s-%s" % (iso2, channel.upper()),
                                  "net_eur": round(base * factor, 2)})
             day += datetime.timedelta(days=1)
     return rows

@@ -1314,9 +1314,19 @@ porter : « hors de la balance », à lire dans le fichier publié. Le plan éta
 sell-out que la Finance publie, la comparaison au plan reste sur cette base tant que la
 Finance ne la change pas ; ce n'est pas au cockpit de réécrire le périmètre de la Finance.
 Le chiffre du groupe sur ce marché, lui, est ce qu'on facture au distributeur : ces
-factures doivent compter dans le sell-in du cockpit, pas être écartées comme intragroupe —
-à vérifier dans le type du point de vente facturé et le canal du centre de profit, par
-l'agent entrepôt, pour la Thaïlande et pour l'Inde. Et une provision pour créances
+factures doivent compter dans le sell-in du cockpit, pas être écartées comme intragroupe.
+Vérifié par l'agent entrepôt le 5 novembre : toutes les factures au distributeur thaï sont
+typées « filiale » dans le point de vente facturé, canal distributeurs, un seul centre de
+profit ; l'Inde est typée pareil ; et le même opérateur de voyage y est typé sell-in sur un
+centre et filiale sur d'autres. Le cockpit les écartait donc toutes. Règle écrite le même
+jour : le lecteur déclare dans `var/distributors.csv` les centres de profit qui sont des
+distributeurs (`perf/distributors.py`), la requête des factures au jour porte le centre de
+profit, et ces factures comptent dans le sell-in, nommées à part sur l'écran du jour et sur
+Analyses (« distributeurs déclarés par le lecteur, que l'entrepôt type comme des
+filiales »), dans `manage.py ensemble` aussi. La correction durable est dans la donnée,
+chez l'équipe data : retyper le point de vente ; le jour où c'est fait, la déclaration ne
+change plus rien. La lecture par partenaire, dont le filtre est dans la requête, ne les
+voit pas encore. L'Inde attend la même décision du lecteur. Et une provision pour créances
 douteuses sur l'ancien distributeur vietnamien est comptabilisée chez les distributeurs de
 Hong Kong, en juin surtout : les ventes nettes ne bougent pas, la contribution de ce
 périmètre en juin, si, d'un peu plus d'un million, et rien ne le dit en lisant le Vietnam.

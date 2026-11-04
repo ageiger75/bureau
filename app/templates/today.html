@@ -364,6 +364,7 @@
     {% endif %}
     {% if invoiced.group.unseen_note %}<p class="cockpit-caveat">{{ invoiced.group.unseen_note | ucfirst }}.</p>{% endif %}
     {% for line in invoiced.perimeters if line.unseen_note %}<p class="cockpit-caveat">{{ line.name }} : {{ line.unseen_note }}.</p>{% endfor %}
+    {% if invoiced.declared_note %}<p class="cockpit-caveat">{{ invoiced.declared_note | ucfirst }}.</p>{% endif %}
     {% if invoiced.intragroup_note %}<p class="cockpit-caveat">{{ invoiced.intragroup_note | ucfirst }}.</p>{% endif %}
     {% if invoiced.other_note %}<p class="cockpit-caveat">{{ invoiced.other_note }}.</p>{% endif %}
     {% for reason in invoiced.absent %}<p class="cockpit-caveat">{{ reason }}</p>{% endfor %}

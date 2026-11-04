@@ -242,6 +242,8 @@ def cmd_check() -> int:
          "les marchés ne seront pas notés en vitesse"),
         ("Reforecast", settings.reforecast_path,
          "l'atterrissage n'aura pas l'avis de la Finance à côté du plan"),
+        ("Distributeurs", settings.distributors_path,
+         "les factures aux distributeurs que l'entrepôt type filiale resteront hors du sell-in"),
         ("Partenaires", settings.partners_path,
          "le digital non détenu restera un total sans noms"),
         ("Signaux distribution", settings.distribution_path,
@@ -4428,6 +4430,9 @@ def cmd_ensemble(argv: List[str]) -> int:
     names = _invoice_country_names(source, rows)
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
+    from .perf import distributors as distributors_module
+
+    declared_codes = distributors_module.current().codes
     by_iso2 = {}
     for row in rows:
         window = str(row.get("window") or "").strip().lower()
@@ -4435,6 +4440,9 @@ def cmd_ensemble(argv: List[str]) -> int:
             continue
         iso2 = str(row.get("iso2") or "").strip().upper() or "??"
         pos = (str(row.get("pos_type") or "").strip().upper() if "pos_type" in row else "")
+        # Un distributeur déclaré par le lecteur compte comme un point de vente commercial.
+        if pos and pos not in COMMERCIAL_POS_TYPES and str(row.get("code") or "").strip().upper() in declared_codes:
+            pos = COMMERCIAL_POS_TYPES[0]
         code = str(row.get("channel") or "").strip().lower()
         amount = float(row.get("net_eur") or 0.0)
         cell = by_iso2.setdefault(iso2, {"commercial": 0.0, "intragroup": 0.0, "other": 0.0, "travel": 0.0,

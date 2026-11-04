@@ -1401,6 +1401,9 @@ from semantic_view(
 #: ressortait très au-dessus de la consolidation, les distributeurs très en dessous ; la
 #: mesure de la maison retrouve la consolidation canal par canal, et hors du hub les deux
 #: colonnes sont égales à l'euro près. `window` est un mot réservé, d'où les guillemets.
+#: Le centre de profit (`code`) est porté depuis le 5 novembre 2026 : un distributeur que
+#: l'entrepôt type comme une filiale ne se reconnaît qu'à son centre, et le lecteur le
+#: déclare dans `var/distributors.csv` pour qu'il compte (`perf/distributors.py`).
 SELL_IN_POS_TYPES = ("SELL IN", "B2B")
 SELL_IN_DAILY = """
 select
@@ -1409,6 +1412,7 @@ select
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
+    i.profit_center_group_id                        as code,
     round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
@@ -1416,7 +1420,7 @@ where i.brand_caption = 'L''OCCITANE'
   and i.kit_flag in (0, 2)
   and i.billing_date >= date_trunc('month', current_date)
   and i.billing_date <= dateadd(day, -1, current_date)
-group by 1, 2, 3, 4, 5
+group by 1, 2, 3, 4, 5, 6
 union all
 select
     'last_year'                                     as "window",
@@ -1424,6 +1428,7 @@ select
     i.country                                       as iso2,
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
+    i.profit_center_group_id                        as code,
     round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
@@ -1431,7 +1436,7 @@ where i.brand_caption = 'L''OCCITANE'
   and i.kit_flag in (0, 2)
   and i.billing_date >= add_months(date_trunc('month', current_date), -12)
   and i.billing_date <= last_day(add_months(date_trunc('month', current_date), -12))
-group by 1, 2, 3, 4, 5
+group by 1, 2, 3, 4, 5, 6
 """
 
 

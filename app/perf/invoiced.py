@@ -173,8 +173,13 @@ class Review:
                  loose: Optional[Line] = None, other: Optional[Line] = None,
                  other_codes: Sequence[str] = (), intragroup: Optional[Line] = None,
                  intragroup_types: Sequence[str] = (), placed_countries=None,
-                 travel_bu: str = "") -> None:
+                 travel_bu: str = "", declared: Optional[Line] = None,
+                 declared_names: Sequence[str] = ()) -> None:
         self.month = month
+        #: Les factures aux distributeurs déclarés par le lecteur, que l'entrepôt type
+        #: comme des filiales : comptées dans le total, et dites ici, avec leurs noms.
+        self.declared = declared
+        self.declared_names = list(declared_names)
         self.through = through
         #: Les jours ouvrés depuis le 1er, cette année — le N de l'alignement.
         self.days = days
@@ -193,6 +198,17 @@ class Review:
         #: qui porte le travel retail : le même rangement sert au carnet ouvert.
         self.placed_countries = dict(placed_countries or {})
         self.travel_bu = travel_bu
+
+    @property
+    def declared_note(self) -> str:
+        """Ce que le lecteur a déclaré distributeur contre le type de l'entrepôt."""
+        from .analytics import format_eur
+
+        if self.declared is None or not self.declared.current:
+            return ""
+        return ("%s facturés à des distributeurs déclarés par le lecteur (%s), que l'entrepôt "
+                "type comme des filiales : comptés dans le sell-in, le typage reste à corriger "
+                "dans la donnée" % (format_eur(self.declared.current), ", ".join(self.declared_names)))
 
     def countries_of(self, name: str) -> List[str]:
         """Les pays facturés rangés dans ce périmètre."""
@@ -293,7 +309,7 @@ def aligned_end(start: datetime.date, days: int) -> datetime.date:
 
 
 def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None, org=None,
-          directory=None, today: Optional[datetime.date] = None) -> Review:
+          directory=None, today: Optional[datetime.date] = None, distributors=None) -> Review:
     """Le mois facturé, à jours facturés égaux.
 
     `rows` est le contrat de `SELL_IN_DAILY` : `window · invoice_date · iso2 · channel ·
@@ -320,6 +336,7 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
                                            "channel": str(row.get("channel") or "").strip().lower(),
                                            "pos_type": (str(row.get("pos_type") or "").strip().upper()
                                                         if "pos_type" in row else ""),
+                                           "code": str(row.get("code") or "").strip().upper(),
                                            "amount": amount})
     if not current:
         return Review(None, None, 0, None, [], [], ["aucune facture lue sur le mois en cours : le sell-in du mois ne se lit pas"])
@@ -349,6 +366,11 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     other_codes: List[str] = []
     intragroup = Line("Intragroupe")
     intragroup_types: List[str] = []
+    #: Les distributeurs déclarés par le lecteur : typés filiale par l'entrepôt, comptés
+    #: quand même, et dits. Le nom vient de la déclaration, jamais de l'entrepôt.
+    declared_codes = getattr(distributors, "codes", None) or set()
+    declared = Line("Distributeurs déclarés")
+    declared_names: List[str] = []
     #: Le canal croisé avec le pays : ce qui dit, par canal, quels pays n'ont pas d'an dernier.
     cells: Dict[Tuple[str, str], Line] = {}
 
@@ -357,11 +379,19 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
             code = entry["channel"]
             pos_type = entry.get("pos_type") or ""
             if pos_type and pos_type not in COMMERCIAL_POS_TYPES:
-                # Une facture à une filiale du groupe : à part, nommée, hors du total.
-                setattr(intragroup, attribute, getattr(intragroup, attribute) + entry["amount"])
-                if pos_type not in intragroup_types:
-                    intragroup_types.append(pos_type)
-                continue
+                if entry.get("code") in declared_codes:
+                    # Un distributeur que l'entrepôt type comme une filiale : le lecteur l'a
+                    # déclaré, il compte, et le total le dit à part.
+                    setattr(declared, attribute, getattr(declared, attribute) + entry["amount"])
+                    shown = distributors.name_of(entry["code"])
+                    if shown not in declared_names:
+                        declared_names.append(shown)
+                else:
+                    # Une facture à une filiale du groupe : à part, nommée, hors du total.
+                    setattr(intragroup, attribute, getattr(intragroup, attribute) + entry["amount"])
+                    if pos_type not in intragroup_types:
+                        intragroup_types.append(pos_type)
+                    continue
             if code not in CODES:
                 # Pas un canal commercial : à part, nommé, hors du total.
                 setattr(other, attribute, getattr(other, attribute) + entry["amount"])
@@ -440,4 +470,5 @@ def build(rows: Sequence[dict], markets_by_iso2: Optional[Dict[str, str]] = None
     return Review(month, through, days, group, list(channels.values()), ordered, absent,
                   loose if loose.current else None, other if other.current else None,
                   sorted(other_codes), intragroup if intragroup.current else None,
-                  sorted(intragroup_types), placed_countries=placed_countries, travel_bu=travel_bu)
+                  sorted(intragroup_types), placed_countries=placed_countries, travel_bu=travel_bu,
+                  declared=declared if declared.current else None, declared_names=declared_names)

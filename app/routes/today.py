@@ -155,7 +155,10 @@ def _invoiced_review(source, weekly):
     names = _invoice_country_names(source, rows)
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
-    review = invoiced_module.build(rows, names, org, directory)
+    from ..perf import distributors as distributors_module
+
+    review = invoiced_module.build(rows, names, org, directory,
+                                   distributors=distributors_module.current())
     _say_if_stale(review, "invoiced")
     return review
 

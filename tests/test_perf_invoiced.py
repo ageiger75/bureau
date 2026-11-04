@@ -292,3 +292,40 @@ def test_a_country_without_last_year_in_the_source_counts_in_the_total_never_in_
     assert "pas de croissance à lire" in department.unseen_note
     # Un pays vu l'an dernier ne change rien : pas de note.
     assert I.build(_rows(), {"JP": "Japan", "FR": "France"}, today=TODAY).group.unseen_note == ""
+
+
+def test_a_distributor_the_warehouse_types_as_a_subsidiary_counts_once_the_reader_declares_it():
+    """Le lecteur a tranché : un marché est un distributeur. L'entrepôt type pourtant ses
+    factures comme des factures à une filiale, et le cockpit les mettait à part. Déclaré par
+    son centre de profit, il compte dans le sell-in, nommé, et l'intragroupe garde le reste."""
+    from app.perf import distributors as D
+    from app.perf.analytics import format_eur
+
+    rows = _rows()
+    for day in (1, 2, 3, 4):
+        rows.append({"window": "current", "invoice_date": "2026-09-%02d" % day, "iso2": "TL",
+                     "channel": "dis", "pos_type": "SUBSIDIARY", "code": "PC-TL-DIS", "net_eur": 100.0})
+        rows.append({"window": "current", "invoice_date": "2026-09-%02d" % day, "iso2": "TL",
+                     "channel": "dis", "pos_type": "SUBSIDIARY", "code": "PC-TL-SUB", "net_eur": 10.0})
+    names = {"JP": "Japan", "FR": "France", "TL": "Thuleland"}
+
+    silent = I.build(rows, names, today=TODAY)
+    assert silent.group.current == 600.0 and silent.intragroup.current == 440.0
+    assert silent.declared is None and silent.declared_note == ""
+
+    declared = D.Declared({"PC-TL-DIS": "Thuleland distributor"}, [])
+    heard = I.build(rows, names, today=TODAY, distributors=declared)
+    assert heard.group.current == 1_000.0 and heard.intragroup.current == 40.0
+    assert heard.declared.current == 400.0 and heard.declared_names == ["Thuleland distributor"]
+    assert heard.declared_note.startswith("%s facturés à des distributeurs déclarés par le lecteur "
+                                          "(Thuleland distributor)" % format_eur(400.0))
+    assert "typage reste à corriger dans la donnée" in heard.declared_note
+    by_name = {line.name: line for line in heard.channels}
+    assert by_name["Distributors"].current == 600.0
+
+
+def test_the_daily_invoice_query_carries_the_profit_centre():
+    from app.perf import queries
+
+    assert queries.SELL_IN_DAILY.count("i.profit_center_group_id                        as code") == 2
+    assert queries.SELL_IN_DAILY.count("group by 1, 2, 3, 4, 5, 6") == 2
