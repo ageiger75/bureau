@@ -315,8 +315,9 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 - `balance-reference.csv` : l'extrait de référence de la balance, septembre et octobre,
   au centime, pour `manage.py balance --check`.
 - `distributors.csv` : les centres de profit que le lecteur déclare distributeurs alors que
-  l'entrepôt les type filiale (`profit_centre,name,reason`) ; la Thaïlande au 5 novembre,
-  l'Inde en attente de décision. Leurs factures comptent dans le sell-in, nommées à part.
+  l'entrepôt les type filiale (`profit_centre,name,reason`) ; la Thaïlande au 5 novembre.
+  L'Inde est une filiale, rien à déclarer. Leurs factures comptent dans le sell-in, nommées
+  à part.
 - `warehouse-*.json` : les caches de lecture, chacun avec l'empreinte de sa requête.
   `warehouse-rows.json` tient la lecture principale, sell-in de la consolidation compris ;
   `warehouse-kpis.json` les KPI suivis ; `warehouse-invoiced.json` les factures au jour.
@@ -366,9 +367,9 @@ spa et autre chiffre d'affaires retail ; à quelle date septembre a été figé.
 
 **Pour l'équipe data** (vérifié par Cortex le 3 novembre, `var/cortex-it.md` et
 `var/cortex-garde.md`) : l'accès du rôle du cockpit à la zone qui porte le « weekly retail
-report », pour comparer les définitions ; la Thaïlande et l'Inde jamais chargées dans la
-balance comptable, ni rejetées, présentes dans la consolidation ; le point de vente facturé
-des distributeurs thaï et indien typé « filiale », et le même opérateur de voyage typé
+report », pour comparer les définitions ; l'Inde, filiale, jamais chargée dans la balance
+comptable, ni rejetée, présente dans la consolidation, un trou de chargement ; le point de
+vente facturé du distributeur thaï typé « filiale », et le même opérateur de voyage typé
 sell-in sur un centre et filiale sur d'autres, à retyper ; les objectifs magasin au
 jour absents dans sept marchés ; la colonne préliminaire de la consolidation vide partout ; l'instantané de consolidation daté du 1er mars 2027 est le
 reforecast 2 chargé comme un instantané, réel à zéro, à marquer comme tel parce qu'un

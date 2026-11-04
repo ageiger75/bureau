@@ -329,3 +329,5 @@ def test_the_daily_invoice_query_carries_the_profit_centre():
 
     assert queries.SELL_IN_DAILY.count("i.profit_center_group_id                        as code") == 2
     assert queries.SELL_IN_DAILY.count("group by 1, 2, 3, 4, 5, 6") == 2
+    # Pas d'arrondi par centre avant la somme : la somme reste exacte à tout regroupement.
+    assert "round(sum(i.billed_net_value_eur_annual)" not in queries.SELL_IN_DAILY

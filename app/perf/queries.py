@@ -1403,7 +1403,9 @@ from semantic_view(
 #: colonnes sont égales à l'euro près. `window` est un mot réservé, d'où les guillemets.
 #: Le centre de profit (`code`) est porté depuis le 5 novembre 2026 : un distributeur que
 #: l'entrepôt type comme une filiale ne se reconnaît qu'à son centre, et le lecteur le
-#: déclare dans `var/distributors.csv` pour qu'il compte (`perf/distributors.py`).
+#: déclare dans `var/distributors.csv` pour qu'il compte (`perf/distributors.py`). La somme
+#: n'est pas arrondie dans la requête : arrondie par centre puis additionnée, elle
+#: s'écartait de quelques centimes de la somme arrondie ; l'écran arrondit à l'affichage.
 SELL_IN_POS_TYPES = ("SELL IN", "B2B")
 SELL_IN_DAILY = """
 select
@@ -1413,7 +1415,7 @@ select
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
     i.profit_center_group_id                        as code,
-    round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
+    sum(i.billed_net_value_eur_annual)              as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'
@@ -1429,7 +1431,7 @@ select
     i.profit_center_group_channel                   as channel,
     coalesce(nullif(trim(p.channel_type_desc), ''), '(sans type)') as pos_type,
     i.profit_center_group_id                        as code,
-    round(sum(i.billed_net_value_eur_annual), 2)    as net_eur
+    sum(i.billed_net_value_eur_annual)              as net_eur
 from dwh.semantic_layer.v_sl_f_sellin_invoice_item i
 left join dwh.semantic_layer.v_sl_d_pos p on p.pos_skey = i.bill_to_skey
 where i.brand_caption = 'L''OCCITANE'

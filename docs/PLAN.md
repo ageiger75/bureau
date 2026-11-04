@@ -1326,7 +1326,9 @@ Analyses (« distributeurs déclarés par le lecteur, que l'entrepôt type comme
 filiales »), dans `manage.py ensemble` aussi. La correction durable est dans la donnée,
 chez l'équipe data : retyper le point de vente ; le jour où c'est fait, la déclaration ne
 change plus rien. La lecture par partenaire, dont le filtre est dans la requête, ne les
-voit pas encore. L'Inde attend la même décision du lecteur. Et une provision pour créances
+voit pas encore. L'Inde est une filiale, tranché le 5 novembre : ses factures restent
+intragroupe, et son absence de la balance comptable devient un trou de chargement pour
+l'équipe data, puisqu'une filiale a ses livres dans le grand livre. Et une provision pour créances
 douteuses sur l'ancien distributeur vietnamien est comptabilisée chez les distributeurs de
 Hong Kong, en juin surtout : les ventes nettes ne bougent pas, la contribution de ce
 périmètre en juin, si, d'un peu plus d'un million, et rien ne le dit en lisant le Vietnam.
