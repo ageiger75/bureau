@@ -219,8 +219,12 @@ class Track:
 
     def __init__(self, period: str, day: int, closed_through: str, group: Scope,
                  perimeters: Sequence[Scope], caveats: Sequence[str],
-                 absent: Sequence[str], year_through: str = "") -> None:
+                 absent: Sequence[str], year_through: str = "",
+                 provisional_note: str = "") -> None:
         self.period = period
+        #: Ce que la lecture du mois clos a à dire d'elle-même quand elle n'est pas le
+        #: fichier publié : la balance comptable, provisoire, datée, avec ses absents.
+        self.provisional_note = provisional_note
         self.day = day
         #: Le dernier mois que la consolidation a publié, ou vide.
         self.closed_through = closed_through
@@ -425,8 +429,13 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
     closed_actual = closed_budget = 0.0
     year_absent = ""
     month_in_year = True
+    provisional_note = ""
     if published is not None and getattr(published, "lines", None):
         declared = published.period
+        source_label = getattr(published, "source_label", "consolidation")
+        provisional_note = getattr(published, "caveat", "") or ""
+        if provisional_note:
+            caveats.append(provisional_note)
         if not declared:
             year_absent = ("le fichier de consolidation ne déclare pas son mois : nommez-le "
                            "dans son nom de fichier, « … 2026 08.xlsx », et l'exercice se lira")
@@ -438,16 +447,16 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
             closed_actual, closed_budget = _closed_for(published, None)
             missing = _months_between(declared, period)
             if not missing:
-                closed_basis = ("consolidation d'%s à %s, tous canaux, à taux budget · entrepôt "
+                closed_basis = ("%s d'%s à %s, tous canaux, à taux budget · entrepôt "
                                 "sur %s à date, sell-out des deux côtés"
-                                % (_month_name(_fiscal_start(period)), _month_name(declared),
-                                   _month_name(period)))
+                                % (source_label, _month_name(_fiscal_start(period)),
+                                   _month_name(declared), _month_name(period)))
             else:
                 month_in_year = False
-                closed_basis = ("consolidation d'%s à %s, tous canaux, à taux budget · %s pas "
+                closed_basis = ("%s d'%s à %s, tous canaux, à taux budget · %s pas "
                                 "encore publié%s par la Finance ; %s à date se lit à part, pas "
                                 "ajouté"
-                                % (_month_name(_fiscal_start(period)), _month_name(declared),
+                                % (source_label, _month_name(_fiscal_start(period)), _month_name(declared),
                                    _listed(missing), "s" if len(missing) > 1 else "",
                                    _month_name(period)))
                 caveats.append("L'exercice s'arrête à fin %s : %s n'%s pas encore publié%s par la "
@@ -526,4 +535,5 @@ def build(review: "month_module.Review", published=None, warehouse_year=None,
 
     return Track(period, review.day, closed_through,
                  Scope("Groupe", "", group_month, group_year), perimeters, caveats, absent,
-                 year_through=(period if month_in_year else closed_through) if closed_through else "")
+                 year_through=(period if month_in_year else closed_through) if closed_through else "",
+                 provisional_note=provisional_note)

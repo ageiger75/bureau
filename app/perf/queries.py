@@ -2062,7 +2062,64 @@ union all
 select * from normal
 """ % {"from": _SUPPLY_FROM, "to": _SUPPLY_TO, "units": SHADOW_BIG_TICKET_UNITS}
 
+#: La balance comptable, lue comme mois clos provisoire — contrat mesuré par l'agent
+#: entrepôt le 3 et le 4 novembre 2026 (`var/cortex-balance.md`), validé sur septembre et
+#: octobre contre le fichier publié. Une ligne par `month · entity · channel · currency` :
+#: `amount_local` en unités de devise, `amount_eur` au taux annuel de la maison, `loaded_at`
+#: le dernier rechargement de la table du réel.
+#:
+#: Les règles qui comptent. Le montant en euros se calcule ici, du local au taux annuel :
+#: les colonnes en euros de la vue sont à un troisième jeu de taux, ni annuel ni mensuel, et
+#: gonflent la Chine. Les ventes nettes se lisent au compte parent, jamais à une liste de
+#: sous-comptes : il en a huit, quatre vides selon les mois. Les deux dimensions de compte
+#: et de centre sont versionnées au grain local : une ligne par clé de groupe, sinon chaque
+#: montant est multiplié par le nombre de comptes du groupe. L'intragroupe sort par le
+#: niveau un du centre, et seuls les centres commerciaux restent. Le mois est borné au mois
+#: écoulé : la balance porte déjà des écritures sur les mois à venir.
+BALANCE_MONTH = """
+with nature as (
+    select distinct accntnaturesgroupskey, acc_p3_sig_c
+    from dwh.public.d_account_nature
+    where curr_ind = 'Y'
+),
+center as (
+    select distinct analyticalgroupskey, bs_pcc_p1_c, bs_pcc_p3_sapbpc_c, bs_pcc_p6_c
+    from dwh.public.d_analytical_center
+    where curr_ind = 'Y'
+),
+loaded as (
+    select max(last_altered) as loaded_at
+    from dwh.information_schema.tables
+    where table_schema = 'PUBLIC' and table_name = 'F_GRP_ACTUALAMOUNTS'
+)
+select
+    substr(to_varchar(v.actual_budget_month), 1, 4) || '-'
+        || substr(to_varchar(v.actual_budget_month), 5, 2)                 as month,
+    c.companycode                                                          as entity,
+    k.bs_pcc_p3_sapbpc_c                                                   as channel,
+    c.currencycode                                                         as currency,
+    round(sum(v.actual_amount_local) * 1000, 2)                            as amount_local,
+    round(sum(v.actual_amount_local) * 1000 / any_value(r.annual_rate), 2) as amount_eur,
+    any_value(loaded.loaded_at)                                            as loaded_at
+from dwh.semantic_layer.v_sl_f_full_actual_budget_amounts v
+join dwh.public.d_ref_companybrand c on c.companybrand_sid = v.company_brand_skey
+join nature n on n.accntnaturesgroupskey = v.nature_group_skey
+join center k on k.analyticalgroupskey = v.analytical_group_skey
+join dwh.public.d_exchange_annual r on r.codedevise = c.currencycode
+cross join loaded
+where c.brandcode = 'OCC'
+  and n.acc_p3_sig_c = 'PL100'
+  and k.bs_pcc_p6_c = 'CHANNELS'
+  and k.bs_pcc_p1_c not in ('INT', 'TRA_INT', 'B2B_INT')
+  and v.actual_amount_local is not null
+  and v.actual_budget_month >= to_number(to_varchar(add_months(date_trunc('month', current_date), -14), 'YYYYMM'))
+  and v.actual_budget_month <= to_number(to_varchar(add_months(date_trunc('month', current_date), -1), 'YYYYMM'))
+group by 1, 2, 3, 4
+"""
+
+
 ALL = {
+    "BALANCE_MONTH": BALANCE_MONTH,
     "ORDER_BOOK": ORDER_BOOK,
     "SALES_AND_DRIVERS": SALES_AND_DRIVERS,
     "SALES_HISTORY": SALES_HISTORY,

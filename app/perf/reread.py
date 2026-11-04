@@ -48,7 +48,8 @@ def reread_all() -> None:
     current = source.current_source()
     current.dataset(refresh=True, wait_for_warehouse=True)
     for name in ("client_kpis", "product_rows", "client_rows", "partner_rows",
-                 "osa_rows", "forecast_rows", "orderbook_rows", "bulk_rows", "shadow_rows"):
+                 "osa_rows", "forecast_rows", "orderbook_rows", "bulk_rows", "shadow_rows",
+                 "balance_rows"):
         reader = getattr(current, name, None)
         if reader is None:
             continue

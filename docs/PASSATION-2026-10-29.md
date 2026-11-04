@@ -253,7 +253,18 @@ longues l'avaient déjà. Un cache expiré est servi et relu derrière l'écran,
 compris (`source._query_rows`, `reread.reread_all`) : il était resté des semaines sans
 relecture.
 
-### 3.11 Robustesse, apprise sur le poste
+### 3.11 La balance comptable comme mois clos provisoire
+
+Construite le 4 novembre sur le contrat de Cortex (`var/cortex-balance.md`, extrait de
+référence `var/balance-reference.csv`) : `app/perf/balance.py`, requête `BALANCE_MONTH`,
+cache de six heures, `manage.py balance` et `--check FICHIER.csv`. Le mois précédent se lit
+dans le fichier publié s'il en parle, sinon dans la balance, provisoire jusqu'au septième
+jour ouvré, datée du dernier rechargement, les marchés absents nommés avec leur plan ; le
+suivi de l'exercice et l'atterrissage n'ont pas changé de forme, la lecture dit d'où elle
+vient. Validation attendue du lecteur : `--check` doit rendre septembre identique au
+centime ; octobre diffère par construction, la balance ayant bougé depuis l'extrait.
+
+### 3.12 Robustesse, apprise sur le poste
 
 - Les pages des régions facturées tombaient en erreur interne : dans `page.build`, la
   variable du plan sell-in du mois écrasait celle du plan EBITDA, et la carte « EBITDA au
@@ -300,6 +311,8 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 - `ref2-rapport.md`, `cortex-taux.md`, `cortex-ref2-format.md`, `cortex-finance-*.md`,
   `cortex-carnet-pays.md`, `cortex-partenaires-codes.md` : les comptes rendus de Cortex ;
   `entrepot.md` : sa mémoire, dont les règles de méthode que le CEO impose.
+- `balance-reference.csv` : l'extrait de référence de la balance, septembre et octobre,
+  au centime, pour `manage.py balance --check`.
 - `warehouse-*.json` : les caches de lecture, chacun avec l'empreinte de sa requête.
   `warehouse-rows.json` tient la lecture principale, sell-in de la consolidation compris ;
   `warehouse-kpis.json` les KPI suivis ; `warehouse-invoiced.json` les factures au jour.
@@ -373,11 +386,9 @@ mémoire avec la nouvelle colonne, en dix lignes, et rien d'autre.
 
 ## 7. Pistes suivantes
 
-- La balance comptable comme « mois clos provisoire » à J+3, entre la fin du mois et le
-  fichier FS : contrat documenté par Cortex, requête écrite ici, validée par lui, étiquette
-  « provisoire » à l'écran avec les absents nommés (Inde, Thaïlande, entités aéroport), le
-  montant local au taux annuel, jamais les colonnes en euros de la vue ; remplacée par le
-  fichier FS dès qu'il est déposé. Ensuite seulement, avril et juillet pour l'historique.
+- La balance comptable pour avril et juillet dans l'historique sell-in, que la
+  consolidation n'a jamais ; et vérifier la règle du septième jour ouvré sur octobre,
+  puis sur chaque mois.
 - Le verdict du mois de la Grande Chine avec la réserve des points de fidélité, dite à
   côté du chiffre, jamais appliquée.
 - `manage.py compare` sur le format du reforecast 2 : le lecteur du millésime sait lire la

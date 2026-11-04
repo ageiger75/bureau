@@ -1278,6 +1278,24 @@ et le budget ; seul le mois encore ouvert bouge, de quelques centièmes, par des
 arrivées entre-temps, pas par une définition. Validé le 3 novembre. Le « weekly retail report » de l'équipe data vit dans une zone fermée au
 rôle du cockpit.
 
+**Construit le 4 novembre : la balance comptable comme mois clos provisoire.**
+`app/perf/balance.py`, requête `BALANCE_MONTH` écrite sur le contrat de l'agent entrepôt
+(`var/cortex-balance.md`), cache de six heures relu derrière l'écran, `manage.py balance`
+et son `--check` contre l'extrait de référence, au centime, mois par mois. Les règles :
+le mois précédent se lit dans le fichier publié s'il en parle, sinon dans la balance si
+elle le porte et si le classeur de plan place ses entités, sinon dans le fichier tel qu'il
+est ; les mois de l'exercice sont sommés par marché et canal, le montant local au taux
+annuel, le plan et l'an dernier du classeur en face sur les mêmes mois ; un marché sans
+aucune ligne de balance n'entre pas au plan et est nommé absent avec son plan, une entité
+que la balance range sous une autre du même marché est comptée, pas déclarée absente ; le
+mois est « provisoire » jusqu'au septième jour ouvré du mois suivant, règle mesurée sur
+un seul mois clos et écrite pour être contestée, l'heure du dernier rechargement à côté.
+L'écran du jour porte la note, le suivi de l'exercice et l'atterrissage lisent la balance
+comme ils lisaient le fichier. Corrections apprises avec le contrat : les entités aéroport
+ne sont pas absentes, elles sont sous leur société mère ; les ventes nettes se lisent au
+compte parent, qui a huit sous-comptes et non cinq ; « J+3 » ne tient pas, septembre ne
+s'est figé qu'au soir du sixième jour ouvré, octobre bougeait encore au troisième.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :

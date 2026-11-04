@@ -55,6 +55,7 @@
     python -m app.cli stores         la part loyer du prochain euro, boutique par boutique
     python -m app.cli ebitda         le plan EBITDA par périmètre, tel que la Finance l'a budgété
     python -m app.cli reforecast     le dernier reforecast de la Finance, un millésime à côté du plan : par périmètre, et --structure pour les colonnes lues
+    python -m app.cli balance        la balance comptable comme mois clos provisoire : par mois, absents nommés ; --check FICHIER.csv contre l'extrait de référence ; --refresh
     python -m app.cli retail         l'euro suivant en boutique, pays par pays, pente et précision
     python -m app.cli pnl            la contribution réalisée à date par périmètre, au compte de gestion
     python -m app.cli placements     les marchés rangés par décision, avec leur date de fin
@@ -1673,6 +1674,10 @@ def cmd_refresh(argv: List[str] = ()) -> int:
     if "--month" in tuple(argv):
         source.month_cache_forget()
         print("Lecture du mois en cours oubliée. Le reste reste en cache.")
+        return 0
+    if "--balance" in tuple(argv):
+        source.balance_cache_forget()
+        print("Lecture de la balance comptable oubliée. Le reste reste en cache.")
         return 0
     source.cache_forget()
     print("Cache oublié. La prochaine lecture ira à l'entrepôt.")
@@ -5225,6 +5230,99 @@ def cmd_reforecast(argv: List[str]) -> int:
     return 0
 
 
+def cmd_balance(argv: List[str]) -> int:
+    """La balance comptable, lue comme mois clos provisoire.
+
+        manage.py balance                       le mois précédent et l'exercice, contre le plan
+        manage.py balance --check FICHIER.csv   la requête du cockpit contre l'extrait de référence
+        manage.py balance --refresh             relit la balance maintenant
+
+    Le mois précédent est « provisoire » tant qu'il n'a pas sept jours ouvrés derrière lui ;
+    la règle est écrite dans `app/perf/balance.py` pour être contestée. Le fichier publié
+    remplace la balance dès qu'il est déposé.
+    """
+    import csv
+    import datetime
+
+    from .config import settings
+    from .perf import balance as balance_module
+    from .perf import budget as budget_module
+    from .perf import source as source_module
+    from .perf.analytics import format_eur
+    from .perf.source import current_source
+
+    source = current_source()
+    reader = getattr(source, "balance_rows", None)
+    if reader is None:
+        print("Cette source ne lit pas la balance comptable.", file=sys.stderr)
+        return 2
+    if "--refresh" in argv:
+        source_module.balance_cache_forget()
+    wait = "--refresh" in argv or "--check" in argv
+    rows = reader(wait_for_warehouse=wait)
+    reference_path = _option(argv, "--check")
+    if reference_path:
+        with open(reference_path, encoding="utf-8", newline="") as handle:
+            reference = list(csv.DictReader(handle))
+        check = balance_module.compare_reference(rows, reference)
+        if not check.months:
+            print("Rien à comparer : la balance ou la référence est vide.", file=sys.stderr)
+            return 2
+        for month in check.months:
+            print(check.sentence(month))
+        shown = 0
+        for month, entity, channel, here, there in check.differing:
+            if shown >= 20:
+                print("  … et %d autres" % (len(check.differing) - shown))
+                break
+            print("  %s %-10s %-6s cockpit %14.2f  référence %14.2f  écart %12.2f"
+                  % (month, entity, channel, here, there, here - there))
+            shown += 1
+        for month, entity, channel, amount in check.only_here[:10]:
+            print("  %s %-10s %-6s cockpit seul %14.2f" % (month, entity, channel, amount))
+        for month, entity, channel, amount in check.only_there[:10]:
+            print("  %s %-10s %-6s référence seule %14.2f" % (month, entity, channel, amount))
+        return 0 if all(check.identical(m) for m in check.months) else 1
+    if not rows:
+        print(getattr(source, "balance_note", "") or "aucune ligne de balance lue.", file=sys.stderr)
+        return 2
+    if not settings.has_budget_file:
+        print("%s absent : sans le classeur de plan, la balance n'a ni marché ni plan en face."
+              % settings.budget_path, file=sys.stderr)
+        return 2
+    budget = budget_module.load(settings.budget_path)
+    today = datetime.date.today()
+    previous = (today.replace(day=1) - datetime.timedelta(days=1)).strftime("%Y-%m")
+    reading = balance_module.build(rows, budget, previous, today)
+    print("BALANCE — mois clos provisoire, jusqu'à %s" % balance_module._month_name(previous))
+    print("  %s" % reading.status)
+    print("  rechargée le %s" % (reading.loaded_at or "?"))
+    for fault in reading.faults:
+        print("  ! %s" % fault)
+    totals = reading.totals()
+    if reading.usable:
+        print("  %s à %s : %s réalisés, plan %s, écart %s, an dernier %s"
+              % (balance_module._month_name(reading.months[0]), balance_module._month_name(previous),
+                 format_eur(totals["actual"]), format_eur(totals["budget"]),
+                 format_eur(totals["actual"] - totals["budget"]), format_eur(totals["last_year"])))
+    by_month = {}
+    for row in rows:
+        month = str(row.get("month") or "")[:7]
+        amount = balance_module._number(row.get("amount_eur")) or 0.0
+        by_month[month] = by_month.get(month, 0.0) + amount
+    print("  par mois, toutes entités de la balance :")
+    for month in sorted(by_month):
+        print("    %s %14s" % (month, format_eur(by_month[month])))
+    if reading.absent:
+        print("  absents de la balance : %s" % ", ".join(
+            "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in reading.absent))
+    if reading.unplaced:
+        print("  entités sans ligne au plan, sous leur code : %s" % ", ".join(reading.unplaced))
+    print("")
+    print(reading.caveat)
+    return 0
+
+
 def cmd_stores(argv: List[str]) -> int:
     """La part loyer du prochain euro, boutique par boutique, telle que l'écran la rendra.
 
@@ -5645,6 +5743,8 @@ def main(argv: List[str]) -> int:
         return cmd_ebitda(argv[1:])
     if command == "reforecast":
         return cmd_reforecast(argv[1:])
+    if command == "balance":
+        return cmd_balance(argv[1:])
     if command == "pnl":
         return cmd_pnl(argv[1:])
     if command == "placements":

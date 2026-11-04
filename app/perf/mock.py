@@ -963,6 +963,12 @@ def shadow_rows() -> List[dict]:
     return rows
 
 
+def balance_rows() -> List[dict]:
+    """La balance comptable : le jeu de démonstration n'en a pas. Sans elle, l'écran lit le
+    mois clos dans le fichier publié, comme avant."""
+    return []
+
+
 def orderbook_rows() -> List[dict]:
     """Le carnet ouvert, inventé : promis d'ici la fin du mois, en retard, au-delà — par canal,
     au niveau du groupe, comme la vue le permet."""

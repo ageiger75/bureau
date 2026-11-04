@@ -16,3 +16,18 @@ def test_the_consolidation_never_anchors_on_a_snapshot_dated_in_the_future():
     assert queries.SELL_IN_HISTORY.count("snapshot_date <= current_date") == 2
     # La garde vient avant le choix de l'instantané de référence, pas après.
     assert queries.SELL_IN.index("snapshot_date <= current_date") < queries.SELL_IN.index("freshness = 1")
+
+
+def test_the_balance_query_keeps_the_contract_measured_by_the_warehouse_agent():
+    """Le compte parent, les centres commerciaux hors intragroupe, les dimensions
+    dédoublonnées sur leur version courante, le local au taux annuel, le mois borné au
+    mois écoulé — et la requête nommée pour l'empreinte de son cache."""
+    text = queries.BALANCE_MONTH
+    assert "acc_p3_sig_c = 'PL100'" in text
+    assert "bs_pcc_p6_c = 'CHANNELS'" in text
+    assert "not in ('INT', 'TRA_INT', 'B2B_INT')" in text
+    assert text.count("curr_ind = 'Y'") == 2 and text.count("select distinct") == 2
+    assert "/ any_value(r.annual_rate)" in text and "actual_amount_eur" not in text
+    assert "actual_amount_local is not null" in text
+    assert "add_months(date_trunc('month', current_date), -1)" in text
+    assert queries.ALL["BALANCE_MONTH"] is queries.BALANCE_MONTH

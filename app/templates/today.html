@@ -67,6 +67,7 @@
   {% elif landing %}
     <p class="cockpit-caveat">Atterrissage de l'exercice : {{ landing.absent }}.</p>
   {% endif %}
+  {% if track and track.provisional_note %}<p class="cockpit-caveat">{{ track.provisional_note }}</p>{% endif %}
   {% if reforecast and reforecast.usable %}
     <p class="cockpit-caveat">{{ reforecast.note | ucfirst }}.{% if reforecast.group.halves_sentence %} Groupe : {{ reforecast.group.halves_sentence }}.{% endif %}{% if reforecast.group_sell_in and reforecast.group_sell_in.halves_sentence %} Sell-in : {{ reforecast.group_sell_in.halves_sentence }}.{% endif %} <a href="/analyses#reforecast">Par périmètre, sur Analyses</a>.</p>
   {% elif reforecast %}

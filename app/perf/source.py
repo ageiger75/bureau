@@ -260,6 +260,13 @@ def client_cache_forget() -> None:
         pass
 
 
+def balance_cache_forget() -> None:
+    try:
+        _cache_path(QUERY_CACHES["balance"][0]).unlink()
+    except OSError:
+        pass
+
+
 def partner_cache_forget() -> None:
     try:
         _cache_path(QUERY_CACHES["partners"][0]).unlink()
@@ -307,6 +314,7 @@ QUERY_CACHES = {
     "osa": ("warehouse-osa.json", "OSA_MONTHLY"),
     "forecast": ("warehouse-forecast.json", "FORECAST_BIAS"),
     "orderbook": ("warehouse-orderbook.json", "ORDER_BOOK"),
+    "balance": ("warehouse-balance.json", "BALANCE_MONTH"),
     "bulk": ("warehouse-bulk.json", "BULK_DETAIL"),
     "shadow": ("warehouse-shadow.json", "SHADOW_BULK"),
 }
@@ -392,6 +400,9 @@ QUERY_MAX_AGE = {
     "forecast": 7 * 24 * 3600,
     # Le carnet ouvert bouge chaque jour : un jour, et sa date de lecture à l'écran.
     "orderbook": 24 * 3600,
+    # La balance est rechargée plusieurs fois par jour et le mois clos y bouge pendant
+    # une semaine : six heures, et l'heure du rechargement à l'écran.
+    "balance": 6 * 3600,
     # Le vrac bouge par commandes, au mois clos : une semaine aussi.
     "bulk": 7 * 24 * 3600,
     "shadow": 7 * 24 * 3600,
@@ -485,7 +496,7 @@ def behind_note(name: str) -> str:
 #: pas celui de la commande, et « manage.py bulk » n'existe pas.
 REFRESH_COMMAND = {"products": "produits", "clients": "clients", "partners": "partenaires",
                    "osa": "supply", "forecast": "supply", "orderbook": "supply",
-                   "bulk": "gris", "shadow": "gris"}
+                   "bulk": "gris", "shadow": "gris", "balance": "balance"}
 
 
 #: Une lecture principale à la fois. Trois portes y mènent — la page qui sert une lecture
@@ -1022,6 +1033,11 @@ class MockSource:
     def orderbook_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         return mock.orderbook_rows()
 
+    balance_note = ""
+
+    def balance_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        return mock.balance_rows()
+
     bulk_note = shadow_note = ""
 
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
@@ -1497,7 +1513,7 @@ class SnowflakeSource:
         note_field = "%s_note" % {"products": "product", "clients": "client",
                                   "partners": "partner", "osa": "osa",
                                   "forecast": "forecast", "orderbook": "orderbook", "bulk": "bulk",
-                                  "shadow": "shadow"}[name]
+                                  "shadow": "shadow", "balance": "balance"}[name]
         if not queries.ALL.get(query_name, "").strip():
             setattr(self, note_field, "la lecture %s n'est pas encore écrite : %s, dans "
                     "app/perf/queries.py, attend les colonnes de l'entrepôt" % (what, query_name))
@@ -1555,6 +1571,12 @@ class SnowflakeSource:
     def orderbook_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le carnet ouvert, vers l'avant, par pays et canal — ou rien."""
         return self._query_rows("orderbook", wait_for_warehouse, "du carnet de commandes")
+
+    balance_note = ""
+
+    def balance_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
+        """La balance comptable, par mois, entité et canal, au taux annuel — ou rien."""
+        return self._query_rows("balance", wait_for_warehouse, "de la balance comptable")
 
     def bulk_rows(self, wait_for_warehouse: bool = False) -> List[dict]:
         """Le vrac ligne à ligne — mois, pays, drapeau, point de vente, gamme — ou rien."""

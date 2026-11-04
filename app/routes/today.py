@@ -283,6 +283,37 @@ def _pnl_review(names, period: str = ""):
                             period)
 
 
+def _published_reading(period: str):
+    """Le mois clos tel que l'écran le lit : le fichier publié s'il parle du mois
+    précédent ; sinon la balance comptable, provisoire, si elle le porte et si le classeur
+    de plan place ses entités ; sinon le fichier publié tel qu'il est. Rien n'est inventé."""
+    from ..config import settings
+    from ..perf import actuals as actuals_module
+    from ..perf import balance as balance_module
+    from ..perf import budget as budget_module
+    from ..perf import track as track_module
+    from ..perf.source import current_source
+
+    file_reading = actuals_module.current(month=False) if settings.has_actuals_file else None
+    if not period or len(period) < 7:
+        return file_reading
+    previous = track_module._previous(period)
+    if file_reading is not None and file_reading.period == previous:
+        return file_reading
+    if not settings.has_budget_file:
+        return file_reading
+    try:
+        budget = budget_module.load(settings.budget_path)
+    except Exception:  # noqa: BLE001 — un classeur illisible ne fait pas tomber la page
+        return file_reading
+    reader = getattr(current_source(), "balance_rows", None)
+    rows = reader(wait_for_warehouse=False) if reader is not None else []
+    if not rows:
+        return file_reading
+    reading = balance_module.build(rows, budget, previous)
+    return reading if reading.usable else file_reading
+
+
 def _track(dataset, month):
     """Sommes-nous en ligne avec le plan — le mois en cours et l'exercice à date."""
     from ..config import settings
@@ -291,7 +322,7 @@ def _track(dataset, month):
     from ..perf import perimeter as perimeter_module
     from ..perf import track as track_module
 
-    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    published = _published_reading(getattr(month, "month", "") or "")
     org = perimeter_module.current() if settings.has_org_file else None
     directory = owners.current() if settings.has_owners_file else None
     return track_module.build(month, published=published,
@@ -307,7 +338,7 @@ def _landings(track, month):
     from ..perf import owners
     from ..perf import page as page_module
 
-    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    published = _published_reading(getattr(track, "period", "") or "")
     budget = None
     if settings.has_budget_file:
         try:
@@ -392,7 +423,7 @@ def _perimeter_inputs(session):
 
     contribution = mix_module.current() if settings.has_contribution_file else None
     incremental = (incremental_module.current() if settings.has_incremental_file else None)
-    published = actuals_module.current(month=False) if settings.has_actuals_file else None
+    published = _published_reading(getattr(month, "month", "") or "")
     budget = None
     if settings.has_budget_file:
         try:
