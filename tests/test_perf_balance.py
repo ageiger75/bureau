@@ -65,8 +65,9 @@ def test_the_months_of_the_year_are_summed_by_market_and_channel_against_the_pla
     # Une entité que le plan ne nomme pas reste sous son code, sans plan en face, et est dite.
     assert by_key[("M_909", "retail")].actual == 35.0 and by_key[("M_909", "retail")].budget == 0.0
     assert reading.unplaced == ["M_909"]
-    # L'entité du plan absente de la balance n'entre pas au plan : nommée, avec son plan.
-    assert reading.absent == [("Southland", 210.0)]
+    # L'entité du plan que la balance n'a jamais portée n'entre pas au plan : nommée, hors
+    # de la balance, avec son plan — ce n'est pas un retard de chargement.
+    assert reading.outside == [("Southland", 210.0)] and reading.absent == []
     totals = reading.totals()
     assert totals["actual"] == 770.0 + 126.0 + 385.0 + 35.0 and totals["budget"] == 1260.0
     assert reading.loaded_at == "2026-11-04 01:26:54" and reading.source_label == "balance comptable"
@@ -78,7 +79,17 @@ def test_the_month_is_provisional_until_the_seventh_business_day_and_the_caveat_
     assert early.status == "provisoire, 3 jours ouvrés après la fin du mois"
     assert early.caveat.startswith("Mois clos lu dans la balance comptable, provisoire, 3 jours ouvrés")
     assert "rechargée le 2026-11-04 01:26:54" in early.caveat
-    assert "absents de la balance : Southland (%s au plan)" % format_eur(210.0) in early.caveat
+    assert "hors de la balance, jamais chargés, à lire dans le fichier publié : Southland (%s au plan)" % format_eur(210.0) in early.caveat
+    # Une entité déjà vue d'autres mois et muette sur le dernier est en retard, pas dehors.
+    rows = _rows() + [{"month": m, "entity": "M_903", "channel": "RET", "currency": "EUR",
+                       "amount_local": 30.0, "amount_eur": 30.0, "loaded_at": ""}
+                      for m in MONTHS[:-1]]
+    late = B.build(rows, _plan(), "2026-10", today=datetime.date(2026, 11, 4))
+    assert late.absent == [("Southland", 30.0)] and late.outside == []
+    south = next(line for line in late.lines if line.market == "Southland")
+    # Six mois lus, six mois de plan en face : le plan d'octobre n'est pas opposé.
+    assert (south.actual, south.budget, south.last_year) == (180.0, 180.0, 150.0)
+    assert "pas encore chargés pour octobre : Southland (%s au plan)" % format_eur(30.0) in late.caveat
     assert "sous leur code : M_909" in early.caveat
 
     frozen = B.build(_rows(), _plan(), "2026-10", today=datetime.date(2026, 11, 11))

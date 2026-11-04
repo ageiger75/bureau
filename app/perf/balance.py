@@ -110,12 +110,12 @@ class Reading(actuals_module.Actuals):
     """La lecture, dans la forme du fichier publié, avec ce que le fichier n'a pas à dire :
     qu'elle est provisoire, de quand elle date, et qui manque."""
 
-    __slots__ = ("months", "loaded_at", "status", "absent", "unplaced", "provisional",
-                 "business_days")
+    __slots__ = ("months", "loaded_at", "status", "absent", "outside", "unplaced",
+                 "provisional", "business_days")
 
     def __init__(self, lines, faults, year, month, months: Sequence[str], loaded_at: str,
                  business_days: int, absent: Sequence[Tuple[str, float]],
-                 unplaced: Sequence[str]) -> None:
+                 unplaced: Sequence[str], outside: Sequence[Tuple[str, float]] = ()) -> None:
         super().__init__(lines, faults, path="balance", sheet="", year=year, month=month)
         self.months = list(months)
         self.loaded_at = loaded_at
@@ -126,8 +126,13 @@ class Reading(actuals_module.Actuals):
             if self.provisional else
             "tenue pour figée, %d jours ouvrés après la fin du mois — règle mesurée sur un "
             "seul mois" % business_days)
-        #: Les entités du plan que la balance ne porte pas, avec leur plan sur ces mois.
+        #: Les entités du plan que la balance ne porte pas sur ces mois alors qu'elle les a
+        #: déjà portées : pas encore chargées, avec leur plan.
         self.absent = list(absent)
+        #: Les entités du plan que la balance n'a jamais portées, sur aucun mois lu : hors
+        #: de la balance, à lire dans le fichier publié ou la consolidation. Un marché tenu
+        #: par un distributeur n'a pas ses comptes dans le grand livre du groupe.
+        self.outside = list(outside)
         #: Les entités de la balance que le plan ne nomme pas, affichées sous leur code.
         self.unplaced = list(unplaced)
 
@@ -145,9 +150,12 @@ class Reading(actuals_module.Actuals):
                 % (self.status, self.loaded_at or "à une heure inconnue",
                    "elle se lit comme un provisoire, le fichier publié la remplacera dès son dépôt"
                    if self.provisional else "le fichier publié la remplacera dès son dépôt"))
+        if self.outside:
+            text += " · hors de la balance, jamais chargés, à lire dans le fichier publié : %s" % ", ".join(
+                "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in self.outside)
         if self.absent:
-            text += " · absents de la balance : %s" % ", ".join(
-                "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in self.absent)
+            text += " · pas encore chargés pour %s : %s" % (_month_name(self.period), ", ".join(
+                "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in self.absent))
         if self.unplaced:
             text += " · sans ligne au plan, sous leur code : %s" % ", ".join(self.unplaced)
         return text + "."
@@ -176,12 +184,17 @@ def build(rows: Sequence[dict], budget, through: str,
         stamp = str(row.get("loaded_at") or "")
         if stamp > loaded_at:
             loaded_at = stamp
-    # Le plan sur ces mois : par entité et segment, les marchés qu'il nomme et leur plan.
+    # Le plan sur ces mois : par entité, mois et segment, les marchés qu'il nomme et leur
+    # plan. Au grain du mois, parce que la balance se remplit par paquets : une entité
+    # présente en septembre et muette en octobre a un plan d'octobre qu'il ne faut pas lui
+    # opposer.
     by_key: Dict[Tuple[str, str], Dict[str, Tuple[float, float]]] = {}
-    plan_by_entity: Dict[str, float] = {}
+    plan_lines: List[Tuple[str, str, str, str, float, float]] = []
+    plan_by_entity_month: Dict[Tuple[str, str], float] = {}
     market_of_entity: Dict[str, Dict[str, float]] = {}
     for line in getattr(budget, "lines", None) or ():
-        if getattr(line, "period", "") not in wanted:
+        period = getattr(line, "period", "")
+        if period not in wanted:
             continue
         prefix = entity_prefix(getattr(line, "entity", "") or "")
         if not prefix:
@@ -191,10 +204,14 @@ def build(rows: Sequence[dict], budget, through: str,
         last = float(getattr(line, "last_year", 0.0) or 0.0)
         held = by_key.setdefault((prefix, code), {}).get(line.market, (0.0, 0.0))
         by_key[(prefix, code)][line.market] = (held[0] + planned, held[1] + last)
-        plan_by_entity[prefix] = plan_by_entity.get(prefix, 0.0) + planned
+        plan_lines.append((prefix, period, code, line.market, planned, last))
+        plan_by_entity_month[(prefix, period)] = plan_by_entity_month.get((prefix, period), 0.0) + planned
         weights = market_of_entity.setdefault(prefix, {})
         weights[line.market] = weights.get(line.market, 0.0) + abs(planned)
     seen_entities = set()
+    ever_seen = {entity_prefix(str(row.get("entity") or "")) for row in rows}
+    entity_months_seen = {(entity_prefix(str(row.get("entity") or "")), str(row.get("month") or "")[:7])
+                          for row in rows}
     actual_by: Dict[Tuple[str, str], float] = {}
     unplaced: List[str] = []
     for row in rows:
@@ -218,37 +235,55 @@ def build(rows: Sequence[dict], budget, through: str,
             if entity not in unplaced:
                 unplaced.append(entity)
         actual_by[(market, code)] = actual_by.get((market, code), 0.0) + amount
-    # Le plan en face d'un marché présent est celui de toutes ses entités au plan : une
-    # entité que la balance range sous une autre du même marché — les boutiques d'aéroport
-    # sous la société mère — est comptée, pas déclarée absente. Un marché sans aucune ligne
-    # de balance n'entre pas au plan : il est nommé absent, avec son plan.
+    # Le plan en face d'un marché présent est celui de ses entités, mois par mois, là où
+    # la balance les porte. Une entité que la balance n'a jamais vue mais dont le marché
+    # est présent — les boutiques d'aéroport sous la société mère — est comptée sur les
+    # mois où le marché l'est, pas déclarée absente. Une entité déjà vue et muette sur un
+    # mois est « pas encore chargée » pour ce mois, et son plan de ce mois n'est pas
+    # opposé. Un marché que la balance n'a jamais porté n'entre pas au plan : hors de la
+    # balance, nommé avec son plan.
     present_markets = {market for market, _code in actual_by}
+    months_seen_for_market: Dict[str, set] = {}
+    for prefix, period in entity_months_seen:
+        if period not in wanted:
+            continue
+        for name in (market_of_entity.get(prefix) or {}):
+            months_seen_for_market.setdefault(name, set()).add(period)
+    plan_for: Dict[Tuple[str, str], Tuple[float, float]] = {}
+    for prefix, period, code, market, planned, last in plan_lines:
+        if prefix in ever_seen:
+            counted = (prefix, period) in entity_months_seen
+        else:
+            counted = market in present_markets and period in months_seen_for_market.get(market, set())
+        if not counted:
+            continue
+        held = plan_for.get((market, code), (0.0, 0.0))
+        plan_for[(market, code)] = (held[0] + planned, held[1] + last)
     lines: List[actuals_module.Line] = []
     for (market, code), actual in sorted(actual_by.items()):
-        planned = last = 0.0
-        for (_prefix, segment), markets in by_key.items():
-            if segment != code:
-                continue
-            found = markets.get(market)
-            if found is not None:
-                planned += found[0]
-                last += found[1]
+        planned, last = plan_for.get((market, code), (0.0, 0.0))
         lines.append(actuals_module.Line(market, "", CHANNELS.get(code, code.lower()),
                                          _basis(code), actual, last, planned))
     absent: List[Tuple[str, float]] = []
-    for prefix, planned in plan_by_entity.items():
-        if prefix in seen_entities or planned <= 0:
+    outside: List[Tuple[str, float]] = []
+    late: Dict[str, float] = {}
+    never: Dict[str, float] = {}
+    for (prefix, period), planned in plan_by_entity_month.items():
+        if planned <= 0:
             continue
         weights = market_of_entity.get(prefix) or {}
         name = max(weights, key=lambda key: weights[key]) if weights else prefix
-        if name in present_markets:
-            continue
-        absent.append((name, planned))
-    absent.sort(key=lambda item: -item[1])
+        if prefix in ever_seen:
+            if (prefix, period) not in entity_months_seen:
+                late[name] = late.get(name, 0.0) + planned
+        elif name not in present_markets:
+            never[name] = never.get(name, 0.0) + planned
+    absent = sorted(late.items(), key=lambda item: -item[1])
+    outside = sorted(never.items(), key=lambda item: -item[1])
     if not lines and not faults:
         faults.append("aucune ligne de la balance sur %s" % ", ".join(_month_name(m) for m in wanted))
     return Reading(lines, faults, year, month, [m for m in wanted if m in present], loaded_at,
-                   business_days_after(through, today), absent, sorted(unplaced))
+                   business_days_after(through, today), absent, sorted(unplaced), outside=outside)
 
 
 # ------------------------------------------------------------------- la vérification

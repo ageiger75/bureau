@@ -5313,9 +5313,12 @@ def cmd_balance(argv: List[str]) -> int:
     print("  par mois, toutes entités de la balance :")
     for month in sorted(by_month):
         print("    %s %14s" % (month, format_eur(by_month[month])))
+    if reading.outside:
+        print("  hors de la balance, jamais chargés : %s" % ", ".join(
+            "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in reading.outside))
     if reading.absent:
-        print("  absents de la balance : %s" % ", ".join(
-            "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in reading.absent))
+        print("  pas encore chargés pour %s : %s" % (balance_module._month_name(previous), ", ".join(
+            "%s (%s au plan)" % (name, format_eur(amount)) for name, amount in reading.absent)))
     if reading.unplaced:
         print("  entités sans ligne au plan, sous leur code : %s" % ", ".join(reading.unplaced))
     print("")

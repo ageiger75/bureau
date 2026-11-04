@@ -1290,13 +1290,32 @@ aucune ligne de balance n'entre pas au plan et est nommé absent avec son plan, 
 que la balance range sous une autre du même marché est comptée, pas déclarée absente ; le
 mois est « provisoire » jusqu'au septième jour ouvré du mois suivant, règle mesurée sur
 un seul mois clos et écrite pour être contestée, l'heure du dernier rechargement à côté.
-L'écran du jour porte la note, le suivi de l'exercice et l'atterrissage lisent la balance
-comme ils lisaient le fichier. Validée sur le poste le 4 novembre : septembre identique au
+Le plan est opposé au grain de l'entité et du mois : la balance se remplit par paquets, et
+une entité présente en septembre et muette en octobre est dite « pas encore chargée » pour
+octobre, son plan d'octobre non opposé ; une entité que la balance n'a jamais portée est
+« hors de la balance », à lire dans le fichier publié. C'est le cas de la Thaïlande et de
+l'Inde, appris le 4 novembre : aucune ligne dans la balance depuis son origine, ni dans
+les rejets de chargement, mais présentes dans la consolidation au millier d'euros du
+fichier publié ; l'entité thaïe porte aussi une autre marque, que le filtre de marque
+écarte. L'écran du jour porte la note, le suivi de l'exercice et l'atterrissage lisent la
+balance comme ils lisaient le fichier. Validée sur le poste le 4 novembre : septembre identique au
 centime à l'extrait de référence sur tous ses couples ; octobre différent sur huit couples,
 les mêmes mouvements que l'agent entrepôt avait vus arriver après son extrait. Corrections apprises avec le contrat : les entités aéroport
 ne sont pas absentes, elles sont sous leur société mère ; les ventes nettes se lisent au
 compte parent, qui a huit sous-comptes et non cinq ; « J+3 » ne tient pas, septembre ne
 s'est figé qu'au soir du sixième jour ouvré, octobre bougeait encore au troisième.
+
+**Deux faits de lecture, le 4 novembre, par l'agent entrepôt.** La Thaïlande est pour le
+lecteur un distributeur, donc du sell-in ; l'entrepôt la tient pour une entité du groupe,
+avec ses magasins et ses places de marché, dont le sell-out fait l'essentiel du mois, et ce
+que le groupe lui facture est intragroupe, écarté par la balance. Les deux sont vrais à
+des niveaux différents, et ce qu'on lit en dépend : son sell-out, ou nos factures. Question
+pour la Finance avant de trancher dans le cockpit. Et une provision pour créances
+douteuses sur l'ancien distributeur vietnamien est comptabilisée chez les distributeurs de
+Hong Kong, en juin surtout : les ventes nettes ne bougent pas, la contribution de ce
+périmètre en juin, si, d'un peu plus d'un million, et rien ne le dit en lisant le Vietnam.
+Une provision du même type existe à l'export en juillet. À garder en tête quand la
+contribution d'APAC se lit sur ces mois.
 
 ## 7. Ce qui attend l'équipe data
 
