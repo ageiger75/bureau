@@ -1325,8 +1325,10 @@ profit, et ces factures comptent dans le sell-in, nommées à part sur l'écran 
 Analyses (« distributeurs déclarés par le lecteur, que l'entrepôt type comme des
 filiales »), dans `manage.py ensemble` aussi. La correction durable est dans la donnée,
 chez l'équipe data : retyper le point de vente ; le jour où c'est fait, la déclaration ne
-change plus rien. La lecture par partenaire, dont le filtre est dans la requête, ne les
-voit pas encore. L'Inde est une filiale, tranché le 5 novembre : ses factures restent
+change plus rien. La requête au centre de profit est validée par l'agent entrepôt le 5
+novembre : sommée sur les centres, elle retombe sur l'ancienne au centime sur chaque
+combinaison. La lecture par partenaire, dont le filtre est dans la requête, ne les voit
+pas encore. L'Inde est une filiale, tranché le 5 novembre : ses factures restent
 intragroupe, et son absence de la balance comptable devient un trou de chargement pour
 l'équipe data, puisqu'une filiale a ses livres dans le grand livre. Et une provision pour créances
 douteuses sur l'ancien distributeur vietnamien est comptabilisée chez les distributeurs de
