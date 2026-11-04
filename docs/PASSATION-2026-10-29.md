@@ -349,8 +349,9 @@ lecteur ce qu'ils contiennent quand elle en a besoin (`grep`, `head`, un bloc Py
 **Pour la Finance** : l'écriture uniforme entre net caisse et net publié en Chine et à
 Hong Kong est fermée depuis le 3 novembre, c'est la remise points de fidélité (voir
 `docs/PLAN.md`, section 6) ; reste le Brésil avant la fiscalité, sans points, cause à
-préciser ; la Thaïlande, distributeur pour le lecteur, entité du groupe pour l'entrepôt :
-laquelle des deux lectures, son sell-out ou nos factures ; la provision vietnamienne
+préciser ; la Thaïlande est un distributeur (tranché par le lecteur le 4 novembre) :
+pourquoi le fichier publié porte son sell-out comme le nôtre, et à quelle base le plan de
+ce marché est écrit ; la provision vietnamienne
 comptabilisée chez les distributeurs de Hong Kong, et celle de l'export ; la règle de déduction fiscale
 brésilienne depuis mai et le retraitement de l'an dernier ; le retraitement de l'an dernier
 du partenaire américain reclassé dans la consolidation. Du reforecast : quels canaux

@@ -1305,12 +1305,18 @@ ne sont pas absentes, elles sont sous leur société mère ; les ventes nettes s
 compte parent, qui a huit sous-comptes et non cinq ; « J+3 » ne tient pas, septembre ne
 s'est figé qu'au soir du sixième jour ouvré, octobre bougeait encore au troisième.
 
-**Deux faits de lecture, le 4 novembre, par l'agent entrepôt.** La Thaïlande est pour le
-lecteur un distributeur, donc du sell-in ; l'entrepôt la tient pour une entité du groupe,
-avec ses magasins et ses places de marché, dont le sell-out fait l'essentiel du mois, et ce
-que le groupe lui facture est intragroupe, écarté par la balance. Les deux sont vrais à
-des niveaux différents, et ce qu'on lit en dépend : son sell-out, ou nos factures. Question
-pour la Finance avant de trancher dans le cockpit. Et une provision pour créances
+**Tranchée le 4 novembre, par le lecteur : la Thaïlande est un distributeur.** L'entrepôt
+la présente comme une entité du groupe, avec ses magasins et ses places de marché, et le
+fichier publié de la Finance porte son sell-out comme s'il était le nôtre ; sa comptabilité
+n'est pourtant jamais entrée dans la balance, ce qui est cohérent avec un distributeur, dont
+les livres ne sont pas ceux du groupe. Conséquences. La balance a raison de ne pas la
+porter : « hors de la balance », à lire dans le fichier publié. Le plan étant écrit sur le
+sell-out que la Finance publie, la comparaison au plan reste sur cette base tant que la
+Finance ne la change pas ; ce n'est pas au cockpit de réécrire le périmètre de la Finance.
+Le chiffre du groupe sur ce marché, lui, est ce qu'on facture au distributeur : ces
+factures doivent compter dans le sell-in du cockpit, pas être écartées comme intragroupe —
+à vérifier dans le type du point de vente facturé et le canal du centre de profit, par
+l'agent entrepôt, pour la Thaïlande et pour l'Inde. Et une provision pour créances
 douteuses sur l'ancien distributeur vietnamien est comptabilisée chez les distributeurs de
 Hong Kong, en juin surtout : les ventes nettes ne bougent pas, la contribution de ce
 périmètre en juin, si, d'un peu plus d'un million, et rien ne le dit en lisant le Vietnam.
