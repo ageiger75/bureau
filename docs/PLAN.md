@@ -1337,6 +1337,36 @@ périmètre en juin, si, d'un peu plus d'un million, et rien ne le dit en lisant
 Une provision du même type existe à l'export en juillet. À garder en tête quand la
 contribution d'APAC se lit sur ces mois.
 
+**Répondu par l'équipe data le 6 novembre, sur le message du 4.** Quatre réponses, et ce
+qu'elles changent. Les périodes comptables ouvertes : elle peut les remonter de SAP mais
+les déconseille, une période se rouvre à titre exceptionnel ; elle propose à la place la
+date de création de la pièce comptable, qui dit si une écriture est tardive pour sa
+période. C'est mieux qu'un drapeau : la date dit non seulement qu'un mois a bougé après
+le gel, mais de combien et quand. La règle du septième jour ouvré de `perf/balance.py`
+reste en place tant que cette date n'est pas trouvée dans l'entrepôt à un grain qui se
+raccorde à la balance ; brief envoyé à l'agent entrepôt le même jour pour la chercher,
+métadonnées d'abord, et pour mesurer sur septembre la dernière écriture et ce qui est
+arrivé après le gel. Quand elle sera lue, le statut « provisoire » cessera d'être une
+règle de calendrier pour devenir une mesure : dernière pièce du mois, écritures arrivées
+après le septième jour ouvré et leur poids. Le dong : la division par dix du taux mensuel
+et du taux budget vient du stockage du taux dans SAP, propre à cette monnaie ; correction
+annoncée pour la semaine du 9 novembre. Le cockpit convertit au taux annuel, qui est
+juste, et n'est donc pas touché, à condition que l'annuel reste tel quel : à revérifier
+sur les trois tables de taux le lendemain de la mise en production. La balance : les
+écritures de la comptabilité des immobilisations y entrent depuis septembre, pour le
+pilotage des budgets de rénovation des boutiques ; c'est très probablement l'origine des
+écritures datées de novembre à mars que le cockpit avait vues, hors ventes nettes, et la
+requête `BALANCE_MONTH` s'arrête de toute façon au mois précédent et au compte parent des
+ventes nettes ; vérification demandée que rien de daté dans le futur ne tombe sur ce
+compte. L'Inde et la Thaïlande : pays sur Navision, pas sur SAP, remontée en cours de
+test. « Hors de la balance » est donc expliqué, et le jour où la remontée passe en
+production les deux entités apparaîtront d'elles-mêmes, le premier mois étant à vérifier
+contre la consolidation ; pour la Thaïlande, la décision du lecteur tient, distributeur
+pour le sell-in, et sa balance, si elle arrive, se lira comme le fichier publié lit son
+sell-out. Restent sans réponse dans ce message : le troisième jeu de taux de la colonne
+en euros, l'écriture taïwanaise passée puis revenue, la remise fidélité à exposer dans la
+couche sell-out, et l'accès au rapport hebdomadaire.
+
 ## 7. Ce qui attend l'équipe data
 
 Une seule liste, envoyée en une fois parce que le retour est lent :
