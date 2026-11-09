@@ -40,7 +40,6 @@ standard plutôt qu'avec trois paquets tiers.
 | Une règle métier | `app/domain/` — ni import FastAPI, ni import SQLAlchemy |
 | Un bloquant ou un avertissement | `app/domain/warnings.py` — code, message **et** correctif |
 | Un libellé français | `app/domain/enums.py`, jamais en dur dans un gabarit |
-| Lire un formulaire | `app/forms.py` |
 | Une requête ou un calcul sur les objets persistés | `app/services.py` |
 | Une route | `app/routes/` — lit, appelle le domaine, écrit, redirige |
 | Une commande d'administration | `app/cli.py`, atteinte via `manage.py` |
@@ -84,10 +83,18 @@ Le point de bascule de la première règle est isolé dans
 `app/domain/claims.py::resolve_category` : si la politique devait durcir, c'est le seul
 endroit à changer.
 
-La même distinction gouverne la boucle décisionnelle : un engagement sans propriétaire ni
-échéance est **enregistré et signalé** — le refuser le ferait vivre hors du dossier —
-tandis qu'une revue sans résultat ni leçon **ne peut pas être close**, parce qu'une revue
-vide n'apprend rien à la décision suivante.
+### Le cockpit mesure, il ne suit pas
+
+Décision du lecteur, 9 novembre 2026. Les engagements des owners, les conclusions portées
+sur un sujet, les questions, les promesses et les décisions vivent dans le cabinet
+(`~/cabinet`), hors du dépôt. Aucun écran ni aucune commande n'écrit plus au registre des
+sujets ni aux engagements : `tests/test_web_measures_only.py` le garde, et une route qui
+le referait est refusée. Ce qui change la mesure reste ici : les notes de contexte
+(`basis_change`, `on_hold`, `one_off`, `reclassified`, `moved_calendar`), les placements
+de marchés, les poids stratégiques, et tous les écrans de chiffres. Le registre et les
+engagements gelés restent lisibles (`manage.py issues`, `manage.py engagements`, la
+section « Ce qui est tranché » de l'export) le temps que le cabinet les reprenne ; la
+session du cabinet retire ensuite leurs sections de `cmd_cabinet`.
 
 ## Tests
 
@@ -100,19 +107,20 @@ suppose que le répertoire courant est la racine du projet, ce qui est faux dès
 extérieur démarre le processus. `tests/test_manage_entrypoint.py` garde cette propriété.
 
 - Les tests du domaine ne montent ni base ni serveur.
-- Les tests de parcours passent par le **vrai formulaire HTML** et vérifient que la donnée
-  survit à un nouveau chargement de page. Écrire via l'ORM ne prouverait rien du parcours.
+- Les tests de parcours passent par la **vraie page HTML** (`client.get`) et lisent ce
+  qu'elle rend. Le cockpit n'a plus de formulaire : un écran est une lecture, et un test
+  vérifie qu'aucune page ne modifie le registre ni les engagements.
 - Deux pièges déjà rencontrés, documentés dans `tests/conftest.py` :
   - Jinja2 échappe les apostrophes en `&#39;`. Utiliser `page_text(response)` pour les
     assertions sur du texte français ; lire `response.text` brut uniquement dans le test
     d'échappement.
   - `TestClient` suit les redirections par défaut, ce qui **consomme** les messages
-    éphémères. Une assertion sur un message doit porter sur la réponse du POST.
+    éphémères. Une assertion sur un message doit porter sur la réponse qui le pose.
 - `pytest.ini` transforme les `DeprecationWarning` du paquet `app` en erreurs. C'est
   volontaire : c'est ainsi que `on_event` a été remplacé par un gestionnaire `lifespan`.
 
 Toute nouvelle règle du domaine arrive avec son test. Toute nouvelle route arrive avec un
-test de parcours et un test de cloisonnement entre dossiers.
+test de parcours ; une route qui écrirait au registre ou aux engagements est refusée.
 
 ## Conventions de base de données
 

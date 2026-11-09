@@ -24,13 +24,15 @@ qu'il avait fait naître, reste. Le Performance Cockpit tient `/`, `/analyses`, 
 périmètre et `/system`.
 
 **L'écran web lit** : `analytics` (les écarts, leurs ponts, une liste de sujets
-recalculée à chaque lecture), `routing`, `kpi`, `provenance`, `commitments`, `source`.
+recalculée à chaque lecture), `routing`, `kpi`, `provenance`, `source`.
 
 **La ligne de commande lit beaucoup plus.** Vingt et une commandes. Les quatre derniers
 jours de travail vivent uniquement là : l'annuaire (`org`), les partenaires nommés
 (`partners`), le détecteur de flux gris (`distribution`), et surtout **le registre des
 sujets** (`issues`) — identité persistante, rôles, arbitrages, lectures successives,
-moteur de sélection à trois créneaux d'attention et cinq de surveillance.
+moteur de sélection à trois créneaux d'attention et cinq de surveillance. *Gelé le
+9 novembre 2026 : le cockpit mesure, il ne suit pas ; le registre reste lisible, le moteur
+de sélection, la détection et les conversations ont quitté le dépôt (section 6).*
 
 **Les sources que le cockpit sait lire** (toutes dans `var/`) : le classeur de
 planification, le réalisé publié par la Finance, le reforecast, le suivi des KPI,
@@ -211,6 +213,9 @@ Chaque phase a un critère de recette binaire. On ne passe pas à la suivante sa
 ordre travailler.
 
 ### Phase 1 — Le registre à l'écran (priorité absolue)
+
+*Construite en septembre, retirée des écrans le 9 novembre 2026 : le suivi vit dans le
+cabinet (section 6). Gardée ici comme histoire de ce qui a été essayé.*
 
 La route de l'écran « Today » charge le registre (`memory.load`), le fait tourner dans le
 moteur de sélection (`selection.rank`) après l'analyse de détection (`detection`), et
@@ -1366,6 +1371,35 @@ pour le sell-in, et sa balance, si elle arrive, se lira comme le fichier publié
 sell-out. Restent sans réponse dans ce message : le troisième jeu de taux de la colonne
 en euros, l'écriture taïwanaise passée puis revenue, la remise fidélité à exposer dans la
 couche sell-out, et l'accès au rapport hebdomadaire.
+
+**Tranchée le 9 novembre, par le lecteur : le cockpit mesure, il ne suit pas.** Tout le
+suivi — les engagements des owners, les conclusions portées sur un sujet, les questions, les
+promesses, les décisions — vit désormais dans le cabinet, hors du dépôt. Les écrans perdent
+la prise d'engagements, les conclusions portées sur un sujet et les placements d'attention ;
+ils gardent tout ce qui change la mesure : les notes de contexte (`basis_change`, `on_hold`,
+`one_off`, `reclassified`, et `moved_calendar`, qui déplace la fenêtre de comparaison), les
+placements de marchés, les poids stratégiques, et tous les écrans de chiffres. Fait en trois
+commits le même jour. Un : les routes qui écrivaient (prendre un engagement, le faire vivre,
+porter une lecture, accepter un écart, clore) partent avec leurs formulaires. Deux : l'écran
+du jour ne place plus de sujets — « Qu'est-ce que je décide cette semaine », « Ce qui a
+changé » et « Engagements » ne sont plus rendus, ni sur Analyses ni sur les pages de
+périmètre ; le dossier de visite et le gris ne citent plus le registre, les notes de contexte
+restent ; `manage.py issues` devient une lecture seule du registre gelé, et les deux sections
+de l'export du cabinet qui portaient les sujets et les changements disent où le suivi vit
+désormais, sans toucher à `cmd_cabinet`. Trois : la détection, la sélection, les
+conversations, le journal des changements et les règles d'alerte des engagements quittent le
+dépôt avec leurs tests. Ce qui reste du suivi, gelé et lisible pour que le cabinet le
+reprenne : le registre des sujets (`app/domain/issues.py`, `perf/memory.py`), la table des
+engagements (`perf/pledges.py`, `manage.py engagements`), et la section « Ce qui est
+tranché » de l'export, qui porte encore les écarts acceptés et les lectures portées à côté
+des notes et des placements. Un test garde le gel : aucune page ne modifie le registre ni
+les engagements, et les routes qui écrivaient répondent 404. Reste à la session du cabinet :
+retirer de `cmd_cabinet` les sections « Engagements », « Les trois sujets de la semaine » et
+« Ce qui a changé », et mettre `docs/CABINET.md` à jour, qui dit encore que l'écran place et
+que les engagements se prennent dans le cockpit ; après quoi `manage.py engagements`,
+`manage.py issues`, `perf/pledges.py` et le registre pourront partir à leur tour. Le
+dossier de visite garde ses trois questions : elles sont générées des chiffres, le lecteur
+les remplace, elles ne suivent rien.
 
 ## 7. Ce qui attend l'équipe data
 

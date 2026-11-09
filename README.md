@@ -3,12 +3,15 @@
 Application privée, locale, sur données fictives. Sponsor : Adrien Geiger.
 
 Un seul produit : le **CEO Performance Cockpit**, sur `/`. L'écran du lundi en cinq blocs —
-le verdict, la semaine, trois conversations, les zones rouges, ce qui a changé — et une page
+le verdict, la semaine, le sell-in du mois, ce qui arrive, les zones rouges — et une page
 « Analyses » pour tout ce qui explique, classe, propose ou vérifie — dont ce qui marche par
 produit : catégories, gammes, références, sur l'exercice à date, les partenaires de
 sell-in par leur nom, le gris et le vrac. Le prototype précédent,
 Decision Room, a été retiré le 7 septembre 2026 ; son histoire est dans `PIVOT.md` et le
-registre des sujets, seule pièce conservée, dans `app/domain/issues.py`.
+registre des sujets, seule pièce conservée, dans `app/domain/issues.py`. **Depuis le
+9 novembre 2026, le cockpit mesure et ne suit pas** : les engagements, les conclusions sur
+un sujet et les sujets à porter vivent dans le cabinet du lecteur (`docs/CABINET.md`) ; le
+registre est gelé, lisible, et aucun écran n'y écrit.
 
 **L'état du produit, ce qui manque et l'ordre des travaux sont dans `docs/PLAN.md`.**
 C'est le document à lire en premier pour reprendre le travail : il porte aussi les règles
@@ -139,6 +142,8 @@ laisse croire à une donnée manquante alors qu'il s'agit d'une fonctionnalité 
 - Authentification Entra ID, RBAC, journal d'audit
 - Microsoft Graph, e-mails, toute intégration externe
 - Recherche transverse et export Word / PDF
+- Le suivi — engagements, conclusions, questions, décisions — qui vit dans le cabinet du
+  lecteur depuis le 9 novembre 2026
 
 Le champ `source_ref` d'une affirmation est donc du texte libre
 (« Board pack juillet 2026, p. 12 »). En tranche 3 il deviendra une clé étrangère vers un
