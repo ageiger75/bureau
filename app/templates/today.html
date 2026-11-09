@@ -3,7 +3,6 @@
 
 {% block content %}
 {% filter fr %}
-{% from "partials/_gestes.html" import pledge, reading, live %}
 
 {# L'écran du lundi. Une hiérarchie en trois niveaux et pas plus : le chiffre de tête,
    les cartes de verdict, puis les blocs. Chaque carte porte un libellé, un mot, un
@@ -423,44 +422,6 @@
       {% endif %}
     </p>
   {% else %}
-    {# Les deux gestes que la doctrine réserve à un humain. Pas de bouton « rouvrir » : un
-       sujet clos qui reçoit un fait nouveau en ouvre un autre, qui déclare celui qu'il suit. #}
-    {% macro arbitrate(issue) %}
-      <details class="subject-actions">
-        <summary>Arbitrer</summary>
-        <form method="post" action="/issues/{{ issue.issue_id }}/accept">
-          <p class="form-lede">
-            Accepter l'écart : décider de ne rien faire, et que cela se voie. Le sujet
-            dormira jusqu'à un fait postérieur à cette décision, ou jusqu'à la date de
-            réexamen.
-          </p>
-          <label>Qui décide
-            <input type="text" name="decided_by" required autocomplete="off" maxlength="200">
-          </label>
-          <label>Pourquoi
-            <textarea name="reason" required rows="2"></textarea>
-          </label>
-          <label>Réexamen (facultatif)
-            <input type="date" name="review_on">
-          </label>
-          <button type="submit">Accepter l'écart</button>
-        </form>
-        <form method="post" action="/issues/{{ issue.issue_id }}/close">
-          <p class="form-lede">
-            Clore : cause comprise, action faite, résultat constaté. Jamais prononcé par la
-            machine.
-          </p>
-          <label>Qui clôt
-            <input type="text" name="closed_by" required autocomplete="off" maxlength="200">
-          </label>
-          <label>Sur quoi
-            <textarea name="reason" required rows="2"></textarea>
-          </label>
-          <button type="submit">Clore le sujet</button>
-        </form>
-      </details>
-    {% endmacro %}
-
     {% if prepared.conversations %}
       <h3 class="subject-heading">À faire cette semaine</h3>
       <ol class="talk-list">
@@ -490,11 +451,6 @@
                 <dt>Retenu pour</dt><dd>{{ talk.retained_for }}</dd>
               </dl>
             </details>
-            <div class="talk-gestures">
-              {{ pledge(talk.issue, talk.market, talk.who, due_default) }}
-              {{ reading(talk.issue) }}
-              {{ arbitrate(talk.issue) }}
-            </div>
           </li>
         {% endfor %}
       </ol>
@@ -503,7 +459,7 @@
     {% if prepared.watch %}
       <h3 class="subject-heading">Sous surveillance</h3>
       <table class="table-clean watch-table">
-        <thead><tr><th>Marché</th><th class="num">Exercice</th><th class="num">Ce mois</th><th>Sous le plan</th><th>Sens</th><th>Qui</th><th>Quand</th><th></th></tr></thead>
+        <thead><tr><th>Marché</th><th class="num">Exercice</th><th class="num">Ce mois</th><th>Sous le plan</th><th>Sens</th><th>Qui</th><th>Quand</th></tr></thead>
         <tbody>
         {% for item in prepared.watch %}
           <tr>
@@ -514,7 +470,6 @@
             <td>{% if item.direction %}<span class="chip {{ 'is-en-retard' if item.direction == 'se creuse' else ('is-en-avance' if item.direction == 'se referme' else '') }}">{{ item.direction }}</span>{% else %}—{% endif %}</td>
             <td>{{ item.who }}</td>
             <td><small>{{ item.when_label }}</small></td>
-            <td class="cell-action">{{ arbitrate(item.issue) }}</td>
           </tr>
         {% endfor %}
         </tbody>
@@ -613,7 +568,6 @@
           {% if item.reference is defined %}<span class="subject-ref">{{ item.reference }}</span>{% endif %}
           <strong>{{ item.market }}</strong> · {{ item.action }} — {{ item.owner_name }}{% if item.due_date %}, pour le {{ item.due_date }}{% endif %}{% if item.expected_impact %} · attendu {{ item.expected_impact }}{% endif %}{% if item.status != "open" %} · {{ item.status_word if item.status_word is defined else item.status }}{% endif %}
         </p>
-        {% if item.reference is defined %}{{ live(item) }}{% endif %}
       </li>
     {% endfor %}
   </ol>

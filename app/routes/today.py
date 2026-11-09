@@ -766,8 +766,6 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                               retail=inputs["retail"], prepared=inputs["prepared"],
                               products=products, elsewhere=inputs["elsewhere"],
                               clients=clients)
-    from ..perf import pledges as pledges_module
-
     #: Le gris de chaque marché du périmètre : marqué, plan, sans drapeau — le dossier de
     #: visite le tient déjà, sur les lectures en cache ; rien n'est relu à l'entrepôt.
     dossiers = [d for d in (_guard("gris %s" % market,
@@ -779,7 +777,7 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                        lambda exc: None)
     return render(request, "perimetre.html", {
         "user": None, "source": inputs["source"], "page": built, "track": inputs["track"],
-        "due_default": pledges_module.default_due(), "dossiers": dossiers, "orderbook": orderbook,
+        "dossiers": dossiers, "orderbook": orderbook,
     })
 
 
@@ -1135,7 +1133,6 @@ def _screen(request: Request, session: Session):
             "people": analytics.people_to_push([issue.fires[0] for issue in issues]),
             "wins": analytics.wins(dataset),
             "commitments": commitments,
-            "due_default": __import__("app.perf.pledges", fromlist=["default_due"]).default_due(),
             # One list, one line per KPI. Off target, overdue, or both — the card carries
             # whichever apply, instead of the KPI appearing here for one and again below
             # for the other, as if it were two problems.
