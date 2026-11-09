@@ -21,8 +21,6 @@ from ..db import get_session
 from ..perf import analytics, routing
 from ..perf import kpi as kpi_rules
 from ..perf import provenance
-from ..perf import week as week_of
-from ..perf.commitments import board
 from ..perf.source import current_source
 from ..web import render
 
@@ -40,29 +38,20 @@ def _channels_shown(dataset) -> List:
     return sorted(seen.items())
 
 
-def _commitments_by_market(items) -> Dict[str, List]:
-    grouped: Dict[str, List] = {}
-    for item in items:
-        grouped.setdefault(item.market, []).append(item)
-    return grouped
-
-
 def settled_now(unavailable: Sequence[str] = ()) -> List[str]:
     """Measures this instance has actually resolved, whatever the register says.
 
     The register describes the design; what this machine has in hand is a different
     question, and the screen must not ask the CEO to chase something already in front of
-    him. It did: the commitments panel listed ten open items while the panel below it
-    announced that no commitment source was connected. Two halves of one screen
-    contradicting each other costs more than either half is worth.
+    him. It did once, on a panel this screen no longer carries: ten open items listed
+    above a line saying no source was connected. Two halves of one screen contradicting
+    each other costs more than either half is worth.
     """
     from ..perf import owners
 
     settled = []
     if len(owners.current()):
         settled.append("owners")
-    if "commitments" not in unavailable:
-        settled.append("commitments")
     if "kpis" not in unavailable:
         settled.append("client_kpis")
     return settled
@@ -407,21 +396,8 @@ def _perimeter_inputs(session):
     track = _track(dataset, month)
     weekly = _week_review(source, month)
     invoiced = _invoiced_review(source, weekly)
-    week, _scan = week_of.read(session, dataset=dataset, placing=False)
     fires = analytics.fires(dataset, limit=None)
-    from ..perf import conversation as conversation_module
-
-    commitments = _all_commitments(source, session)
-    try:
-        kpis = source.client_kpis(wait_for_warehouse=False)
-    except Exception:  # noqa: BLE001 — sans KPI, la ligne « déjà engagé » est plus courte
-        kpis = []
     gifting = _gifting_review()
-    prepared = conversation_module.build(
-        week, dataset=dataset, fires=fires, weekly=weekly, month=month,
-        commitments=commitments, kpis=kpis, gifting=gifting,
-        product_rows=_product_rows(source),
-    )
     from ..perf import incremental as incremental_module
 
     contribution = mix_module.current() if settings.has_contribution_file else None
@@ -437,14 +413,14 @@ def _perimeter_inputs(session):
     known = page_module.perimeters(directory, month)
     return {
         "source": source, "dataset": dataset, "month": month, "track": track,
-        "week": week, "fires": fires, "contribution": contribution,
+        "fires": fires, "contribution": contribution,
         "incremental": incremental,
         "published": published, "budget": budget, "known": known,
         "ebitda": _ebitda_review(list(known)),
         "reforecast": _reforecast_review(known),
         "pnl": _pnl_review(list(known), getattr(track, "period", "") or ""),
         "weekly": weekly, "invoiced": invoiced, "gifting": gifting,
-        "retail": _retail_margin(), "prepared": prepared,
+        "retail": _retail_margin(),
         "elsewhere": analytics.routed_elsewhere(dataset),
         # La lecture produit, telle qu'elle est sur le disque : les pages par périmètre en
         # font la somme de leurs marchés. Jamais une requête sous un lecteur.
@@ -470,18 +446,6 @@ def _white_spaces(dataset, month):
     placed, _leads = month_module.place_markets(markets, org, directory)
     sales = stores_module.current_sales() if settings.has_store_sales_file else None
     return whitespace_module.build(dataset, placed, sales)
-
-
-def _all_commitments(source, session):
-    """Les engagements pris dans le cockpit, puis ceux d'une source qui en porterait."""
-    from ..perf import pledges as pledges_module
-
-    taken = pledges_module.load(session)
-    try:
-        taken += list(source.commitments())
-    except NotImplementedError:
-        pass
-    return taken
 
 
 def _product_rows(source):
@@ -607,12 +571,11 @@ def _iso2_by_market(source):
     return found
 
 
-def _dossier(market: str, session, source=None, refresh: bool = False):
+def _dossier(market: str, source=None, refresh: bool = False):
     """Le dossier de visite d'un marché, sur ce que le cockpit tient déjà."""
     from ..config import settings
     from ..perf import context as context_module
     from ..perf import ebitda as ebitda_module
-    from ..perf import memory as memory_module
     from ..perf import owners as owners_module
     from ..perf import stores as stores_module
     from ..perf import visit as visit_module
@@ -627,13 +590,12 @@ def _dossier(market: str, session, source=None, refresh: bool = False):
     accounts = _guard("partenaires", lambda: _accounts(source, dataset, refresh), lambda exc: None)
     store_sales = (_guard("boutiques", stores_module.current_sales, lambda exc: None)
                    if settings.has_store_sales_file else None)
-    register = memory_module.load(session)
     unit = next((u for u in getattr(dataset, "units", []) or [] if getattr(u, "market", "") == market), None)
     owner = owners_module.owner_for(market, getattr(unit, "region", "") or "").name if unit else ""
     products = _guard("produits %s" % market, lambda: _market_products(source, market), lambda exc: None)
     return visit_module.build(
         market, dataset=dataset, grey_review=grey, shadow_review=shadow, plan=plan,
-        accounts=accounts, register=register, notes=context_module.current().notes,
+        accounts=accounts, notes=context_module.current().notes,
         store_sales=store_sales, iso2_by_market=_iso2_by_market(source), owner=owner,
         products=products)
 
@@ -756,20 +718,20 @@ def perimeter(name: str, request: Request, session: Session = Depends(get_sessio
                                    getattr(inputs["source"], "kpi_rows", list)(), item["markets"])
     clients = _clients(inputs["source"], scope=label, markets=item["markets"])
     built = page_module.build(label, item["lead"], item["markets"], inputs["dataset"],
-                              inputs["month"], inputs["track"], week=inputs["week"],
+                              inputs["month"], inputs["track"],
                               fires=inputs["fires"], contribution=inputs["contribution"],
                               published=inputs["published"], budget=inputs["budget"],
                               ebitda=inputs["ebitda"], incremental=inputs["incremental"],
                               pnl=inputs["pnl"], weekly=inputs["weekly"],
                               reforecast=inputs["reforecast"],
                               invoiced=inputs["invoiced"], gifting=inputs["gifting"],
-                              retail=inputs["retail"], prepared=inputs["prepared"],
+                              retail=inputs["retail"],
                               products=products, elsewhere=inputs["elsewhere"],
                               clients=clients)
     #: Le gris de chaque marché du périmètre : marqué, plan, sans drapeau — le dossier de
     #: visite le tient déjà, sur les lectures en cache ; rien n'est relu à l'entrepôt.
     dossiers = [d for d in (_guard("gris %s" % market,
-                                   lambda market=market: _dossier(market, session, source=inputs["source"]),
+                                   lambda market=market: _dossier(market, source=inputs["source"]),
                                    lambda exc: None) for market in item["markets"]) if d is not None]
     orderbook = _guard("carnet %s" % label,
                        lambda: _orderbook(inputs["source"], perimeter=label, invoiced=inputs["invoiced"],
@@ -819,7 +781,7 @@ def market_dossier(name: str, request: Request, session: Session = Depends(get_s
     if market is None:
         raise HTTPException(status_code=404, detail="marché inconnu : %s" % name)
     refresh = request.query_params.get("refresh") in ("1", "true", "yes")
-    dossier = _dossier(market, session, source=source, refresh=refresh)
+    dossier = _dossier(market, source=source, refresh=refresh)
     from ..perf import source as source_module
 
     return render(request, "marche.html", {
@@ -852,8 +814,8 @@ def freshness():
 
 @router.get("/")
 def today(request: Request, session: Session = Depends(get_session)):
-    """L'écran du lundi : le verdict, la semaine, trois conversations, les zones rouges, ce
-    qui a changé. Tout le reste est vrai et vit sur la page Analyses."""
+    """L'écran du lundi : le verdict, la semaine, le sell-in, ce qui arrive, les zones
+    rouges. Tout le reste est vrai et vit sur la page Analyses."""
     built = _screen(request, session)
     if not isinstance(built, dict):
         return built
@@ -902,14 +864,9 @@ def _screen(request: Request, session: Session):
             status_code=503,
         )
 
-    # Performance is the screen. Commitments and customer KPIs enrich it, and they connect
-    # on their own schedule — so a missing one dims its own panel instead of taking the
-    # page down. What it must not do is render an empty board: "no overdue commitments"
-    # and "not connected to commitments" look the same and mean opposite things.
+    # Performance is the screen. The customer KPIs enrich it and connect on their own
+    # schedule — so a missing reading dims its own panel instead of taking the page down.
     unavailable = []
-    # Les engagements sont ceux que le lecteur a pris dans le cockpit — sa mémoire, jamais
-    # une source à connecter — plus ceux d'une source qui en aurait, en démonstration.
-    commitments = board(_all_commitments(source, session))
     # Même règle que les chiffres du haut : la page ne lance jamais la lecture de trois
     # minutes, sauf si le lecteur l'a demandée. Une lecture jamais faite n'est pas une
     # source absente, et le panneau le dit autrement.
@@ -994,74 +951,20 @@ def _screen(request: Request, session: Session):
     plans_above = routing.plan_reviews(dataset, above=True)
     plans_below = routing.plan_reviews(dataset, above=False)
     suspects = analytics.suspects(dataset)
-    by_market = _commitments_by_market(commitments.items)
 
-    # A fire is worth more with two things attached: the promise already made about it,
-    # and what the customer base is doing. A conversion gap with recruitment holding up is
-    # a different conversation from one where both are falling.
+    # A fire is worth more with what the customer base is doing attached: a conversion gap
+    # with recruitment holding up is a different conversation from one where both are
+    # falling.
     def attach(fire):
-        open_items = [
-            item
-            for item in by_market.get(fire.unit.market, [])
-            if item.status not in ("done", "cancelled")
-        ]
         signals = [
             item
             for item in kpi_rules.by_scope(kpis, fire.unit.market)
             if item.status in (kpi_rules.WATCH, kpi_rules.ALERT)
         ]
-        return (fire, open_items[0] if open_items else None, signals)
+        return (fire, signals)
 
-    for issue in issues:
-        issue.has_commitment = any(
-            item.status not in ("done", "cancelled")
-            for item in by_market.get(issue.market, [])
-        )
     linked = [(issue, [attach(fire) for fire in issue.fires]) for issue in issues]
 
-    # The register, which is the only thing on this page that remembers. Everything above
-    # is recomputed from the current reading and would present the same three markets as
-    # discoveries every Monday — the weekly amnesia the doctrine forbids. The subjects
-    # below carry their own identity, their arbitrations and the readings already made of
-    # them, and they are ranked by an engine with hard caps rather than by size.
-    #
-    # The dataset is handed over rather than re-read: a second read would cost another
-    # warehouse query and, worse, could land on a different hour and therefore different
-    # figures than the ones printed above it.
-    # `placing` : un sujet rendu dans un créneau d'attention **est** en attention, et son
-    # état doit le dire — sinon il reste « détecté » à vie et le lecteur ne peut plus le
-    # clore. C'est cet écran qui place, parce que c'est lui qui montre vraiment la semaine ;
-    # une inspection en terminal ne déplace rien.
-    week, scan = week_of.read(session, dataset=dataset, placing=True)
-    # Les trois sujets portés, préparés en conversations avec ce que la page a déjà lu :
-    # l'écart et ses canaux, le sens sur les derniers mois, la semaine, le mois en cours,
-    # la carte de feu et sa question, l'engagement en cours, les KPI qui bougent, ce qui
-    # arrive. Rien ici ne relit l'entrepôt.
-    from ..perf import conversation as conversation_module
-
-    prepared = conversation_module.build(
-        week, dataset=dataset, fires=analytics.fires(dataset, limit=None), weekly=weekly,
-        month=month, commitments=commitments.items, kpis=kpis, gifting=gifting,
-        product_rows=_product_rows(source),
-    )
-    # La transaction se referme ici et pas dans le module de lecture : la politique de
-    # validation appartient à la surface, pas au domaine. Sans ce commit, la session ouverte
-    # par la dépendance se ferme sans écrire, et le registre paraissait sans mémoire alors
-    # qu'il l'avait — un état porté redevenait « détecté » au rechargement suivant.
-    session.commit()
-    # Ce qui a changé depuis lundi dernier : relu après l'écriture, pour que les sujets
-    # ouverts à cette lecture y soient déjà.
-    from datetime import date as _date
-
-    from ..perf import changes as changes_module
-    from ..perf import memory as memory_module
-
-    register = memory_module.load(session)
-    changes = changes_module.build(register, commitments.items, _date.today())
-    # Le dossier gris : ce que le registre dit déjà du gris, du vrac, du daigou — une
-    # recherche sur les mots, nommée comme telle, pas une clé de sujet.
-    if grey is not None:
-        grey.dossier = _guard("dossier gris", lambda: grey_module.dossier(register), lambda exc: [])
 
     return dict(
         {
@@ -1087,11 +990,6 @@ def _screen(request: Request, session: Session):
                 ),
             },
             "issues": linked,
-            # Three slots, five under watch, and the rest counted in an annex. The caps
-            # are hard on both sides: a screen that renders everything it found hands the
-            # selection back to the reader, which is the work they came for.
-            "week": week,
-            "prepared": prepared,
             "month": month,
             "mix": mix,
             "track": track,
@@ -1110,7 +1008,6 @@ def _screen(request: Request, session: Session):
             "kpi_rows": kpi_rows,
             "redzones": redzones,
             "whitespaces": whitespaces,
-            "changes": changes,
             "placements": placements,
             "weekly": weekly,
             "invoiced": invoiced,
@@ -1118,7 +1015,6 @@ def _screen(request: Request, session: Session):
             "gifting": gifting,
             "month_groups": month_groups,
             "stores": stores,
-            "week_sources": scan.sources,
             # The channels actually on this screen, each with what it is. A reader who
             # has to guess whether "E-retailers" means a marketplace or an e-retailer cannot judge the
             # number under it — and the guess is usually wrong, since the platform most
@@ -1132,7 +1028,6 @@ def _screen(request: Request, session: Session):
             # rather than competing with itself for a place.
             "people": analytics.people_to_push([issue.fires[0] for issue in issues]),
             "wins": analytics.wins(dataset),
-            "commitments": commitments,
             # One list, one line per KPI. Off target, overdue, or both — the card carries
             # whichever apply, instead of the KPI appearing here for one and again below
             # for the other, as if it were two problems.

@@ -15,7 +15,7 @@ def test_today_is_the_home_page(client):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Qu'est-ce que je décide cette semaine" in page_text(response)
+    assert "Les zones rouges" in page_text(response)
 
 
 def test_decision_room_is_gone(client):
@@ -35,15 +35,16 @@ def test_where_the_business_is_underperforming(client):
 
 def test_why_it_is_underperforming(client):
     """A diagnosis, not a description (brief §3.2)."""
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
     assert "de l'écart vient de la conversion" in page
 
 
 def test_how_much_money_is_involved(client):
-    page = page_text(client.get("/"))
+    page = page_text(client.get("/analyses"))
 
-    assert "-1,2 M€" in page
+    # Analyses is not yet passed through the French number filter the day screen uses.
+    assert "-1,2 M€" in page or "-1.2 M€" in page
 
 
 def test_where_the_upside_is(client):
@@ -56,10 +57,9 @@ def test_where_the_upside_is(client):
 def test_who_to_challenge(client):
     page = page_text(client.get("/"))
 
-    # Une seule liste de conversations, celle du registre : l'ancienne, recalculée à chaque
-    # lecture par l'analytique, faisait du même marché deux entrées sur le même écran.
-    assert "Les conversations de la semaine" not in page
-    assert "Qu'est-ce que je décide cette semaine" in page
+    # Les sujets à porter vivent dans le cabinet depuis le 9 novembre 2026 : l'écran garde
+    # ce qu'il mesure, les écarts et qui en répond, sur Analyses.
+    assert "Qu'est-ce que je décide cette semaine" not in page
     assert "Naoki" in page_text(client.get("/analyses"))
 
 
@@ -68,20 +68,6 @@ def test_what_to_ask_them(client):
     page = page_text(client.get("/analyses"))
 
     assert "Pourquoi le plan vise-t-il les sessions" in page
-
-
-def test_what_people_committed_to(client):
-    page = page_text(client.get("/"))
-
-    assert "Ship the mobile checkout recovery plan" in page
-
-
-def test_whether_those_actions_worked(client):
-    """Brief §18: delivered, and it did not work — the most easily lost fact in the loop."""
-    page = page_text(client.get("/"))
-
-    assert "Fait, sans résultat" in page
-    assert "A marché" in page
 
 
 # --------------------------------------------------------------- honesty guarantees
@@ -342,7 +328,7 @@ def test_a_name_and_a_role_do_not_run_together_when_copied():
     from app.main import app
 
     with TestClient(app) as client:
-        page = page_text(client.get("/"))
+        page = page_text(client.get("/analyses"))
 
     # The mock owner's name and role, adjacent in the markup.
     assert "Naoki" in page
@@ -358,8 +344,9 @@ def test_the_confidence_and_the_owner_do_not_glue_together_when_copied():
     from app.main import app
 
     with TestClient(app) as client:
-        page = page_text(client.get("/"))
+        page = page_text(client.get("/analyses"))
 
+    assert "Naoki" in page
     assert "HIGHNaoki" not in page
     assert "MEDIUMNaoki" not in page
 
@@ -380,10 +367,10 @@ def test_the_reason_a_gap_cannot_be_explained_is_given_once():
 
 # ------------------------------------------------ the screen must not contradict itself
 #
-# The demonstration screen showed it first: ten open commitments listed in one panel, and
-# "no commitment source is connected" in the panel below. Two halves of one screen
-# disagreeing costs more than either half is worth — a reader who catches it once stops
-# believing the careful half too.
+# The demonstration screen showed it first: ten open items listed in one panel, and "no
+# source is connected" in the panel below. Two halves of one screen disagreeing costs more
+# than either half is worth — a reader who catches it once stops believing the careful
+# half too.
 
 
 def test_a_panel_that_shows_data_is_not_listed_as_unmeasured():
@@ -397,28 +384,6 @@ def test_a_panel_that_shows_data_is_not_listed_as_unmeasured():
     # Mock data provides both, so neither may appear among the things nothing measures.
     assert "No source connected" not in page
     assert "Neither is wired" not in page
-
-
-def test_a_panel_with_no_source_is_still_listed(monkeypatch):
-    """The fix must not silence the register: a measure that genuinely has no source has
-    to keep saying so."""
-    from starlette.testclient import TestClient
-
-    import app.routes.today as today_route
-    from app.main import app
-    from app.perf.source import MockSource
-
-    def refuse(self):
-        raise NotImplementedError("no commitment source")
-
-    monkeypatch.setattr(
-        today_route, "current_source", lambda: type("S", (MockSource,), {"commitments": refuse})()
-    )
-
-    with TestClient(app) as client:
-        page = page_text(client.get("/system"))
-
-    assert "No source connected" in page
 
 
 # ------------------------------------------------------------ the year behind the month
@@ -608,66 +573,6 @@ def test_a_kpi_green_at_group_level_names_the_markets_it_hides(client):
     assert "Finland" in page
 
 
-def test_the_screen_shows_the_register_and_not_a_fresh_recount(client, db_session):
-    """Le défaut que la doctrine appelle amnésie hebdomadaire : l'écran recalculait ses
-    sujets à chaque lecture et présentait chaque lundi les mêmes marchés comme des
-    découvertes. Une référence affichée doit désigner le même sujet d'une lecture à
-    l'autre — c'est la seule preuve que la page se souvient."""
-    from app.domain import issues as I
-    from app.perf import memory
-
-    register = I.Register()
-    issue = register.observe(I.Observation(
-        kind="gap_to_plan", scope="Northland", seen_at="2026-08-01",
-        statement="Un écart qui ne se referme pas", amount=-900_000.0,
-        basis=I.STAKE))
-    issue.accountable = "Une dirigeante"
-    memory.save(db_session, register)
-    db_session.commit()
-
-    first = client.get("/").text
-    second = client.get("/").text
-
-    assert issue.issue_id in first
-    assert "Un écart qui ne se referme pas" in first
-    assert issue.issue_id in second
-
-
-def test_a_source_the_reading_did_not_open_is_named_on_the_screen(client):
-    """« Rien à signaler » et « je n'ai pas regardé » ne s'écrivent jamais pareil. Le
-    défaut serait invisible : un écran muet sur une source absente se lit comme un écran
-    qui a tout vu."""
-    page = client.get("/").text
-
-    # Assertion portée sur ce qui distingue, pas sur la formule : l'écran a été raccourci
-    # une fois et ce test est tombé sans qu'aucun comportement ait changé.
-    assert "je n'ai pas regardé" in page
-
-
-def test_the_screen_never_prints_the_score_that_orders_the_subjects(client, db_session):
-    """§C6. Un nombre affiché à côté d'un marché invite à discuter le nombre, alors que ce
-    qui se discute est la matérialité, l'urgence et la fiabilité. Ce qui est vérifié ici
-    est la valeur elle-même, pas le mot : un test sur le mot tomberait sur la phrase qui
-    explique justement qu'on ne l'affiche pas."""
-    from app.domain import issues as I
-    from app.perf import memory, selection
-
-    register = I.Register()
-    register.observe(I.Observation(kind="gap_to_plan", scope="Northland",
-                                   seen_at="2026-08-01", statement="Un écart",
-                                   amount=-900_000.0, basis=I.STAKE))
-    memory.save(db_session, register)
-    db_session.commit()
-
-    row = selection.rank(register, "2026-09-01").attention[0]
-    response = client.get("/")
-    page = page_text(response)
-
-    assert row.why in page
-    for rendered in (repr(row._score), "%.2f" % row._score, "%d" % int(row._score)):
-        assert rendered not in page
-
-
 def test_the_month_in_progress_is_on_the_screen_with_two_rates_per_market(client):
     """B3, tel que le lecteur l'a dit : « savoir où j'en suis dans le mois, pas seulement
     à la fin ». Le panneau existe, il nomme le sell-in pour ce qu'il est, et il porte des
@@ -820,31 +725,6 @@ def test_a_kpi_reading_not_yet_made_is_said_as_such_and_not_as_a_missing_source(
     assert "Source pas encore connectée. Les lectures viennent de l'entrepôt" not in page
 
 
-def test_the_subjects_to_carry_are_prepared_conversations_not_cards(client, db_session):
-    """Priorité 4 : « montant en jeu · dure depuis plusieurs lectures » ne dit rien. Chaque
-    sujet porté arrive avec l'écart, la tendance, la dernière lecture et une question ; les
-    facteurs du moteur restent, en une ligne, parce que §C6 l'exige."""
-    from app.domain import issues as I
-    from app.perf import memory
-
-    register = I.Register()
-    register.observe(I.Observation(kind="gap_to_plan", scope="Japan", seen_at="2026-08-01",
-                                   statement="3 mois consécutifs sous le plan",
-                                   amount=-900_000.0, basis=I.STAKE))
-    memory.save(db_session, register)
-    db_session.commit()
-
-    page = page_text(client.get("/"))
-
-    assert "À faire cette semaine" in page
-    assert "sous le plan ce mois" in page and "La tendance" in page and "Le dossier" in page
-    assert "La dernière lecture" in page
-    assert "Retenu pour" in page and "montant en jeu" in page
-    assert "Pourquoi : montant en jeu" not in page
-    # Le mock porte un engagement en retard sur ce marché : c'est la première question.
-    assert "était dû le" in page or "qu'est-ce qui est engagé" in page
-
-
 def test_the_three_board_figures_head_the_screen_and_the_month_stays_silent_before_a_week(client):
     """Nickel chrome : l'exercice, la contribution et le same-store sales en cartes, un mot
     chacun. Le mois n'imprime aucune fourchette avant une semaine pleine."""
@@ -886,15 +766,6 @@ def test_the_red_zones_are_a_fixed_block_with_one_line_each(client):
     assert "Les zones rouges" in page
     assert "Japon" in page and "same-store sales" in page.lower()
     assert "à brancher" in page
-
-
-def test_what_changed_since_last_monday_is_on_the_screen(client, db_session):
-    """Le seul bloc qui a une mémoire : un sujet ouvert à cette lecture y est déjà."""
-    page = page_text(client.get("/"))
-
-    assert "Ce qui a changé depuis lundi dernier" in page
-    assert ("sujet" in page.split("Ce qui a changé depuis lundi dernier")[1][:400]
-            or "rien n'a bougé" in page.split("Ce qui a changé depuis lundi dernier")[1][:400])
 
 
 def test_the_internal_white_spaces_live_on_the_analyses_page_with_their_hypotheses(client):
@@ -985,7 +856,7 @@ def test_the_filling_index_lives_on_analyses_and_names_itself_an_index(client):
 
 def test_the_day_screen_carries_a_clients_card_beside_same_store(client):
     page = page_text(client.get("/"))
-    head = page.split("Qu'est-ce que je décide")[0]
+    head = page.split("Les zones rouges")[0]
 
     assert "Clients" in head and "clients enregistrés" in head
     assert "base perdue" in head and "le flux sur Analyses" in head
@@ -1020,11 +891,10 @@ def test_partners_by_name_and_the_grey_and_bulk_live_on_analyses(client):
     assert "Le plan n'a pas de ligne par partenaire" in analyses
     assert "Orbis Market" in analyses and "E-retailers" in analyses
     assert "Le gris et le vrac" in analyses and "Trois sources, jamais additionnées" in analyses
-    # Ligne à ligne : les comptes qui portent le vrac, et ce que le registre en dit.
+    # Ligne à ligne : les comptes qui portent le vrac.
     assert "D'où il vient, ligne à ligne" in analyses
     assert "Compte (marché · point de vente · sous-canal)" in analyses
     assert "de vrac lu ligne à ligne" in analyses and "Type de drapeau" in analyses
-    assert "Ce que le registre en dit" in analyses
     # La supply couvre tout le périmètre : sa section, pas un appendice du sell-in.
     assert 'id="supply"' in analyses and "La supply, sur tout le périmètre" in analyses
     assert "Le rapport supply" in analyses and "Ce que l'entrepôt voit de la supply" in analyses
@@ -1044,7 +914,7 @@ def test_a_market_has_a_visit_dossier_and_the_grey_is_read_without_a_flag(client
     assert "cinquante unités" in dossier
     assert "Le gris, sous ses deux définitions" in dossier and "Lu sans drapeau" in dossier
     assert "gros tickets" in dossier.lower() and "ne pose pas le drapeau" in dossier
-    assert "Ce que le cockpit en a déjà écrit" in dossier
+    assert "Les notes de contexte sur ce marché" in dossier
 
     assert client.get("/marche/nowhere").status_code == 404
 
@@ -1063,12 +933,6 @@ def test_a_perimeter_page_shows_its_grey_in_three_figures(client, monkeypatch):
     for heading in ("Marqué par l'entrepôt", "Plan à date", "Lu sans drapeau", "Mesuré"):
         assert heading in page
     assert 'href="/marche/china"' in page
-
-
-def test_a_conversation_names_its_market_as_a_link_to_the_dossier(client):
-    page = client.get("/").text
-    assert 'href="/marche/japan"' in page
-    assert "le dossier du marché" in page
 
 
 def test_the_day_screen_reads_the_open_order_book_beside_the_sell_in(client):

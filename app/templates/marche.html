@@ -4,7 +4,7 @@
 <section class="cockpit-header" data-read-at="{{ read_at }}" data-partners-at="{{ partners_at }}" data-bulk-at="{{ bulk_at }}">
   <p class="cockpit-eyebrow"><a href="/marches">Marchés</a> · dossier de visite · {{ dossier.period_label }}</p>
   <h2>{{ dossier.name }}{% if dossier.owner %} · {{ dossier.owner }}{% endif %}</h2>
-  <p class="lede">Ce qu'il faut savoir avant de s'asseoir en face du marché : trois questions, ses canaux contre le plan, ce qui marche par produit, ses boutiques qui décrochent, son gris sous ses deux définitions, ce qui l'alimente sans passer par lui, et ce que le cockpit en a déjà écrit. Rien n'est relu à l'entrepôt.</p>
+  <p class="lede">Ce qu'il faut savoir avant de s'asseoir en face du marché : trois questions, ses canaux contre le plan, ce qui marche par produit, ses boutiques qui décrochent, son gris sous ses deux définitions, ce qui l'alimente sans passer par lui, et les notes de contexte qui le concernent. Rien n'est relu à l'entrepôt.</p>
 </section>
 
 <section class="panel" id="questions">
@@ -137,15 +137,14 @@
   {% if dossier.relay_sentence %}<p class="routed-why">Relève : {{ dossier.relay_sentence }}.</p>{% endif %}
 </section>
 
-<section class="panel" id="registre">
-  <h2>Ce que le cockpit en a déjà écrit</h2>
-  {% if dossier.issues or dossier.notes %}
+<section class="panel" id="notes">
+  <h2>Les notes de contexte sur ce marché</h2>
+  {% if dossier.notes %}
     <ul class="line-list">
-      {% for item in dossier.issues %}<li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>{% endfor %}
       {% for note in dossier.notes %}<li>Note {{ note.kind }}{% if note.channel %} · {{ note.channel }}{% endif %}, depuis {{ note.since or "—" }} : “{{ note.text }}”{% if note.source %} — {{ note.source }}{% endif %}</li>{% endfor %}
     </ul>
   {% else %}
-    <p class="empty">Rien d'écrit sur ce marché, ni sujet ni note.</p>
+    <p class="empty">Aucune note de contexte sur ce marché.</p>
   {% endif %}
 </section>
 {% endblock %}

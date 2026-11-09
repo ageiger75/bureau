@@ -138,33 +138,9 @@ def test_without_rows_the_detail_says_so_and_the_review_still_stands():
     assert G.detail([]).note == "le vrac ligne à ligne n'est pas encore lu"
 
 
-def test_the_dossier_finds_the_subjects_that_speak_of_grey_by_their_words():
-    from app.domain import issues as I
-
-    register = I.Register()
-    grey = register.observe(I.Observation(kind="gap_to_plan", scope="Northland",
-                                          seen_at="2026-07-31",
-                                          statement="Le vrac répond à la place des clients"))
-    grey.reinterpret("Deux commandes de duty free", at="2026-07-31")
-    other = register.observe(I.Observation(kind="hero_decline", scope="Eastland",
-                                           seen_at="2026-07-31", statement="Héros en recul"))
-    closed = register.observe(I.Observation(kind="mix", scope="Westland", seen_at="2026-05-31",
-                                            statement="Daigou en baisse"))
-    closed.move_to(I.WATCHED)
-    closed.close(by="Une dirigeante", reason="Réglé")
-
-    found = G.dossier(register)
-
-    assert [item.issue_id for item in found] == [grey.issue_id, closed.issue_id]
-    assert other.issue_id not in [item.issue_id for item in found]
-    assert found[0].status_word == "détecté" and found[0].conclusion == "Deux commandes de duty free"
-    assert found[1].status_word == "clos"
-    assert G.dossier(I.Register()) == []
-
-
 def test_a_market_brief_puts_measured_line_by_line_and_submarine_side_by_side():
     """Avant d'aller voir un marché : le vrac marqué contre la ligne du budget, les comptes
-    qui le portent, le voisin dont le flux change de porte, et le registre."""
+    qui le portent, et le voisin dont le flux change de porte."""
     class _Plan:
         unhealthy = [_Line("CLEANING GREY- NORTHLAND", 1200.0), _Line("CLEANING GREY- EASTLAND", 600.0)]
         unhealthy_total = _Line("TOTAL", 1800.0)
@@ -174,19 +150,13 @@ def test_a_market_brief_puts_measured_line_by_line_and_submarine_side_by_side():
     review = G.build(rows, plan=_Plan(), bulk_rows=_bulk_rows(SHAPES))
     G.NEIGHBOURS["Northland"] = ("Eastland",)
     try:
-        from app.domain import issues as I
-
-        register = I.Register()
-        register.observe(I.Observation(kind="gap_to_plan", scope="Northland", seen_at="2026-07-31",
-                                       statement="Le vrac répond à la place des clients"))
-        lines = G.market_brief("Northland", review, _Plan(), None, None, register)
+        lines = G.market_brief("Northland", review, _Plan(), None, None)
     finally:
         del G.NEIGHBOURS["Northland"]
 
     text = "\n".join(lines)
-    assert "MESURÉ" in text and "LIGNE À LIGNE" in text and "SOUS-MARIN" in text and "REGISTRE" in text
+    assert "MESURÉ" in text and "LIGNE À LIGNE" in text and "SOUS-MARIN" in text
     assert "vrac marqué Northland" in text
     assert "CLEANING GREY- NORTHLAND" in text and "CLEANING GREY- EASTLAND" not in text
     assert "Northland · ST-01 · WHOLESALE" in text
     assert "Eastland :" in text and "change de porte" in text
-    assert "ISS-001" in text and "Le vrac répond" in text

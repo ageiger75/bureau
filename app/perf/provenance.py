@@ -158,13 +158,6 @@ REGISTER: Dict[str, Measure] = {
         to_confirm="Partner sell-through, and a second fiscal year of the monthly workbook. Until one exists, no "
         "twelve-month judgement can be made against a plan anyone stands behind.",
     ),
-    "commitments": Measure(
-        key="commitments",
-        label="Commitments",
-        maturity=ABSENT,
-        note="No source connected. The panel says so rather than showing an empty board.",
-        to_confirm="Where commitments are recorded today, if anywhere.",
-    ),
     "client_kpis": Measure(
         key="client_kpis",
         label="Customer KPIs",

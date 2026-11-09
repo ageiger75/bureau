@@ -390,7 +390,7 @@ def test_a_disagreement_between_file_and_warehouse_survives_to_the_source(monkey
     assert len(source.conflicts) == 1
 
 
-def test_performance_renders_even_though_commitments_are_not_connected(monkeypatch):
+def test_performance_renders_on_a_warehouse_source_with_the_customer_kpis_unwired(monkeypatch):
     """The panels connect on their own schedule. One missing piece dims its own panel;
     it does not take down a screen whose main job now works."""
     from starlette.testclient import TestClient
@@ -410,9 +410,6 @@ def test_performance_renders_even_though_commitments_are_not_connected(monkeypat
 
     assert response.status_code == 200
     assert "Japan" in analyses.text
-    # Les engagements sont la mémoire du cockpit, jamais une source à connecter : vide, le
-    # tableau dit qu'aucun n'a été pris — et où le premier se prend.
-    assert "Aucun engagement pris encore" in response.text
 
 
 # ------------------------------------------------------------- not querying every time

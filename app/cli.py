@@ -66,7 +66,7 @@
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
-    python -m app.cli engagements    les engagements pris dans le cockpit : qui, à quoi, pour quand, où ils en sont
+    python -m app.cli engagements    les engagements pris dans le cockpit avant le 9 novembre 2026, gelés : lecture seule, pour le cabinet
     python -m app.cli cabinet        la lecture du jour pour le cabinet, en un fichier daté : ce que l'écran dit, rien de recalculé
                                      --vers DOSSIER (défaut CEOOS_CABINET_DIR, sinon var/cabinet/) · --marche MARCHÉ (un fichier de plus par dossier de visite)
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
@@ -76,8 +76,8 @@
     python -m app.cli frontieres     ce que les factures disent de chaque note de reclassement : le centre nommé, depuis quand il se tait, où le partenaire est passé
     python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt ; --marche Chine, un marché en une page
                                      --unmatched : les codes que le référentiel ignore
-    python -m app.cli conversations  les trois sujets à porter, préparés : écart, tendance, lecture, question
-    python -m app.cli issues         les sujets qui traversent les lectures
+    python -m app.cli conversations  ne place plus de sujets depuis le 9 novembre 2026 : le dit, pour la section du cabinet
+    python -m app.cli issues         le registre des sujets, gelé le 9 novembre 2026 : lecture seule
                                      --scan lit les sources · --week les trois à faire
                                      --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
@@ -2572,297 +2572,42 @@ def cmd_distribution(argv: List[str]) -> int:
     return 0
 
 
+#: Le jour où le cockpit a cessé de suivre : les engagements des owners, les conclusions
+#: portées sur un sujet, les placements d'attention vivent dans le cabinet du lecteur, hors
+#: de ce dépôt. Le registre et les engagements restent lisibles, gelés, le temps que le
+#: cabinet les reprenne.
+TRACKING_FROZEN_ON = "2026-11-09"
+FROZEN_NOTICE = ("Le cockpit mesure, il ne suit pas : depuis le %s, les sujets à porter, la "
+                 "surveillance et les engagements vivent dans le cabinet du lecteur. Rien n'est "
+                 "placé ni écrit ici." % TRACKING_FROZEN_ON)
+
+
 def cmd_conversations(argv: List[str]) -> int:
-    """Les trois sujets à porter cette semaine, préparés comme l'écran les rend.
-
-    Lecture seule : rien n'est placé ni écrit dans le registre — regarder par-dessus
-    l'épaule ne fait pas d'un sujet un sujet porté.
-    """
-    from .db import SessionFactory, create_all
-    from .perf import conversation as conversation_module
-    from .perf import week as week_of
-    from .perf.analytics import fires as fires_of
-    from .perf.source import current_source
-    from .routes.today import (_gifting_review, _invoiced_review, _month_review,
-                               _week_review)
-
-    create_all()
-    source = current_source()
-    dataset = source.dataset(wait_for_warehouse=False)
-    month = _month_review(source)
-    weekly = _week_review(source, month)
-    _invoiced_review(source, weekly)
-    gifting = _gifting_review()
-    try:
-        commitments = source.commitments()
-    except NotImplementedError:
-        commitments = []
-    try:
-        kpis = source.client_kpis(wait_for_warehouse=False)
-    except Exception:  # noqa: BLE001 — sans KPI, la ligne « déjà engagé » est plus courte
-        kpis = []
-
-    with SessionFactory() as session:
-        week, _scan = week_of.read(session, dataset=dataset, placing=False, save=False)
-    prepared = conversation_module.build(
-        week, dataset=dataset, fires=fires_of(dataset, limit=None), weekly=weekly,
-        month=month, commitments=commitments, kpis=kpis, gifting=gifting,
-    )
-    if not prepared.conversations and not prepared.watch:
-        print("Aucun sujet à porter : le registre est vide, ou rien n'appelle d'intervention.")
-        return 0
-    for number, talk in enumerate(prepared.conversations, start=1):
-        who = " avec %s" % talk.who if talk.who else " — aucun interlocuteur dans l'annuaire"
-        print("%d. %s · %s%s   [%s]" % (number, talk.role, talk.market or talk.issue.title,
-                                       who, talk.issue.issue_id))
-        for label, text in (("L'écart", talk.stake), ("La tendance", talk.trend),
-                            ("Ce que les chiffres disent", talk.diagnosis),
-                            ("La dernière lecture", talk.last_reading or "aucune conclusion portée encore"),
-                            ("Déjà engagé", talk.engaged), ("Ce qui arrive", talk.ahead),
-                            ("La question", talk.question), ("Le geste", talk.arbitrate_hint)):
-            if text:
-                print("   %-28s %s" % (label, text[0].upper() + text[1:]))
-        print("   %-28s %s" % ("Retenu pour", talk.retained_for))
-        print("")
-    if prepared.watch:
-        print("Sous surveillance")
-        for item in prepared.watch:
-            name = item.issue.scopes[0] if item.issue.scopes else item.issue.title
-            print("   %-10s %s · %s" % (item.issue.issue_id, name, item.line))
+    """Ne place plus de sujets. La commande reste parce que l'export du cabinet la cite par
+    son nom : elle dit où le suivi vit désormais, et rien d'autre."""
+    print(FROZEN_NOTICE)
     return 0
 
 
 def cmd_issues(argv: List[str]) -> int:
-    """Les sujets de management, et ce que le cockpit se rappelle d'eux.
-
-    Sans argument : ce que la mémoire porte. Avec un geste, elle change et persiste.
+    """Le registre des sujets, gelé le 9 novembre 2026 : ce que la mémoire porte, en lecture
+    seule. Aucun geste n'y écrit plus — ni observation, ni conclusion, ni arbitrage, ni
+    clôture : ils se prennent dans le cabinet. Le registre reste lisible le temps que le
+    cabinet le reprenne.
 
         manage.py issues
-        manage.py issues --observe gap_to_plan:Brazil --say "Écart qui ne se referme pas"
-        manage.py issues --observe … --amount 900000 --basis stake   (stake ordonne, flow non)
-        manage.py issues --attach ISS-001 --observe gap_to_plan:India --say "..."
-        manage.py issues --conclude ISS-001 --say "Trois magasins mal codés" --because "..."
-        manage.py issues --accept ISS-001 --by "Nom" --reason "..." --review-on 2026-11-30
-        manage.py issues --close ISS-001 --by "Nom" --reason "..."
-
-    La porte est manuelle, et elle le restera jusqu'au moteur de sélection. C'est l'ordre
-    du brief : l'identité d'abord. Un moteur qui ouvrirait des sujets sans que la mémoire
-    tienne présenterait chaque semaine trois découvertes déjà connues.
     """
     from datetime import date
 
     from .db import SessionFactory, create_all
-    from .domain import issues as domain
     from .perf import memory
 
     create_all()
-    today = date.today().isoformat()
-    changed = False
-
     with SessionFactory() as session:
         register = memory.load(session)
-
-        target = _option(argv, "--attach")
-        spec = _option(argv, "--observe")
-        if spec:
-            kind, _sep, scope = spec.partition(":")
-            if not kind or not scope:
-                print("Écrire l'observation TYPE:PÉRIMÈTRE, par exemple "
-                      "gap_to_plan:Brazil.", file=sys.stderr)
-                return 2
-            basis = (_option(argv, "--basis") or "").strip().lower()
-            if basis and basis not in domain.BASES:
-                print("La base d'un montant est « %s ». Un enjeu se compare et ordonne, "
-                      "un flux dit ce qui circule et n'ordonne pas."
-                      % " » ou « ".join(domain.BASES), file=sys.stderr)
-                return 2
-            seen = domain.Observation(
-                kind=kind.strip(), scope=scope.strip(),
-                seen_at=_option(argv, "--at") or today,
-                statement=_option(argv, "--say"),
-                amount=_number_or_none(_option(argv, "--amount")),
-                basis=basis,
-                measure=_option(argv, "--measure"),
-            )
-            try:
-                if target:
-                    # Le sujet visé se désigne par sa référence **ou** par une clé qu'il
-                    # couvre déjà. Les références sont attribuées par machine : ISS-032 ne
-                    # désigne pas le même sujet sur deux postes qui n'ont pas lu les
-                    # sources dans le même ordre, et une instruction qui en cite une exige
-                    # que le lecteur relise son écran avant de pouvoir la suivre. Les
-                    # autres gestes acceptaient déjà les deux formes ; celui-ci non, et
-                    # c'était le seul à obliger à corriger la commande à la main.
-                    held = _issue_named(register, target)
-                    if held is None:
-                        print("Aucun sujet %s." % target, file=sys.stderr)
-                        return 2
-                    issue = register.attach(held.issue_id, seen)
-                else:
-                    issue = register.observe(seen)
-            except (KeyError, domain.TransitionRefused) as refused:
-                print("  %s" % refused, file=sys.stderr)
-                return 1
-            changed = True
-            print("%s · %s" % (issue.issue_id, issue.title))
-            if issue.follows:
-                print("  réapparition de %s — ce n'est pas une découverte"
-                      % issue.follows)
-
-        for flag, act in (("--conclude", "conclude"), ("--accept", "accept"),
-                          ("--close", "close")):
-            reference = _option(argv, flag)
-            if not reference:
-                continue
-            issue = _issue_named(register, reference)
-            if issue is None:
-                print("Aucun sujet %s." % reference, file=sys.stderr)
-                return 2
-            try:
-                if act == "conclude":
-                    issue.reinterpret(_option(argv, "--say"),
-                                      at=_option(argv, "--at") or today,
-                                      because=_option(argv, "--because"))
-                elif act == "accept":
-                    issue.accept_variance(domain.Arbitration(
-                        decided_by=_option(argv, "--by"),
-                        at=_option(argv, "--at") or today,
-                        reason=_option(argv, "--reason"),
-                        review_on=_option(argv, "--review-on") or None))
-                else:
-                    issue.close(by=_option(argv, "--by"),
-                                reason=_option(argv, "--reason"))
-            except (ValueError, domain.TransitionRefused) as refused:
-                print("  %s" % refused, file=sys.stderr)
-                return 1
-            changed = True
-
-        if "--scan" in argv:
-            changed = _scan_into(register, today) or changed
-
-        if changed:
-            memory.save(session, register)
-        # Validé même sans geste : la lecture a pu réparer une base qui portait des copies
-        # (voir `memory.load`), et un commit sans rien à écrire ne coûte rien.
-        session.commit()
-
-        if "--week" in argv:
-            _print_week(register, today)
-        else:
-            _print_issues(register, today)
+    print(FROZEN_NOTICE)
+    _print_issues(register, date.today().isoformat())
     return 0
-
-
-def _print_week(register, today: str) -> None:
-    """Ce que la lecture propose : trois interventions, cinq veilles, le reste en annexe.
-
-    Les plafonds sont durs. Si le moteur trouve neuf sujets prioritaires, il en montre
-    trois — un écran qui rend tout ce qu'il a trouvé rend la sélection au lecteur, c'est-à-
-    dire exactement le travail qu'il venait chercher.
-    """
-    from .perf import selection as selection_module
-    from .perf import weights as weights_module
-
-    read = weights_module.current() if settings.has_weights_file else None
-    week = selection_module.rank(register, today, weights=read)
-
-    print("")
-    print("Sujets pesés       %d · endormis %d" % (week.considered, len(week.sleeping)))
-    if not week.weights_read:
-        print("Poids stratégiques absents : tous les périmètres pèsent pareil, et le")
-        print("classement redevient un classement par taille.")
-
-    for label, rows, note in (
-        ("À FAIRE CETTE SEMAINE", week.attention,
-         "au plus trois — le reste attendra, et c'est le but"),
-        ("SOUS SURVEILLANCE", week.watch,
-         "suivis, pas portés : owner, tendance, prochaine échéance"),
-        ("ANNEXE", week.annex, "vus, comptés, hors des créneaux"),
-    ):
-        if not rows:
-            continue
-        print("")
-        print("%s — %s" % (label, note))
-        for row in rows:
-            print("  %-9s %-10s %s" % (row.issue.issue_id, row.role, row.issue.title[:52]))
-            print("  %-9s %-10s pourquoi : %s" % ("", "", row.why))
-            who = row.issue.accountable or "— aucun interlocuteur dans l'annuaire —"
-            print("  %-9s %-10s qui      : %s%s"
-                  % ("", "", who,
-                     ("  · poids %.2f" % row.weight) if row.weight != 1.0 else ""))
-
-    if week.sleeping:
-        print("")
-        print("Endormis — arbitrés, ne remontent que sur fait nouveau ou à leur date :")
-        for issue in week.sleeping:
-            print("  %-9s %s" % (issue.issue_id, issue.title[:60]))
-
-
-def _scan_into(register, today: str = "") -> bool:
-    """Lire les sources et déposer ce qu'elles disent. Rend vrai si le registre a bougé.
-
-    La lecture elle-même vit dans `app.perf.week`, qui ne sait rien afficher : l'écran et
-    le terminal doivent lire par le même chemin, sinon la même règle existe à deux endroits
-    et diverge le jour où l'une des deux change. Ce qui reste ici est l'impression.
-
-    Une source absente et une source vide ne s'écrivent jamais pareil. Un silence se lirait
-    comme « rien à signaler » alors qu'il veut dire « je n'ai pas regardé ».
-    """
-    from .perf import week as week_module
-
-    scan = week_module.observe(register, today)
-    sources = scan.sources
-
-    if sources.units is None:
-        print("Écran de performance   rien à lire")
-    else:
-        print("Écran de performance   %d unités lues" % sources.units)
-
-    if sources.partners is None:
-        print("Partenaires            absent — %s" % settings.partners_path)
-    else:
-        for fault in sources.partner_faults:
-            print("  %s" % fault, file=sys.stderr)
-        print("Partenaires            %d lignes lues" % sources.partners)
-
-    if sources.owners_given is None:
-        print("Interlocuteurs         organigramme absent — aucun sujet ne sera rattaché")
-    else:
-        print("Interlocuteurs         %d sujets rattachés à leur MD" % sources.owners_given)
-
-    print("")
-    print("Règles déclenchées     %d" % scan.fired)
-    print("Sujets ouverts         %d" % len(scan.opened))
-    print("Sujets alimentés       %d" % len(scan.grew))
-    if scan.returning:
-        print("Réapparitions          %d — on avait déjà cru régler ça"
-              % len(scan.returning))
-        for issue in scan.returning:
-            print("  %s suit %s · %s" % (issue.issue_id, issue.follows, issue.title[:48]))
-    if scan.quiet:
-        print("Silencieux ce passage  %d — silencieux n'est pas résolu ; il faut deux"
-              % len(scan.quiet))
-        print("                       périodes conformes pour constater un retour à la")
-        print("                       normale, et c'est une décision de cadence.")
-    return scan.changed
-
-
-def _issue_named(register, name: str):
-    """Un sujet désigné par sa référence, ou par une clé d'observation qu'il couvre.
-
-    Les deux, parce que les références sont attribuées par machine : ISS-004 ne désigne pas
-    le même sujet sur deux postes qui n'ont pas lu les sources dans le même ordre. Une clé
-    — `partner_unnamed:999TMGLBWP` — désigne la même chose partout, ce qui rend une
-    instruction transmissible : « enregistrez cette décision » cesse d'exiger que le
-    lecteur relise d'abord son écran pour trouver le bon numéro.
-    """
-    found = register.of(name)
-    if found is not None:
-        return found
-    kind, sep, scope = name.partition(":")
-    if not sep:
-        return None
-    return register.holding((kind.strip(), scope.strip()))
 
 
 def _print_issues(register, today: str) -> None:
@@ -4265,18 +4010,14 @@ def cmd_partenaires(argv: List[str]) -> int:
 def cmd_marche(argv: List[str]) -> int:
     """Le dossier de visite d'un marché, tel que la page le rend : les trois questions, les
     canaux, les boutiques qui décrochent, le gris sous ses deux définitions, ce qui l'alimente,
-    les partenaires facturés depuis le pays, le registre. `--refresh` relit l'entrepôt."""
-    from .db import SessionFactory, create_all
+    les partenaires facturés depuis le pays, les notes de contexte. `--refresh` relit l'entrepôt."""
     from .routes.today import _dossier
 
     market = " ".join(arg for arg in argv if not arg.startswith("--")).strip()
     if not market:
         print("Écrire le marché : manage.py marche China", file=sys.stderr)
         return 2
-    create_all()
-    with SessionFactory() as session:
-        dossier = _dossier(market, session, refresh="--refresh" in argv)
-        session.commit()
+    dossier = _dossier(market, refresh="--refresh" in argv)
     for line in dossier.lines():
         print(line)
     return 0
@@ -4625,19 +4366,16 @@ def cmd_frontieres(argv: List[str]) -> int:
 
 def cmd_gris(argv: List[str]) -> int:
     """Le gris et le vrac : est-on en ligne, d'où ça vient — marché par marché, puis ligne à
-    ligne —, comment ça évolue, et ce que le registre en dit. `--refresh` relit l'entrepôt ;
-    `--marche Chine` pose un seul marché en une page : mesuré, ligne à ligne, sous-marin."""
-    from .db import SessionFactory, create_all
+    ligne —, comment ça évolue. `--refresh` relit l'entrepôt ; `--marche Chine` pose un seul
+    marché en une page : mesuré, ligne à ligne, sous-marin."""
     from .perf import ebitda as ebitda_module
     from .perf import grey as grey_module
-    from .perf import memory
     from .perf.source import current_source
     from .routes.today import _grey
 
     plan = ebitda_module.current() if settings.has_ebitda_file else None
     source = current_source()
     review = _grey(source, plan, refresh="--refresh" in argv)
-    create_all()
     market = _option(argv, "--marche")
     if market:
         from .perf.budget import normalise_market
@@ -4652,16 +4390,10 @@ def cmd_gris(argv: List[str]) -> int:
                     row.get("iso2") or "").strip().upper()
         except Exception:  # noqa: BLE001 — sans pays, pas de partenaires facturés depuis
             pass
-        with SessionFactory() as session:
-            register = memory.load(session)
-            session.commit()
-        for line in grey_module.market_brief(market, review, plan, dataset, accounts, register,
+        for line in grey_module.market_brief(market, review, plan, dataset, accounts,
                                              iso2_by_market):
             print(line)
         return 0
-    with SessionFactory() as session:
-        review.dossier = grey_module.dossier(memory.load(session))
-        session.commit()
     if not review.usable:
         print((review.note or "les deux bases ne sont pas lues").capitalize() + ".")
     else:
@@ -4693,14 +4425,6 @@ def cmd_gris(argv: List[str]) -> int:
                     line.growth_recent_label, line.word))
         if detail.question:
             print(detail.question)
-    print()
-    if review.dossier:
-        print("Ce que le registre en dit :")
-        for item in review.dossier:
-            print("  %s · %s · %s%s" % (item.issue_id, item.title, item.status_word,
-                                       " · " + item.conclusion if item.conclusion else ""))
-    else:
-        print("Aucun sujet du registre ne parle de gris, de vrac ou de daigou.")
     return 0
 
 
@@ -5472,28 +5196,8 @@ def _stamp_label(stamp: str) -> str:
 
 
 def _print_changes() -> int:
-    """Ce qui a changé depuis lundi dernier, tel que l'écran du jour le rend."""
-    from datetime import date
-
-    from .db import SessionFactory, create_all
-    from .perf import changes as changes_module
-    from .perf import memory
-    from .perf.commitments import board
-    from .perf.source import current_source
-    from .routes.today import _all_commitments
-
-    create_all()
-    with SessionFactory() as session:
-        register = memory.load(session)
-        commitments = board(_all_commitments(current_source(), session)).items
-    week = changes_module.build(register, commitments, date.today())
-    print("Du %s au %s : %s." % (week.since.isoformat(), week.today.isoformat(), week.sentence))
-    for change in week.shown:
-        print("  %s  %-16s %s" % (change.when, change.kind, change.text))
-    if week.hidden:
-        print("  et %d autre%s" % (week.hidden, "s" if week.hidden > 1 else ""))
-    for reason in week.absent:
-        print(reason)
+    """La section « Ce qui a changé » de l'export : le cockpit ne tient plus ce journal."""
+    print(FROZEN_NOTICE)
     return 0
 
 

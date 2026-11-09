@@ -5,8 +5,8 @@ savoir avant de m'asseoir en face du directeur de ce marché ». Le dossier le f
 ordre fixe : les trois questions à poser, ses canaux contre le plan, ses boutiques qui
 décrochent le plus, son gris sous ses deux définitions — marqué par l'entrepôt, et lu sans
 drapeau —, ce qui l'alimente sans passer par lui, les partenaires facturés depuis le pays,
-et ce que le registre et les notes en disent déjà. Rien n'est relu à l'entrepôt : tout
-vient des lectures que le cockpit tient.
+et les notes de contexte qui le concernent. Rien n'est relu à l'entrepôt : tout vient
+des lectures que le cockpit tient.
 
 Les questions sont générées, et elles le disent : elles partent de ce que les chiffres
 montrent de plus net, pas de ce qu'on sait du marché. Le lecteur les remplace.
@@ -17,14 +17,13 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .analytics import format_eur, format_pct
-from .grey import (FEEDERS, FLAG_NOT_VALIDATED, NEIGHBOURS, Mention, _growth, _line_for_market,
+from .grey import (FEEDERS, FLAG_NOT_VALIDATED, NEIGHBOURS, _growth, _line_for_market,
                    flag_validated)
 
 MOST_STORE_MOVES = 5
 #: Par niveau produit et par sens, les lignes que le terminal montre.
 MOST_PRODUCT_LINES = 5
 MOST_PARTNERS = 6
-MOST_ISSUES = 8
 #: Les mots de la feuille de la CFO qui disent qu'une boutique est fermée. La feuille ne
 #: parle pas comme le référentiel : quand aucun mot ne s'y retrouve, le dossier montre le
 #: statut tel quel et ne conclut pas.
@@ -190,7 +189,6 @@ class Dossier:
         self.stopped: List = []
         self.newcomers: List = []
         self.iso2 = ""
-        self.issues: List[Mention] = []
         self.notes: List = []
         #: Ce qui marche par produit sur ce marché — catégories et gammes, la même lecture
         #: que la page du périmètre, sur ce seul marché — ou None.
@@ -651,24 +649,20 @@ class Dossier:
             out.append("  aucun, ou pays de facturation inconnu")
         if self.stopped or self.newcomers:
             out.append("  relève : %s" % self.relay_sentence)
-        out.append("REGISTRE ET NOTES")
-        for item in self.issues:
-            out.append("  %s · %s · %s%s" % (item.issue_id, item.title[:100], item.status_word,
-                                             (" — " + item.conclusion) if item.conclusion else ""))
+        out.append("NOTES DE CONTEXTE")
         for note in self.notes:
             out.append("  note %s%s depuis %s : %s" % (
                 note.kind, (" · " + note.channel) if note.channel else "", note.since or "—",
                 note.text[:120]))
-        if not self.issues and not self.notes:
-            out.append("  rien d'écrit")
+        if not self.notes:
+            out.append("  aucune note")
         return out
 
 
 def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=None,
-          accounts=None, register=None, notes: Sequence = (), store_sales=None,
+          accounts=None, notes: Sequence = (), store_sales=None,
           iso2_by_market: Optional[Dict[str, str]] = None, owner: str = "",
           closed_statuses: Optional[Sequence[str]] = None, products=None) -> Dossier:
-    from ..domain import issues as domain
     from .budget import normalise_market
 
     if closed_statuses is None:
@@ -759,12 +753,5 @@ def build(market: str, dataset=None, grey_review=None, shadow_review=None, plan=
             if any(line.country == dossier.iso2 and line.ytd > 0 for line in partner.countries):
                 dossier.newcomers.append(partner)
 
-    found = []
-    for issue in getattr(register, "issues", []) or []:
-        scopes = getattr(issue, "scopes", []) or []
-        if name in scopes or name.lower() in (issue.title or "").lower():
-            found.append(issue)
-    found.sort(key=lambda issue: issue.status == domain.CLOSED)
-    dossier.issues = [Mention(issue) for issue in found[:MOST_ISSUES]]
     dossier.notes = [note for note in notes if getattr(note, "market", "") == name]
     return dossier

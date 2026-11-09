@@ -33,15 +33,10 @@
               <span class="fire-gap-sub">vs plan · {{ issue.channels }}</span></span>
           </div>
           <p class="issue-owner">{{ issue.owner.name }} · {{ issue.owner.role }}
-            {% if not issue.has_commitment %}
-              {# Once for the subject, not once per channel. Repeated on each line it
-                 stopped being read, which is the opposite of what an absence is for. #}
-              <span class="badge badge-fact">SANS ENGAGEMENT</span>
-            {% endif %}
           </p>
         {% endif %}
       <ol class="issue-members{{ ' is-bare' if issue.is_single }}">
-    {% for fire, commitment, signals in members %}
+    {% for fire, signals in members %}
       <li class="fire">
         <div class="fire-head">
           <h3>{{ fire.unit.label }}</h3>
@@ -181,14 +176,6 @@
               {{ signal.label }} {{ kpi_rules.format_value(signal, signal.latest.value) }}
               (cible {{ kpi_rules.format_value(signal, signal.target) }}){% if not loop.last %} · {% endif %}
             {% endfor %}
-          </p>
-        {% endif %}
-
-        {% if commitment %}
-          <p class="linked-commitment">
-            Engagement ouvert — {{ commitment.action }}
-            {% if commitment.expected_impact %}({{ commitment.expected_impact }}){% endif %}
-            {% if commitment.due_date %}· échéance {{ commitment.due_date }}{% endif %}
           </p>
         {% endif %}
 
@@ -610,20 +597,6 @@
   {% endif %}
 </section>
 
-{# ------------------------------------------------------------------ changements #}
-
-<section class="panel" id="changements">
-  <h2>Ce qui a changé depuis lundi dernier, en entier</h2>
-  <p class="lede">{{ changes.sentence | ucfirst }}.</p>
-  {% if not changes.is_quiet %}
-    <ol class="watch-list">
-      {% for item in changes.items %}
-        <li class="watch"><p class="watch-line"><span class="badge">{{ item.kind }}</span> <span class="subject-ref">{{ item.when }}</span> {{ item.text }}</p></li>
-      {% endfor %}
-    </ol>
-  {% endif %}
-</section>
-
 {# ------------------------------------------------------------------ clients #}
 
 <section class="panel" id="clients">
@@ -930,18 +903,6 @@
     <p class="empty">{{ (shadow.note if shadow and shadow.note else "le gris sans drapeau n'est pas lu") | ucfirst }}.</p>
   {% endif %}
 
-  {# Le dossier : ce que le registre a déjà dit du gris. #}
-  <h3 class="subject-heading">Ce que le registre en dit</h3>
-  {% if grey and grey.dossier %}
-    <ul class="line-list">
-      {% for item in grey.dossier %}
-        <li><strong>{{ item.issue_id }}</strong> · {{ item.title }} · {{ item.status_word }}{% if item.last_seen %}, vu le {{ item.last_seen }}{% endif %}{% if item.conclusion %} — {{ item.conclusion }}{% endif %}</li>
-      {% endfor %}
-    </ul>
-    <p class="cockpit-caveat">Les sujets dont le titre, une preuve ou une lecture parle de gris, de vrac, de daigou ou de duty free. Une recherche sur les mots, pas une détection.</p>
-  {% else %}
-    <p class="empty">Aucun sujet du registre ne parle de gris, de vrac ou de daigou. Une recherche sur les mots, pas une détection : ce qui n'a pas été écrit n'y est pas.</p>
-  {% endif %}
 </section>
 
 {# ------------------------------------------- where a second base changes the verdict #}
@@ -1077,13 +1038,6 @@
           d'entonnoir derrière le chiffre — une facture de partenaire n'en a pas — soit il existe
           et n'est pas compté, comme en boutique sans compteur de trafic. Pas un défaut à réparer
           côté marché, et pas une raison de descendre le chiffre dans la liste.
-        </p>
-      </li>
-      <li class="provenance">
-        <div class="provenance-head"><span class="badge badge-fact">SANS ENGAGEMENT</span></div>
-        <p class="provenance-note">
-          Rien n'a été promis contre cet écart. Dit une fois pour le sujet : imprimé sur chaque
-          canal, il n'était plus lu, soit l'inverse de ce à quoi sert une absence.
         </p>
       </li>
     </ul>

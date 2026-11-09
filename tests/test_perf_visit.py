@@ -29,7 +29,7 @@ def test_the_dossier_asks_three_questions_and_starts_with_the_unmarked_bulk():
 def test_the_dossier_renders_as_text_in_a_fixed_order():
     text = "\n".join(_dossier().lines())
     for heading in ("LES TROIS QUESTIONS", "CANAUX", "BOUTIQUES", "GRIS", "CE QUI L'ALIMENTE",
-                    "PARTENAIRES FACTURÉS DEPUIS CN", "REGISTRE ET NOTES"):
+                    "PARTENAIRES FACTURÉS DEPUIS CN", "NOTES DE CONTEXTE"):
         assert heading in text
     assert text.index("LES TROIS QUESTIONS") < text.index("CANAUX") < text.index("GRIS")
 
@@ -37,7 +37,7 @@ def test_the_dossier_renders_as_text_in_a_fixed_order():
 def test_a_market_without_readings_still_has_a_dossier():
     dossier = visit.build("Westland")
     assert dossier.name == "Westland" and dossier.questions == []
-    assert "rien d'écrit" in "\n".join(dossier.lines())
+    assert "aucune note" in "\n".join(dossier.lines())
 
 
 def test_the_first_question_is_about_the_unmarked_euros_when_they_weigh():

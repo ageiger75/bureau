@@ -1,7 +1,7 @@
 """Une page par périmètre — B1. Le même squelette pour tous, filtré sur les marchés du MD.
 
 Ces tests gardent l'atterrissage, qui est un calcul à deux hypothèses et jamais une
-prévision, et le filtrage : un sujet ou un feu d'un autre périmètre n'apparaît pas.
+prévision, et le filtrage : un feu d'un autre périmètre n'apparaît pas.
 Toutes les valeurs sont inventées.
 """
 
@@ -111,21 +111,6 @@ def test_the_landing_is_absent_without_closed_months_or_a_plan():
                                      "2026-08").absent
 
 
-class _Issue:
-    def __init__(self, title, scopes):
-        self.title, self.scopes, self.issue_id, self.readings = title, scopes, "ISS-1", []
-
-
-class _Row:
-    def __init__(self, title, scopes):
-        self.issue, self.role, self.why = _Issue(title, scopes), "CHALLENGE", "x"
-
-
-class _Week:
-    def __init__(self, attention, watch):
-        self.attention, self.watch = attention, watch
-
-
 class _Unit:
     def __init__(self, market):
         self.market = market
@@ -144,18 +129,12 @@ class _Dataset:
     units, period_label, as_of, period = [], "", "", "2026-09"
 
 
-def test_subjects_and_fires_of_other_perimeters_stay_out():
-    week = _Week([_Row("Northland retail slips", ["Northland/retail"]),
-                  _Row("Elsewhere", ["Southland"])],
-                 [_Row("Watch Northland", ["Northland"])])
+def test_fires_of_other_perimeters_stay_out():
     fires = [_Fire("Southland", "why?"), _Fire("Northland", "what moves it?")]
-    page = P.build("Nord", "Personne N", ["Northland"], _Dataset(), None, _Track(),
-                   week=week, fires=fires)
+    page = P.build("Nord", "Personne N", ["Northland"], _Dataset(), None, _Track(), fires=fires)
 
-    assert [row.issue.title for row in page.subjects] == ["Northland retail slips"]
-    assert [row.issue.title for row in page.watched] == ["Watch Northland"]
     assert [fire.unit.market for fire in page.fires] == ["Northland"]
-    assert page.question == "Northland retail slips"
+    assert page.question == "what moves it?"
     assert page.slug == "nord"
 
 

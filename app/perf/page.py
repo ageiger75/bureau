@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Sequence
 from . import track as track_module
 
 #: Le nombre de sujets et de feux portés sur la page. Au-delà, on compte.
-MOST_SUBJECTS = 5
 MOST_FIRES = 3
 
 
@@ -438,11 +437,10 @@ class Page:
     """Tout ce que la page rend, déjà filtré."""
 
     def __init__(self, name: str, lead: str, markets: Sequence[str], scope,
-                 land: Landing, month_group, mix, subjects: Sequence, watched: Sequence,
-                 fires: Sequence, absent: Sequence[str], ebitda=None, pnl=None,
+                 land: Landing, month_group, mix, fires: Sequence, absent: Sequence[str],
+                 ebitda=None, pnl=None,
                  weekly=None, invoiced=None, gifting=None, retail: Sequence = (),
-                 retail_years: str = "", talks: Sequence = (), watch_lines: Sequence = (),
-                 products=None, elsewhere: Sequence = (), clients=None, together=None,
+                 retail_years: str = "", products=None, elsewhere: Sequence = (), clients=None, together=None,
                  reforecast=None, reforecast_note: str = "") -> None:
         self.name = name
         self.lead = lead
@@ -452,8 +450,6 @@ class Page:
         self.landing = land
         self.month_group = month_group
         self.mix = mix
-        self.subjects = list(subjects)
-        self.watched = list(watched)
         self.fires = list(fires)
         self.absent = list(absent)
         #: Le plan EBITDA de ce périmètre, tel que la Finance l'a budgété — ou None.
@@ -471,10 +467,6 @@ class Page:
         #: L'euro suivant en boutique, marché par marché, mesuré — vide sans le fichier.
         self.retail = list(retail)
         self.retail_years = retail_years
-        #: Les conversations préparées de ce périmètre, et ses lignes de surveillance —
-        #: la même préparation que l'écran du jour, filtrée sur ses marchés.
-        self.talks = list(talks)
-        self.watch_lines = list(watch_lines)
         #: Ce qui marche par produit sur ce périmètre — catégories et gammes, la somme de
         #: ses marchés — ou None sans lecture produit.
         self.products = products
@@ -501,10 +493,7 @@ class Page:
 
     @property
     def question(self) -> str:
-        """La seule question du jour : le sujet porté cette semaine, sinon le plus gros feu,
-        sinon ce que le verdict du mois dit."""
-        if self.subjects:
-            return self.subjects[0].issue.title
+        """La seule question du jour : le plus gros feu, sinon ce que le verdict du mois dit."""
         if self.fires:
             return getattr(self.fires[0], "question", "") or ""
         month = self.scope.month if self.scope else None
@@ -529,15 +518,10 @@ class Page:
         return ""
 
 
-def _in(markets: Sequence[str], scope_text: str) -> bool:
-    head = (scope_text or "").split("/")[0].strip()
-    return head in markets
-
-
 def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, track,
-          week=None, fires: Sequence = (), contribution=None, published=None,
+          fires: Sequence = (), contribution=None, published=None,
           budget=None, ebitda=None, incremental=None, pnl=None, weekly=None,
-          invoiced=None, gifting=None, retail=None, prepared=None, products=None,
+          invoiced=None, gifting=None, retail=None, products=None,
           elsewhere: Sequence = (), clients=None, reforecast=None) -> Page:
     """Assembler la page d'un périmètre à partir de ce que l'écran du jour a déjà lu."""
     from . import mix as mix_module
@@ -562,10 +546,6 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
         absent.append("aucune unité de l'écran sur ces marchés : pas de mix")
     land = landing(list(markets), published, budget, getattr(track, "period", "") or "",
                    getattr(track, "closed_through", "") or "")
-    subjects = [row for row in getattr(week, "attention", [])
-                if any(_in(markets, scope_text) for scope_text in row.issue.scopes)]
-    watched = [row for row in getattr(week, "watch", [])
-               if any(_in(markets, scope_text) for scope_text in row.issue.scopes)]
     mine = [fire for fire in fires if getattr(fire.unit, "market", "") in wanted]
     plan = ebitda.for_name(name) if ebitda is not None else None
     if ebitda is not None and plan is None:
@@ -575,9 +555,6 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
     billed = invoiced.for_name(name) if invoiced is not None and invoiced.usable else None
     ahead = gifting.for_name(name) if gifting is not None and gifting.usable else None
     stores = retail.for_markets(markets) if retail is not None and not retail.is_empty else []
-    talks = [talk for talk in getattr(prepared, "conversations", ()) or () if talk.market in wanted]
-    watch_lines = [item for item in getattr(prepared, "watch", ()) or ()
-                   if item.issue.scopes and item.issue.scopes[0] in wanted]
     together = None
     if billed is not None:
         # Le plan sell-in du mois a son propre nom : « plan » est le plan EBITDA du
@@ -588,10 +565,10 @@ def build(name: str, lead: str, markets: Sequence[str], dataset, month_review, t
                             sell_in_plan, sell_in_last_year)
     outlook = reforecast.for_name(name) if reforecast is not None and reforecast.usable else None
     built = Page(name, lead, sorted(markets), scope, land, group, mix,
-                 subjects[:MOST_SUBJECTS], watched[:MOST_SUBJECTS], mine[:MOST_FIRES],
+                 mine[:MOST_FIRES],
                  absent, ebitda=plan, pnl=done, weekly=seven, invoiced=billed, gifting=ahead,
                  retail=stores, retail_years=retail.years if retail is not None else "",
-                 talks=talks, watch_lines=watch_lines, products=products, clients=clients,
+                 products=products, clients=clients,
                  elsewhere=[fire for fire in elsewhere
                             if getattr(getattr(fire, "unit", None), "market", "") in wanted],
                  together=together, reforecast=outlook,

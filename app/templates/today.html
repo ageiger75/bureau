@@ -38,10 +38,7 @@
     <a href="#semaine">Semaine</a>
     <a href="#sell-in">Sell-in</a>
     <a href="#temps-forts">Temps forts{% if gifting and gifting.usable %} <span class="jump-count">{{ gifting.count }}</span>{% endif %}</a>
-    <a href="#decider">Décider{% if prepared %} <span class="jump-count">{{ prepared.conversations | length }} · {{ prepared.watch | length }}</span>{% endif %}</a>
     <a href="#zones-rouges">Zones rouges{% if redzones and redzones.usable %} <span class="jump-count">{{ redzones.readings | length }}</span>{% endif %}</a>
-    <a href="#changements">Changé</a>
-    <a href="#engagements">Engagements{% if commitments.items %} <span class="jump-count">{{ commitments.open_count }}</span>{% endif %}</a>
   </nav>
 
   {# ---------------------------------------------------------------- le chiffre #}
@@ -402,89 +399,6 @@
   {% endif %}
 </section>
 
-{# ------------------------------------------------------------------ décider #}
-
-<section class="panel cockpit" id="decider">
-  <h2>Qu'est-ce que je décide cette semaine</h2>
-  <p class="panel-figure"><span class="figure-value">{{ prepared.conversations | length if prepared else 0 }}</span><span class="figure-delta"><small>à porter</small></span><span class="figure-value">{{ prepared.watch | length if prepared else 0 }}</span><span class="figure-delta"><small>sous surveillance</small></span></p>
-  <p class="panel-hint">
-    {% if not week.weights_read %}Classé sur le plus gros écart au plan.{% endif %}
-    {% if week_sources.missing %}Non ouvert à cette lecture : {{ week_sources.missing | join(', ') }} — pas « rien à signaler », « je n'ai pas regardé ».{% endif %}
-  </p>
-
-  {% if not week.attention and not week.watch %}
-    <p class="empty">
-      {% if week.considered %}
-        {{ week.considered }} sujet{{ '' if week.considered == 1 else 's' }} au registre,
-        aucun n'appelle d'intervention cette semaine.
-      {% else %}
-        Le registre est vide. C'est un fait, pas un silence : rien n'a encore été porté.
-      {% endif %}
-    </p>
-  {% else %}
-    {% if prepared.conversations %}
-      <h3 class="subject-heading">À faire cette semaine</h3>
-      <ol class="talk-list">
-        {% for talk in prepared.conversations %}
-          <li class="talk">
-            <p class="talk-title">
-              <span class="chip chip-role">{{ talk.role }}</span>
-              {% set head = (talk.market or "").split('/')[0].strip() %}
-              <strong>{% if head %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ talk.issue.title }}{% endif %}</strong>
-              {% if talk.who %}<span class="talk-who">avec {{ talk.who }}</span>{% else %}<span class="muted">aucun interlocuteur dans l'annuaire</span>{% endif %}
-              <span class="subject-ref">{{ talk.issue.issue_id }}</span>
-              {% if head %}<a class="scope-link" href="/marche/{{ head | slug }}">le dossier du marché</a>{% if track and track.perimeters and head in (track.perimeters | map(attribute='name') | list) %} <a class="scope-link" href="/perimetre/{{ head | slug }}">la page du périmètre</a>{% endif %}{% endif %}
-            </p>
-            {% if talk.stake %}<p class="talk-stake">{{ talk.stake | ucfirst }}.</p>{% endif %}
-            <p class="talk-question">{{ talk.question | ucfirst }}</p>
-            {% if talk.engaged %}<p class="talk-engaged">Déjà engagé : {{ talk.engaged }}.</p>{% endif %}
-            <details class="fold talk-dossier">
-              <summary>Le dossier</summary>
-              <dl class="talk-lines">
-                {% if talk.trend %}<dt>La tendance</dt><dd>{{ talk.trend | ucfirst }}.</dd>{% endif %}
-                {% if talk.on_ranges %}<dt>Sur quoi</dt><dd>{{ talk.on_ranges | ucfirst }}.</dd>{% endif %}
-                {% if talk.diagnosis %}<dt>Ce que les chiffres disent</dt><dd>{{ talk.diagnosis }}</dd>{% endif %}
-                <dt>La dernière lecture</dt>
-                <dd>{% if talk.last_reading %}{{ talk.last_reading }}{% else %}<span class="muted">pas encore de lecture</span>{% endif %}</dd>
-                {% if talk.ahead %}<dt>Ce qui arrive</dt><dd>{{ talk.ahead }}.</dd>{% endif %}
-                {% if talk.arbitrate_hint %}<dt>Le geste</dt><dd>{{ talk.arbitrate_hint }}</dd>{% endif %}
-                <dt>Retenu pour</dt><dd>{{ talk.retained_for }}</dd>
-              </dl>
-            </details>
-          </li>
-        {% endfor %}
-      </ol>
-    {% endif %}
-
-    {% if prepared.watch %}
-      <h3 class="subject-heading">Sous surveillance</h3>
-      <table class="table-clean watch-table">
-        <thead><tr><th>Marché</th><th class="num">Exercice</th><th class="num">Ce mois</th><th>Sous le plan</th><th>Sens</th><th>Qui</th><th>Quand</th></tr></thead>
-        <tbody>
-        {% for item in prepared.watch %}
-          <tr>
-            <td class="cell-name"><strong>{% if item.issue.scopes %}{% set head = item.issue.scopes[0].split('/')[0].strip() %}<a href="/marche/{{ head | slug }}">{{ head }}</a>{% else %}{{ item.issue.title }}{% endif %}</strong> <small>{{ item.issue.issue_id }}</small>{% if item.issue.scopes and track and track.perimeters and head in (track.perimeters | map(attribute='name') | list) %} <a class="scope-link" href="/perimetre/{{ head | slug }}">périmètre</a>{% endif %}</td>
-            <td class="num {{ 'is-en-retard' if item.year_gap is not none and item.year_gap < 0 else '' }}">{{ item.year_label }}</td>
-            <td class="num {{ 'is-en-retard' if item.gap is not none and item.gap < 0 else '' }}">{{ item.gap_label }}</td>
-            <td>{{ item.months_label }}</td>
-            <td>{% if item.direction %}<span class="chip {{ 'is-en-retard' if item.direction == 'se creuse' else ('is-en-avance' if item.direction == 'se referme' else '') }}">{{ item.direction }}</span>{% else %}—{% endif %}</td>
-            <td>{{ item.who }}</td>
-            <td><small>{{ item.when_label }}</small></td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    {% endif %}
-  {% endif %}
-
-  {% if week.sleeping or week.annex %}
-    <p class="subject-annex">
-      {% if week.sleeping %}{{ week.sleeping | length }} sujet{{ '' if week.sleeping | length == 1 else 's' }} arbitré{{ '' if week.sleeping | length == 1 else 's' }}, en veille.{% endif %}
-      {% if week.annex %}{{ week.annex | length }} autre{{ '' if week.annex | length == 1 else 's' }} au registre.{% endif %}
-    </p>
-  {% endif %}
-</section>
-
 {# ------------------------------------------------------------------ zones rouges #}
 
 <section class="panel cockpit" id="zones-rouges">
@@ -506,74 +420,6 @@
     <p class="empty">{% if redzones %}{% for reason in redzones.absent %}{{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}les zones rouges ne sont pas lues{% endif %}</p>
   {% endif %}
 </section>
-
-{# ------------------------------------------------------------------ ce qui a changé #}
-
-<div class="two-col cockpit">
-<section class="panel" id="changements">
-  <h2>Ce qui a changé depuis lundi dernier</h2>
-  <p class="panel-figure"><span class="figure-value">{{ changes.items | length }}</span><span class="figure-delta"><small>{{ changes.sentence }}</small></span></p>
-  {% if not changes.is_quiet %}
-    <ol class="watch-list">
-      {% for item in changes.shown[:3] %}
-        <li class="watch"><p class="watch-line"><span class="badge">{{ item.kind }}</span> <span class="subject-ref">{{ item.when }}</span> {{ item.text }}</p></li>
-      {% endfor %}
-    </ol>
-    {% if changes.items | length > 3 %}<p class="cockpit-caveat">et {{ changes.items | length - 3 }} autre{{ '' if changes.items | length == 4 else 's' }} — <a href="/analyses#changements">le détail sur Analyses</a>.</p>{% endif %}
-  {% endif %}
-</section>
-
-{# ------------------------------------------------------------------ engagements #}
-
-<section class="panel" id="engagements">
-  <h2>Engagements</h2>
-  {% if not commitments.items %}
-  <p class="empty">
-    Aucun engagement pris encore. Le premier se prend sous une conversation, après l'appel :
-    qui, à quoi, pour quand. Le lundi suivant le relit ici.
-  </p>
-  {% else %}
-  <p class="commitment-counts">
-    <span class="count"><strong>{{ commitments.open_count }}</strong> ouverts</span>
-    <span class="count count-alert"><strong>{{ commitments.overdue | length }}</strong> en retard</span>
-    <span class="count count-warn"><strong>{{ commitments.at_risk | length }}</strong> à risque</span>
-  </p>
-
-  {% set delivered_nothing = commitments.done_without_result %}
-  {% set no_impact = commitments.without_expected_impact %}
-  {% set delayed = commitments.repeatedly_delayed %}
-
-  <ul class="commitment-signals">
-    {% for item in commitments.overdue %}
-      <li><span class="tag tag-alert">En retard</span> {{ item.action }} — {{ item.owner_name }}, {{ item.market }}</li>
-    {% endfor %}
-    {% for item in delayed %}
-      <li><span class="tag tag-warn">Reporté {{ item.postponements }}×</span> {{ item.action }} — {{ item.owner_name }}</li>
-    {% endfor %}
-    {% for item in delivered_nothing %}
-      <li><span class="tag tag-warn">Fait, sans résultat</span> {{ item.action }} — attendu {{ item.expected_impact }}, observé {{ item.actual_impact | lower }}</li>
-    {% endfor %}
-    {% for item in no_impact %}
-      <li><span class="tag">Impact non chiffré</span> {{ item.action }} — {{ item.owner_name }}</li>
-    {% endfor %}
-    {% for item in commitments.delivered_results %}
-      <li><span class="tag tag-good">A marché</span> {{ item.action }} — attendu {{ item.expected_impact }}, observé {{ item.actual_impact }}</li>
-    {% endfor %}
-  </ul>
-
-  <ol class="watch-list">
-    {% for item in commitments.items if item.status in ("open", "in_progress", "blocked") %}
-      <li class="watch">
-        <p class="watch-line">
-          {% if item.reference is defined %}<span class="subject-ref">{{ item.reference }}</span>{% endif %}
-          <strong>{{ item.market }}</strong> · {{ item.action }} — {{ item.owner_name }}{% if item.due_date %}, pour le {{ item.due_date }}{% endif %}{% if item.expected_impact %} · attendu {{ item.expected_impact }}{% endif %}{% if item.status != "open" %} · {{ item.status_word if item.status_word is defined else item.status }}{% endif %}
-        </p>
-      </li>
-    {% endfor %}
-  </ol>
-  {% endif %}
-</section>
-</div>
 
 <p class="mock-note">{{ source.caveat }}</p>
 {% endfilter %}

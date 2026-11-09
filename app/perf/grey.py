@@ -60,10 +60,6 @@ MOST_RANGES = 6
 #: y suffisent est la phrase.
 CONCENTRATION = 0.80
 
-#: Les mots qui font entrer un sujet du registre dans le dossier gris.
-GREY_WORDS = ("gris", "grey", "vrac", "bulk", "daigou", "duty free", "duty-free",
-              "parallèle", "parallel")
-
 
 def _growth(now: float, before: Optional[float]) -> Optional[float]:
     if before is None or before <= 0:
@@ -263,8 +259,6 @@ class Review:
         self.months_elapsed = months_elapsed
         self.note = note
         self.detail = detail if detail is not None else Detail(note="le vrac ligne à ligne n'est pas lu")
-        #: Ce que le registre dit déjà du gris — posé par la surface, qui tient le registre.
-        self.dossier: List = []
 
     @property
     def usable(self) -> bool:
@@ -456,46 +450,6 @@ def detail(rows: Sequence[dict], through: str = "", note: str = "") -> Detail:
         start=start, through=last, total=total, note=note)
 
 
-class Mention:
-    """Un sujet du registre qui parle du gris, tel que le dossier le cite."""
-
-    __slots__ = ("issue_id", "title", "status", "last_seen", "conclusion")
-
-    def __init__(self, issue) -> None:
-        self.issue_id = issue.issue_id
-        self.title = issue.title
-        self.status = issue.status
-        self.last_seen = getattr(issue, "last_seen", "") or ""
-        self.conclusion = getattr(issue, "conclusion", "") or ""
-
-    @property
-    def status_word(self) -> str:
-        from ..domain import issues as domain
-
-        return {domain.CLOSED: "clos", domain.IN_ATTENTION: "en attention",
-                domain.WATCHED: "en veille"}.get(self.status, "détecté")
-
-
-def mentions_grey(issue) -> bool:
-    texts = [issue.title or ""]
-    texts.extend(getattr(item, "statement", "") or "" for item in getattr(issue, "evidence", []) or [])
-    texts.extend(getattr(item, "conclusion", "") or "" for item in getattr(issue, "readings", []) or [])
-    blob = " ".join(texts).lower()
-    return any(word in blob for word in GREY_WORDS)
-
-
-def dossier(register) -> List[Mention]:
-    """Les sujets du registre qui parlent du gris — ouverts d'abord, puis clos, les plus
-    récents en tête. Une recherche sur les mots : elle trouve ce qui a été écrit, pas ce
-    qui a été mesuré."""
-    from ..domain import issues as domain
-
-    found = [issue for issue in getattr(register, "issues", []) or [] if mentions_grey(issue)]
-    found.sort(key=lambda issue: (issue.status == domain.CLOSED, issue.last_seen), reverse=False)
-    found.sort(key=lambda issue: issue.status == domain.CLOSED)
-    return [Mention(issue) for issue in found]
-
-
 def build(rows: Sequence, plan=None, note: str = "", bulk_rows: Sequence[dict] = (),
           bulk_note: str = "") -> Review:
     """La lecture, sur les relevés KPI déjà tenus, le budget EBITDA déjà lu, et la dernière
@@ -573,9 +527,8 @@ def _line_for_market(plan, market: str):
 
 
 def market_brief(market: str, review: Review, plan=None, dataset=None, accounts=None,
-                 register=None, iso2_by_market: Optional[Dict[str, str]] = None) -> List[str]:
+                 iso2_by_market: Optional[Dict[str, str]] = None) -> List[str]:
     """Le gris d'un marché en une page de lignes : mesuré, ligne à ligne, sous-marin."""
-    from ..domain import issues as domain
     from .budget import normalise_market
 
     market = normalise_market(market)
@@ -669,20 +622,6 @@ def market_brief(market: str, review: Review, plan=None, dataset=None, accounts=
                                             line.ytd_label, line.growth_ytd_label,
                                             line.growth_recent_label, line.word))
 
-    # 4. Le registre.
-    out.append("REGISTRE — ce que le cockpit a déjà écrit sur %s" % market)
-    found = []
-    for issue in getattr(register, "issues", []) or []:
-        scopes = getattr(issue, "scopes", []) or []
-        if market in scopes or market.lower() in (issue.title or "").lower():
-            found.append(issue)
-    found.sort(key=lambda issue: issue.status == domain.CLOSED)
-    if not found:
-        out.append("  aucun sujet")
-    for issue in found[:8]:
-        mention = Mention(issue)
-        out.append("  %s · %s · %s%s" % (issue.issue_id, issue.title[:110], mention.status_word,
-                                         (" — " + mention.conclusion) if mention.conclusion else ""))
     return out
 
 
