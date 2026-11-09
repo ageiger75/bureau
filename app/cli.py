@@ -78,8 +78,6 @@
                                      --unmatched : les codes que le référentiel ignore
     python -m app.cli conversations  ne place plus de sujets depuis le 9 novembre 2026 : le dit, pour la section du cabinet
     python -m app.cli issues         le registre des sujets, gelé le 9 novembre 2026 : lecture seule
-                                     --scan lit les sources · --week les trois à faire
-                                     --observe TYPE:PÉRIMÈTRE --say · --conclude · --accept
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -4439,7 +4437,8 @@ def cmd_engagements(argv: List[str]) -> int:
     finally:
         session.close()
     if not taken:
-        print("Aucun engagement pris encore. Le premier se prend sous une conversation, après l'appel.")
+        print("Aucun engagement n'avait été pris dans le cockpit avant le gel du 9 novembre 2026 ; "
+              "ils se prennent dans le cabinet.")
         return 0
     for item in taken:
         late = item.days_left

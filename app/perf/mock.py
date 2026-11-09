@@ -4,8 +4,7 @@ Entirely invented. No real L'OCCITANE figure, market, person or product appears 
 
 The dataset is built to exercise the cockpit rather than to flatter it: a large market
 whose action plan targets the wrong driver, a market with strong traffic and weak
-conversion, a forecast revised down three months running, one genuine outperformance, and
-commitments in every state including one that was delivered and produced nothing.
+conversion, a forecast revised down three months running, and one genuine outperformance.
 
 Sales are never written down directly — they are the product of the drivers. A scenario
 therefore cannot claim a sales figure its own drivers do not support.
@@ -15,9 +14,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from ..domain.commitments import CommitmentInput
-from ..domain.enums import CommitmentStatus
-from ..util import days_until, today
+from ..util import today
 from .kpi import (
     ANNUAL,
     DOWN,
@@ -59,12 +56,6 @@ def _retail(sales: float, conversion: float, upt: float, asp: float) -> Drivers:
     """Retail drivers for a target sales figure. Traffic is derived, for the same reason."""
     traffic = sales / (conversion * upt * asp)
     return Drivers(("Traffic", "Conversion", "UPT", "ASP"), (traffic, conversion, upt, asp))
-
-
-def _in_days(offset: int) -> str:
-    from datetime import timedelta
-
-    return (today() + timedelta(days=offset)).isoformat()
 
 
 # --------------------------------------------------------------------------- owners
@@ -313,209 +304,6 @@ def dataset() -> Dataset:
             plan_source="the planning workbook",
         ),
     )
-
-
-# --------------------------------------------------------------------- commitments
-
-
-class MockCommitment:
-    """A commitment as the cockpit needs it (brief §17).
-
-    Four fields beyond what Decision Room stores — market, issue, expected and actual
-    impact — because the loop the cockpit closes is `problem → action → result`, and the
-    result is worthless without the expectation it is measured against.
-    """
-
-    __slots__ = (
-        "owner_name",
-        "market",
-        "issue",
-        "action",
-        "expected_impact",
-        "actual_impact",
-        "due_date",
-        "status",
-        "is_critical",
-        "evidence",
-        "postponements",
-        "notes",
-    )
-
-    def __init__(
-        self,
-        owner_name: str,
-        market: str,
-        issue: str,
-        action: str,
-        expected_impact: str,
-        due_date: Optional[str],
-        status: str,
-        actual_impact: str = "",
-        is_critical: bool = False,
-        evidence: str = "",
-        postponements: int = 0,
-        notes: str = "",
-    ) -> None:
-        self.owner_name = owner_name
-        self.market = market
-        self.issue = issue
-        self.action = action
-        self.expected_impact = expected_impact
-        self.actual_impact = actual_impact
-        self.due_date = due_date
-        self.status = status
-        self.is_critical = is_critical
-        self.evidence = evidence
-        self.postponements = postponements
-        self.notes = notes
-
-    def as_input(self) -> CommitmentInput:
-        """Bridge to the commitment rules already written for Decision Room."""
-        return CommitmentInput(
-            action=self.action,
-            owner_name=self.owner_name,
-            due_date=self.due_date,
-            status=self.status,
-            is_critical=self.is_critical,
-            evidence=self.evidence,
-        )
-
-    @property
-    def days_left(self) -> Optional[int]:
-        return days_until(self.due_date)
-
-
-def commitments() -> List[MockCommitment]:
-    OPEN = CommitmentStatus.OPEN.value
-    IN_PROGRESS = CommitmentStatus.IN_PROGRESS.value
-    DONE = CommitmentStatus.DONE.value
-    BLOCKED = CommitmentStatus.BLOCKED.value
-
-    return [
-        MockCommitment(
-            owner_name="Naoki",
-            market="Japan",
-            issue="Mobile conversion down 17% against plan",
-            action="Ship the mobile checkout recovery plan",
-            expected_impact="+€400k/month",
-            due_date=_in_days(-6),
-            status=OPEN,
-            is_critical=True,
-            postponements=2,
-            notes="Moved twice. Still the largest single driver of the Japan gap.",
-        ),
-        MockCommitment(
-            owner_name="Naoki",
-            market="Japan",
-            issue="Paid acquisition below plan",
-            action="Increase paid search investment by 15%",
-            expected_impact="",
-            due_date=_in_days(4),
-            status=IN_PROGRESS,
-            notes="No quantified impact. Targets traffic, which the data does not blame.",
-        ),
-        MockCommitment(
-            owner_name="Julien",
-            market="France",
-            issue="Store conversion below last year despite traffic growth",
-            action="Run the conversion clinic in the 20 largest stores",
-            expected_impact="+€420k/month",
-            due_date=_in_days(-2),
-            status=BLOCKED,
-            is_critical=True,
-            postponements=1,
-            evidence="Blocked on field training capacity.",
-        ),
-        MockCommitment(
-            owner_name="Sofia",
-            market="Germany",
-            issue="Mobile site search returning poor results",
-            action="Improve mobile search relevance",
-            expected_impact="+€180k/month",
-            actual_impact="No measurable uplift after three weeks",
-            due_date=_in_days(-21),
-            status=DONE,
-            evidence="Shipped on time. Conversion unchanged since release.",
-            notes="Delivered, and it did not work. The issue is still open.",
-        ),
-        MockCommitment(
-            owner_name="Yann",
-            market="United States",
-            issue="Bundle mechanic underused outside pilot stores",
-            action="Roll out the Almond bundle to all US doors",
-            expected_impact="+€250k/month",
-            actual_impact="≈ +€310k/month",
-            due_date=_in_days(-30),
-            status=DONE,
-            evidence="Rollout completed. Incremental performance above expectation.",
-        ),
-        MockCommitment(
-            owner_name="Julien",
-            market="United Kingdom",
-            issue="Forecast revised down three months running",
-            action="Rebuild the UK forecast bottom-up with store-level input",
-            expected_impact="Forecast accuracy within ±3%",
-            due_date=_in_days(9),
-            status=OPEN,
-            is_critical=True,
-        ),
-        MockCommitment(
-            owner_name="Sofia",
-            market="Germany",
-            issue="CRM reactivation not running",
-            action="Relaunch the lapsed-customer CRM programme",
-            expected_impact="+€250k/month",
-            due_date=_in_days(16),
-            status=OPEN,
-        ),
-        MockCommitment(
-            owner_name="Naoki",
-            market="Japan",
-            issue="Mobile PDP to add-to-cart step deteriorating",
-            action="Rebuild the mobile product page add-to-cart flow",
-            expected_impact="+€300k/month",
-            due_date=_in_days(27),
-            status=OPEN,
-            is_critical=True,
-        ),
-        MockCommitment(
-            owner_name="Julien",
-            market="France",
-            issue="Store staffing below plan at weekends",
-            action="Close the weekend staffing gap in the 30 busiest stores",
-            expected_impact="+€150k/month",
-            due_date=_in_days(3),
-            status=IN_PROGRESS,
-        ),
-        MockCommitment(
-            owner_name="Yann",
-            market="United States",
-            issue="Bundle mechanic not yet tested in Europe",
-            action="Document the Almond bundle playbook for European markets",
-            expected_impact="Enables replication decision",
-            due_date=_in_days(12),
-            status=OPEN,
-        ),
-        MockCommitment(
-            owner_name="Sofia",
-            market="Germany",
-            issue="Checkout abandonment above benchmark on mobile",
-            action="Add express payment options at checkout",
-            expected_impact="+€120k/month",
-            due_date=_in_days(-4),
-            status=OPEN,
-            postponements=1,
-        ),
-        MockCommitment(
-            owner_name="Marco",
-            market="Italy",
-            issue="Assortment gaps in the top 30 stores",
-            action="Close the assortment gaps identified in the January audit",
-            expected_impact="+€90k/month",
-            due_date=_in_days(21),
-            status=IN_PROGRESS,
-        ),
-    ]
 
 
 # --------------------------------------------------------------------- client KPIs

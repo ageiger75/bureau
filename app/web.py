@@ -18,7 +18,6 @@ from . import __version__
 from .config import ROOT, settings
 from .db import database_label
 from .perf import analytics as perf_format
-from .domain.commitments import ALERT_LABELS
 
 templates = Jinja2Templates(directory=str(ROOT / "app" / "templates"))
 

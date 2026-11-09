@@ -127,7 +127,7 @@ They are governance decisions, and they live in the KPI tracker. **The warehouse
 values; the tracker supplies meaning.** `KPI_READINGS` therefore returns readings only —
 scope, kpi_key, period, value — and the cockpit holds the registry.
 
-MARKET_INDEX, COMMITMENTS and FORECAST_HISTORY have no warehouse source. Left empty, the
+MARKET_INDEX and FORECAST_HISTORY have no warehouse source. Left empty, the
 cockpit says so explicitly, which is the correct outcome rather than a gap to paper over.
 
 ## Two things to preserve
@@ -1301,10 +1301,6 @@ select scope, 'net_sales_cafe_86champs', period, cafe_sales from governed
 #: instead of inventing one.
 MARKET_INDEX = ""
 
-#: Commitments, if they are tracked in the warehouse. Leave empty to keep entering them
-#: in the cockpit itself.
-COMMITMENTS = ""
-
 #: Successive forecasts for the same period, oldest first — the forecast credibility flag.
 FORECAST_HISTORY = ""
 
@@ -2134,7 +2130,6 @@ ALL = {
     "SELL_IN_HISTORY": SELL_IN_HISTORY,
     "KPI_READINGS": KPI_READINGS,
     "MARKET_INDEX": MARKET_INDEX,
-    "COMMITMENTS": COMMITMENTS,
     "FORECAST_HISTORY": FORECAST_HISTORY,
     "MONTH_TO_DATE": MONTH_TO_DATE,
     "DAILY_SALES": DAILY_SALES,

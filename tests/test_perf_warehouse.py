@@ -91,7 +91,6 @@ def test_only_the_written_queries_report_as_written():
     """
     assert set(queries.missing()) == {
         "MARKET_INDEX",
-        "COMMITMENTS",
         "FORECAST_HISTORY",
     }
 

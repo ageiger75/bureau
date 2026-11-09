@@ -991,9 +991,6 @@ class MockSource:
                 wait_for_warehouse: bool = True) -> Dataset:
         return mock.dataset()
 
-    def commitments(self) -> List["mock.MockCommitment"]:
-        return mock.commitments()
-
     def client_kpis(self, wait_for_warehouse: bool = True) -> List[Kpi]:
         return mock.client_kpis()
 
@@ -1431,10 +1428,6 @@ class SnowflakeSource:
             boundary_module.apply(context_module.current().notes, rows, names, period)
         except Exception as exc:  # noqa: BLE001
             LOG.warning("boundary: notes left undated (%s)", exc)
-
-    def commitments(self) -> List["mock.MockCommitment"]:
-        self._refuse_if_unwritten("COMMITMENTS")
-        raise NotImplementedError("Commitment mapping not written yet.")
 
     def client_kpis(self, wait_for_warehouse: bool = True) -> List[Kpi]:
         """Warehouse readings, judged against the tracker the business maintains.
