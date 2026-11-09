@@ -4,8 +4,8 @@ Le cabinet, les agents Claude Code du dossier ~/cabinet, raisonne sur le cockpit
 jamais le recalculer : deux arithmétiques du même chiffre finissent par se contredire devant
 le lecteur, et c'est lui qui paie l'écart en crédibilité devant le MD. Ces tests gardent les
 promesses de `manage.py cabinet` : chaque section est la sortie d'une commande qui existe,
-rien n'est placé au registre, aucune lecture ne part derrière l'écran, et ce qui est tranché
-arrive au cabinet avant qu'il ne le relitige.
+rien n'y suit (le suivi vit dans le cabinet depuis le 9 novembre 2026), aucune lecture ne part
+derrière l'écran, et ce qui change la mesure (notes de contexte, placements) arrive au cabinet.
 """
 
 from __future__ import annotations
@@ -15,16 +15,11 @@ from pathlib import Path
 
 from app import cli
 from app.config import settings
-from app.domain import issues as I
-from app.perf import memory
 from app.perf import source as source_module
 
 SECTIONS = (
     "Où on atterrit, sommes-nous en ligne",
-    "Les trois sujets de la semaine, et la surveillance",
     "Zones rouges",
-    "Ce qui a changé depuis lundi dernier",
-    "Engagements",
     "Ce qui est tranché",
     "La semaine",
     "Le sell-in du mois",
@@ -58,7 +53,7 @@ def test_un_dossier_de_visite_a_son_fichier_et_la_lecture_du_jour_garde_le_sien(
     body = dossier.read_text(encoding="utf-8")
     assert "\n## Dossier de visite · Japan\n" in body
     assert "Même lecture que manage.py marche Japan." in body
-    assert "## Les trois sujets" not in body
+    assert "## Zones rouges" not in body
     assert body.startswith(text.split("\n## ", 1)[0])
 
 
@@ -105,8 +100,6 @@ def test_chaque_section_est_la_sortie_de_sa_commande(tmp_path, capsys):
     cabinet et le terminal liraient deux chiffres, et le lecteur ne saurait pas lequel croire."""
     printed = {}
     for title, command in (("Où on atterrit, sommes-nous en ligne", cli.cmd_track),
-                           ("Les trois sujets de la semaine, et la surveillance",
-                            cli.cmd_conversations),
                            ("La semaine", cli.cmd_semaine),
                            ("Le sell-in du mois", cli.cmd_sellin),
                            ("Le mois, marché par marché", cli.cmd_month)):
@@ -124,64 +117,32 @@ def test_chaque_section_est_la_sortie_de_sa_commande(tmp_path, capsys):
             assert line in section, (title, line)
 
 
-def test_la_lecture_ne_place_aucun_sujet_au_registre(tmp_path, db_session):
-    """Regarder par-dessus l'épaule ne fait pas d'un sujet un sujet porté : seul l'écran
-    place. Un export qui plaçait déplacerait les créneaux d'attention chaque lundi."""
-    register = I.Register()
-    register.observe(I.Observation(kind="gap_to_plan", scope="Japan", seen_at="2026-09-30",
-                                   statement="Écart au plan qui dure"))
-    memory.save(db_session, register)
-    db_session.commit()
-    before = [(issue.issue_id, issue.status) for issue in memory.load(db_session).issues]
+def test_le_suivi_ne_passe_plus_par_l_export(tmp_path):
+    """Décision du 9 novembre 2026 : le cockpit mesure, il ne suit pas. Les sujets de la
+    semaine, les changements et les engagements vivent dans le cabinet (sa boucle, son
+    memoire/decisions.md) ; un export qui les porterait encore ferait deux registres."""
+    text = _export(tmp_path)
 
-    _export(tmp_path, "--marche", "Japan")
-
-    db_session.expire_all()
-    after = [(issue.issue_id, issue.status) for issue in memory.load(db_session).issues]
-    assert after == before
+    for title in ("Les trois sujets de la semaine, et la surveillance",
+                  "Ce qui a changé depuis lundi dernier", "Engagements"):
+        assert "\n## %s\n" % title not in text, title
+    section = _section(text, "Ce qui est tranché")
+    assert "Écarts acceptés" not in section and "Lectures portées" not in section
+    assert "ISS-" not in section
+    assert "Le suivi" in text.split("\n## ", 1)[0]
 
 
-def test_ce_qui_est_tranche_arrive_au_cabinet(tmp_path, db_session):
+def test_ce_qui_change_la_mesure_arrive_au_cabinet(tmp_path):
     """L'agent entrepôt relitigeait ce que le lecteur avait tranché, faute de lire les notes.
-    Le cabinet lit les écarts acceptés, les lectures portées et les notes avant de juger."""
-    register = I.Register()
-    accepted = register.observe(I.Observation(kind="gap_to_plan", scope="Japan",
-                                              seen_at="2026-09-30", statement="Retard du canal"))
-    accepted.accept_variance(I.Arbitration(decided_by="Le lecteur", at="2026-10-01",
-                                           reason="Un retard choisi, l'avance le permettait",
-                                           review_on="2026-11-30"))
-    read = register.observe(I.Observation(kind="gap_to_plan", scope="France",
-                                          seen_at="2026-09-30", statement="Écart du retail"))
-    read.reinterpret("Trois boutiques mal codées", at="2026-10-02")
-    memory.save(db_session, register)
-    db_session.commit()
+    Le cabinet lit les notes de contexte et les placements avant de juger un chiffre."""
     assert cli.main(["note", "Japan", "Livraisons baissées exprès."]) == 0
 
     section = _section(_export(tmp_path), "Ce qui est tranché")
 
-    assert "accepté par Le lecteur le 2026-10-01 : Un retard choisi" in section
-    assert "à revoir le 2026-11-30" in section
-    assert "Trois boutiques mal codées" in section
+    assert "Notes de contexte" in section and "Placements décidés" in section
     assert "Livraisons baissées exprès." in section
     # Le mode d'emploi du terminal n'a rien à faire dans ce que lit le cabinet.
     assert "note --forget" not in section
-
-
-def test_un_reexamen_echu_se_dit(tmp_path, db_session):
-    """Un écart accepté n'est pas un écart oublié : sa date passée, le cabinet le voit."""
-    register = I.Register()
-    issue = register.observe(I.Observation(kind="gap_to_plan", scope="Japan",
-                                           seen_at="2026-01-31", statement="Retard ancien"))
-    issue.accept_variance(I.Arbitration(decided_by="Le lecteur", at="2026-02-01",
-                                        reason="Attendre la fin de la saison",
-                                        review_on="2026-03-01"))
-    memory.save(db_session, register)
-    db_session.commit()
-
-    section = _section(_export(tmp_path), "Ce qui est tranché")
-
-    assert "Réexamens échus" in section
-    assert "à revoir depuis le 2026-03-01" in section
 
 
 def test_sans_dossier_la_lecture_va_dans_celui_des_reglages():

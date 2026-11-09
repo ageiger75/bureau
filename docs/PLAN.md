@@ -1393,13 +1393,14 @@ reprenne : le registre des sujets (`app/domain/issues.py`, `perf/memory.py`), la
 engagements (`perf/pledges.py`, `manage.py engagements`), et la section « Ce qui est
 tranché » de l'export, qui porte encore les écarts acceptés et les lectures portées à côté
 des notes et des placements. Un test garde le gel : aucune page ne modifie le registre ni
-les engagements, et les routes qui écrivaient répondent 404. Reste à la session du cabinet :
-retirer de `cmd_cabinet` les sections « Engagements », « Les trois sujets de la semaine » et
-« Ce qui a changé », et mettre `docs/CABINET.md` à jour, qui dit encore que l'écran place et
-que les engagements se prennent dans le cockpit ; après quoi `manage.py engagements`,
-`manage.py issues`, `perf/pledges.py` et le registre pourront partir à leur tour. Le
-dossier de visite garde ses trois questions : elles sont générées des chiffres, le lecteur
-les remplace, elles ne suivent rien.
+les engagements, et les routes qui écrivaient répondent 404. Fait le même jour par la session
+du cabinet : « Engagements », « Les trois sujets de la semaine » et « Ce qui a changé » ont
+quitté `cmd_cabinet`, « Ce qui est tranché » ne porte plus que les notes de contexte et les
+placements, `docs/CABINET.md` dit le nouveau partage, et le cabinet a repris ce que le
+registre tenait (les engagements dans sa boucle, les conclusions dans son
+`memoire/decisions.md`). `manage.py engagements`, `manage.py issues`, `perf/pledges.py` et le
+registre peuvent partir à leur tour. Le dossier de visite garde ses trois questions : elles
+sont générées des chiffres, le lecteur les remplace, elles ne suivent rien.
 
 ## 7. Ce qui attend l'équipe data
 

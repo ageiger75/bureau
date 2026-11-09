@@ -91,10 +91,11 @@ sur un sujet, les questions, les promesses et les décisions vivent dans le cabi
 sujets ni aux engagements : `tests/test_web_measures_only.py` le garde, et une route qui
 le referait est refusée. Ce qui change la mesure reste ici : les notes de contexte
 (`basis_change`, `on_hold`, `one_off`, `reclassified`, `moved_calendar`), les placements
-de marchés, les poids stratégiques, et tous les écrans de chiffres. Le registre et les
-engagements gelés restent lisibles (`manage.py issues`, `manage.py engagements`, la
-section « Ce qui est tranché » de l'export) le temps que le cabinet les reprenne ; la
-session du cabinet retire ensuite leurs sections de `cmd_cabinet`.
+de marchés, les poids stratégiques, et tous les écrans de chiffres. Le cabinet a repris le
+registre le jour du gel (sa boucle tient les engagements, son `memoire/decisions.md` les
+conclusions) ; l'export (`cmd_cabinet`) ne porte plus que la mesure et, sous « Ce qui est
+tranché », les notes de contexte et les placements. `manage.py issues` et
+`manage.py engagements` lisent encore le registre gelé et peuvent partir avec lui.
 
 ## Tests
 

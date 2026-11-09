@@ -5194,60 +5194,15 @@ def _stamp_label(stamp: str) -> str:
     return label
 
 
-def _print_changes() -> int:
-    """La section « Ce qui a changé » de l'export : le cockpit ne tient plus ce journal."""
-    print(FROZEN_NOTICE)
-    return 0
-
-
 def _print_settled() -> int:
-    """Ce que le lecteur a déjà tranché : les notes de contexte, les placements, les écarts
-    acceptés et les lectures portées. Le cabinet ne relitige rien de ce qui est ici sans un
-    fait nouveau, la faute que l'agent entrepôt faisait faute de lire les notes."""
-    from datetime import date
-
-    from .db import SessionFactory, create_all
-    from .perf import memory
-
+    """Ce que le lecteur a tranché et qui change la mesure : les notes de contexte et les
+    placements de marchés. Le suivi (écarts acceptés, lectures portées, réexamens) ne passe
+    plus par ici depuis le 9 novembre 2026 : il vit dans le cabinet, qui l'a repris."""
     print("Notes de contexte")
     _print_notes(_read_notes(settings.context_path), settings.context_path, affordances=False)
     print("")
     print("Placements décidés")
     cmd_placements([])
-    create_all()
-    with SessionFactory() as session:
-        register = memory.load(session)
-    accepted = [issue for issue in register.issues if issue.is_open and issue.arbitration is not None]
-    print("")
-    print("Écarts acceptés")
-    if not accepted:
-        print("  aucun")
-    for issue in accepted:
-        arbitration = issue.arbitration
-        print("  %s · %s" % (issue.issue_id, issue.title))
-        print("     accepté par %s le %s : %s" % (arbitration.decided_by, arbitration.at,
-                                                 arbitration.reason))
-        print("     %s" % (("à revoir le %s" % arbitration.review_on) if arbitration.review_on
-                           else "sans date de réexamen : ne reviendra que sur un fait nouveau"))
-    due = register.due_for_review(date.today().isoformat())
-    if due:
-        print("")
-        print("Réexamens échus : un écart accepté n'est pas un écart oublié")
-        for issue in due:
-            print("  %s  à revoir depuis le %s" % (issue.issue_id, issue.arbitration.review_on))
-    read = [issue for issue in register.issues if issue.is_open and issue.readings]
-    print("")
-    print("Lectures portées")
-    if not read:
-        print("  aucune")
-    for issue in read:
-        last = issue.readings[-1]
-        print("  %s · %s" % (issue.issue_id, issue.title))
-        print("     le %s : %s" % (str(last.at)[:10], last.conclusion))
-        if len(issue.readings) > 1:
-            print("     avant : %s%s" % (issue.readings[-2].conclusion,
-                                         " (remplacée parce que %s)" % last.because
-                                         if last.because else ""))
     return 0
 
 
@@ -5258,8 +5213,7 @@ def _cabinet_header(source, dataset, today: str) -> List[str]:
     lines = ["# Cockpit · lecture pour le cabinet · %s" % today, "",
              "Écrit par `manage.py cabinet`, en lecture seule. Chaque section est la sortie "
              "d'une commande du cockpit, telle que l'écran la rend : rien n'est recalculé ici, "
-             "aucun sujet n'est placé au registre, aucune lecture de l'entrepôt n'est lancée "
-             "derrière.", ""]
+             "rien n'y est suivi, aucune lecture de l'entrepôt n'est lancée derrière.", ""]
     lines.append("Source : %s." % getattr(source, "label", getattr(source, "name", "")))
     if getattr(source, "caveat", ""):
         lines.append(source.caveat)
@@ -5277,8 +5231,8 @@ def _cabinet_header(source, dataset, today: str) -> List[str]:
               "qu'on ne sait pas.",
               "- Le verdict du mois est en sell-out ; le sell-in se lit à part, et la carte "
               "le dit quand les deux divergent.",
-              "- Ce qui est tranché ne se relitige pas sans fait nouveau.",
-              "- Les références ISS- et les numéros d'engagement sont ceux du cockpit."]
+              "- Ce qui est tranché ici change la mesure : notes de contexte et placements. Le suivi "
+              "(engagements, conclusions, réexamens) vit dans le cabinet depuis le 9 novembre 2026."]
     if getattr(source, "name", "") == "mock":
         lines.append("- Données de démonstration : aucun chiffre de ce fichier n'est réel.")
     else:
@@ -5292,7 +5246,8 @@ def cmd_cabinet(argv: List[str]) -> int:
 
     Le cabinet raisonne, le cockpit mesure. Pour que le premier ne recalcule jamais ce que
     le second tient, chaque section est la sortie d'une commande qui existe déjà : aucun
-    calcul ici, aucun sujet placé au registre, aucune lecture lancée derrière l'écran.
+    calcul ici, aucun suivi (il vit dans le cabinet depuis le 9 novembre 2026), aucune
+    lecture lancée derrière l'écran.
 
         manage.py cabinet                         dans CEOOS_CABINET_DIR, sinon var/cabinet/
         manage.py cabinet --vers ~/cabinet/entrees/cockpit
@@ -5320,12 +5275,8 @@ def cmd_cabinet(argv: List[str]) -> int:
     today = date.today().isoformat()
     sections = [
         ("Où on atterrit, sommes-nous en ligne", "manage.py track", lambda: cmd_track([])),
-        ("Les trois sujets de la semaine, et la surveillance", "manage.py conversations",
-         lambda: cmd_conversations([])),
         ("Zones rouges", "manage.py zones", lambda: cmd_zones([])),
-        ("Ce qui a changé depuis lundi dernier", "le bloc de l'écran du jour", _print_changes),
-        ("Engagements", "manage.py engagements", lambda: cmd_engagements([])),
-        ("Ce qui est tranché", "manage.py note --list, placements et issues", _print_settled),
+        ("Ce qui est tranché", "manage.py note --list et manage.py placements", _print_settled),
         ("La semaine", "manage.py semaine", lambda: cmd_semaine([])),
         ("Le sell-in du mois", "manage.py sellin", lambda: cmd_sellin([])),
         ("Ce qui arrive", "manage.py tempsforts", lambda: cmd_tempsforts([])),

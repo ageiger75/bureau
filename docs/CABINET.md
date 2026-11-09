@@ -1,16 +1,24 @@
 # Le cockpit et le cabinet
 
-Écrit le 24 octobre 2026. Le cabinet est un ensemble d'agents Claude Code qui vit sur le
-poste du lecteur, dans `~/cabinet`, hors de ce dépôt : il porte le contexte personnel du
-lecteur, et rien de personnel n'approche le dépôt, même dans un répertoire ignoré. Ce
-fichier dit ce que le cockpit lui donne et ce que le cabinet s'interdit d'en faire. C'est la
-première pièce de la phase 8 du plan, l'analyse par une IA, et la consigne qu'elle exigeait.
+Écrit le 24 octobre 2026, revu le 9 novembre 2026. Le cabinet est un ensemble d'agents Claude
+Code qui vit sur le poste du lecteur, dans `~/cabinet`, hors de ce dépôt : il porte le
+contexte personnel du lecteur, et rien de personnel n'approche le dépôt, même dans un
+répertoire ignoré. Ce fichier dit ce que le cockpit lui donne et ce que le cabinet s'interdit
+d'en faire. C'est la première pièce de la phase 8 du plan, l'analyse par une IA, et la
+consigne qu'elle exigeait.
 
 ## Le partage des rôles
 
 - Le cockpit **mesure** : déterministe, testé, en lecture seule, sans appel sortant.
-- Le cabinet **raisonne** : il assemble, contredit, rédige, prépare.
+- Le cabinet **raisonne et suit** : il assemble, contredit, rédige, prépare, et tient le
+  suivi (les engagements des owners, les questions, les promesses, les conclusions et leurs
+  dates de réexamen) dans sa boucle et son `memoire/decisions.md`.
 - Le lecteur **décide**.
+
+Depuis le 9 novembre 2026, le cockpit ne suit pas : aucun écran ni aucune commande n'écrit
+plus au registre des sujets ni aux engagements, et l'export ne les porte plus. Ce qui change
+la mesure reste au cockpit : les notes de contexte, les placements de marchés, les poids
+stratégiques. Le cabinet a repris ce que le registre tenait le jour du gel.
 
 Le cabinet ne recalcule jamais un chiffre que le cockpit tient, et le cockpit n'écrit jamais
 une phrase qu'il ne sait pas tracer. Deux arithmétiques du même chiffre finissent par se
@@ -30,11 +38,8 @@ sans rien écrire : un dossier vide se citerait comme un vrai.
 | Section | Même lecture que |
 | --- | --- |
 | Où on atterrit, sommes-nous en ligne | `manage.py track` |
-| Les trois sujets de la semaine, et la surveillance | `manage.py conversations` |
 | Zones rouges | `manage.py zones` |
-| Ce qui a changé depuis lundi dernier | le bloc de l'écran du jour |
-| Engagements | `manage.py engagements` |
-| Ce qui est tranché | les notes de contexte, les placements, les écarts acceptés et les lectures portées du registre |
+| Ce qui est tranché | `manage.py note --list` et `manage.py placements` : les notes de contexte et les placements de marchés, ce qui change la mesure |
 | La semaine | `manage.py semaine` |
 | Le sell-in du mois | `manage.py sellin` |
 | Ce qui arrive | `manage.py tempsforts` |
@@ -47,8 +52,8 @@ Trois propriétés, gardées par `tests/test_cabinet_export.py` :
    retouches près qui protègent le lecteur : la clôture du bloc est plus longue que toute suite
    d'accents graves du texte, et une ligne du texte qui commence par « # » recule d'une espace,
    pour qu'un nom venu de l'entrepôt ne puisse ni fermer le bloc ni forger un titre de section.
-2. **Rien n'est placé au registre.** Seul l'écran place un sujet en attention ; regarder
-   par-dessus l'épaule n'en fait pas un sujet porté.
+2. **Rien n'y suit.** L'export ne porte ni sujets placés, ni engagements, ni conclusions : le
+   suivi vit dans le cabinet, et deux registres finiraient par dire deux choses.
 3. **Aucune lecture ne part derrière l'écran** (`source.disk_only`). Le serveur, ouvert dans
    l'autre fenêtre, tient ses caches à jour ; un fil lancé par une commande mourrait avec
    elle et pourrait croiser la lecture du serveur. Les lectures courtes expirées (le mois,
@@ -87,14 +92,17 @@ Hors connexion, le cockpit reste entier et le cabinet s'arrête.
   fois, l'intragroupe tenu à part, le canal lu sur le centre de profit, les sentinelles
   écrites « N/A ». Une seconde lecture donnerait un second chiffre, et le premier qui le
   verrait serait un MD.
-- **Relitiger ce qui est tranché.** La section du même nom le porte, avec le décideur, la
-  date, la raison et la date de réexamen.
-- **Ordonner l'attention par un score.** Les trois sujets de la semaine sont ceux du
-  registre. Le cabinet y ajoute ce que le cockpit ne voit pas (la veille, les documents, les
-  rendez-vous), jamais un second classement.
-- **Tenir un second registre d'engagements.** Un engagement d'owner se prend dans le cockpit,
-  sous une conversation, après l'appel. Le cabinet tient les questions posées par le lecteur
-  et les promesses du lecteur lui-même, et rien d'autre.
+- **Relitiger ce qui est tranché.** La section du même nom porte ce qui change la mesure, les
+  notes de contexte et les placements, avec leur date ; les conclusions, les écarts acceptés
+  et leurs dates de réexamen vivent dans le `memoire/decisions.md` du cabinet, qu'il lit avant
+  de juger. Un sujet tranché revient sur un fait nouveau, nommé, ou à sa date.
+- **Ordonner l'attention par un score.** Les trois sujets de la semaine, c'est le cabinet qui
+  les choisit, sans note ni agrégat : dans l'ordre de l'écart mesuré par le cockpit, hors
+  sujets tranchés jusqu'à leur réexamen ; un sujet que le cockpit ne mesure pas (la veille,
+  un rendez-vous, une échéance) prend une place si la raison est dite.
+- **Chercher un engagement dans le cockpit.** Il n'en tient plus aucun. Les engagements des
+  owners, comme les questions et les promesses du lecteur, vivent dans la boucle du cabinet
+  avec leur échéance ; le cockpit mesure ce qu'ils ont produit, et c'est tout.
 
 ## La traçabilité
 
