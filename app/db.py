@@ -143,7 +143,7 @@ def add_missing_columns(
 ) -> Tuple[List[str], List[str]]:
     """Ajouter à la base les colonnes que les modèles ont gagnées depuis sa création.
 
-    Le besoin est né d'une panne : une colonne ajoutée à `management_issues` a rendu
+    Le besoin est né d'une panne : une colonne ajoutée à l'ancienne table des sujets a rendu
     illisible une base qui portait déjà des sujets. `create_all` ne crée que des tables
     manquantes, jamais des colonnes manquantes, et l'écran s'arrêtait sur une erreur SQL
     au lieu de s'adapter. Effacer la base aurait été la réponse courte — et elle aurait

@@ -66,7 +66,6 @@
     python -m app.cli whitespaces    les white spaces internes : canal absent, mix sous le plan, boutiques sous la médiane
     python -m app.cli products       ce qui marche par produit : catégories, gammes, références (--scope PAYS ou PÉRIMÈTRE, --refresh, --coverage)
     python -m app.cli clients        les clients : clients × panier = ventes, et le flux de la base (--scope PAYS, --refresh)
-    python -m app.cli engagements    les engagements pris dans le cockpit avant le 9 novembre 2026, gelés : lecture seule, pour le cabinet
     python -m app.cli cabinet        la lecture du jour pour le cabinet, en un fichier daté : ce que l'écran dit, rien de recalculé
                                      --vers DOSSIER (défaut CEOOS_CABINET_DIR, sinon var/cabinet/) · --marche MARCHÉ (un fichier de plus par dossier de visite)
     python -m app.cli remplissage    l'indice de remplissage du sell-in : trois mois contre le rythme et l'an dernier, canal par canal
@@ -76,8 +75,6 @@
     python -m app.cli frontieres     ce que les factures disent de chaque note de reclassement : le centre nommé, depuis quand il se tait, où le partenaire est passé
     python -m app.cli gris           le gris et le vrac : d'où il vient, ligne à ligne, comment il évolue, en face du budget ; --refresh relit l'entrepôt ; --marche Chine, un marché en une page
                                      --unmatched : les codes que le référentiel ignore
-    python -m app.cli conversations  ne place plus de sujets depuis le 9 novembre 2026 : le dit, pour la section du cabinet
-    python -m app.cli issues         le registre des sujets, gelé le 9 novembre 2026 : lecture seule
     python -m app.cli serve          démarre le serveur (port lu dans PORT, défaut 8000)
 """
 
@@ -2570,100 +2567,6 @@ def cmd_distribution(argv: List[str]) -> int:
     return 0
 
 
-#: Le jour où le cockpit a cessé de suivre : les engagements des owners, les conclusions
-#: portées sur un sujet, les placements d'attention vivent dans le cabinet du lecteur, hors
-#: de ce dépôt. Le registre et les engagements restent lisibles, gelés, le temps que le
-#: cabinet les reprenne.
-TRACKING_FROZEN_ON = "2026-11-09"
-FROZEN_NOTICE = ("Le cockpit mesure, il ne suit pas : depuis le %s, les sujets à porter, la "
-                 "surveillance et les engagements vivent dans le cabinet du lecteur. Rien n'est "
-                 "placé ni écrit ici." % TRACKING_FROZEN_ON)
-
-
-def cmd_conversations(argv: List[str]) -> int:
-    """Ne place plus de sujets. La commande reste parce que l'export du cabinet la cite par
-    son nom : elle dit où le suivi vit désormais, et rien d'autre."""
-    print(FROZEN_NOTICE)
-    return 0
-
-
-def cmd_issues(argv: List[str]) -> int:
-    """Le registre des sujets, gelé le 9 novembre 2026 : ce que la mémoire porte, en lecture
-    seule. Aucun geste n'y écrit plus — ni observation, ni conclusion, ni arbitrage, ni
-    clôture : ils se prennent dans le cabinet. Le registre reste lisible le temps que le
-    cabinet le reprenne.
-
-        manage.py issues
-    """
-    from datetime import date
-
-    from .db import SessionFactory, create_all
-    from .perf import memory
-
-    create_all()
-    with SessionFactory() as session:
-        register = memory.load(session)
-    print(FROZEN_NOTICE)
-    _print_issues(register, date.today().isoformat())
-    return 0
-
-
-def _print_issues(register, today: str) -> None:
-    """La mémoire, telle qu'elle est. Les trois dimensions côte à côte et jamais fondues."""
-    open_ones = register.open_issues()
-    print("")
-    print("Sujets connus      %d, dont %d ouverts" % (len(register), len(open_ones)))
-    if not open_ones:
-        print("")
-        print("Aucun sujet ouvert. La mémoire est vide, ce qui est un fait et non un")
-        print("silence : rien n'a encore été porté, par personne.")
-        return
-
-    print("")
-    print("%-9s %-28s %-18s %-10s %-9s %-12s %s"
-          % ("Réf", "Sujet", "Où il en est", "Tendance", "Traitement", "Confiance", "Vu"))
-    for issue in open_ones:
-        # Le cycle de vie s'affiche à côté des trois dimensions, jamais fondu avec elles.
-        # Sans lui, un sujet qu'on a décidé de laisser passer est indiscernable d'un sujet
-        # que personne n'a encore regardé — et tracer la décision de ne rien faire ne sert
-        # à rien si elle ne se voit pas.
-        print("%-9s %-28s %-18s %-10s %-9s %-12s %s"
-              % (issue.issue_id, issue.title[:28], issue.status, issue.trend,
-                 issue.progress, issue.confidence, issue.last_seen or "—"))
-        if len(issue.scopes) > 1:
-            print("%-9s   sur %s" % ("", ", ".join(issue.scopes)))
-        if issue.arbitration is not None:
-            print("%-9s   écart accepté par %s le %s"
-                  % ("", issue.arbitration.decided_by, issue.arbitration.at))
-            print("%-9s   %s" % ("", issue.arbitration.reason[:66]))
-            if issue.arbitration.review_on:
-                print("%-9s   à revoir le %s" % ("", issue.arbitration.review_on))
-            else:
-                print("%-9s   sans date de réexamen : ne reviendra que sur un fait nouveau"
-                      % "")
-        if issue.conclusion:
-            print("%-9s   lecture : %s" % ("", issue.conclusion[:64]))
-            if issue.previous_conclusion:
-                print("%-9s   avant   : %s" % ("", issue.previous_conclusion[:64]))
-
-    repeated = register.repeated()
-    if repeated:
-        print("")
-        print("Réapparitions — déjà signalé une fois, et revenu :")
-        for issue in repeated:
-            print("  %s suit %s" % (issue.issue_id, issue.follows))
-
-    due = register.due_for_review(today)
-    if due:
-        print("")
-        print("Réexamens échus — un écart accepté n'est pas un écart oublié :")
-        for issue in due:
-            arbitration = issue.arbitration
-            print("  %s  %s  décidé par %s"
-                  % (issue.issue_id, arbitration.review_on, arbitration.decided_by))
-            print("     %s" % arbitration.reason[:70])
-
-
 def _number_or_none(text: str) -> Optional[float]:
     try:
         return float(text.replace(" ", "").replace(",", ".")) if text else None
@@ -4426,33 +4329,6 @@ def cmd_gris(argv: List[str]) -> int:
     return 0
 
 
-def cmd_engagements(argv: List[str]) -> int:
-    """Les engagements pris dans le cockpit : qui, à quoi, pour quand, et où ils en sont."""
-    from .db import SessionFactory
-    from .perf import pledges as pledges_module
-
-    session = SessionFactory()
-    try:
-        taken = pledges_module.load(session)
-    finally:
-        session.close()
-    if not taken:
-        print("Aucun engagement n'avait été pris dans le cockpit avant le gel du 9 novembre 2026 ; "
-              "ils se prennent dans le cabinet.")
-        return 0
-    for item in taken:
-        late = item.days_left
-        when = ("pour le %s" % item.due_date) if item.due_date else "sans échéance"
-        if item.is_live and late is not None and late < 0:
-            when += " (en retard de %d jours)" % -late
-        print("  %-8s %-10s %-18s %s — %s, %s%s" % (
-            item.reference, item.status_word, item.market[:18], item.action, item.owner_name or "sans owner",
-            when, " · attendu %s" % item.expected_impact if item.expected_impact else ""))
-        if item.actual_impact:
-            print("  %-8s %-10s %-18s observé : %s" % ("", "", "", item.actual_impact))
-    return 0
-
-
 def cmd_whitespaces(argv: List[str]) -> int:
     """Les trois formes internes de white space, telles que la page Analyses les rend."""
     from .perf.source import current_source
@@ -5388,10 +5264,6 @@ def main(argv: List[str]) -> int:
         return cmd_org(argv[1:])
     if command == "partners":
         return cmd_partners(argv[1:])
-    if command == "conversations":
-        return cmd_conversations(argv[1:])
-    if command == "issues":
-        return cmd_issues(argv[1:])
     if command == "phasing":
         return cmd_phasing(argv[1:])
     if command == "month":
@@ -5422,8 +5294,6 @@ def main(argv: List[str]) -> int:
         return cmd_zones(argv[1:])
     if command == "whitespaces":
         return cmd_whitespaces(argv[1:])
-    if command == "engagements":
-        return cmd_engagements(argv[1:])
     if command == "cabinet":
         return cmd_cabinet(argv[1:])
     if command == "partenaires":
