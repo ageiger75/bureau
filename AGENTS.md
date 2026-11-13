@@ -94,8 +94,9 @@ le referait est refusée. Ce qui change la mesure reste ici : les notes de conte
 de marchés, les poids stratégiques, et tous les écrans de chiffres. Le cabinet a repris le
 registre le jour du gel (sa boucle tient les engagements, son `memoire/decisions.md` les
 conclusions) ; l'export (`cmd_cabinet`) ne porte plus que la mesure et, sous « Ce qui est
-tranché », les notes de contexte et les placements. `manage.py issues` et
-`manage.py engagements` lisent encore le registre gelé et peuvent partir avec lui.
+tranché », les notes de contexte et les placements. Le registre, les engagements, leurs
+commandes et leurs tables ont quitté le dépôt le 13 novembre 2026 : la base ne porte plus
+aucune table.
 
 ## Tests
 
@@ -110,7 +111,7 @@ extérieur démarre le processus. `tests/test_manage_entrypoint.py` garde cette 
 - Les tests du domaine ne montent ni base ni serveur.
 - Les tests de parcours passent par la **vraie page HTML** (`client.get`) et lisent ce
   qu'elle rend. Le cockpit n'a plus de formulaire : un écran est une lecture, et un test
-  vérifie qu'aucune page ne modifie le registre ni les engagements.
+  vérifie qu'aucune page n'en offre un et que les routes qui écrivaient ont disparu.
 - Deux pièges déjà rencontrés, documentés dans `tests/conftest.py` :
   - Jinja2 échappe les apostrophes en `&#39;`. Utiliser `page_text(response)` pour les
     assertions sur du texte français ; lire `response.text` brut uniquement dans le test
@@ -121,7 +122,7 @@ extérieur démarre le processus. `tests/test_manage_entrypoint.py` garde cette 
   volontaire : c'est ainsi que `on_event` a été remplacé par un gestionnaire `lifespan`.
 
 Toute nouvelle règle du domaine arrive avec son test. Toute nouvelle route arrive avec un
-test de parcours ; une route qui écrirait au registre ou aux engagements est refusée.
+test de parcours ; une route qui écrirait un suivi est refusée.
 
 ## Conventions de base de données
 

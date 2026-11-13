@@ -1398,8 +1398,10 @@ du cabinet : « Engagements », « Les trois sujets de la semaine » et « Ce qu
 quitté `cmd_cabinet`, « Ce qui est tranché » ne porte plus que les notes de contexte et les
 placements, `docs/CABINET.md` dit le nouveau partage, et le cabinet a repris ce que le
 registre tenait (les engagements dans sa boucle, les conclusions dans son
-`memoire/decisions.md`). `manage.py engagements`, `manage.py issues`, `perf/pledges.py` et le
-registre peuvent partir à leur tour. Le dossier de visite garde ses trois questions : elles
+`memoire/decisions.md`). Partis le 13 novembre 2026, une fois l'export libéré :
+`manage.py engagements`, `manage.py issues`, `perf/pledges.py`, `perf/memory.py`,
+`domain/issues.py` et les quatre tables ; la base ne porte plus aucune table, `Base` reste
+pour la prochaine. Le dossier de visite garde ses trois questions : elles
 sont générées des chiffres, le lecteur les remplace, elles ne suivent rien.
 
 ## 7. Ce qui attend l'équipe data

@@ -7,11 +7,11 @@ le verdict, la semaine, le sell-in du mois, ce qui arrive, les zones rouges — 
 « Analyses » pour tout ce qui explique, classe, propose ou vérifie — dont ce qui marche par
 produit : catégories, gammes, références, sur l'exercice à date, les partenaires de
 sell-in par leur nom, le gris et le vrac. Le prototype précédent,
-Decision Room, a été retiré le 7 septembre 2026 ; son histoire est dans `PIVOT.md` et le
-registre des sujets, seule pièce conservée, dans `app/domain/issues.py`. **Depuis le
-9 novembre 2026, le cockpit mesure et ne suit pas** : les engagements, les conclusions sur
-un sujet et les sujets à porter vivent dans le cabinet du lecteur (`docs/CABINET.md`) ; le
-registre est gelé, lisible, et aucun écran n'y écrit.
+Decision Room, a été retiré le 7 septembre 2026 ; son histoire est dans `PIVOT.md`.
+**Depuis le 9 novembre 2026, le cockpit mesure et ne suit pas** : les engagements, les
+conclusions sur un sujet et les sujets à porter vivent dans le cabinet du lecteur
+(`docs/CABINET.md`) ; le registre des sujets, dernière pièce du prototype, a quitté le
+dépôt le 13 novembre 2026, et la base ne porte plus aucune table.
 
 **L'état du produit, ce qui manque et l'ordre des travaux sont dans `docs/PLAN.md`.**
 C'est le document à lire en premier pour reprendre le travail : il porte aussi les règles
@@ -19,7 +19,7 @@ de mesure apprises sur de vraies données, qu'aucune relecture du code ne redonn
 
 **La langue de l'interface est le français.** La doctrine V6.1 demandait un écran en
 anglais ; le lecteur a tranché pour le français, qui est déjà celle du terminal, des notes
-de contexte et du registre. L'écran web est encore en anglais et doit être repris.
+de contexte. L'écran web est encore en anglais et doit être repris.
 
 ---
 
@@ -124,7 +124,7 @@ Tester la connexion à l'entrepôt sans lire aucune donnée métier :
 ```
 
 Écrire la lecture du jour pour le cabinet d'agents du lecteur — ce que l'écran dit déjà, en
-un fichier daté, rien de recalculé, rien de placé au registre (voir `docs/CABINET.md`) :
+un fichier daté, rien de recalculé, rien de suivi (voir `docs/CABINET.md`) :
 
 ```bash
 .venv/bin/python manage.py cabinet
